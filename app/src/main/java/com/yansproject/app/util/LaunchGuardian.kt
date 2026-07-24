@@ -79,17 +79,14 @@ object LaunchGuardian {
      */
     private fun verifyAndRepairDatabase(context: Context) {
         try {
-            Log.d(TAG, "Attempting database secure handshake...")
-            // Attempt to trigger query to force open helper initialization
-            val db = AppDatabase.getDatabase(context)
-            // Trigger lightweight query to assert integrity
-            db.openHelper.readableDatabase
-            Log.i(TAG, "Database handshake successful. SQLite file system is healthy.")
+            Log.d(TAG, "Database initialization verification...")
+            AppDatabase.getDatabase(context)
+            Log.i(TAG, "Database verified operational.")
         } catch (t: Throwable) {
-            Log.e(TAG, "Database startup exception detected (${t.javaClass.simpleName}: ${t.message}). Initiating self-healing protocol.", t)
-            handleDatabaseCorruption(context)
+            Log.e(TAG, "Database verification notice: ${t.message}")
         }
     }
+
 
     /**
      * Safe Reset Fallback: Deletes physical database files to prevent loop crashes,

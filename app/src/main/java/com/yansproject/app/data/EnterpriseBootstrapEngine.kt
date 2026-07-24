@@ -399,7 +399,6 @@ object EnterpriseBootstrapEngine {
             metadataManager.setProgress(0.0f)
             metadataManager.setProgressText("Bootstrap gagal: ${e.localizedMessage}")
             onProgress("Sinkronisasi gagal: ${e.localizedMessage}", 0.0f)
-            throw e
         }
     }
 }

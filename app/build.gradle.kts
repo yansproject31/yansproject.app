@@ -62,15 +62,10 @@ android {
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = true // Enabled obfuscation & optimization
-      isShrinkResources = true // Enabled resource shrinking
-      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      isMinifyEnabled = false
+      isShrinkResources = false
+      proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
-
-      // Automated Crashlytics Mapping File Upload for de-obfuscation
-      configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
-        mappingFileUploadEnabled = true
-      }
     }
     debug {
       signingConfig = signingConfigs.getByName("debug")
@@ -135,7 +130,6 @@ dependencies {
   implementation("com.google.firebase:firebase-analytics")
   implementation("com.google.firebase:firebase-crashlytics")
   implementation("com.google.firebase:firebase-config")
-  implementation("com.google.firebase:firebase-appcheck-playintegrity")
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.compose.material.icons.core)
   implementation(libs.androidx.compose.material.icons.extended)
@@ -153,7 +147,6 @@ dependencies {
   implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
-  implementation(libs.firebase.appcheck.recaptcha)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)
@@ -161,16 +154,12 @@ dependencies {
   implementation(libs.okhttp)
   implementation(libs.retrofit)
 
-  // SQLCipher Military-Grade Database Encryption
-  implementation(libs.sqlcipher)
   implementation(libs.sqlite.ktx)
 
   // Google Play In-App Force Update
   implementation(libs.play.core.app.update)
   implementation(libs.play.core.app.update.ktx)
 
-  // Android Keystore & Encrypted SharedPreferences
-  implementation(libs.androidx.security.crypto)
   implementation(libs.androidx.biometric)
 
   testImplementation(libs.androidx.compose.ui.test.junit4)

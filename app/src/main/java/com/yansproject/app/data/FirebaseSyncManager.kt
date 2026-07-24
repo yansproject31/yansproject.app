@@ -104,17 +104,6 @@ object FirebaseSyncManager {
             messaging = FirebaseMessaging.getInstance()
             analytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(context)
 
-            // Initialize Firebase App Check with Play Integrity
-            try {
-                val appCheck = com.google.firebase.appcheck.FirebaseAppCheck.getInstance()
-                appCheck.installAppCheckProviderFactory(
-                    com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory.getInstance()
-                )
-                Log.d(TAG, "Firebase App Check with Play Integrity provider installed.")
-            } catch (ace: Exception) {
-                Log.e(TAG, "App Check initialization failed: ${ace.message}")
-            }
-
             // Enable Offline Persistence for Firestore with Unlimited Cache Size
             @Suppress("DEPRECATION")
             val settings = FirebaseFirestoreSettings.Builder()

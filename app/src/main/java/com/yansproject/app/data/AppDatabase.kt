@@ -1,15 +1,10 @@
 package com.yansproject.app.data
 
 import android.content.Context
-import android.os.Build
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
-import net.sqlcipher.database.SupportFactory
-import java.security.SecureRandom
 
 @Database(
     entities = [
@@ -75,95 +70,22 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                try {
-                    net.sqlcipher.database.SQLiteDatabase.loadLibs(context.applicationContext)
-                } catch (t: Throwable) {
-                    android.util.Log.e("AppDatabase", "SQLCipher loadLibs warning: ${t.message}")
-                }
-                val passphrase = DatabaseEncryptionManager.getDatabasePassphrase(context)
-                val factory = SupportFactory(passphrase)
+                if (INSTANCE != null) return INSTANCE!!
 
-                val instance = Room.databaseBuilder(
+                val dbInstance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     DATABASE_NAME
                 )
-                .openHelperFactory(factory)
                 .addMigrations(MIGRATION_4_5)
                 .fallbackToDestructiveMigration()
                 .build()
-                INSTANCE = instance
-                instance
+
+                INSTANCE = dbInstance
+                dbInstance
             }
         }
     }
 }
 
-/**
- * Embedded DatabaseEncryptionManager: AES-256 SQLCipher Key Manager stored in EncryptedSharedPreferences.
- */
-object DatabaseEncryptionManager {
-    private const val PREFS_FILE = "yans_encrypted_db_prefs"
-    private const val KEY_PASSPHRASE = "db_encryption_passphrase_v1"
 
-    fun getDatabasePassphrase(context: Context): ByteArray {
-        return try {
-            val masterKey = MasterKey.Builder(context)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
-
-            val sharedPrefs = try {
-                EncryptedSharedPreferences.create(
-                    context,
-                    PREFS_FILE,
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
-            } catch (prefEx: Throwable) {
-                // Clear corrupt preferences file if KeyStore key was invalidated
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        context.deleteSharedPreferences(PREFS_FILE)
-                    } else {
-                        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE).edit().clear().apply()
-                    }
-                } catch (t: Throwable) { }
-                EncryptedSharedPreferences.create(
-                    context,
-                    PREFS_FILE,
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
-            }
-
-            var passphrase = sharedPrefs.getString(KEY_PASSPHRASE, null)
-            if (passphrase == null) {
-                passphrase = generateSecurePassphrase()
-                sharedPrefs.edit().putString(KEY_PASSPHRASE, passphrase).apply()
-            }
-            passphrase.toByteArray(Charsets.UTF_8)
-        } catch (e: Throwable) {
-            getFallbackPassphrase(context)
-        }
-    }
-
-    private fun generateSecurePassphrase(): String {
-        val chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
-        val random = SecureRandom()
-        val sb = java.lang.StringBuilder(64)
-        for (i in 0 until 64) {
-            sb.append(chars[random.nextInt(chars.length)])
-        }
-        return sb.toString()
-    }
-
-    private fun getFallbackPassphrase(context: Context): ByteArray {
-        val androidId = android.provider.Settings.Secure.getString(
-            context.contentResolver,
-            android.provider.Settings.Secure.ANDROID_ID
-        ) ?: "yans_fallback"
-        return (androidId + "military_grade_salt_yans_2026").toByteArray(Charsets.UTF_8)
-    }
-}

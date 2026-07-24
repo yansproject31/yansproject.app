@@ -17,7 +17,11 @@ class CryptoSecurityGuard {
     private val gcmTagLength = 128
 
     init {
-        getOrCreateSecretKey()
+        try {
+            getOrCreateSecretKey()
+        } catch (t: Throwable) {
+            android.util.Log.e("CryptoSecurityGuard", "KeyStore init warning: ${t.message}")
+        }
     }
 
     @Synchronized
