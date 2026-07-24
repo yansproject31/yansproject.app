@@ -399,6 +399,27 @@ interface DraftSalesOrderDao {
     suspend fun deleteDraftSalesOrder()
 }
 
+@Dao
+interface ReportCacheDao {
+    @Query("SELECT * FROM report_cache WHERE reportKey = :key")
+    fun getReportCacheFlow(key: String): Flow<ReportCache?>
+
+    @Query("SELECT * FROM report_cache WHERE reportKey = :key")
+    suspend fun getReportCache(key: String): ReportCache?
+
+    @Query("SELECT * FROM report_cache")
+    fun getAllReportCachesFlow(): Flow<List<ReportCache>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReportCache(cache: ReportCache)
+
+    @Query("DELETE FROM report_cache WHERE reportKey = :key")
+    suspend fun deleteReportCache(key: String)
+
+    @Query("DELETE FROM report_cache")
+    suspend fun clearAll()
+}
+
 
 
 

@@ -9,9 +9,13 @@ import com.yansproject.app.data.FirebaseSyncManager
 import com.yansproject.app.data.LocalDatabaseBackupWorker
 import com.yansproject.app.ui.AppFeedbackManager
 import com.yansproject.app.util.LaunchGuardian
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 class YansApplication : Application() {
+
     companion object {
         lateinit var instance: YansApplication
             private set
@@ -20,14 +24,16 @@ class YansApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        
-        // Global Anti-Crash Exception Handler to prevent Force Close on any thread
+
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("YansApplication", "FATAL_PREVENTED: Uncaught exception on thread ${thread.name}: ${throwable.message}", throwable)
             try {
-                // If the default handler is available, delegate gracefully or swallow if user wants zero crashes
-                if (defaultHandler != null && !throwable.javaClass.name.contains("Security") && !throwable.javaClass.name.contains("NullPointer")) {
+                if (defaultHandler != null && 
+                    !throwable.javaClass.name.contains("Security") && 
+                    !throwable.javaClass.name.contains("NullPointer") &&
+                    !throwable.javaClass.name.contains("SQLite") &&
+                    !throwable.javaClass.name.contains("UnsatisfiedLink")) {
                     defaultHandler.uncaughtException(thread, throwable)
                 }
             } catch (t: Throwable) {
@@ -35,30 +41,30 @@ class YansApplication : Application() {
             }
         }
 
-        // Assert secure starting conditions & run self-healing DB validation
-        try {
-            LaunchGuardian.secureStartup(this)
-        } catch (e: Exception) {
-            Log.e("YansApplication", "LaunchGuardian setup encountered an exception: ${e.message}")
-        }
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                LaunchGuardian.secureStartup(this@YansApplication)
+            } catch (e: Exception) {
+                Log.e("YansApplication", "LaunchGuardian setup encountered an exception: ${e.message}")
+            }
 
-        Log.d("YansApplication", "Initializing Firebase, feedback systems and core sync foundation.")
-        try {
-            AppFeedbackManager.initialize(this)
-        } catch (e: Exception) {
-            Log.e("YansApplication", "Failed to initialize AppFeedbackManager: ${e.message}")
-        }
-        try {
-            FirebaseSyncManager.initialize(this)
-        } catch (e: Exception) {
-            Log.e("YansApplication", "Failed to initialize Firebase: ${e.message}")
-        }
+            try {
+                AppFeedbackManager.initialize(this@YansApplication)
+            } catch (e: Exception) {
+                Log.e("YansApplication", "Failed to initialize AppFeedbackManager: ${e.message}")
+            }
 
-        // Schedule automatic periodic encrypted backups
-        try {
-            schedulePeriodicBackups()
-        } catch (e: Exception) {
-            Log.e("YansApplication", "Failed to schedule periodic database backups: ${e.message}")
+            try {
+                FirebaseSyncManager.initialize(this@YansApplication)
+            } catch (e: Exception) {
+                Log.e("YansApplication", "Failed to initialize Firebase: ${e.message}")
+            }
+
+            try {
+                schedulePeriodicBackups()
+            } catch (e: Exception) {
+                Log.e("YansApplication", "Failed to schedule periodic database backups: ${e.message}")
+            }
         }
     }
 

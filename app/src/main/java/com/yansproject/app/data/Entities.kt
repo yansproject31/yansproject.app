@@ -401,6 +401,25 @@ data class DraftSalesOrder(
     @get:PropertyName("updatedAt") @set:PropertyName("updatedAt") var updatedAt: Long = System.currentTimeMillis()
 )
 
+@Keep
+@Entity(tableName = "report_cache")
+data class ReportCache(
+    @PrimaryKey
+    @get:PropertyName("reportKey") @set:PropertyName("reportKey") var reportKey: String = "",
+    @get:PropertyName("reportType") @set:PropertyName("reportType") var reportType: String = "",
+    @get:PropertyName("periodName") @set:PropertyName("periodName") var periodName: String = "",
+    @get:PropertyName("totalRevenue") @set:PropertyName("totalRevenue") var totalRevenue: Double = 0.0,
+    @get:PropertyName("totalExpenses") @set:PropertyName("totalExpenses") var totalExpenses: Double = 0.0,
+    @get:PropertyName("netProfit") @set:PropertyName("netProfit") var netProfit: Double = 0.0,
+    @get:PropertyName("totalProjectValue") @set:PropertyName("totalProjectValue") var totalProjectValue: Double = 0.0,
+    @get:PropertyName("activeProjectsCount") @set:PropertyName("activeProjectsCount") var activeProjectsCount: Int = 0,
+    @get:PropertyName("completedProjectsCount") @set:PropertyName("completedProjectsCount") var completedProjectsCount: Int = 0,
+    @get:PropertyName("totalReceivables") @set:PropertyName("totalReceivables") var totalReceivables: Double = 0.0,
+    @get:PropertyName("cachedJsonData") @set:PropertyName("cachedJsonData") var cachedJsonData: String = "{}",
+    @get:PropertyName("lastUpdated") @set:PropertyName("lastUpdated") var lastUpdated: Long = System.currentTimeMillis(),
+    @get:PropertyName("isOfflineCached") @set:PropertyName("isOfflineCached") var isOfflineCached: Boolean = false
+)
+
 // Aliases
 typealias CustomProjectEntity = ProjectCustom
 typealias CustomInvoiceEntity = Invoice
