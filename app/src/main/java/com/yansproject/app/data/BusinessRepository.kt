@@ -652,15 +652,16 @@ class BusinessRepository(private val db: AppDatabase) {
             return false // Validation: JANGAN mengizinkan Total Terbayar lebih besar dari Grand Total.
         }
 
-        val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val invoiceDocRef = firestore.collection("invoices").document(invoiceId.toString())
-        val paymentsColRef = invoiceDocRef.collection("payments")
-        val newPaymentDocRef = paymentsColRef.document()
-        val paymentId = newPaymentDocRef.id
-
+        var paymentId = UUID.randomUUID().toString()
         val status = if (newPaid >= invoice.totalAmount) "Lunas" else if (newPaid > 0) "Sebagian" else "Belum Bayar"
 
         try {
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val invoiceDocRef = firestore.collection("invoices").document(invoiceId.toString())
+            val paymentsColRef = invoiceDocRef.collection("payments")
+            val newPaymentDocRef = paymentsColRef.document()
+            paymentId = newPaymentDocRef.id
+
             firestore.runTransaction { transaction ->
                 val invoiceSnapshot = transaction.get(invoiceDocRef)
                 val currentPaid = invoiceSnapshot.getDouble("paidAmount") ?: 0.0
@@ -784,13 +785,13 @@ class BusinessRepository(private val db: AppDatabase) {
             return false // Validation: JANGAN mengizinkan Total Terbayar lebih besar dari Grand Total.
         }
 
-        val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val invoiceDocRef = firestore.collection("invoices").document(invoiceId.toString())
-        val paymentDocRef = invoiceDocRef.collection("payments").document(paymentId)
-
         val status = if (newPaid >= invoice.totalAmount) "Lunas" else if (newPaid > 0) "Sebagian" else "Belum Bayar"
 
         try {
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val invoiceDocRef = firestore.collection("invoices").document(invoiceId.toString())
+            val paymentDocRef = invoiceDocRef.collection("payments").document(paymentId)
+
             firestore.runTransaction { transaction ->
                 val invoiceSnapshot = transaction.get(invoiceDocRef)
                 val currentPaid = invoiceSnapshot.getDouble("paidAmount") ?: 0.0
@@ -921,13 +922,13 @@ class BusinessRepository(private val db: AppDatabase) {
         val currentPayment = invoicePaymentDao.getPaymentById(paymentId) ?: return false
         val newPaid = (invoice.paidAmount - currentPayment.amount).coerceAtLeast(0.0)
 
-        val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val invoiceDocRef = firestore.collection("invoices").document(invoiceId.toString())
-        val paymentDocRef = invoiceDocRef.collection("payments").document(paymentId)
-
         val status = if (newPaid == invoice.totalAmount) "Lunas" else if (newPaid > 0) "Sebagian" else "Belum Bayar"
 
         try {
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val invoiceDocRef = firestore.collection("invoices").document(invoiceId.toString())
+            val paymentDocRef = invoiceDocRef.collection("payments").document(paymentId)
+
             firestore.runTransaction { transaction ->
                 val invoiceSnapshot = transaction.get(invoiceDocRef)
                 val currentPaid = invoiceSnapshot.getDouble("paidAmount") ?: 0.0

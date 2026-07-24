@@ -47,7 +47,13 @@ object EnterpriseSyncEngine {
             return
         }
 
-        val firestore = FirebaseFirestore.getInstance()
+        val firestore = try {
+            FirebaseFirestore.getInstance()
+        } catch (e: Throwable) {
+            Log.e(TAG, "Firestore unavailable for sync listeners: ${e.message}")
+            _syncStatus.value = "Modus Offline (Firebase tidak aktif)"
+            return
+        }
         val db = AppDatabase.getDatabase(context)
         val scope = CoroutineScope(Dispatchers.IO)
 
@@ -177,19 +183,33 @@ object EnterpriseSyncEngine {
     }
 
     fun <T : Any> syncItemToCloud(context: Context, colPath: String, id: String, item: T) {
-        FirebaseFirestore.getInstance().collection(colPath).document(id).set(item)
-            .addOnSuccessListener { Log.d(TAG, "Sync SUCCESS: $colPath ID $id") }
-            .addOnFailureListener { enqueueOfflineAction(context, colPath, id, item) }
+        try {
+            FirebaseFirestore.getInstance().collection(colPath).document(id).set(item)
+                .addOnSuccessListener { Log.d(TAG, "Sync SUCCESS: $colPath ID $id") }
+                .addOnFailureListener { enqueueOfflineAction(context, colPath, id, item) }
+        } catch (e: Throwable) {
+            Log.e(TAG, "syncItemToCloud error: ${e.message}")
+            enqueueOfflineAction(context, colPath, id, item)
+        }
     }
 
     fun deleteItemFromCloud(context: Context, colPath: String, id: String) {
-        val updates = hashMapOf<String, Any>("isDeleted" to true, "is_deleted" to true, "updatedAt" to System.currentTimeMillis(), "updated_at" to System.currentTimeMillis(), "lastUpdated" to System.currentTimeMillis())
-        FirebaseFirestore.getInstance().collection(colPath).document(id).update(updates)
-            .addOnSuccessListener { Log.d(TAG, "Delete SUCCESS: $colPath ID $id") }
-            .addOnFailureListener {
-                FirebaseFirestore.getInstance().collection(colPath).document(id).set(updates, com.google.firebase.firestore.SetOptions.merge())
-                    .addOnFailureListener { CoroutineScope(Dispatchers.IO).launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) } }
-            }
+        try {
+            val updates = hashMapOf<String, Any>("isDeleted" to true, "is_deleted" to true, "updatedAt" to System.currentTimeMillis(), "updated_at" to System.currentTimeMillis(), "lastUpdated" to System.currentTimeMillis())
+            FirebaseFirestore.getInstance().collection(colPath).document(id).update(updates)
+                .addOnSuccessListener { Log.d(TAG, "Delete SUCCESS: $colPath ID $id") }
+                .addOnFailureListener {
+                    try {
+                        FirebaseFirestore.getInstance().collection(colPath).document(id).set(updates, com.google.firebase.firestore.SetOptions.merge())
+                            .addOnFailureListener { CoroutineScope(Dispatchers.IO).launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) } }
+                    } catch (e: Throwable) {
+                        CoroutineScope(Dispatchers.IO).launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) }
+                    }
+                }
+        } catch (e: Throwable) {
+            Log.e(TAG, "deleteItemFromCloud error: ${e.message}")
+            CoroutineScope(Dispatchers.IO).launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) }
+        }
     }
 
     private fun <T : Any> enqueueOfflineAction(context: Context, colPath: String, id: String, item: T) {

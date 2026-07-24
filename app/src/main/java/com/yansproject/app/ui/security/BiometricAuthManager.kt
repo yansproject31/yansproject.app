@@ -40,34 +40,43 @@ object BiometricAuthManager {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val executor: Executor = ContextCompat.getMainExecutor(activity)
-        val biometricPrompt = BiometricPrompt(
-            activity,
-            executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    super.onAuthenticationError(errorCode, errString)
-                    onError(errString.toString())
-                }
-
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    onSuccess()
-                }
-
-                override fun onAuthenticationFailed() {
-                    super.onAuthenticationFailed()
-                    onError("Autentikasi sidik jari gagal.")
-                }
+        try {
+            if (activity.isFinishing || activity.isDestroyed) {
+                onError("Aktivitas tidak aktif untuk biometrik.")
+                return
             }
-        )
+            val executor: Executor = ContextCompat.getMainExecutor(activity)
+            val biometricPrompt = BiometricPrompt(
+                activity,
+                executor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        super.onAuthenticationError(errorCode, errString)
+                        onError(errString.toString())
+                    }
 
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Verifikasi Keamanan Owner")
-            .setSubtitle("Gunakan Sidik Jari Anda untuk melanjutkan")
-            .setNegativeButtonText("Batal / Gunakan PIN")
-            .build()
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        super.onAuthenticationSucceeded(result)
+                        onSuccess()
+                    }
 
-        biometricPrompt.authenticate(promptInfo)
+                    override fun onAuthenticationFailed() {
+                        super.onAuthenticationFailed()
+                        onError("Autentikasi sidik jari gagal.")
+                    }
+                }
+            )
+
+            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Verifikasi Keamanan Owner")
+                .setSubtitle("Gunakan Sidik Jari Anda untuk melanjutkan")
+                .setNegativeButtonText("Batal / Gunakan PIN")
+                .build()
+
+            biometricPrompt.authenticate(promptInfo)
+        } catch (t: Throwable) {
+            android.util.Log.e("BiometricAuthManager", "Biometric execution error: ${t.message}", t)
+            onError("Gagal membuka verifikasi biometrik: ${t.message}")
+        }
     }
 }
