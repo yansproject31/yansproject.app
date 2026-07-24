@@ -1,0 +1,16 @@
+{
+  "books": [
+    {
+      "id": "kitab_01",
+      "title": "YANSPROJECT.ID HISTORY",
+      "subtitle": "Digital Manuscript Archive",
+      "folder": "kitab_01"
+    },
+    {
+      "id": "kitab_02",
+      "title": "RISALAH MADAD AULIYA",
+      "subtitle": "Digital Manuscript Archive",
+      "folder": "kitab_02"
+    }
+  ]
+}

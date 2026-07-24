@@ -1,0 +1,73 @@
+# Codemagic CI/CD configuration for YANSPROJECT.ID ERP
+
+workflows:
+  yansproject-erp-build:
+    name: YANSPROJECT.ID ERP Build Pipeline
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      groups:
+        - signing_config  # Official signing credentials from CI/CD vault
+      android_signing:
+        - yansproject-upload
+      vars:
+        PACKAGE_NAME: "com.yansproject.app"
+      java: 17
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: 'main'
+        - pattern: 'master'
+    scripts:
+      - name: System Diagnostics and Environment Audit
+        script: |
+          echo "=== Global System Audit ==="
+          echo "OS Information:"
+          uname -a
+          echo "Java Version Check (AGP 9.1.1 Compatibility):"
+          java -version
+          echo "Checking Environment Variables:"
+          echo "KEYSTORE_PATH: ${KEYSTORE_PATH:-Not Set}"
+          echo "CM_KEY_ALIAS: ${CM_KEY_ALIAS:-Not Set}"
+          
+      - name: Gradle Wrapper Integrity Setup
+        script: |
+          echo "=== Gradle Wrapper Check ==="
+          if [ -f "gradlew" ]; then
+            echo "Existing Gradle Wrapper found. Preserving and using default wrapper."
+            chmod +x gradlew
+          else
+            echo "Gradle Wrapper is missing. Generating official wrapper automatically..."
+            gradle wrapper --gradle-version 8.10.2
+            chmod +x gradlew
+          fi
+
+      - name: Clean Workspace and Gradle Cache
+        script: |
+          echo "=== Cleaning Local Build Directories and Gradle Caches ==="
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew clean --no-daemon
+          fi
+          rm -rf app/build/ build/
+          rm -rf ~/.gradle/caches/transforms-* ~/.gradle/caches/build-cache-*
+
+      - name: Build Debug APK
+        script: |
+          echo "=== Compiling Debug Version ==="
+          ./gradlew assembleDebug
+
+      - name: Build Release App Bundle and APK
+        script: |
+          echo "=== Compiling Release Version ==="
+          export KEY_ALIAS="${CM_KEY_ALIAS:-$KEY_ALIAS}"
+          export STORE_PASSWORD="${CM_KEYSTORE_PASSWORD:-$STORE_PASSWORD}"
+          export KEY_PASSWORD="${CM_KEY_PASSWORD:-${CM_KEYSTORE_PASSWORD:-$KEY_PASSWORD}}"
+          export KEYSTORE_PATH="${CM_KEYSTORE_PATH:-$KEYSTORE_PATH}"
+          ./gradlew clean assembleRelease bundleRelease --no-daemon
+
+    artifacts:
+      - app/build/outputs/apk/**/*.apk
+      - app/build/outputs/bundle/**/*.aab

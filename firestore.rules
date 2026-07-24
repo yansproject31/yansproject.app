@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Check if the user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Check if the user is an owner of the resource via email mapping
+    function isOwnerOf(resourceData) {
+      return isSignedIn() && resourceData.ownerId == request.auth.token.email;
+    }
+
+    // Helper function to check if the user has the global OWNER role
+    function isOwner() {
+      return isSignedIn() && 
+             request.auth.token != null && 
+             'email' in request.auth.token && 
+             (
+               request.auth.token.email == 'admin@yansproject.id' || 
+               request.auth.token.email == 'yansart31@gmail.com' || 
+               (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
+                get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'OWNER')
+             );
+    }
+    
+    // Helper function to check if the user has the MEMBER role
+    function isMember() {
+      return isSignedIn() && 
+             request.auth.token != null && 
+             'email' in request.auth.token && 
+             exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'MEMBER';
+    }
+
+    // Restrict document size to 512KB to avoid large base64/binary payloads (highly Spark-friendly)
+    function isSizeAcceptable() {
+      return request.size < 512 * 1024;
+    }
+
+    // Prevent direct raw binary/data URI injection in attachment_url field
+    function isValidAttachmentUrl(data) {
+      return !('attachment_url' in data) || 
+             (data.attachment_url is string && 
+              !data.attachment_url.startsWith('data:'));
+    }
+
+    // Rules for 'users' collection
+    match /users/{email} {
+      allow read: if isSignedIn();
+      allow write: if isOwner() || request.auth.token.email == email;
+    }
+
+    // Operational collections restricted per owner and per member
+    match /stock_items/{id} {
+      allow read, write: if isSignedIn() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data) && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
+    }
+
+    match /projects/{id} {
+      allow read, write: if isSignedIn() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data) && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
+    }
+
+    match /invoices/{id} {
+      allow read, write: if isSignedIn() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data) && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
+    }
+
+    match /orders/{id} {
+      allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
+    }
+
+    match /expenses/{id} {
+      allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
+    }
+
+    match /inflows/{id} {
+      allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
+    }
+
+    match /notifications/{id} {
+      allow read: if isSignedIn();
+      allow write: if isOwner();
+    }
+
+    match /backups_catalog/{id} {
+      allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
+    }
+
+    // Cloud Backups Firestore document collection (Text Base64 backups)
+    match /cloud_backups/{id} {
+      allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
+    }
+  }
+}

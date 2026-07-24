@@ -1,0 +1,8 @@
+{
+  "name": "YANSPROJECT.ID",
+  "description": "Aplikasi Internal Operasional YANSPROJECT.ID untuk Dashboard Keuangan, Project Custom, Stock, Invoice, Riwayat Pemesanan AJIBQOBUL, dan KITAB DIGITAL YANSPROJECT.ID",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
