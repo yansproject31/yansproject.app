@@ -164,21 +164,21 @@ fun ProjectScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize().background(ShadowBlack),
+        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             if (isOwner) {
                 FloatingActionButton(
                     onClick = { showAddDialog = true },
-                    containerColor = AgedGold,
-                    contentColor = ShadowBlack,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = Color.Black,
                     shape = androidx.compose.foundation.shape.CircleShape,
                     modifier = Modifier.testTag("add_project_fab")
                 ) {
                     Icon(imageVector = Icons.Default.Add, contentDescription = "Tambah Project")
                 }
             }
-        },
-        containerColor = Color.Transparent
+        }
     ) { innerPadding ->
         val isSyncing by viewModel.isSyncing.collectAsState()
         PullToRefreshBox(

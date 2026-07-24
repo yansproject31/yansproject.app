@@ -146,6 +146,21 @@ object AppSettings {
     fun setAjibqobulHppPanjang(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("ajibqobul_hpp_panjang", value.toFloat()).apply()
 
+    fun getAjibqobulHppUpsizeXXL(context: Context): Double =
+        getPrefs(context).getFloat("ajibqobul_hpp_upsize_xxl", 5000f).toDouble()
+    fun setAjibqobulHppUpsizeXXL(context: Context, value: Double) =
+        getPrefs(context).edit().putFloat("ajibqobul_hpp_upsize_xxl", value.toFloat()).apply()
+
+    fun getAjibqobulHppUpsize3XL(context: Context): Double =
+        getPrefs(context).getFloat("ajibqobul_hpp_upsize_3xl", 10000f).toDouble()
+    fun setAjibqobulHppUpsize3XL(context: Context, value: Double) =
+        getPrefs(context).edit().putFloat("ajibqobul_hpp_upsize_3xl", value.toFloat()).apply()
+
+    fun getAjibqobulHppUpsize4XL(context: Context): Double =
+        getPrefs(context).getFloat("ajibqobul_hpp_upsize_4xl", 15000f).toDouble()
+    fun setAjibqobulHppUpsize4XL(context: Context, value: Double) =
+        getPrefs(context).edit().putFloat("ajibqobul_hpp_upsize_4xl", value.toFloat()).apply()
+
     fun getAjibqobulHargaRetail(context: Context): Double =
         getPrefs(context).getFloat("ajibqobul_harga_retail", 100000f).toDouble()
     fun setAjibqobulHargaRetail(context: Context, value: Double) =

@@ -62,20 +62,31 @@ object PriceResolverEngine {
 
     /**
      * Calculates the estimated cost/HPP for an AJIBQOBUL Ready Stock item.
+     * Formula: HPP Final = HPP Base (Pendek/Panjang) + HPP Upsize Charge (XXL/3XL/4XL)
      */
     fun calculateAjibqobulItemHpp(
         context: Context,
         stockMaster: MasterStock?,
-        sleeve: String
+        sleeve: String,
+        size: String = ""
     ): Double {
         val isPanjang = sleeve.trim().equals("panjang", ignoreCase = true)
-        return if (isPanjang) {
+        val baseHpp = if (isPanjang) {
             val stockHpp = stockMaster?.hpp_panjang ?: 0.0
             if (stockHpp > 0) stockHpp else AppSettings.getAjibqobulHppPanjang(context)
         } else {
             val stockHpp = stockMaster?.hpp_pendek ?: 0.0
             if (stockHpp > 0) stockHpp else AppSettings.getAjibqobulHppPendek(context)
         }
+
+        val upsizeHpp = when (size.trim().uppercase()) {
+            "XXL" -> AppSettings.getAjibqobulHppUpsizeXXL(context)
+            "3XL" -> AppSettings.getAjibqobulHppUpsize3XL(context)
+            "4XL" -> AppSettings.getAjibqobulHppUpsize4XL(context)
+            else -> 0.0
+        }
+
+        return baseHpp + upsizeHpp
     }
 
     /**

@@ -67,13 +67,13 @@ fun MainScaffold(
                 SnackbarHost(hostState = snackbarHostState) { data ->
                     Snackbar(
                         snackbarData = data,
-                        containerColor = SurfaceDarkTealSurface,
+                        containerColor = MaterialTheme.colorScheme.surface,
                         contentColor = Color.White,
-                        actionColor = AccentAgedGold,
+                        actionColor = MaterialTheme.colorScheme.primary,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .padding(12.dp)
-                            .border(1.dp, AccentAgedGold.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                     )
                 }
             },
@@ -173,7 +173,7 @@ fun MainScaffold(
                                             .size(38.dp)
                                             .clip(RoundedCornerShape(10.dp))
                                             .background(Color(0x25163536))
-                                            .border(0.8.dp, AgedGold.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                                            .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
                                     ) {
                                         IconButton(
                                             onClick = showGlobalSearch,
@@ -182,7 +182,7 @@ fun MainScaffold(
                                             Icon(
                                                 imageVector = Icons.Outlined.Search,
                                                 contentDescription = "Global Search",
-                                                tint = AgedGold,
+                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -194,7 +194,7 @@ fun MainScaffold(
                                             .size(38.dp)
                                             .clip(RoundedCornerShape(10.dp))
                                             .background(Color(0x25163536))
-                                            .border(0.8.dp, AgedGold.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                                            .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
                                     ) {
                                         IconButton(
                                             onClick = showNotifications,
@@ -203,7 +203,7 @@ fun MainScaffold(
                                             Icon(
                                                 imageVector = Icons.Outlined.Notifications,
                                                 contentDescription = "Notification Center",
-                                                tint = AgedGold,
+                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -233,7 +233,7 @@ fun MainScaffold(
                                             .size(38.dp)
                                             .clip(RoundedCornerShape(10.dp))
                                             .background(Color(0x25163536))
-                                            .border(0.8.dp, AgedGold.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                                            .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
                                     ) {
                                         IconButton(
                                             onClick = { onTabSelected(AppTab.SETTINGS) },
@@ -242,7 +242,7 @@ fun MainScaffold(
                                             Icon(
                                                 imageVector = if (isOwner) Icons.Outlined.Settings else Icons.Outlined.Person,
                                                 contentDescription = if (isOwner) "Settings" else "Profile",
-                                                tint = AgedGold,
+                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -254,7 +254,7 @@ fun MainScaffold(
                                             .size(38.dp)
                                             .clip(RoundedCornerShape(10.dp))
                                             .background(Color(0x25163536))
-                                            .border(0.8.dp, AgedGold.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                                            .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
                                     ) {
                                         IconButton(
                                             onClick = showLogout,
@@ -263,7 +263,7 @@ fun MainScaffold(
                                             Icon(
                                                 imageVector = Icons.Outlined.Logout,
                                                 contentDescription = "Logout",
-                                                tint = AgedGold,
+                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -281,7 +281,7 @@ fun MainScaffold(
                                     Brush.horizontalGradient(
                                         colors = listOf(
                                             Color.Transparent,
-                                            AgedGold.copy(alpha = 0.6f),
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                                             HighlightSoftCyan.copy(alpha = 0.6f),
                                             Color.Transparent
                                         )

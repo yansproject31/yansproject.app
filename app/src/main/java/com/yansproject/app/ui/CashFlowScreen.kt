@@ -82,22 +82,75 @@ fun CashFlowScreen(
                 borderGlowColor = AgedGold.copy(alpha = 0.4f)
             ) {
                 Column {
-                    Text(
-                        text = "SALDO KAS SAAT INI",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AgedGold,
-                        letterSpacing = 1.5.sp
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "SALDO KAS SAAT INI",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AgedGold,
+                            letterSpacing = 1.5.sp
+                        )
+                        if (isLoading) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(AgedGold.copy(alpha = 0.15f))
+                                    .border(0.8.dp, AgedGold.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "MEMUAT DATA...",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AgedGold
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = formatRupiah(currentBalance),
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = AgedGold
-                    )
+                    if (isLoading) {
+                        Box(
+                            modifier = Modifier
+                                .width(180.dp)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .shimmerEffect()
+                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = formatRupiah(currentBalance),
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = AgedGold
+                            )
+                            if (currentBalance == 0.0) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                        .border(0.5.dp, DividerDarkCyanGray.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "Nihil",
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = AgedGold.copy(alpha = 0.2f))
+                    HorizontalDivider(color = AgedGold.copy(alpha = 0.2f))
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -119,12 +172,23 @@ fun CashFlowScreen(
                                     color = TextNonActive
                                 )
                             }
-                            Text(
-                                text = formatRupiah(totalInflow),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = HighlightSoftCyan
-                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            if (isLoading) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(80.dp)
+                                        .height(16.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .shimmerEffect()
+                                )
+                            } else {
+                                Text(
+                                    text = formatRupiah(totalInflow),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = HighlightSoftCyan
+                                )
+                            }
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -142,12 +206,23 @@ fun CashFlowScreen(
                                     color = TextNonActive
                                 )
                             }
-                            Text(
-                                text = formatRupiah(totalExpense),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = StatusDangerRed
-                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            if (isLoading) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(80.dp)
+                                        .height(16.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .shimmerEffect()
+                                )
+                            } else {
+                                Text(
+                                    text = formatRupiah(totalExpense),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = StatusDangerRed
+                                )
+                            }
                         }
                     }
                 }

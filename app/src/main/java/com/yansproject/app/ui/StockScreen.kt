@@ -216,13 +216,14 @@ fun StockScreen(
         Scaffold(
             modifier = modifier
                 .fillMaxSize()
-                .background(ShadowBlack),
+                .background(MaterialTheme.colorScheme.background),
+            containerColor = MaterialTheme.colorScheme.background,
             floatingActionButton = {
                 if (isOwner) {
                     FloatingActionButton(
                         onClick = { showAddCatalogDialog = true },
-                        containerColor = AgedGold,
-                        contentColor = ShadowBlack,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.Black,
                         shape = androidx.compose.foundation.shape.CircleShape,
                         modifier = Modifier.testTag("add_catalog_fab")
                     ) {
@@ -238,8 +239,8 @@ fun StockScreen(
                     ) {
                         FloatingActionButton(
                             onClick = { showCartDialog = true },
-                            containerColor = AgedGold,
-                            contentColor = ShadowBlack,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = Color.Black,
                             shape = androidx.compose.foundation.shape.CircleShape,
                             modifier = Modifier.testTag("cart_fab")
                         ) {
@@ -247,8 +248,7 @@ fun StockScreen(
                         }
                     }
                 }
-            },
-            containerColor = Color.Transparent
+            }
         ) { innerPadding ->
             val isSyncing by viewModel.isSyncing.collectAsState()
             PullToRefreshBox(

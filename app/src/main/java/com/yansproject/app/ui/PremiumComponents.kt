@@ -48,7 +48,7 @@ fun SharedPremiumCard(
     modifier: Modifier = Modifier,
     padding: Dp = 16.dp,
     onClick: (() -> Unit)? = null,
-    borderGlowColor: Color = cyanPulse.copy(alpha = 0.15f),
+    borderGlowColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
     content: @Composable () -> Unit
 ) {
     val cardModifier = if (onClick != null) {
@@ -96,8 +96,8 @@ fun SharedPremiumCard(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            darkTeal,
-                            Color(0xFF081F20) // Secondary Shadow Black Teal
+                            MaterialTheme.colorScheme.surface,
+                            MaterialTheme.colorScheme.surfaceVariant
                         )
                     )
                 )
@@ -127,6 +127,7 @@ fun SmartTextField(
     singleLine: Boolean = true,
     maxLines: Int = 1
 ) {
+    val primaryAccent = MaterialTheme.colorScheme.primary
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -146,10 +147,10 @@ fun SmartTextField(
             unfocusedTextColor = textWhite,
             focusedContainerColor = Color(0xFF050505),
             unfocusedContainerColor = Color(0xFF0E0E0E),
-            focusedBorderColor = cyanPulse,
-            unfocusedBorderColor = darkTeal,
-            cursorColor = cyanPulse,
-            focusedLabelColor = cyanPulse,
+            focusedBorderColor = primaryAccent,
+            unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant,
+            cursorColor = primaryAccent,
+            focusedLabelColor = primaryAccent,
             unfocusedLabelColor = textMuted
         )
     )
@@ -180,7 +181,7 @@ fun PremiumFAB(
                 spotColor = Color.Black
             ),
         shape = CircleShape,
-        containerColor = agedGold,
+        containerColor = MaterialTheme.colorScheme.primary,
         contentColor = shadowBlack
     ) {
         icon()
@@ -207,11 +208,11 @@ fun PremiumBottomSheetLayout(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        containerColor = darkTeal,
+        containerColor = MaterialTheme.colorScheme.surface,
         contentColor = textWhite,
         dragHandle = {
             BottomSheetDefaults.DragHandle(
-                color = agedGold.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
             )
         },
         modifier = modifier

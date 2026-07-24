@@ -1224,6 +1224,9 @@ object FirebaseSyncManager {
                     if (finDoc != null && finDoc.exists()) {
                         finDoc.getDouble("ajibqobul_hpp_pendek")?.let { AppSettings.setAjibqobulHppPendek(context, it) }
                         finDoc.getDouble("ajibqobul_hpp_panjang")?.let { AppSettings.setAjibqobulHppPanjang(context, it) }
+                        finDoc.getDouble("ajibqobul_hpp_upsize_xxl")?.let { AppSettings.setAjibqobulHppUpsizeXXL(context, it) }
+                        finDoc.getDouble("ajibqobul_hpp_upsize_3xl")?.let { AppSettings.setAjibqobulHppUpsize3XL(context, it) }
+                        finDoc.getDouble("ajibqobul_hpp_upsize_4xl")?.let { AppSettings.setAjibqobulHppUpsize4XL(context, it) }
                         finDoc.getDouble("ajibqobul_harga_retail")?.let { AppSettings.setAjibqobulHargaRetail(context, it) }
                         finDoc.getDouble("ajibqobul_harga_member")?.let { AppSettings.setAjibqobulHargaMember(context, it) }
                         finDoc.getDouble("ajibqobul_harga_reseller")?.let { AppSettings.setAjibqobulHargaReseller(context, it) }

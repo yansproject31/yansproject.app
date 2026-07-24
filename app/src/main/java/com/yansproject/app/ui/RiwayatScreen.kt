@@ -156,8 +156,8 @@ fun RiwayatScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize().background(ShadowBlack),
-        containerColor = Color.Transparent
+        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         val isSyncing by viewModel.isSyncing.collectAsState()
         PullToRefreshBox(

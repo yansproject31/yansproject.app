@@ -55,9 +55,7 @@ fun YansNavHost(
         }
         composable(Routes.KitabDigital) {
             KitabDigitalScreen(viewModel = viewModel, onBack = {
-                if (!navController.popBackStack()) {
-                    viewModel.setTab(AppTab.DASHBOARD)
-                }
+                viewModel.setTab(AppTab.DASHBOARD)
             })
         }
         

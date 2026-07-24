@@ -275,7 +275,7 @@ fun MainAppContainer(
       if (currentRoute != targetRoute) {
           try {
               navController.navigate(targetRoute) {
-                  popUpTo(navController.graph.findStartDestination().id) {
+                  popUpTo(Screen.Dashboard.route) {
                       saveState = true
                   }
                   launchSingleTop = true

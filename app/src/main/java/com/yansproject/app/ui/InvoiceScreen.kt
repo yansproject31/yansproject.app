@@ -191,14 +191,14 @@ fun InvoiceScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize().background(ShadowBlack),
-        containerColor = Color.Transparent,
+        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             if (isOwner) {
                 FloatingActionButton(
                     onClick = { showAddSaleDialog = true },
-                    containerColor = AgedGold,
-                    contentColor = ShadowBlack,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = Color.Black,
                     shape = androidx.compose.foundation.shape.CircleShape,
                     modifier = Modifier.testTag("add_sale_fab")
                 ) {

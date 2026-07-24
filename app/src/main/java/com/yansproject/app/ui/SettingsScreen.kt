@@ -272,8 +272,8 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize().background(ShadowBlack),
-        containerColor = Color.Transparent,
+        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             if (subScreen != "info") {
                 TopAppBar(
@@ -4254,7 +4254,7 @@ fun AboutYansScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ShadowBlack)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
         // Toolbar

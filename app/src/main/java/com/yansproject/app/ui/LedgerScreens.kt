@@ -68,11 +68,25 @@ fun RiwayatModalBerjalanScreen(
     val inflows by viewModel.allInflows.collectAsState()
     val expenses by viewModel.allExpenses.collectAsState()
     val invoices by viewModel.allInvoices.collectAsState()
+    val orders by viewModel.allOrders.collectAsState()
     
-    val modalAwal = remember(inflows) { inflows.filter { !it.isDeleted && it.category == "Modal" }.sumOf { it.amount } }
+    val modalAwal = remember(inflows) { inflows.filter { !it.isDeleted && it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount } }
     
-    val totalRevenue = remember(inflows, invoices) {
-        inflows.filter { !it.isDeleted }.sumOf { it.amount } + invoices.filter { !it.isDeleted }.sumOf { it.paidAmount }
+    val totalRevenue = remember(inflows, invoices, orders) {
+        val infSum = inflows.filter { !it.isDeleted }.sumOf { it.amount }
+        val invSum = invoices.filter { !it.isDeleted }.sumOf { inv ->
+            if (inv.paidAmount > 0.0) inv.paidAmount
+            else if (inv.status.equals("LUNAS", ignoreCase = true) || inv.status.equals("PAID", ignoreCase = true) || inv.status.equals("SELESAI", ignoreCase = true)) inv.totalAmount
+            else if (inv.dpAmount > 0.0) inv.dpAmount
+            else 0.0
+        }
+        val ordSum = orders.filter { ord -> !ord.isDeleted && invoices.none { inv -> inv.orderId == ord.id } }.sumOf { ord ->
+            val st = ord.status.trim().uppercase()
+            if (ord.paidAmount > 0.0) ord.paidAmount
+            else if (st == "COMPLETED" || st == "SELESAI" || st == "LUNAS" || st == "PAID" || st == "DISETUJUI" || st == "TERBAYAR") ord.totalAmount
+            else 0.0
+        }
+        infSum + invSum + ordSum
     }
     val totalExpense = remember(expenses) {
         expenses.filter { !it.isDeleted }.sumOf { it.amount }

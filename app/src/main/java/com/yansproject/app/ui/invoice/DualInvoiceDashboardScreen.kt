@@ -173,20 +173,20 @@ fun DualInvoiceDashboardScreen(
                 }
             }
         },
-        containerColor = BackgroundShadowBlack
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(BackgroundShadowBlack)
+                .background(MaterialTheme.colorScheme.background)
         ) {
             // Enterprise 3-Tier Financial Indicator Banner
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(1.dp, DividerDarkCyanGray)
             ) {

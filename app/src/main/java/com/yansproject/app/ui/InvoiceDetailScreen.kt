@@ -226,16 +226,16 @@ fun InvoiceDetailScreen(
                         Icon(
                             imageVector = Icons.Outlined.Visibility,
                             contentDescription = "Pratinjau Dokumen",
-                            tint = AgedGold
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SecondaryShadowBlackTeal.copy(alpha = 0.95f)
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                 )
             )
         },
-        containerColor = Color(0xFF0A0A0A) // Shadow Black
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         LazyColumn(
             modifier = modifier
@@ -255,9 +255,9 @@ fun InvoiceDetailScreen(
                             width = 1.2.dp,
                             brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
                                 colors = listOf(
-                                    AgedGold.copy(alpha = 0.6f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                                     HighlightSoftCyan.copy(alpha = 0.4f),
-                                    AgedGold.copy(alpha = 0.6f)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
                                 )
                             ),
                             shape = RoundedCornerShape(20.dp)
@@ -269,9 +269,8 @@ fun InvoiceDetailScreen(
                             .background(
                                 brush = androidx.compose.ui.graphics.Brush.verticalGradient(
                                     colors = listOf(
-                                        CardDarkCard.copy(alpha = 0.95f),
-                                        SurfaceDarkTeal.copy(alpha = 0.9f),
-                                        SecondaryShadowBlackTeal.copy(alpha = 0.98f)
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.98f)
                                     )
                                 )
                             )

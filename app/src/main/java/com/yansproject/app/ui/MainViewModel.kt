@@ -17,6 +17,7 @@ enum class AppTab {
 
 data class FinancialSummary(
     val totalRevenue: Double = 0.0,
+    val totalPemasukan: Double = 0.0,
     val totalReceivables: Double = 0.0,
     val totalProjectValue: Double = 0.0,
     val activeProjectsCount: Int = 0,
@@ -230,17 +231,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         allInvoices,
         allProjects,
         allStock,
-        allOrders
-    ) { invoices, projects, stock, orders ->
-        val revenue = invoices.sumOf { it.paidAmount }
-        val receivables = invoices.sumOf { it.remainingPayment }
-        val projVal = projects.sumOf { it.totalCost }
-        val activeProj = projects.count { it.status == "In Progress" || it.status == "Planning" }
-        val lowStock = stock.count { it.stockCount <= 5 }
-        val totalOrd = orders.count { it.status == "Completed" }
+        allOrders,
+        allInflows
+    ) { invoices, projects, stock, orders, inflows ->
+        val invRevenue = invoices.filter { !it.isDeleted }.sumOf { inv ->
+            val paid = inv.paidAmount
+            if (paid > 0.0) paid
+            else {
+                val st = (inv.status ?: "").trim().uppercase()
+                if (st == "LUNAS" || st == "PAID" || st == "SELESAI" || st == "LUNAS (PAID)") inv.totalAmount
+                else inv.dpAmount
+            }
+        }
+        val standaloneOrdRevenue = orders.filter { ord -> !ord.isDeleted && invoices.none { inv -> inv.orderId == ord.id } }.sumOf { ord ->
+            val paid = ord.paidAmount
+            if (paid > 0.0) paid
+            else {
+                val st = (ord.status ?: "").trim().uppercase()
+                if (st == "COMPLETED" || st == "SELESAI" || st == "LUNAS" || st == "PAID" || st == "DISETUJUI" || st == "TERBAYAR") ord.totalAmount
+                else 0.0
+            }
+        }
+        val salesInflows = inflows.filter { !it.isDeleted && !(it.category ?: "").contains("Modal", ignoreCase = true) }.sumOf { it.amount }
+        val allInflowsAmount = inflows.filter { !it.isDeleted }.sumOf { it.amount }
+
+        val revenue = invRevenue + standaloneOrdRevenue + salesInflows
+        val totalPemasukanAll = invRevenue + standaloneOrdRevenue + allInflowsAmount
+        val receivables = invoices.filter { !it.isDeleted && !(it.status ?: "").equals("Dibatalkan", ignoreCase = true) && !(it.status ?: "").equals("Cancelled", ignoreCase = true) }.sumOf { it.remainingPayment }
+        val projVal = projects.filter { !it.isDeleted }.sumOf { it.totalCost }
+        val activeProj = projects.count { !it.isDeleted && ((it.status ?: "").equals("In Progress", ignoreCase = true) || (it.status ?: "").equals("Planning", ignoreCase = true) || (it.status ?: "").equals("Sedang Berjalan", ignoreCase = true) || (it.status ?: "").equals("Proses", ignoreCase = true)) }
+        val lowStock = stock.count { !it.isDeleted && it.stockCount <= 5 }
+        val totalOrd = orders.count { !it.isDeleted && ((it.status ?: "").equals("Completed", ignoreCase = true) || (it.status ?: "").equals("Selesai", ignoreCase = true) || (it.status ?: "").equals("Lunas", ignoreCase = true)) }
 
         FinancialSummary(
             totalRevenue = revenue,
+            totalPemasukan = totalPemasukanAll,
             totalReceivables = receivables,
             totalProjectValue = projVal,
             activeProjectsCount = activeProj,

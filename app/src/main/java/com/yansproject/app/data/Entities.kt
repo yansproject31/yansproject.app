@@ -121,7 +121,8 @@ data class OrderHistory(
     @get:PropertyName("totalAmount") @set:PropertyName("totalAmount") var totalAmount: Double = 0.0,
     @get:PropertyName("paidAmount") @set:PropertyName("paidAmount") var paidAmount: Double = 0.0,
     @get:PropertyName("isPaid") @set:PropertyName("isPaid") var isPaid: Boolean = false,
-    @get:PropertyName("status") @set:PropertyName("status") var status: String = "Pending"
+    @get:PropertyName("status") @set:PropertyName("status") var status: String = "Pending",
+    @get:PropertyName("isDeleted") @set:PropertyName("isDeleted") var isDeleted: Boolean = false
 ) {
     val remainingPayment: Double
         get() = totalAmount - paidAmount

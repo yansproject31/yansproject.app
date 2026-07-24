@@ -79,6 +79,7 @@ fun HeroCardSaldoKasUtama(
     saldoKas: Double,
     totalPemasukan: Double,
     totalPengeluaran: Double,
+    isLoading: Boolean = false,
     onWalletClick: () -> Unit,
     onPemasukanClick: () -> Unit,
     onPengeluaranClick: () -> Unit
@@ -101,7 +102,7 @@ fun HeroCardSaldoKasUtama(
             width = 1.2.dp,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    AgedGold.copy(alpha = 0.5f),
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                     PrimaryDarkTeal.copy(alpha = 0.2f)
                 )
             )
@@ -113,8 +114,8 @@ fun HeroCardSaldoKasUtama(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            SurfaceDarkTeal.copy(alpha = 0.92f),
-                            SecondaryShadowBlackTeal.copy(alpha = 0.98f)
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.98f)
                         )
                     )
                 )
@@ -129,16 +130,37 @@ fun HeroCardSaldoKasUtama(
                     verticalAlignment = Alignment.Top
                 ) {
                     Column {
-                        Text(
-                            text = "SALDO KAS UTAMA",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = AgedGold,
-                            letterSpacing = 2.sp
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "SALDO KAS UTAMA",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = AgedGold,
+                                letterSpacing = 2.sp
+                            )
+                            if (isLoading) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(AgedGold.copy(alpha = 0.15f))
+                                        .border(0.8.dp, AgedGold.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "MEMUAT DATA...",
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AgedGold
+                                    )
+                                }
+                            }
+                        }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Kas Riil Tersedia",
+                            text = if (isLoading) "Memuat data keuangan..." else "Kas Riil Tersedia",
                             fontSize = 13.sp,
                             color = TextSecondary.copy(alpha = 0.8f),
                             fontWeight = FontWeight.Medium
@@ -178,16 +200,48 @@ fun HeroCardSaldoKasUtama(
                     }
                 }
                 
-                // Huge Balance Text (typography terbesar)
+                // Balance Text with Shimmer Loading & Empty Data Differentiation
                 Spacer(modifier = Modifier.height(18.dp))
-                Text(
-                    text = FormatUtils.formatRupiah(saldoKas),
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.Black,
-                    color = AgedGold,
-                    letterSpacing = (-1.5).sp,
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                )
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .width(220.dp)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .shimmerEffect()
+                    )
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    ) {
+                        Text(
+                            text = FormatUtils.formatRupiah(saldoKas),
+                            fontSize = 40.sp,
+                            fontWeight = FontWeight.Black,
+                            color = AgedGold,
+                            letterSpacing = (-1.5).sp
+                        )
+                        if (saldoKas == 0.0) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .border(0.8.dp, YansDivider.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "Kas Kosong",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = YansTextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 // Full horizontal divider separating top & bottom parts
@@ -226,12 +280,34 @@ fun HeroCardSaldoKasUtama(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(3.dp))
-                                Text(
-                                    text = FormatUtils.formatRupiah(totalPemasukan),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = HighlightSoftCyan
-                                )
+                                if (isLoading) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(90.dp)
+                                            .height(16.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .shimmerEffect()
+                                    )
+                                } else {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = FormatUtils.formatRupiah(totalPemasukan),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = HighlightSoftCyan
+                                        )
+                                        if (totalPemasukan == 0.0) {
+                                            Text(
+                                                text = "(Nihil)",
+                                                fontSize = 9.sp,
+                                                color = TextSecondary.copy(alpha = 0.6f)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -270,12 +346,34 @@ fun HeroCardSaldoKasUtama(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(3.dp))
-                                Text(
-                                    text = FormatUtils.formatRupiah(totalPengeluaran),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = ErrorRed
-                                )
+                                if (isLoading) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(90.dp)
+                                            .height(16.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .shimmerEffect()
+                                    )
+                                } else {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = FormatUtils.formatRupiah(totalPengeluaran),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = ErrorRed
+                                        )
+                                        if (totalPengeluaran == 0.0) {
+                                            Text(
+                                                text = "(Nihil)",
+                                                fontSize = 9.sp,
+                                                color = TextSecondary.copy(alpha = 0.6f)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -407,6 +505,8 @@ fun GlassmorphicGridCard(
     subtitle: String,
     icon: ImageVector,
     iconColor: Color,
+    isLoading: Boolean = false,
+    isEmpty: Boolean = false,
     onClick: () -> Unit
 ) {
     val cardShape = RoundedCornerShape(20.dp)
@@ -443,7 +543,7 @@ fun GlassmorphicGridCard(
             width = 1.dp,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    AgedGold.copy(alpha = if (isPressed) 0.6f else 0.4f),
+                    MaterialTheme.colorScheme.primary.copy(alpha = if (isPressed) 0.6f else 0.4f),
                     YansDivider.copy(alpha = 0.15f)
                 )
             )
@@ -455,8 +555,8 @@ fun GlassmorphicGridCard(
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            SurfaceDarkTeal.copy(alpha = 0.95f),
-                            SecondaryShadowBlackTeal.copy(alpha = 0.98f)
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.98f)
                         ),
                         radius = 400f,
                         center = Offset(200f, 200f)
@@ -489,29 +589,78 @@ fun GlassmorphicGridCard(
                             .border(0.5.dp, iconColor.copy(alpha = 0.25f), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = iconColor,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        if (isLoading) {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .shimmerEffect()
+                            )
+                        } else {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = iconColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
                 Column {
-                    Text(
-                        text = value,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        maxLines = 1
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = subtitle,
-                        fontSize = 9.sp,
-                        color = YansTextSecondary.copy(alpha = 0.8f),
-                        maxLines = 1
-                    )
+                    if (isLoading) {
+                        Box(
+                            modifier = Modifier
+                                .width(85.dp)
+                                .height(18.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .shimmerEffect()
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(60.dp)
+                                .height(10.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .shimmerEffect()
+                        )
+                    } else {
+                        val isZeroOrEmpty = isEmpty || value == "Rp 0" || value == "0 Pcs" || value == "0 Invoice" || value == "0 Project" || value == "0 Proyek" || value == "0 Member" || value == "0 Mitra"
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = value,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (isZeroOrEmpty) Color.White.copy(alpha = 0.75f) else Color.White,
+                                maxLines = 1
+                            )
+                            if (isZeroOrEmpty) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                        .border(0.5.dp, YansDivider.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = "NIHIL",
+                                        fontSize = 7.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = YansTextSecondary
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = subtitle,
+                            fontSize = 9.sp,
+                            color = YansTextSecondary.copy(alpha = 0.8f),
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }
@@ -523,7 +672,8 @@ data class GridCardData(
     val value: String,
     val subtitle: String,
     val icon: ImageVector,
-    val iconColor: Color
+    val iconColor: Color,
+    val isEmpty: Boolean = false
 )
 
 @Composable
@@ -540,8 +690,10 @@ fun GridOperasionalOwner(
     invoiceBelumLunasCount: Int,
     projectAktifCount: Int,
     totalMembersCount: Int,
+    isLoading: Boolean = false,
     onCardClick: (String) -> Unit
 ) {
+    val primaryAccent = MaterialTheme.colorScheme.primary
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxWidth()
@@ -550,7 +702,7 @@ fun GridOperasionalOwner(
             text = "RINGKASAN OPERASIONAL & KINERJA",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = AgedGold,
+            color = primaryAccent,
             letterSpacing = 1.sp,
             modifier = Modifier.padding(top = 8.dp)
         )
@@ -558,28 +710,28 @@ fun GridOperasionalOwner(
         // 12 Cards arranged in 6 Rows of 2 Cards each
         val rowData = listOf(
             listOf(
-                GridCardData("MODAL AWAL", FormatUtils.formatRupiah(modalAwal), "Investasi kas awal", Icons.Outlined.AccountBalanceWallet, AgedGold),
-                GridCardData("MODAL BERJALAN", FormatUtils.formatRupiah(modalBerjalan), "Estimasi modal bergulir", Icons.Outlined.TrendingUp, HighlightSoftCyan)
+                GridCardData("MODAL AWAL", FormatUtils.formatRupiah(modalAwal), if (modalAwal == 0.0) "Belum ada modal awal" else "Investasi kas awal", Icons.Outlined.AccountBalanceWallet, primaryAccent, isEmpty = (modalAwal == 0.0)),
+                GridCardData("MODAL BERJALAN", FormatUtils.formatRupiah(modalBerjalan), if (modalBerjalan == 0.0) "Belum ada transaksi modal" else "Estimasi modal bergulir", Icons.Outlined.TrendingUp, HighlightSoftCyan, isEmpty = (modalBerjalan == 0.0))
             ),
             listOf(
-                GridCardData("KAS AKTIF", FormatUtils.formatRupiah(saldoKas), "Sisa dana kas riil", Icons.Outlined.AccountBalance, AgedGold),
-                GridCardData("PROFIT BERSIH", FormatUtils.formatRupiah(totalProfit), "Laba bersih setelah HPP", Icons.Outlined.MonetizationOn, HighlightSoftCyan)
+                GridCardData("KAS AKTIF", FormatUtils.formatRupiah(saldoKas), if (saldoKas == 0.0) "Kas riil kosong" else "Sisa dana kas riil", Icons.Outlined.AccountBalance, primaryAccent, isEmpty = (saldoKas == 0.0)),
+                GridCardData("PROFIT BERSIH", FormatUtils.formatRupiah(totalProfit), if (totalProfit == 0.0) "Laba nihil periode ini" else "Laba bersih setelah HPP", Icons.Outlined.MonetizationOn, HighlightSoftCyan, isEmpty = (totalProfit == 0.0))
             ),
             listOf(
-                GridCardData("TOTAL PENJUALAN", FormatUtils.formatRupiah(totalPenjualan), "Omset bruto terkumpul", Icons.Outlined.Leaderboard, HighlightSoftCyan),
-                GridCardData("TOTAL PENGELUARAN", FormatUtils.formatRupiah(totalPengeluaran), "Biaya operasional & HPP", Icons.Outlined.TrendingDown, ErrorRed)
+                GridCardData("TOTAL PENJUALAN", FormatUtils.formatRupiah(totalPenjualan), if (totalPenjualan == 0.0) "Belum ada penjualan" else "Omset bruto terkumpul", Icons.Outlined.Leaderboard, HighlightSoftCyan, isEmpty = (totalPenjualan == 0.0)),
+                GridCardData("TOTAL PENGELUARAN", FormatUtils.formatRupiah(totalPengeluaran), if (totalPengeluaran == 0.0) "Belum ada pengeluaran" else "Biaya operasional & HPP", Icons.Outlined.TrendingDown, ErrorRed, isEmpty = (totalPengeluaran == 0.0))
             ),
             listOf(
-                GridCardData("NILAI PERSEDIAAN", FormatUtils.formatRupiah(nilaiTotalStock), "Aset stock gudang", Icons.Outlined.Inventory, AgedGold),
-                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", "Total unit kaos fisik", Icons.Outlined.Inventory2, AgedGold)
+                GridCardData("NILAI PERSEDIAAN", FormatUtils.formatRupiah(nilaiTotalStock), if (nilaiTotalStock == 0.0) "Stok gudang kosong" else "Aset stock gudang", Icons.Outlined.Inventory, primaryAccent, isEmpty = (nilaiTotalStock == 0.0)),
+                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", if (totalStockPieces == 0) "Belum ada stok fisik" else "Total unit kaos fisik", Icons.Outlined.Inventory2, primaryAccent, isEmpty = (totalStockPieces == 0))
             ),
             listOf(
-                GridCardData("PIUTANG DAGANG", FormatUtils.formatRupiah(invoiceBelumLunasAmount), "Sisa tagihan outstanding", Icons.Outlined.AssignmentLate, StatusWarningGold),
-                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold)
+                GridCardData("PIUTANG DAGANG", FormatUtils.formatRupiah(invoiceBelumLunasAmount), if (invoiceBelumLunasAmount == 0.0) "Tidak ada piutang outstanding" else "Sisa tagihan outstanding", Icons.Outlined.AssignmentLate, StatusWarningGold, isEmpty = (invoiceBelumLunasAmount == 0.0)),
+                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", if (invoiceBelumLunasCount == 0) "Semua invoice telah lunas" else "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold, isEmpty = (invoiceBelumLunasCount == 0))
             ),
             listOf(
-                GridCardData("PROJECT AKTIF", "$projectAktifCount Project", "Proyek sedang diproduksi", Icons.Outlined.Assignment, HighlightSoftCyan),
-                GridCardData("TOTAL MEMBER", "$totalMembersCount Mitra", "Jumlah akun member aktif", Icons.Outlined.People, AgedGold)
+                GridCardData("PROJECT AKTIF", "$projectAktifCount Project", if (projectAktifCount == 0) "Tidak ada proyek aktif" else "Proyek sedang diproduksi", Icons.Outlined.Assignment, HighlightSoftCyan, isEmpty = (projectAktifCount == 0)),
+                GridCardData("TOTAL MEMBER", "$totalMembersCount Mitra", if (totalMembersCount == 0) "Belum ada mitra terdaftar" else "Jumlah akun member aktif", Icons.Outlined.People, primaryAccent, isEmpty = (totalMembersCount == 0))
             )
         )
 
@@ -596,6 +748,8 @@ fun GridOperasionalOwner(
                             subtitle = card.subtitle,
                             icon = card.icon,
                             iconColor = card.iconColor,
+                            isLoading = isLoading,
+                            isEmpty = card.isEmpty,
                             onClick = { onCardClick(card.title) }
                         )
                     }
@@ -611,6 +765,7 @@ fun GridOperasionalMember(
     lowStockSize: Int,
     projectAktifCount: Int,
     invoiceBelumLunasCount: Int,
+    isLoading: Boolean = false,
     onCardClick: (String) -> Unit
 ) {
     Column(
@@ -628,12 +783,12 @@ fun GridOperasionalMember(
 
         val rowData = listOf(
             listOf(
-                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", "Total unit kaos fisik di gudang", Icons.Outlined.Inventory2, AgedGold),
-                GridCardData("VARIAN AKTIF", if (lowStockSize > 0) "$lowStockSize Varian Menipis" else "Semua Varian Aman", "Status ketersediaan varian", Icons.Outlined.Category, HighlightSoftCyan)
+                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", if (totalStockPieces == 0) "Belum ada stok fisik" else "Total unit kaos fisik di gudang", Icons.Outlined.Inventory2, AgedGold, isEmpty = (totalStockPieces == 0)),
+                GridCardData("VARIAN AKTIF", if (lowStockSize > 0) "$lowStockSize Varian Menipis" else "Semua Varian Aman", "Status ketersediaan varian", Icons.Outlined.Category, HighlightSoftCyan, isEmpty = false)
             ),
             listOf(
-                GridCardData("PROJECT AKTIF", "$projectAktifCount Proyek", "Proyek pesanan berjalan", Icons.Outlined.Assignment, HighlightSoftCyan),
-                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold)
+                GridCardData("PROJECT AKTIF", "$projectAktifCount Proyek", if (projectAktifCount == 0) "Tidak ada proyek aktif" else "Proyek pesanan berjalan", Icons.Outlined.Assignment, HighlightSoftCyan, isEmpty = (projectAktifCount == 0)),
+                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", if (invoiceBelumLunasCount == 0) "Semua invoice telah lunas" else "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold, isEmpty = (invoiceBelumLunasCount == 0))
             )
         )
 
@@ -650,6 +805,8 @@ fun GridOperasionalMember(
                             subtitle = card.subtitle,
                             icon = card.icon,
                             iconColor = card.iconColor,
+                            isLoading = isLoading,
+                            isEmpty = card.isEmpty,
                             onClick = { onCardClick(card.title) }
                         )
                     }
@@ -870,33 +1027,75 @@ fun DashboardScreen(
 
     // --- KALKULASI REAL-TIME (Sesuai Filter & Flow Database Rill) ---
 
-    // 1. Modal Awal (All-time Inflows kategori "Modal")
-    val modalAwal = remember(inflows) {
-        inflows.filter { it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
+    // Helper untuk kalkulasi nominal terbayar invoice yang akurat
+    fun getEffectiveInvoicePaid(inv: Invoice): Double {
+        if (inv.isDeleted) return 0.0
+        if (inv.paidAmount > 0.0) return inv.paidAmount
+        val st = inv.status.trim().uppercase()
+        if (st == "LUNAS" || st == "PAID" || st == "SELESAI" || st == "LUNAS (PAID)") {
+            return if (inv.totalAmount > 0.0) inv.totalAmount else 0.0
+        }
+        if (inv.dpAmount > 0.0) return inv.dpAmount
+        return 0.0
     }
 
-    // 2. Transaksi Terfilter Sesuai Rentang Waktu (Abaikan invoice dibatalkan)
+    // Helper untuk kalkulasi nominal terbayar order direct/POS
+    fun getEffectiveOrderPaid(ord: OrderHistory): Double {
+        if (ord.isDeleted) return 0.0
+        if (ord.paidAmount > 0.0) return ord.paidAmount
+        val st = ord.status.trim().uppercase()
+        if (st == "COMPLETED" || st == "SELESAI" || st == "LUNAS" || st == "PAID" || st == "DISETUJUI" || st == "TERBAYAR") {
+            return if (ord.totalAmount > 0.0) ord.totalAmount else 0.0
+        }
+        return 0.0
+    }
+
+    // 1. Modal Awal (All-time Inflows kategori "Modal")
+    val modalAwal = remember(inflows) {
+        inflows.filter { !it.isDeleted && it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
+    }
+
+    // 2. Transaksi Terfilter Sesuai Rentang Waktu (Abaikan invoice & data dibatalkan/dihapus)
     val filteredInvoices = remember(invoices, selectedFilter) {
         invoices.filter {
+            !it.isDeleted &&
             isTimestampInFilter(it.issueDate, selectedFilter) &&
             !it.status.equals("Dibatalkan", ignoreCase = true) &&
             !it.status.equals("Cancelled", ignoreCase = true)
         }
     }
     val filteredInflows = remember(inflows, selectedFilter) {
-        inflows.filter { isTimestampInFilter(it.date, selectedFilter) }
+        inflows.filter { !it.isDeleted && isTimestampInFilter(it.date, selectedFilter) }
     }
     val filteredExpenses = remember(expenses, selectedFilter) {
-        expenses.filter { isTimestampInFilter(it.date, selectedFilter) }
+        expenses.filter { !it.isDeleted && isTimestampInFilter(it.date, selectedFilter) }
+    }
+    val filteredOrders = remember(orders, selectedFilter) {
+        orders.filter { !it.isDeleted && isTimestampInFilter(it.orderDate, selectedFilter) }
     }
 
-    // 3. Total Penjualan Terfilter (Omset Operasional Bruto: Paid Invoices + Inflows Penjualan/Operasional Non-Modal)
-    val totalPenjualan = remember(filteredInvoices, filteredInflows) {
-        val invoicePaid = filteredInvoices.sumOf { it.paidAmount }
-        val salesInflows = filteredInflows.filter { !it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
-        invoicePaid + salesInflows
+    // Order POS yang belum/tidak memiliki Invoice
+    val filteredStandaloneOrders = remember(filteredOrders, invoices) {
+        filteredOrders.filter { ord ->
+            invoices.none { inv -> inv.orderId == ord.id }
+        }
     }
-    val totalPemasukan = totalPenjualan
+
+    // 3. Total Penjualan Terfilter (Omset Operasional Bruto: Paid Invoices + Standalone Orders + Inflows Penjualan)
+    val totalPenjualan = remember(filteredInvoices, filteredInflows, filteredStandaloneOrders) {
+        val invoicePaid = filteredInvoices.sumOf { getEffectiveInvoicePaid(it) }
+        val orderPaid = filteredStandaloneOrders.sumOf { getEffectiveOrderPaid(it) }
+        val salesInflows = filteredInflows.filter { !it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
+        invoicePaid + orderPaid + salesInflows
+    }
+
+    // Total Pemasukan Terfilter (Seluruh Uang Masuk Kas: Paid Invoices + Standalone Orders + All Inflows)
+    val totalPemasukan = remember(filteredInvoices, filteredInflows, filteredStandaloneOrders) {
+        val invoicePaid = filteredInvoices.sumOf { getEffectiveInvoicePaid(it) }
+        val orderPaid = filteredStandaloneOrders.sumOf { getEffectiveOrderPaid(it) }
+        val allInflows = filteredInflows.sumOf { it.amount }
+        invoicePaid + orderPaid + allInflows
+    }
 
     // 4. Total Pengeluaran Terfilter (Pengeluaran Operasional)
     val totalPengeluaran = remember(filteredExpenses) {
@@ -909,21 +1108,27 @@ fun DashboardScreen(
     // 6. Kas Aktif & Modal Berjalan All-Time
     val allTimeInvoicesPaid = remember(invoices) {
         invoices.filter {
+            !it.isDeleted &&
             !it.status.equals("Dibatalkan", ignoreCase = true) &&
             !it.status.equals("Cancelled", ignoreCase = true)
-        }.sumOf { it.paidAmount }
+        }.sumOf { getEffectiveInvoicePaid(it) }
     }
-    val allTimeInflowsAmount = remember(inflows) { inflows.sumOf { it.amount } }
-    val allTimeExpensesAmount = remember(expenses) { expenses.sumOf { it.amount } }
+    val allTimeStandaloneOrdersPaid = remember(orders, invoices) {
+        orders.filter { ord ->
+            !ord.isDeleted && invoices.none { inv -> inv.orderId == ord.id }
+        }.sumOf { getEffectiveOrderPaid(it) }
+    }
+    val allTimeInflowsAmount = remember(inflows) { inflows.filter { !it.isDeleted }.sumOf { it.amount } }
+    val allTimeExpensesAmount = remember(expenses) { expenses.filter { !it.isDeleted }.sumOf { it.amount } }
 
-    // Saldo Kas Aktif = Total Uang Masuk All-Time (Pemasukan Invoice + All Inflows) - Total Pengeluaran All-Time
-    val saldoKas = (allTimeInvoicesPaid + allTimeInflowsAmount - allTimeExpensesAmount).coerceAtLeast(0.0)
+    // Saldo Kas Aktif = Total Uang Masuk All-Time - Total Pengeluaran All-Time
+    val saldoKas = (allTimeInvoicesPaid + allTimeStandaloneOrdersPaid + allTimeInflowsAmount - allTimeExpensesAmount).coerceAtLeast(0.0)
 
     // Modal Berjalan = Modal Awal + Laba Bersih Operasional Akumulatif
     val allTimeNonModalInflows = remember(inflows) {
-        inflows.filter { !it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
+        inflows.filter { !it.isDeleted && !it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
     }
-    val allTimeNetProfit = (allTimeInvoicesPaid + allTimeNonModalInflows) - allTimeExpensesAmount
+    val allTimeNetProfit = (allTimeInvoicesPaid + allTimeStandaloneOrdersPaid + allTimeNonModalInflows) - allTimeExpensesAmount
     val modalBerjalan = modalAwal + allTimeNetProfit
 
     // 7. Stok AJIBQOBUL & Nilai Persediaan Gudang (Data Rill Inventory Summary / Stock Items)
@@ -1055,16 +1260,34 @@ fun DashboardScreen(
             }
         }
 
-        // F. Pemasukan (Diambil dari invoice yang sudah di-bayar / paidAmount > 0)
+        // F. Pemasukan (Diambil dari invoice yang sudah di-bayar / LUNAS / DP)
         invoices.forEach { inv ->
-            if (inv.paidAmount > 0 && isTimestampInFilter(inv.issueDate, selectedFilter)) {
+            val paid = getEffectiveInvoicePaid(inv)
+            if (paid > 0 && isTimestampInFilter(inv.issueDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
                         title = "Pemasukan",
                         description = "Pembayaran Invoice No: ${inv.invoiceNumber}",
                         date = inv.issueDate + 2000,
                         type = "Pemasukan",
-                        amount = inv.paidAmount
+                        amount = paid
+                    )
+                )
+            }
+        }
+
+        // Pemasukan POS / Order Standalone
+        orders.forEach { ord ->
+            val paid = getEffectiveOrderPaid(ord)
+            val isNotCoveredByInvoice = invoices.none { inv -> inv.orderId == ord.id }
+            if (paid > 0 && isNotCoveredByInvoice && isTimestampInFilter(ord.orderDate, selectedFilter)) {
+                list.add(
+                    DashboardActivity(
+                        title = "Pemasukan POS",
+                        description = "Penjualan Order #${ord.id} - Klien: ${ord.clientName}",
+                        date = ord.orderDate + 1500,
+                        type = "Pemasukan",
+                        amount = paid
                     )
                 )
             }
@@ -1150,7 +1373,7 @@ fun DashboardScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(ShadowBlack)
+                    .background(MaterialTheme.colorScheme.background)
             ) {
                 if (userRole.canAccessFinancials()) {
                     val startOfToday = remember(currentTimeMillis) {
@@ -1324,6 +1547,7 @@ fun DashboardScreen(
                             saldoKas = saldoKas,
                             totalPemasukan = totalPemasukan,
                             totalPengeluaran = totalPengeluaran,
+                            isLoading = isSyncingState,
                             onWalletClick = {
                                 if (navController != null) {
                                     navController.navigate(Routes.GlobalLedger)
@@ -1406,6 +1630,7 @@ fun DashboardScreen(
                         invoiceBelumLunasCount = invoiceBelumLunasCount,
                         projectAktifCount = projectAktifCount,
                         totalMembersCount = totalMembersCount,
+                        isLoading = isSyncingState,
                         onCardClick = { cardTitle ->
                             when (cardTitle) {
                                 "MODAL AWAL" -> activeLedgerPage = "modal_awal"
@@ -1437,6 +1662,7 @@ fun DashboardScreen(
                         lowStockSize = lowStockSize,
                         projectAktifCount = projectAktifCount,
                         invoiceBelumLunasCount = invoiceBelumLunasCount,
+                        isLoading = isSyncingState,
                         onCardClick = { cardTitle ->
                             when (cardTitle) {
                                 "STOK AJIBQOBUL", "VARIAN AKTIF" -> viewModel.setTab(AppTab.STOCK)
@@ -3470,13 +3696,21 @@ fun DashboardRingkasanKeuanganCard(
 
     // Computations for Inflows
     val modalAmt = remember(filteredInflows) {
-        filteredInflows.filter { it.category == "Modal" }.sumOf { it.amount }
+        filteredInflows.filter { !it.isDeleted && it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
     }
     val penjualanAmt = remember(filteredInvoices, filteredInflows) {
-        filteredInvoices.sumOf { it.paidAmount } + filteredInflows.filter { it.category == "Penjualan" }.sumOf { it.amount }
+        val invPaid = filteredInvoices.sumOf { inv ->
+            if (inv.isDeleted) 0.0
+            else if (inv.paidAmount > 0.0) inv.paidAmount
+            else if (inv.status.equals("LUNAS", ignoreCase = true) || inv.status.equals("PAID", ignoreCase = true) || inv.status.equals("SELESAI", ignoreCase = true)) inv.totalAmount
+            else if (inv.dpAmount > 0.0) inv.dpAmount
+            else 0.0
+        }
+        val infSales = filteredInflows.filter { !it.isDeleted && (it.category.contains("Penjualan", ignoreCase = true) || (!it.category.contains("Modal", ignoreCase = true) && !it.category.contains("Lainnya", ignoreCase = true))) }.sumOf { it.amount }
+        invPaid + infSales
     }
     val lainnyaInAmt = remember(filteredInflows) {
-        filteredInflows.filter { it.category == "Lainnya" }.sumOf { it.amount }
+        filteredInflows.filter { !it.isDeleted && it.category.contains("Lainnya", ignoreCase = true) }.sumOf { it.amount }
     }
 
     // Computations for Expenses
@@ -3952,7 +4186,7 @@ fun RiwayatProduksiScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ShadowBlack)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // App Bar
@@ -4217,12 +4451,13 @@ fun RiwayatLaporanScreen(
     val invoices by viewModel.allInvoices.collectAsState()
     val expenses by viewModel.allExpenses.collectAsState()
     val inflows by viewModel.allInflows.collectAsState()
+    val orders by viewModel.allOrders.collectAsState()
 
     var selectedPeriod by remember { mutableStateOf("Semua") }
     var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
     var selectedLogForReceipt by remember { mutableStateOf<DashboardActivity?>(null) }
 
-    val filteredLogs = remember(invoices, expenses, inflows, selectedPeriod, selectedCategoryFilter) {
+    val filteredLogs = remember(invoices, expenses, inflows, orders, selectedPeriod, selectedCategoryFilter) {
         val list = mutableListOf<DashboardActivity>()
         
         fun isTimeInFilter(time: Long): Boolean {
@@ -4244,15 +4479,40 @@ fun RiwayatLaporanScreen(
 
         // Pemasukan dari Invoices (Lunas/paidAmount > 0)
         invoices.forEach { inv ->
-            if (!inv.isDeleted && inv.paidAmount > 0 && isTimeInFilter(inv.issueDate)) {
+            val paid = if (inv.paidAmount > 0.0) inv.paidAmount
+            else if (inv.status.equals("LUNAS", ignoreCase = true) || inv.status.equals("PAID", ignoreCase = true) || inv.status.equals("SELESAI", ignoreCase = true)) inv.totalAmount
+            else if (inv.dpAmount > 0.0) inv.dpAmount
+            else 0.0
+            if (!inv.isDeleted && paid > 0 && isTimeInFilter(inv.issueDate)) {
                 list.add(
                     DashboardActivity(
                         title = "Pembayaran Invoice",
                         description = "No: ${inv.invoiceNumber} - Client: ${inv.clientName}",
                         date = inv.issueDate,
                         type = "Pemasukan",
-                        amount = inv.paidAmount,
+                        amount = paid,
                         category = "Invoice"
+                    )
+                )
+            }
+        }
+
+        // Pemasukan dari POS Direct Orders
+        orders.forEach { ord ->
+            val st = ord.status.trim().uppercase()
+            val paid = if (ord.paidAmount > 0.0) ord.paidAmount
+            else if (st == "COMPLETED" || st == "SELESAI" || st == "LUNAS" || st == "PAID" || st == "DISETUJUI" || st == "TERBAYAR") ord.totalAmount
+            else 0.0
+            val isNotCoveredByInvoice = invoices.none { inv -> inv.orderId == ord.id }
+            if (!ord.isDeleted && paid > 0 && isNotCoveredByInvoice && isTimeInFilter(ord.orderDate)) {
+                list.add(
+                    DashboardActivity(
+                        title = "Penjualan POS Direct",
+                        description = "Order #${ord.id} - Client: ${ord.clientName}",
+                        date = ord.orderDate,
+                        type = "Pemasukan",
+                        amount = paid,
+                        category = "Penjualan"
                     )
                 )
             }
@@ -4310,7 +4570,7 @@ fun RiwayatLaporanScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ShadowBlack)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // App Bar

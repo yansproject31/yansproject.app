@@ -2034,8 +2034,20 @@ class BusinessRepository(private val db: AppDatabase) {
         val context = com.yansproject.app.YansApplication.instance
         val hppPendek = if (masterStock != null && masterStock.hpp_pendek > 0.0) masterStock.hpp_pendek else AppSettings.getAjibqobulHppPendek(context)
         val hppPanjang = if (masterStock != null && masterStock.hpp_panjang > 0.0) masterStock.hpp_panjang else AppSettings.getAjibqobulHppPanjang(context)
+        val hppUpsizeXXL = AppSettings.getAjibqobulHppUpsizeXXL(context)
+        val hppUpsize3XL = AppSettings.getAjibqobulHppUpsize3XL(context)
+        val hppUpsize4XL = AppSettings.getAjibqobulHppUpsize4XL(context)
         
-        val nilaiPersediaan = (readyStockPendek * hppPendek) + (readyStockPanjang * hppPanjang)
+        val nilaiPersediaan = if (masterStock != null) {
+            val stdShort = masterStock.xs_pendek + masterStock.s_pendek + masterStock.m_pendek + masterStock.l_pendek + masterStock.xl_pendek
+            val stdLong = masterStock.xs_panjang + masterStock.s_panjang + masterStock.m_panjang + masterStock.l_panjang + masterStock.xl_panjang
+            (stdShort * hppPendek) + (stdLong * hppPanjang) +
+            (masterStock.xxl_pendek * (hppPendek + hppUpsizeXXL)) + (masterStock.xxl_panjang * (hppPanjang + hppUpsizeXXL)) +
+            (masterStock.three_xl_pendek * (hppPendek + hppUpsize3XL)) + (masterStock.three_xl_panjang * (hppPanjang + hppUpsize3XL)) +
+            (masterStock.four_xl_pendek * (hppPendek + hppUpsize4XL)) + (masterStock.four_xl_panjang * (hppPanjang + hppUpsize4XL))
+        } else {
+            (readyStockPendek * hppPendek) + (readyStockPanjang * hppPanjang)
+        }
         
         val summary = InventorySummary(
             id_varian = idVarian,
@@ -2103,7 +2115,14 @@ class BusinessRepository(private val db: AppDatabase) {
 
                 val existingList = stockDao.getAllStock().firstOrNull() ?: emptyList()
                 val existing = existingList.find { it.name == name }
-                val hppForSleeve = if (sleeve == "Pendek") stock.hpp_pendek else stock.hpp_panjang
+                val appContext = com.yansproject.app.YansApplication.instance
+                val hppUpsize = when (size) {
+                    "XXL" -> AppSettings.getAjibqobulHppUpsizeXXL(appContext)
+                    "3XL" -> AppSettings.getAjibqobulHppUpsize3XL(appContext)
+                    "4XL" -> AppSettings.getAjibqobulHppUpsize4XL(appContext)
+                    else -> 0.0
+                }
+                val hppForSleeve = (if (sleeve == "Pendek") stock.hpp_pendek else stock.hpp_panjang) + hppUpsize
                 if (existing != null) {
                     val updated = existing.copy(
                         stockCount = qty,

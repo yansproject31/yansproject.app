@@ -58,6 +58,18 @@ fun FinanceConfigModule(
         val valStr = try { AppSettings.getAjibqobulHppPanjang(context).toInt().toString() } catch (e: Exception) { "77000" }
         mutableStateOf(valStr)
     }
+    var ajibqobulHppUpsizeXXL by remember {
+        val valStr = try { AppSettings.getAjibqobulHppUpsizeXXL(context).toInt().toString() } catch (e: Exception) { "5000" }
+        mutableStateOf(valStr)
+    }
+    var ajibqobulHppUpsize3XL by remember {
+        val valStr = try { AppSettings.getAjibqobulHppUpsize3XL(context).toInt().toString() } catch (e: Exception) { "10000" }
+        mutableStateOf(valStr)
+    }
+    var ajibqobulHppUpsize4XL by remember {
+        val valStr = try { AppSettings.getAjibqobulHppUpsize4XL(context).toInt().toString() } catch (e: Exception) { "15000" }
+        mutableStateOf(valStr)
+    }
     var ajibqobulHargaRetail by remember {
         val valStr = try { AppSettings.getAjibqobulHargaRetail(context).toInt().toString() } catch (e: Exception) { "100000" }
         mutableStateOf(valStr)
@@ -274,6 +286,36 @@ fun FinanceConfigModule(
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
+                        value = ajibqobulHppUpsizeXXL,
+                        onValueChange = { ajibqobulHppUpsizeXXL = it },
+                        label = { Text("HPP Upsize XXL (+)", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = ajibqobulHppUpsize3XL,
+                        onValueChange = { ajibqobulHppUpsize3XL = it },
+                        label = { Text("HPP Upsize 3XL (+)", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = ajibqobulHppUpsize4XL,
+                        onValueChange = { ajibqobulHppUpsize4XL = it },
+                        label = { Text("HPP Upsize 4XL (+)", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
                         value = ajibqobulHargaRetail,
                         onValueChange = { ajibqobulHargaRetail = it },
                         label = { Text("Harga Retail", fontSize = 10.sp, color = TextNonActive) },
@@ -453,6 +495,9 @@ fun FinanceConfigModule(
                 // Parse variables
                 val hppPendek = ajibqobulHppPendek.toDoubleOrNull() ?: 67000.0
                 val hppPanjang = ajibqobulHppPanjang.toDoubleOrNull() ?: 77000.0
+                val hppUpsizeXXL = ajibqobulHppUpsizeXXL.toDoubleOrNull() ?: 5000.0
+                val hppUpsize3XL = ajibqobulHppUpsize3XL.toDoubleOrNull() ?: 10000.0
+                val hppUpsize4XL = ajibqobulHppUpsize4XL.toDoubleOrNull() ?: 15000.0
                 val retailPrice = ajibqobulHargaRetail.toDoubleOrNull() ?: 100000.0
                 val memberPrice = ajibqobulHargaMember.toDoubleOrNull() ?: 85000.0
                 val resellerPrice = ajibqobulHargaReseller.toDoubleOrNull() ?: 90000.0
@@ -478,6 +523,9 @@ fun FinanceConfigModule(
 
                         AppSettings.setAjibqobulHppPendek(context, hppPendek)
                         AppSettings.setAjibqobulHppPanjang(context, hppPanjang)
+                        AppSettings.setAjibqobulHppUpsizeXXL(context, hppUpsizeXXL)
+                        AppSettings.setAjibqobulHppUpsize3XL(context, hppUpsize3XL)
+                        AppSettings.setAjibqobulHppUpsize4XL(context, hppUpsize4XL)
                         AppSettings.setAjibqobulHargaRetail(context, retailPrice)
                         AppSettings.setAjibqobulHargaMember(context, memberPrice)
                         AppSettings.setAjibqobulHargaReseller(context, resellerPrice)
@@ -501,6 +549,9 @@ fun FinanceConfigModule(
 
                             "ajibqobul_hpp_pendek" to hppPendek,
                             "ajibqobul_hpp_panjang" to hppPanjang,
+                            "ajibqobul_hpp_upsize_xxl" to hppUpsizeXXL,
+                            "ajibqobul_hpp_upsize_3xl" to hppUpsize3XL,
+                            "ajibqobul_hpp_upsize_4xl" to hppUpsize4XL,
                             "ajibqobul_harga_retail" to retailPrice,
                             "ajibqobul_harga_member" to memberPrice,
                             "ajibqobul_harga_reseller" to resellerPrice,

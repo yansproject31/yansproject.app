@@ -74,7 +74,7 @@ fun BottomNavigationBar(
                             text = "Sinkronisasi Cloud Firestore...",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFC6A15B), // Aged Gold
+                            color = MaterialTheme.colorScheme.primary,
                             letterSpacing = 0.5.sp
                         )
                     }
@@ -111,7 +111,7 @@ fun BottomNavigationBar(
                     Brush.horizontalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color(0xFFC6A15B).copy(alpha = 0.65f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
                             Color(0xFF4FD1C5).copy(alpha = 0.65f),
                             Color.Transparent
                         )

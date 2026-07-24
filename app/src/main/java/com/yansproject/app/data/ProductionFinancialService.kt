@@ -62,40 +62,73 @@ object ProductionFinancialService {
         addedQuantities: Map<Pair<String, String>, Int>,
         hppPendek: Double,
         hppPanjang: Double,
-        sellingPrice: Double
+        sellingPrice: Double,
+        hppUpsizeXXL: Double = 5000.0,
+        hppUpsize3XL: Double = 10000.0,
+        hppUpsize4XL: Double = 15000.0,
+        sleeveLongSurcharge: Double = 10000.0,
+        upsizeXXL: Double = 10000.0,
+        upsize3XL: Double = 10000.0,
+        upsize4XL: Double = 20000.0
     ): ProductionBatchFinancials {
         var totalQty = 0
         var shortQty = 0
         var longQty = 0
 
-        addedQuantities.forEach { (pair, qty) ->
-            if (qty > 0) {
-                totalQty += qty
-                val sleeve = pair.second
-                if (sleeve.equals("Panjang", ignoreCase = true)) {
-                    longQty += qty
-                } else {
-                    shortQty += qty
-                }
-            }
-        }
+        var totalCostBd = BigDecimal.ZERO
+        var estRevenueBd = BigDecimal.ZERO
 
         val safeHppPendek = hppPendek.coerceAtLeast(0.0)
         val safeHppPanjang = hppPanjang.coerceAtLeast(0.0)
         val safeSellingPrice = sellingPrice.coerceAtLeast(0.0)
 
-        val totalCost = calculateBatchTotalCost(shortQty, longQty, safeHppPendek, safeHppPanjang)
-        val totalCostBd = BigDecimal.valueOf(totalCost).setScale(2, RoundingMode.HALF_UP)
+        addedQuantities.forEach { (pair, qty) ->
+            if (qty > 0) {
+                totalQty += qty
+                val size = pair.first.trim().uppercase()
+                val sleeve = pair.second.trim()
+                val isPanjang = sleeve.equals("Panjang", ignoreCase = true)
+
+                if (isPanjang) {
+                    longQty += qty
+                } else {
+                    shortQty += qty
+                }
+
+                val baseHpp = if (isPanjang) safeHppPanjang else safeHppPendek
+                val upsizeHppCost = when (size) {
+                    "XXL" -> hppUpsizeXXL
+                    "3XL" -> hppUpsize3XL
+                    "4XL" -> hppUpsize4XL
+                    else -> 0.0
+                }
+                val itemHpp = baseHpp + upsizeHppCost
+
+                val sleeveCharge = if (isPanjang) sleeveLongSurcharge else 0.0
+                val upsizePriceCharge = when (size) {
+                    "XXL" -> upsizeXXL
+                    "3XL" -> upsize3XL
+                    "4XL" -> upsize4XL
+                    else -> 0.0
+                }
+                val itemSellingPrice = safeSellingPrice + sleeveCharge + upsizePriceCharge
+
+                totalCostBd = totalCostBd.add(BigDecimal(qty).multiply(BigDecimal.valueOf(itemHpp)))
+                estRevenueBd = estRevenueBd.add(BigDecimal(qty).multiply(BigDecimal.valueOf(itemSellingPrice)))
+            }
+        }
+
+        totalCostBd = totalCostBd.setScale(2, RoundingMode.HALF_UP)
+        estRevenueBd = estRevenueBd.setScale(2, RoundingMode.HALF_UP)
+
+        val totalCost = totalCostBd.toDouble()
+        val estRevenue = estRevenueBd.toDouble()
 
         val avgHpp = if (totalQty > 0) {
             totalCostBd.divide(BigDecimal(totalQty), 2, RoundingMode.HALF_UP).toDouble()
         } else {
             0.0
         }
-
-        val estRevenueBd = BigDecimal(totalQty).multiply(BigDecimal.valueOf(safeSellingPrice))
-            .setScale(2, RoundingMode.HALF_UP)
-        val estRevenue = estRevenueBd.toDouble()
 
         val profitBd = estRevenueBd.subtract(totalCostBd).setScale(2, RoundingMode.HALF_UP)
         val profit = profitBd.toDouble()

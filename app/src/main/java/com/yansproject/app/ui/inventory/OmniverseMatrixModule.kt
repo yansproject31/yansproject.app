@@ -323,7 +323,7 @@ fun DualMatrixComponent(
         ) {
             Text(
                 text = if (isCustomProject) "CUSTOM MATRIX CONFIG" else "AJIBQOBUL MATRIX CONFIG",
-                color = AccentAgedGold,
+                color = MaterialTheme.colorScheme.primary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Black
             )
@@ -350,7 +350,7 @@ fun DualMatrixComponent(
                     .fillMaxWidth()
                     .background(
                         androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            colors = listOf(AccentAgedGold, HighlightSoftCyan)
+                            colors = listOf(MaterialTheme.colorScheme.primary, HighlightSoftCyan)
                         ),
                         shape = RoundedCornerShape(4.dp)
                     )
@@ -393,7 +393,7 @@ fun DualMatrixComponent(
                     .fillMaxWidth()
                     .background(
                         androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            colors = listOf(AccentAgedGold, HighlightSoftCyan)
+                            colors = listOf(MaterialTheme.colorScheme.primary, HighlightSoftCyan)
                         ),
                         shape = RoundedCornerShape(4.dp)
                     )
@@ -475,7 +475,7 @@ fun DualMatrixComponent(
         Text(
             text = "MATRIKS UKURAN DEWASA",
             style = MaterialTheme.typography.labelSmall,
-            color = AccentAgedGold
+            color = MaterialTheme.colorScheme.primary
         )
 
         MatrixGridFields(
@@ -490,7 +490,7 @@ fun DualMatrixComponent(
         Text(
             text = "MATRIKS UKURAN ANAK-ANAK (KIDS)",
             style = MaterialTheme.typography.labelSmall,
-            color = AccentAgedGold
+            color = MaterialTheme.colorScheme.primary
         )
 
         MatrixGridFields(

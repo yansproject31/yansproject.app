@@ -125,13 +125,13 @@ fun DualInvoiceEditorScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = SecondaryShadowBlackTeal)
             )
         },
-        containerColor = BackgroundShadowBlack
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(BackgroundShadowBlack)
+                .background(MaterialTheme.colorScheme.background)
         ) {
             Column(
                 modifier = Modifier
@@ -141,7 +141,7 @@ fun DualInvoiceEditorScreen(
             ) {
                 // OutlinedCard for Metadata Form
                 OutlinedCard(
-                    colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = BorderStroke(1.dp, DividerDarkCyanGray),
                     shape = RoundedCornerShape(12.dp)
                 ) {
