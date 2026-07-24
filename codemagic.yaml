@@ -45,6 +45,23 @@ workflows:
             echo "✓ Gradle Wrapper successfully restored."
           fi
 
+      - name: Google Services JSON Audit and Verification
+        script: |
+          echo "=== Auditing Google Services JSON Configuration ==="
+          if [ -f "google-services.json" ] && [ ! -f "app/google-services.json" ]; then
+            echo "Moving root google-services.json to app/ directory..."
+            cp google-services.json app/google-services.json
+          fi
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "Injecting GOOGLE_SERVICES_JSON from Codemagic environment variables..."
+            echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+          fi
+          if [ -f "app/google-services.json" ]; then
+            echo "✓ app/google-services.json verified and ready."
+          else
+            echo "⚠️ WARNING: app/google-services.json not found in repository."
+          fi
+
       - name: Clean Workspace and Gradle Cache
         script: |
           echo "=== Cleaning Local Build Directories and Gradle Caches ==="

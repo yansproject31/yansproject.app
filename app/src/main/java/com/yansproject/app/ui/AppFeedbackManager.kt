@@ -87,26 +87,38 @@ object AppFeedbackManager {
 
     // --- SOUND METHODS ---
     private fun playSuccessSound() {
-        soundPool?.let { pool ->
-            if (successSoundId != -1) {
-                pool.play(successSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
+        try {
+            soundPool?.let { pool ->
+                if (successSoundId != -1) {
+                    pool.play(successSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
+                }
             }
+        } catch (e: Throwable) {
+            Log.e(TAG, "playSuccessSound error: ${e.message}")
         }
     }
 
     private fun playWarningSound() {
-        soundPool?.let { pool ->
-            if (warningSoundId != -1) {
-                pool.play(warningSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
+        try {
+            soundPool?.let { pool ->
+                if (warningSoundId != -1) {
+                    pool.play(warningSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
+                }
             }
+        } catch (e: Throwable) {
+            Log.e(TAG, "playWarningSound error: ${e.message}")
         }
     }
 
     private fun playErrorSound() {
-        soundPool?.let { pool ->
-            if (errorSoundId != -1) {
-                pool.play(errorSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
+        try {
+            soundPool?.let { pool ->
+                if (errorSoundId != -1) {
+                    pool.play(errorSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
+                }
             }
+        } catch (e: Throwable) {
+            Log.e(TAG, "playErrorSound error: ${e.message}")
         }
     }
 
