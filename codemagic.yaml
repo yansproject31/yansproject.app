@@ -34,14 +34,15 @@ workflows:
           
       - name: Gradle Wrapper Integrity Setup
         script: |
-          echo "=== Gradle Wrapper Check ==="
-          if [ -f "gradlew" ]; then
-            echo "Existing Gradle Wrapper found. Preserving and using default wrapper."
-            chmod +x gradlew
+          echo "=== Gradle Wrapper Verification & Auto-Repair ==="
+          chmod +x gradlew 2>/dev/null || true
+          if [ -f "gradlew" ] && ./gradlew --version >/dev/null 2>&1; then
+            echo "✓ Gradle Wrapper verified and functional."
           else
-            echo "Gradle Wrapper is missing. Generating official wrapper automatically..."
+            echo "⚠️ Gradle Wrapper is missing or jar is corrupted. Regenerating Wrapper..."
             gradle wrapper --gradle-version 8.10.2
             chmod +x gradlew
+            echo "✓ Gradle Wrapper successfully restored."
           fi
 
       - name: Clean Workspace and Gradle Cache
