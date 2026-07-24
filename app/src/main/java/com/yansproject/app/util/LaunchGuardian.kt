@@ -85,15 +85,9 @@ object LaunchGuardian {
             // Trigger lightweight query to assert integrity
             db.openHelper.readableDatabase
             Log.i(TAG, "Database handshake successful. SQLite file system is healthy.")
-        } catch (corruptEx: SQLiteDatabaseCorruptException) {
-            Log.e(TAG, "CRITICAL DATABASE CORRUPTION DETECTED! Initiating self-healing protocol.", corruptEx)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Database startup exception detected (${t.javaClass.simpleName}: ${t.message}). Initiating self-healing protocol.", t)
             handleDatabaseCorruption(context)
-        } catch (e: Exception) {
-            Log.e(TAG, "Database encountered unexpected startup exception. Checking for corruption markers.", e)
-            if (e.message?.contains("corrupt", ignoreCase = true) == true || 
-                e.cause is SQLiteDatabaseCorruptException) {
-                handleDatabaseCorruption(context)
-            }
         }
     }
 

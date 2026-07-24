@@ -32,7 +32,7 @@ object FoundationDiModule {
 
     @Provides
     @Singleton
-    fun provideFirebaseFirestore(@ApplicationContext context: Context): com.google.firebase.firestore.FirebaseFirestore {
+    fun provideFirebaseFirestore(@ApplicationContext context: Context): com.google.firebase.firestore.FirebaseFirestore? {
         return AppModule.provideFirestore(context)
     }
 

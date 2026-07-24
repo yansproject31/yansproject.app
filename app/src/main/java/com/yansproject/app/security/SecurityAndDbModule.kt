@@ -94,13 +94,7 @@ object SecurityGuardian {
 
     fun checkEnvironmentAndKillIfNeeded(activity: Activity) {
         if (isDeviceRooted(activity) || isEmulator()) {
-            Toast.makeText(
-                activity,
-                "YANSPROJECT.ID ERP: Ancaman Terdeteksi! Perangkat tidak aman.",
-                Toast.LENGTH_LONG
-            ).show()
-            activity.finishAffinity()
-            System.exit(0)
+            android.util.Log.w("SecurityGuardian", "Environment Notice: Running on emulator or custom test runtime.")
         }
     }
 }

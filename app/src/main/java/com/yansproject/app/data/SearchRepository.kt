@@ -23,7 +23,7 @@ data class DomainProduction(
 
 @Singleton
 class SearchRepository @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore?
 ) {
     private val TAG = "SearchRepository"
 
@@ -38,7 +38,13 @@ class SearchRepository @Inject constructor(
         color: String? = null,
         stockStatus: String? = null
     ): Flow<List<DomainProduction>> = callbackFlow {
-        var query: com.google.firebase.firestore.Query = firestore.collection("production")
+        val fs = firestore
+        if (fs == null) {
+            trySend(emptyList())
+            awaitClose { }
+            return@callbackFlow
+        }
+        var query: com.google.firebase.firestore.Query = fs.collection("production")
 
         if (!seriesName.isNullOrEmpty()) {
             query = query.whereEqualTo("seriesName", seriesName)
@@ -89,7 +95,12 @@ class SearchRepository @Inject constructor(
         stockStatus: String?,
         scope: kotlinx.coroutines.channels.ProducerScope<List<DomainProduction>>
     ) {
-        val baseQuery = firestore.collection("production").orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+        val fs = firestore
+        if (fs == null) {
+            scope.trySend(emptyList())
+            return
+        }
+        val baseQuery = fs.collection("production").orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
         val listener = baseQuery.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.e(TAG, "Fallback client-side listener failed: ${error.message}", error)

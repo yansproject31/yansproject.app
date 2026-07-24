@@ -14,30 +14,45 @@ object AppModule {
 
     private var hasInitializedCache = false
 
-    fun provideFirebaseAuth(): FirebaseAuth {
-        return FirebaseAuth.getInstance()
-    }
-
-    fun provideFirebaseCrashlytics(): FirebaseCrashlytics {
-        return FirebaseCrashlytics.getInstance()
-    }
-
-    fun provideFirestore(context: Context): FirebaseFirestore {
-        val firestore = FirebaseFirestore.getInstance()
-        if (!hasInitializedCache) {
-            try {
-                @Suppress("DEPRECATION")
-                val settings = FirebaseFirestoreSettings.Builder()
-                    .setPersistenceEnabled(true) // Active Local-First Cache (Spark Plan friendly)
-                    .setCacheSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
-                    .build()
-                firestore.firestoreSettings = settings
-                hasInitializedCache = true
-                provideFirebaseCrashlytics().log("Firestore local persistence successfully configured.")
-            } catch (e: Exception) {
-                provideFirebaseCrashlytics().recordException(e)
-            }
+    fun provideFirebaseAuth(): FirebaseAuth? {
+        return try {
+            FirebaseAuth.getInstance()
+        } catch (e: Throwable) {
+            null
         }
-        return firestore
+    }
+
+    fun provideFirebaseCrashlytics(): FirebaseCrashlytics? {
+        return try {
+            FirebaseCrashlytics.getInstance()
+        } catch (e: Throwable) {
+            null
+        }
+    }
+
+    fun provideFirestore(context: Context): FirebaseFirestore? {
+        return try {
+            if (com.google.firebase.FirebaseApp.getApps(context).isEmpty()) {
+                com.google.firebase.FirebaseApp.initializeApp(context)
+            }
+            val firestore = FirebaseFirestore.getInstance()
+            if (!hasInitializedCache) {
+                try {
+                    @Suppress("DEPRECATION")
+                    val settings = FirebaseFirestoreSettings.Builder()
+                        .setPersistenceEnabled(true)
+                        .setCacheSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                        .build()
+                    firestore.firestoreSettings = settings
+                    hasInitializedCache = true
+                } catch (e: Exception) {
+                    android.util.Log.w("AppModule", "Firestore settings warning: ${e.message}")
+                }
+            }
+            firestore
+        } catch (e: Throwable) {
+            android.util.Log.e("AppModule", "Firestore unavailable: ${e.message}")
+            null
+        }
     }
 }

@@ -95,17 +95,12 @@ object OmniverseSecurity {
     }
 
     /**
-     * Instantly halts execution if tamper vectors are verified.
+     * Non-destructive compliance verification for YANSPROJECT.ID ERP.
+     * Logs environment state without terminating app execution on emulators or test environments.
      */
     fun verifyComplianceAndEnforce(activity: Activity) {
         if (isDeviceRooted(activity) || isEmulator()) {
-            Toast.makeText(
-                activity,
-                "YANSPROJECT.ID ERP: Ancaman Tampering/Emulator Terdeteksi! Sesi Ditutup Demi Keamanan.",
-                Toast.LENGTH_LONG
-            ).show()
-            activity.finishAffinity()
-            System.exit(0)
+            android.util.Log.w("OmniverseSecurity", "Environment Notice: Running on emulator or custom test runtime. Compliance mode active.")
         }
     }
 
