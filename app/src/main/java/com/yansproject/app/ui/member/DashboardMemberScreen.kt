@@ -53,11 +53,14 @@ fun DashboardMemberScreen(
     val myInvoices = remember(invoices, currentUser) {
         val name = currentUser?.displayName ?: ""
         val email = currentUser?.email ?: ""
+        val wa = currentUser?.whatsapp?.replace("+", "")?.trim() ?: ""
         invoices.filter { 
             !it.isDeleted && 
-            (it.clientName.equals(name, ignoreCase = true) || (email.isNotBlank() && it.itemsJson.contains("__EMAIL__:$email", ignoreCase = true))) && 
-            it.projectId == null && 
-            it.orderId != null
+            (
+                (name.isNotBlank() && it.clientName.equals(name, ignoreCase = true)) ||
+                (email.isNotBlank() && (it.clientName.equals(email, ignoreCase = true) || it.itemsJson.contains("__EMAIL__:$email", ignoreCase = true))) ||
+                (wa.isNotBlank() && it.clientPhone.replace("+", "").trim() == wa)
+            )
         }
     }
 

@@ -78,6 +78,7 @@ fun StockScreen(
     var showCartDialog by remember { mutableStateOf(false) }
     var showTotalProduksiDialog by remember { mutableStateOf(false) }
     var showTotalTerjualDialog by remember { mutableStateOf(false) }
+    var showNilaiPersediaanDialog by remember { mutableStateOf(false) }
     val memberCart by viewModel.memberCart.collectAsState()
 
     val catalogSearchQuery by viewModel.stockSearchQuery.collectAsState()
@@ -523,7 +524,10 @@ fun StockScreen(
                                             reservedStock = reservedStock,
                                             availableStock = availableStock,
                                             nilaiPersediaan = nilaiPersediaan,
-                                            isOwner = isOwner
+                                            isOwner = isOwner,
+                                            onTotalProduksiClick = { showTotalProduksiDialog = true },
+                                            onTotalTerjualClick = { showTotalTerjualDialog = true },
+                                            onNilaiPersediaanClick = { showNilaiPersediaanDialog = true }
                                         )
 
                                         val seriesStockList = remember(catalogs, variants, inventorySummaries, stocks) {
@@ -959,6 +963,17 @@ fun StockScreen(
                 invoices = invoices,
                 isOwner = isOwner,
                 onDismiss = { showTotalTerjualDialog = false }
+            )
+        }
+
+        if (showNilaiPersediaanDialog) {
+            NilaiPersediaanDetailDialog(
+                catalogs = catalogs,
+                variants = variants,
+                stocks = stocks,
+                inventorySummaries = inventorySummaries,
+                isOwner = isOwner,
+                onDismiss = { showNilaiPersediaanDialog = false }
             )
         }
     }
@@ -3946,7 +3961,8 @@ fun InventoryDashboardHeader(
     nilaiPersediaan: Double,
     isOwner: Boolean = true,
     onTotalProduksiClick: (() -> Unit)? = null,
-    onTotalTerjualClick: (() -> Unit)? = null
+    onTotalTerjualClick: (() -> Unit)? = null,
+    onNilaiPersediaanClick: (() -> Unit)? = null
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
@@ -4021,7 +4037,8 @@ fun InventoryDashboardHeader(
                             title = "NILAI PERSEDIAAN",
                             value = FormatUtils.formatRupiah(nilaiPersediaan),
                             color = AgedGold,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            onClick = onNilaiPersediaanClick
                         )
                     }
                 }
@@ -4850,6 +4867,460 @@ fun SoldInvoiceCardItem(
                             fontWeight = FontWeight.Bold,
                             color = AlertOrange
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NilaiPersediaanDetailDialog(
+    catalogs: List<com.yansproject.app.data.MasterCatalog>,
+    variants: List<com.yansproject.app.data.MasterVarianWarna>,
+    stocks: List<com.yansproject.app.data.MasterStock>,
+    inventorySummaries: List<com.yansproject.app.data.InventorySummary>,
+    isOwner: Boolean,
+    onDismiss: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var searchQuery by remember { mutableStateOf("") }
+    
+    val hppPendek = remember { AppSettings.getAjibqobulHppPendek(context) }
+    val hppPanjang = remember { AppSettings.getAjibqobulHppPanjang(context) }
+    val hppUpsizeXXL = remember { AppSettings.getAjibqobulHppUpsizeXXL(context) }
+    val hppUpsize3XL = remember { AppSettings.getAjibqobulHppUpsize3XL(context) }
+    val hppUpsize4XL = remember { AppSettings.getAjibqobulHppUpsize4XL(context) }
+
+    data class SizeStockBreakdown(
+        val label: String,
+        val shortQty: Int,
+        val shortHpp: Double,
+        val longQty: Int,
+        val longHpp: Double,
+        val totalQty: Int,
+        val totalValue: Double
+    )
+
+    data class CatalogValuation(
+        val catalogName: String,
+        val variantCount: Int,
+        val breakdowns: List<SizeStockBreakdown>,
+        val totalQty: Int,
+        val totalValuation: Double
+    )
+
+    val catalogValuations = remember(catalogs, variants, stocks, hppPendek, hppPanjang, hppUpsizeXXL, hppUpsize3XL, hppUpsize4XL) {
+        catalogs.map { catalog ->
+            val catalogVariants = variants.filter { it.id_catalog == catalog.id_catalog }
+            val catalogVariantIds = catalogVariants.map { it.id_varian }.toSet()
+            val catalogStocks = stocks.filter { catalogVariantIds.contains(it.id_varian) }
+
+            val stdShort = catalogStocks.sumOf { it.xs_pendek + it.s_pendek + it.m_pendek + it.l_pendek + it.xl_pendek }
+            val stdLong = catalogStocks.sumOf { it.xs_panjang + it.s_panjang + it.m_panjang + it.l_panjang + it.xl_panjang }
+
+            val xxlShort = catalogStocks.sumOf { it.xxl_pendek }
+            val xxlLong = catalogStocks.sumOf { it.xxl_panjang }
+
+            val threeXlShort = catalogStocks.sumOf { it.three_xl_pendek }
+            val threeXlLong = catalogStocks.sumOf { it.three_xl_panjang }
+
+            val fourXlShort = catalogStocks.sumOf { it.four_xl_pendek }
+            val fourXlLong = catalogStocks.sumOf { it.four_xl_panjang }
+
+            val stdHppS = hppPendek
+            val stdHppL = hppPanjang
+            val xxlHppS = hppPendek + hppUpsizeXXL
+            val xxlHppL = hppPanjang + hppUpsizeXXL
+            val threeXlHppS = hppPendek + hppUpsize3XL
+            val threeXlHppL = hppPanjang + hppUpsize3XL
+            val fourXlHppS = hppPendek + hppUpsize4XL
+            val fourXlHppL = hppPanjang + hppUpsize4XL
+
+            val breakdowns = listOf(
+                SizeStockBreakdown("Standar (XS-XL)", stdShort, stdHppS, stdLong, stdHppL, stdShort + stdLong, (stdShort * stdHppS) + (stdLong * stdHppL)),
+                SizeStockBreakdown("Upsize XXL", xxlShort, xxlHppS, xxlLong, xxlHppL, xxlShort + xxlLong, (xxlShort * xxlHppS) + (xxlLong * xxlHppL)),
+                SizeStockBreakdown("Upsize 3XL", threeXlShort, threeXlHppS, threeXlLong, threeXlHppL, threeXlShort + threeXlLong, (threeXlShort * threeXlHppS) + (threeXlLong * threeXlHppL)),
+                SizeStockBreakdown("Upsize 4XL", fourXlShort, fourXlHppS, fourXlLong, fourXlHppL, fourXlShort + fourXlLong, (fourXlShort * fourXlHppS) + (fourXlLong * fourXlHppL))
+            )
+
+            val totalQty = breakdowns.sumOf { it.totalQty }
+            val totalValuation = breakdowns.sumOf { it.totalValue }
+
+            CatalogValuation(
+                catalogName = catalog.nama_catalog,
+                variantCount = catalogVariants.size,
+                breakdowns = breakdowns,
+                totalQty = totalQty,
+                totalValuation = totalValuation
+            )
+        }
+    }
+
+    val filteredValuations = remember(catalogValuations, searchQuery) {
+        if (searchQuery.isBlank()) catalogValuations
+        else catalogValuations.filter { it.catalogName.lowercase().contains(searchQuery.trim().lowercase()) }
+    }
+
+    val totalOverallQty = remember(catalogValuations) { catalogValuations.sumOf { it.totalQty } }
+    val totalOverallValue = remember(catalogValuations) { catalogValuations.sumOf { it.totalValuation } }
+
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.92f)
+                .clip(RoundedCornerShape(16.dp)),
+            color = ShadowBlack,
+            border = BorderStroke(1.dp, PrimaryDarkTeal)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(SecondaryShadowBlackTeal),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Analytics,
+                                contentDescription = null,
+                                tint = AgedGold,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "AUDIT RINCIAN NILAI PERSEDIAAN",
+                                color = AgedGold,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 0.5.sp
+                            )
+                            Text(
+                                text = "Kalkulasi HPP Real-time Berdasarkan Sisa Stok Fisik Matrix",
+                                color = TextMuted,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(SecondaryShadowBlackTeal)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Tutup",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Overall Totals Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
+                    border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.4f)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "TOTAL PERSEDIAAN AKTIFA",
+                                fontSize = 9.sp,
+                                color = TextMuted,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "$totalOverallQty Pcs Ready Stock",
+                                fontSize = 14.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "TOTAL NILAI PERSEDIAAN (HPP)",
+                                fontSize = 9.sp,
+                                color = TextMuted,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = FormatUtils.formatRupiah(totalOverallValue),
+                                fontSize = 15.sp,
+                                color = AgedGold,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Active Config Rules Info Banner
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SecondaryShadowBlackTeal),
+                    border = BorderStroke(0.5.dp, BorderGrey),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "ATURAN HPP BERLAKU:",
+                            fontSize = 9.5.sp,
+                            color = HighlightSoftCyan,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Pendek: ${FormatUtils.formatRupiah(hppPendek)} | Panjang: ${FormatUtils.formatRupiah(hppPanjang)}",
+                                fontSize = 9.5.sp,
+                                color = TextIsiSoftGray
+                            )
+                            Text(
+                                text = "Upsize XXL: +${FormatUtils.formatRupiah(hppUpsizeXXL)} | 3XL: +${FormatUtils.formatRupiah(hppUpsize3XL)} | 4XL: +${FormatUtils.formatRupiah(hppUpsize4XL)}",
+                                fontSize = 9.5.sp,
+                                color = AccentAgedGold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Cari Seri / Katalog...", fontSize = 11.sp, color = TextMuted) },
+                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(16.dp)) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Outlined.Close, contentDescription = null, tint = TextMuted, modifier = Modifier.size(14.dp))
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = TextIsiSoftGray,
+                        focusedBorderColor = HighlightSoftCyan,
+                        unfocusedBorderColor = BorderGrey,
+                        focusedContainerColor = SurfaceDarkTealSurface,
+                        unfocusedContainerColor = SurfaceDarkTealSurface
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // List of Catalogs
+                if (filteredValuations.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Tidak ada data persediaan stok ditemukan.", color = TextMuted, fontSize = 11.sp)
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(filteredValuations) { cat ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
+                                border = BorderStroke(0.5.dp, BorderGrey),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = cat.catalogName,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp,
+                                                color = Color.White
+                                            )
+                                            Surface(
+                                                color = SecondaryShadowBlackTeal,
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "${cat.variantCount} Varian",
+                                                    fontSize = 8.5.sp,
+                                                    color = HighlightSoftCyan,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = FormatUtils.formatRupiah(cat.totalValuation),
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 12.sp,
+                                                color = AgedGold
+                                            )
+                                            Text(
+                                                text = "${cat.totalQty} Pcs Ready",
+                                                fontSize = 9.sp,
+                                                color = AlertGreen
+                                            )
+                                        }
+                                    }
+
+                                    HorizontalDivider(color = BorderGrey.copy(alpha = 0.5f), thickness = 0.5.dp)
+
+                                    // Breakdown Rows
+                                    cat.breakdowns.forEach { bd ->
+                                        if (bd.totalQty > 0) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = bd.label,
+                                                    fontSize = 10.sp,
+                                                    color = TextIsiSoftGray,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    if (bd.shortQty > 0) {
+                                                        Text(
+                                                            text = "Pendek: ${bd.shortQty} @${FormatUtils.formatRupiah(bd.shortHpp)}",
+                                                            fontSize = 9.5.sp,
+                                                            color = Color.White
+                                                        )
+                                                    }
+                                                    if (bd.longQty > 0) {
+                                                        Text(
+                                                            text = "Panjang: ${bd.longQty} @${FormatUtils.formatRupiah(bd.longHpp)}",
+                                                            fontSize = 9.5.sp,
+                                                            color = HighlightSoftCyan
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = FormatUtils.formatRupiah(bd.totalValue),
+                                                        fontSize = 10.sp,
+                                                        color = AlertGreen,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Bottom Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val exporter = com.yansproject.app.data.LocalReportExporter(context)
+                            val headers = listOf("Katalog", "Tipe Ukuran", "Pendek Qty", "HPP Pendek", "Panjang Qty", "HPP Panjang", "Total Qty", "Total HPP")
+                            val rows = mutableListOf<Map<String, String>>()
+                            catalogValuations.forEach { cat ->
+                                cat.breakdowns.forEach { bd ->
+                                    rows.add(
+                                        mapOf(
+                                            "Katalog" to cat.catalogName,
+                                            "Tipe Ukuran" to bd.label,
+                                            "Pendek Qty" to bd.shortQty.toString(),
+                                            "HPP Pendek" to bd.shortHpp.toString(),
+                                            "Panjang Qty" to bd.longQty.toString(),
+                                            "HPP Panjang" to bd.longHpp.toString(),
+                                            "Total Qty" to bd.totalQty.toString(),
+                                            "Total HPP" to bd.totalValue.toString()
+                                        )
+                                    )
+                                }
+                            }
+                            val file = exporter.exportToCsv("Nilai_Persediaan_AJIBQOBUL.csv", headers, rows)
+                            if (file != null) {
+                                android.widget.Toast.makeText(context, "Berhasil ekspor CSV: ${file.name}", android.widget.Toast.LENGTH_LONG).show()
+                            } else {
+                                android.widget.Toast.makeText(context, "Gagal ekspor CSV", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SecondaryShadowBlackTeal),
+                        border = BorderStroke(1.dp, HighlightSoftCyan),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Outlined.Share, contentDescription = null, tint = HighlightSoftCyan, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("EKSPOR CSV", fontSize = 11.sp, color = HighlightSoftCyan, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryDarkTeal),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("TUTUP", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
