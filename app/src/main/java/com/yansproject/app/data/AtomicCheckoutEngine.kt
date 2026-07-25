@@ -140,10 +140,15 @@ object AtomicCheckoutEngine {
                         })
                     }
 
+                    val currentUid = FirebaseSyncManager.currentUser.value?.uid ?: ""
                     val invoiceData = hashMapOf(
                         "invoiceNumber" to invoiceNum,
                         "clientName" to clientName,
                         "clientPhone" to clientPhone,
+                        "clientEmail" to currentUserEmail,
+                        "uid_member" to currentUid,
+                        "userId" to currentUid,
+                        "memberUid" to currentUid,
                         "issueDate" to System.currentTimeMillis(),
                         "dueDate" to System.currentTimeMillis() + (86400000 * 3),
                         "totalAmount" to totalAmount,

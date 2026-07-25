@@ -629,7 +629,7 @@ fun GlobalSearchDialog(
                     modifier = Modifier
                       .fillMaxWidth()
                       .clickable {
-                        if (isOwner) viewModel.setTab(AppTab.INVOICE) else viewModel.setTab(AppTab.RIWAYAT)
+                        if (isOwner) viewModel.setTab(AppTab.INVOICE) else viewModel.setTab(AppTab.DASHBOARD)
                         onDismiss()
                       },
                     colors = CardDefaults.cardColors(containerColor = CardGrey)

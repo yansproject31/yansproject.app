@@ -91,6 +91,64 @@ fun MemberManagementModule(
 ) {
     val context = LocalContext.current
     
+    val currentUser by com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState()
+    val isOwner = currentUser?.role == com.yansproject.app.data.UserRole.OWNER || currentUser?.role == com.yansproject.app.data.UserRole.ADMIN
+
+    if (!isOwner) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(ShadowBlack)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CardDarkCard),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, AlertRed.copy(alpha = 0.5f))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(AlertRed.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lock,
+                            contentDescription = "Akses Dibatasi",
+                            tint = AlertRed,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    Text(
+                        text = "AKSES MANAGEMENT MEMBER DIBATASI",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Black,
+                        color = AlertRed,
+                        letterSpacing = 1.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Halaman Direktori & Manajemen Member hanya dapat diakses oleh Owner / Administrator ERP YANSPROJECT.ID.",
+                        fontSize = 13.sp,
+                        color = Color.White.copy(alpha = 0.85f),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+        return
+    }
+
     // Database and flows
     val db = remember { AppDatabase.getDatabase(context) }
     val invoicesFlow = remember { db.invoiceDao().getAllInvoices() }
@@ -1187,8 +1245,8 @@ fun MemberDetailAnalyticsSheet(
         val wa = member.whatsapp.replace("+", "").trim()
         invoices.filter { inv ->
             !inv.isDeleted && (
-                (name.isNotBlank() && inv.clientName.equals(name, ignoreCase = true)) ||
-                (email.isNotBlank() && (inv.clientName.equals(email, ignoreCase = true) || inv.itemsJson.contains("__EMAIL__:$email", ignoreCase = true))) ||
+                (name.isNotBlank() && (inv.clientName.contains(name, ignoreCase = true) || name.contains(inv.clientName, ignoreCase = true))) ||
+                (email.isNotBlank() && (inv.clientName.contains(email, ignoreCase = true) || inv.itemsJson.contains("__EMAIL__:$email", ignoreCase = true))) ||
                 (wa.isNotBlank() && inv.clientPhone.replace("+", "").trim() == wa)
             )
         }

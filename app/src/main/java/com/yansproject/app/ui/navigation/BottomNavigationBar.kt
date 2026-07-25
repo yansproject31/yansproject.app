@@ -228,27 +228,29 @@ fun BottomNavigationBar(
             )
         }
 
-        // 5. Riwayat
-        NavigationBarItem(
-            selected = currentTab == AppTab.RIWAYAT,
-            onClick = { handleTabSelect(AppTab.RIWAYAT) },
-            icon = {
-                Icon(
-                    imageVector = Icons.Outlined.History,
-                    contentDescription = "Riwayat",
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            label = {
-                Text(
-                    text = "Riwayat",
-                    fontSize = 10.sp,
-                    fontWeight = if (currentTab == AppTab.RIWAYAT) FontWeight.Bold else FontWeight.Normal
-                )
-            },
-            colors = itemColors,
-            modifier = Modifier.testTag("nav_riwayat")
-        )
+        // 5. Riwayat (Khusus Owner / Admin)
+        if (canManageInventory) {
+            NavigationBarItem(
+                selected = currentTab == AppTab.RIWAYAT,
+                onClick = { handleTabSelect(AppTab.RIWAYAT) },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Outlined.History,
+                        contentDescription = "Riwayat",
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
+                label = {
+                    Text(
+                        text = "Riwayat",
+                        fontSize = 10.sp,
+                        fontWeight = if (currentTab == AppTab.RIWAYAT) FontWeight.Bold else FontWeight.Normal
+                    )
+                },
+                colors = itemColors,
+                modifier = Modifier.testTag("nav_riwayat")
+            )
+        }
     }
 }
 }

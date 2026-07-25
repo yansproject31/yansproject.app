@@ -51,4 +51,16 @@ object FoundationDiModule {
     ): SystemCleaner {
         return SystemCleaner(context, offlineActionDao, appDatabase)
     }
+
+    @Provides
+    @Singleton
+    fun provideFinancialSyncService(@ApplicationContext context: Context): FinancialSyncService {
+        return FinancialSyncService.getInstance(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideInvoiceRepository(@ApplicationContext context: Context): InvoiceRepository {
+        return InvoiceRepository.getInstance(context)
+    }
 }

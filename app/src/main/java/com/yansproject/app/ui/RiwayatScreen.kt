@@ -111,11 +111,19 @@ fun RiwayatScreen(
     val filteredInvoices = remember(invoices, searchQuery, selectedFilter, currentUser) {
         val isOwner = currentUser?.role == UserRole.OWNER
         val memberName = currentUser?.displayName ?: ""
+        val memberPhone = currentUser?.whatsapp ?: ""
+        val memberEmail = currentUser?.email ?: ""
 
         invoices.filter { invoice ->
-            // If Member, only show their own invoices (filter by clientName containing memberName)
-            if (!isOwner && !invoice.clientName.contains(memberName, ignoreCase = true)) {
-                return@filter false
+            val converters = AppTypeConverters()
+            val items = converters.toInvoiceItemList(invoice.itemsJson)
+
+            // If Member, verify ownership by name, phone, or email marker
+            if (!isOwner) {
+                val matchesName = memberName.isNotBlank() && invoice.clientName.contains(memberName, ignoreCase = true)
+                val matchesPhone = memberPhone.isNotBlank() && invoice.clientPhone.contains(memberPhone, ignoreCase = true)
+                val matchesEmail = memberEmail.isNotBlank() && items.any { it.description.contains(memberEmail, ignoreCase = true) }
+                if (!matchesName && !matchesPhone && !matchesEmail && memberName.isNotBlank()) return@filter false
             }
 
             // Riwayat berasal HANYA dari penjualan AJIBQOBUL SERIES (projectId == null)
@@ -128,15 +136,13 @@ fun RiwayatScreen(
                 "Minggu Ini" -> isThisWeek(invoice.issueDate)
                 "Bulan Ini" -> isThisMonth(invoice.issueDate)
                 "Tahun Ini" -> isThisYear(invoice.issueDate)
-                "Lunas" -> invoice.status.equals("LUNAS", ignoreCase = true)
-                "Belum Lunas" -> invoice.status.equals("BELUM LUNAS", ignoreCase = true)
-                "DP" -> invoice.status.equals("DP", ignoreCase = true)
+                "Lunas" -> invoice.status.equals("LUNAS", ignoreCase = true) || (invoice.totalAmount > 0 && invoice.paidAmount >= invoice.totalAmount)
+                "Belum Lunas" -> (invoice.status.equals("BELUM LUNAS", ignoreCase = true) || invoice.status.equals("DISETUJUI", ignoreCase = true)) && invoice.paidAmount == 0.0
+                "DP" -> invoice.status.equals("DP", ignoreCase = true) || (invoice.paidAmount > 0 && invoice.paidAmount < invoice.totalAmount)
                 else -> true
             }
 
             // Search by invoice number, customer name, WhatsApp, or series name
-            val converters = AppTypeConverters()
-            val items = converters.toInvoiceItemList(invoice.itemsJson)
             val seriesNames = items.map {
                 val parsed = FormatUtils.parseStockItemName(it.description.removePrefix("Pembelian: "))
                 if (parsed.isApparel) parsed.series else it.description
@@ -1034,7 +1040,7 @@ fun printInvoicePdf(context: Context, invoice: Invoice) {
 }
 
 @Composable
-private fun RiwayatSizeMatrixLayout(
+fun RiwayatSizeMatrixLayout(
     sizesPendek: Map<String, Int>,
     sizesPanjang: Map<String, Int>
 ) {

@@ -30,6 +30,11 @@ import com.yansproject.app.data.VariantCell
 import com.yansproject.app.ui.theme.*
 import com.yansproject.app.ui.AppSettings
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.yansproject.app.data.AppDatabase
+import com.yansproject.app.ui.FormatUtils
+
 @Composable
 fun DualApparelMatrixInputComponent(
     isCustomProject: Boolean,
@@ -41,6 +46,32 @@ fun DualApparelMatrixInputComponent(
     onCancel: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val db = remember { AppDatabase.getDatabase(context) }
+    val catalogsState by db.catalogDao().getAllCatalogs().collectAsState(initial = emptyList())
+    val stockItemsState by db.stockDao().getAllStock().collectAsState(initial = emptyList())
+
+    val defaultSeriesList = listOf(
+        "Rahasia Realita",
+        "Hina Mulia",
+        "Hilang Pulang",
+        "Madad Auliya 68th",
+        "Signature Yans"
+    )
+
+    val availableSeries = remember(catalogsState, stockItemsState) {
+        val catalogNames = catalogsState.map { it.nama_catalog }
+        val stockSeries = stockItemsState.map { FormatUtils.parseStockItemName(it.name).series }
+        (catalogNames + stockSeries + defaultSeriesList)
+            .map { raw ->
+                raw.replace("AJIBQOBUL", "", ignoreCase = true)
+                    .replace(":", "")
+                    .trim()
+            }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+    }
+
     var itemName by remember { mutableStateOf("") }
     
     // Custom Project Price Input
@@ -57,8 +88,11 @@ fun DualApparelMatrixInputComponent(
     val shortSleeveQty = remember { mutableStateMapOf<String, String>() }
     val longSleeveQty = remember { mutableStateMapOf<String, String>() }
     
-    // Pre-populate empty inputs
+    // Pre-populate empty inputs and default series name for Ajibqobul mode
     LaunchedEffect(Unit) {
+        if (!isCustomProject && itemName.isBlank()) {
+            itemName = "AJIBQOBUL Rahasia Realita"
+        }
         adultSizes.forEach {
             shortSleeveQty[it] = ""
             longSleeveQty[it] = ""
@@ -92,11 +126,62 @@ fun DualApparelMatrixInputComponent(
             )
             Spacer(modifier = Modifier.height(12.dp))
 
+            if (!isCustomProject) {
+                Text(
+                    text = "PILIHAN SERIES AJIBQOBUL (READY STOK):",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = AccentAgedGold,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    availableSeries.forEach { seriesName ->
+                        val isSelected = itemName.contains(seriesName, ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) PrimaryDarkTeal else SurfaceDarkTealSurface)
+                                .border(1.dp, if (isSelected) AccentAgedGold else DividerDarkCyanGray, RoundedCornerShape(8.dp))
+                                .clickable {
+                                    itemName = "AJIBQOBUL $seriesName"
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = seriesName,
+                                    color = if (isSelected) AccentAgedGold else TextOnCarbon,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(AlertGreen.copy(alpha = 0.2f))
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Text("READY", color = AlertGreen, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             // Common Item Name field
             OutlinedTextField(
                 value = itemName,
                 onValueChange = { itemName = it },
-                label = { Text("Nama Apparel/Artikel") },
+                label = { Text(if (!isCustomProject) "Nama Series / Artikel AJIBQOBUL" else "Nama Apparel/Artikel") },
                 placeholder = { Text("Contoh: Kaos Gathering 2026") },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(

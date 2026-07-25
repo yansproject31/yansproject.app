@@ -1,43 +1,66 @@
 package com.yansproject.app.ui.theme
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import kotlin.jvm.JvmName
 
 // ==========================================
 // OFFICIAL YANSPROJECT.ID COLOR SYSTEM (VERSI 1.2.0)
 // ==========================================
-val DarkTealBase = Color(0xFF0A0A0A)          // Shadow Black (#0A0A0A) as Background
-val DarkTealSurface = Color(0xFF112B2C)       // Dark Teal Surface (#112B2C)
-val DarkTealSurfaceVariant = Color(0xFF163536) // Dark Card (#163536)
+// Static base defaults for non-composable initializations
+val StaticDarkTealBase = Color(0xFF0A0A0A)
+val StaticDarkTealSurface = Color(0xFF112B2C)
+val StaticDarkTealSurfaceVariant = Color(0xFF163536)
+val StaticAgedGold = Color(0xFFC6A15B)
+val StaticHighlightSoftCyan = Color(0xFF4FD1C5)
+val StaticPrimaryDarkTeal = Color(0xFF0F3D3E)
+val StaticSecondaryShadowBlackTeal = Color(0xFF081F20)
 
-val AgedGoldLight = Color(0xFFC6A15B)         // Aged Gold (#C6A15B)
-val AgedGoldDark = Color(0xFF9E7E43)          // Darker Aged Gold
+// Dynamic Compose Snapshot State holders for Theme Colors
+var dynamicShadowBlack by mutableStateOf(Color(0xFF0A0A0A))
+var dynamicDarkTealSurface by mutableStateOf(Color(0xFF112B2C))
+var dynamicCardDarkCard by mutableStateOf(Color(0xFF163536))
+var dynamicPrimaryDarkTeal by mutableStateOf(Color(0xFF0F3D3E))
+var dynamicSecondaryShadowBlackTeal by mutableStateOf(Color(0xFF081F20))
+var dynamicAgedGold by mutableStateOf(Color(0xFFC6A15B))
+var dynamicHighlightSoftCyan by mutableStateOf(Color(0xFF4FD1C5))
+var dynamicBorderGrey by mutableStateOf(Color(0xFF0F3D3E))
 
-val NeonCyan = Color(0xFF4FD1C5)              // Soft Cyan (#4FD1C5)
-val YansDivider = Color(0xFF0F3D3E)           // Dark Teal (#0F3D3E) for divider/accents
-val YansTextPrimary = Color(0xFFFFFFFF)       // Text Primary (White)
-val YansTextSecondary = Color(0xFFA7B8B3)     // Text Secondary (Soft Slate Gray)
+// Public aliases forwarding to dynamic snapshot states
+val DarkTealBase: Color get() = dynamicShadowBlack
+val DarkTealSurface: Color get() = dynamicDarkTealSurface
+val DarkTealSurfaceVariant: Color get() = dynamicCardDarkCard
 
-val YansError = Color(0xFFFF5A5A)             // Error Red
-val YansSuccess = Color(0xFF30D158)           // Success Green
+val AgedGoldLight: Color get() = dynamicAgedGold
+val AgedGoldDark: Color get() = dynamicAgedGold.copy(alpha = 0.8f)
 
-val GlassWhite = Color.White.copy(alpha = 0.05f)  // Isi form/card kaca
-val GlassBorder = Color(0x33FFFFFF)               // Thin border for glass Card
+val NeonCyan: Color get() = dynamicHighlightSoftCyan
+val YansDivider: Color get() = dynamicBorderGrey
+val YansTextPrimary = Color(0xFFFFFFFF)
+val YansTextSecondary = Color(0xFFA7B8B3)
+
+val YansError = Color(0xFFFF5A5A)
+val YansSuccess = Color(0xFF30D158)
+
+val GlassWhite = Color.White.copy(alpha = 0.05f)
+val GlassBorder = Color(0x33FFFFFF)
 
 // ==========================================
 // CENTRAL COMPATIBILITY ALIASES (PUBLIC VARIABLES)
 // ==========================================
 @get:JvmName("shadowBlack_lower")
-val shadowBlack = Color(0xFF0A0A0A)
+val shadowBlack: Color get() = dynamicShadowBlack
 
 @get:JvmName("darkTeal_lower")
-val darkTeal = Color(0xFF0F3D3E)
+val darkTeal: Color get() = dynamicPrimaryDarkTeal
 
 @get:JvmName("agedGold_lower")
-val agedGold = Color(0xFFC6A15B)
+val agedGold: Color get() = dynamicAgedGold
 
 @get:JvmName("cyanPulse_lower")
-val cyanPulse = Color(0xFF4FD1C5)
+val cyanPulse: Color get() = dynamicHighlightSoftCyan
 
 @get:JvmName("amberWarning_lower")
 val amberWarning = Color(0xFFFFB300)
@@ -48,60 +71,60 @@ val textWhite = YansTextPrimary
 @get:JvmName("textMuted_lower")
 val textMuted = YansTextSecondary
 
-val BackgroundDarkTeal = Color(0xFF0A0A0A)
-val SurfaceDarkTeal = Color(0xFF112B2C)
-val PrimaryGold = Color(0xFFC6A15B)
-val CyanAccent = Color(0xFF4FD1C5)
+val BackgroundDarkTeal: Color get() = dynamicShadowBlack
+val SurfaceDarkTeal: Color get() = dynamicDarkTealSurface
+val PrimaryGold: Color get() = dynamicAgedGold
+val CyanAccent: Color get() = dynamicHighlightSoftCyan
 val TextPrimary = YansTextPrimary
 val TextSecondary = YansTextSecondary
 val ErrorRed = YansError
 
-val PrimaryDarkTeal = Color(0xFF0F3D3E)
-val SecondaryShadowBlackTeal = Color(0xFF081F20)
-val AccentAgedGold = Color(0xFFC6A15B)
-val HighlightSoftCyan = Color(0xFF4FD1C5)
-val BackgroundShadowBlack = Color(0xFF0A0A0A)
-val SurfaceDarkTealSurface = Color(0xFF112B2C)
-val CardDarkCard = Color(0xFF163536)
+val PrimaryDarkTeal: Color get() = dynamicPrimaryDarkTeal
+val SecondaryShadowBlackTeal: Color get() = dynamicSecondaryShadowBlackTeal
+val AccentAgedGold: Color get() = dynamicAgedGold
+val HighlightSoftCyan: Color get() = dynamicHighlightSoftCyan
+val BackgroundShadowBlack: Color get() = dynamicShadowBlack
+val SurfaceDarkTealSurface: Color get() = dynamicDarkTealSurface
+val CardDarkCard: Color get() = dynamicCardDarkCard
 
 // Text Colors
-val TextJudulAgedGold = Color(0xFFC6A15B)
+val TextJudulAgedGold: Color get() = dynamicAgedGold
 val TextIsiSoftGray = TextSecondary
 val TextNonActive = TextSecondary
 
 // Divider
-val DividerDarkCyanGray = Color(0xFF0F3D3E)
+val DividerDarkCyanGray: Color get() = dynamicBorderGrey
 
 // Status Colors
-val StatusSuccessTeal = Color(0xFF112B2C)
-val StatusSuccessCyan = Color(0xFF4FD1C5)
-val StatusWarningGold = Color(0xFFC6A15B)
+val StatusSuccessTeal: Color get() = dynamicDarkTealSurface
+val StatusSuccessCyan: Color get() = dynamicHighlightSoftCyan
+val StatusWarningGold: Color get() = dynamicAgedGold
 val StatusDangerRed = YansError
-val StatusInfoCyan = Color(0xFF4FD1C5)
+val StatusInfoCyan: Color get() = dynamicHighlightSoftCyan
 
 // Compatibility Aliases
 @get:JvmName("DarkTeal_upper")
-val DarkTeal = Color(0xFF0F3D3E)
+val DarkTeal: Color get() = dynamicPrimaryDarkTeal
 
-val DarkTealEnd = Color(0xFF081F20)
+val DarkTealEnd: Color get() = dynamicShadowBlack
 
 @get:JvmName("AgedGold_upper")
-val AgedGold = Color(0xFFC6A15B)
+val AgedGold: Color get() = dynamicAgedGold
 
 @get:JvmName("ShadowBlack_upper")
-val ShadowBlack = Color(0xFF0A0A0A)
+val ShadowBlack: Color get() = dynamicShadowBlack
 
-val DarkGrey = Color(0xFF081F20)
-val CardGrey = Color(0xFF163536)
-val BorderGrey = Color(0xFF0F3D3E)
-val AccentGoldLight = Color(0xFFC6A15B)
+val DarkGrey: Color get() = dynamicPrimaryDarkTeal
+val CardGrey: Color get() = dynamicCardDarkCard
+val BorderGrey: Color get() = dynamicBorderGrey
+val AccentGoldLight: Color get() = dynamicAgedGold
 
 // Semantic colors
 @get:JvmName("TextWhite_upper")
 val TextWhite = Color(0xFFFFFFFF)
 
 @get:JvmName("CyanPulse_upper")
-val CyanPulse = Color(0xFF4FD1C5)
+val CyanPulse: Color get() = dynamicHighlightSoftCyan
 
 @get:JvmName("AmberWarning_upper")
 val AmberWarning = Color(0xFFFFB300)
@@ -114,5 +137,7 @@ val TextMuted = TextSecondary
 
 val AlertGreen = YansSuccess
 val AlertRed = YansError
-val AlertOrange = Color(0xFFC6A15B)
-val AlertBlue = Color(0xFF4FD1C5)
+val AlertOrange: Color get() = dynamicAgedGold
+val AlertBlue: Color get() = dynamicHighlightSoftCyan
+
+

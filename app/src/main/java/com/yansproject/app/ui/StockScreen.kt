@@ -210,6 +210,12 @@ fun StockScreen(
         val currentUser by FirebaseSyncManager.currentUser.collectAsState()
         val isOwner = currentUser?.role == UserRole.OWNER
         var currentSubTab by remember { mutableStateOf("Katalog") }
+
+        LaunchedEffect(isOwner) {
+            if (!isOwner) {
+                currentSubTab = "Katalog"
+            }
+        }
         var isMultiSelectModeCatalog by remember { mutableStateOf(false) }
         var selectedCatalogIds by remember { mutableStateOf(setOf<Int>()) }
         var showBatchDeleteCatalogConfirm by remember { mutableStateOf(false) }
@@ -387,28 +393,30 @@ fun StockScreen(
                                         }
                                     }
 
-                                    // Segmented Toggle
-                                    Row(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(CardGrey)
-                                            .padding(4.dp)
-                                    ) {
-                                        listOf("Katalog", "Riwayat").forEach { subTab ->
-                                            val isSelected = currentSubTab == subTab
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(if (isSelected) AgedGold else Color.Transparent)
-                                                    .clickable { currentSubTab = subTab }
-                                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                                            ) {
-                                                Text(
-                                                    text = subTab,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (isSelected) ShadowBlack else TextLight
-                                                )
+                                    // Segmented Toggle (Khusus Owner / Admin)
+                                    if (isOwner) {
+                                        Row(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(CardGrey)
+                                                .padding(4.dp)
+                                        ) {
+                                            listOf("Katalog", "Riwayat").forEach { subTab ->
+                                                val isSelected = currentSubTab == subTab
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(if (isSelected) AgedGold else Color.Transparent)
+                                                        .clickable { currentSubTab = subTab }
+                                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                                ) {
+                                                    Text(
+                                                        text = subTab,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (isSelected) ShadowBlack else TextLight
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -420,7 +428,7 @@ fun StockScreen(
                         OutlinedTextField(
                             value = catalogSearchQuery,
                             onValueChange = { viewModel.stockSearchQuery.value = it },
-                            placeholder = { Text(if (currentSubTab == "Katalog") "Cari catalog..." else "Cari riwayat...", fontSize = 13.sp, color = TextMuted) },
+                            placeholder = { Text(if (currentSubTab == "Katalog" || !isOwner) "Cari catalog..." else "Cari riwayat...", fontSize = 13.sp, color = TextMuted) },
                             leadingIcon = { Icon(imageVector = Icons.Outlined.Search, contentDescription = "Cari", tint = AgedGold) },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -434,7 +442,7 @@ fun StockScreen(
                             )
                         )
 
-                        if (currentSubTab == "Katalog") {
+                        if (currentSubTab == "Katalog" || !isOwner) {
                             // --- Stock Status Filters (Horizontal Scrollable) ---
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -525,9 +533,9 @@ fun StockScreen(
                                             availableStock = availableStock,
                                             nilaiPersediaan = nilaiPersediaan,
                                             isOwner = isOwner,
-                                            onTotalProduksiClick = { showTotalProduksiDialog = true },
-                                            onTotalTerjualClick = { showTotalTerjualDialog = true },
-                                            onNilaiPersediaanClick = { showNilaiPersediaanDialog = true }
+                                            onTotalProduksiClick = if (isOwner) { { showTotalProduksiDialog = true } } else null,
+                                            onTotalTerjualClick = if (isOwner) { { showTotalTerjualDialog = true } } else null,
+                                            onNilaiPersediaanClick = if (isOwner) { { showNilaiPersediaanDialog = true } } else null
                                         )
 
                                         val seriesStockList = remember(catalogs, variants, inventorySummaries, stocks) {
@@ -949,7 +957,7 @@ fun StockScreen(
             )
         }
 
-        if (showTotalProduksiDialog) {
+        if (showTotalProduksiDialog && isOwner) {
             TotalProduksiDetailDialog(
                 batches = batches,
                 ledgers = ledgers,
@@ -958,7 +966,7 @@ fun StockScreen(
             )
         }
 
-        if (showTotalTerjualDialog) {
+        if (showTotalTerjualDialog && isOwner) {
             TotalTerjualDetailDialog(
                 invoices = invoices,
                 isOwner = isOwner,
@@ -966,7 +974,7 @@ fun StockScreen(
             )
         }
 
-        if (showNilaiPersediaanDialog) {
+        if (showNilaiPersediaanDialog && isOwner) {
             NilaiPersediaanDetailDialog(
                 catalogs = catalogs,
                 variants = variants,
@@ -4001,14 +4009,14 @@ fun InventoryDashboardHeader(
                         value = "$totalProduksi Pcs",
                         color = Color.White,
                         modifier = Modifier.weight(1f),
-                        onClick = onTotalProduksiClick
+                        onClick = if (isOwner) onTotalProduksiClick else null
                     )
                     MiniMetricCard(
                         title = "TOTAL TERJUAL",
                         value = "$totalTerjual Pcs",
                         color = HighlightSoftCyan,
                         modifier = Modifier.weight(1f),
-                        onClick = onTotalTerjualClick
+                        onClick = if (isOwner) onTotalTerjualClick else null
                     )
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

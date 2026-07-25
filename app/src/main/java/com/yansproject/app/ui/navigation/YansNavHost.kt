@@ -1,7 +1,23 @@
 package com.yansproject.app.ui.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.yansproject.app.data.UserRole
+import com.yansproject.app.ui.theme.AlertOrange
+import com.yansproject.app.ui.theme.TextMuted
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -12,6 +28,11 @@ import com.yansproject.app.ui.navigation.Routes
 import com.yansproject.app.ui.invoice.DualInvoiceEditorScreen as ActionHubAndPdfModule
 import com.yansproject.app.ui.inventory.MatrixScreen as OmniverseMatrixModule
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yansproject.app.data.FirebaseSyncManager
@@ -26,10 +47,20 @@ fun YansNavHost(
     val currentUser by FirebaseSyncManager.currentUser.collectAsStateWithLifecycle()
     val userRole = currentUser?.role
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isAlreadyBootstrapped = androidx.compose.runtime.remember {
+        com.yansproject.app.data.SyncMetadataManager.getInstance(context).getState() == com.yansproject.app.data.BootstrapState.FINISHED
+    }
+    val initialRoute = if (isAlreadyBootstrapped) Routes.Dashboard else Routes.Startup
+
     NavHost(
         navController = navController,
-        startDestination = Routes.Startup,
-        modifier = modifier
+        startDestination = initialRoute,
+        modifier = modifier,
+        enterTransition = { fadeIn(animationSpec = tween(200)) + slideInHorizontally(animationSpec = tween(200)) { it / 10 } },
+        exitTransition = { fadeOut(animationSpec = tween(200)) + slideOutHorizontally(animationSpec = tween(200)) { -it / 10 } },
+        popEnterTransition = { fadeIn(animationSpec = tween(200)) + slideInHorizontally(animationSpec = tween(200)) { -it / 10 } },
+        popExitTransition = { fadeOut(animationSpec = tween(200)) + slideOutHorizontally(animationSpec = tween(200)) { it / 10 } }
     ) {
         composable(Routes.Startup) {
             StartupScreen(onFinished = {
@@ -51,7 +82,41 @@ fun YansNavHost(
             InvoiceScreen(viewModel = viewModel)
         }
         composable(Routes.History) {
-            RiwayatScreen(viewModel = viewModel)
+            if (userRole == UserRole.OWNER) {
+                RiwayatScreen(viewModel = viewModel)
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lock,
+                            contentDescription = null,
+                            tint = AlertOrange,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Text(
+                            text = "Akses Terbatas",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Halaman Riwayat hanya dapat diakses oleh Owner / Admin.",
+                            fontSize = 13.sp,
+                            color = TextMuted,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
         }
         composable(Routes.KitabDigital) {
             KitabDigitalScreen(viewModel = viewModel, onBack = {
@@ -64,7 +129,12 @@ fun YansNavHost(
                 SettingsScreen(viewModel = viewModel, navController = navController, subScreen = null)
             }
             composable(Routes.SettingsIdentitas) {
-                SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "identitas")
+                GuardedFinancialRoute(
+                    userRole = userRole,
+                    onNavigateBack = { navController.popBackStack() }
+                ) {
+                    SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "identitas")
+                }
             }
             composable(Routes.SettingsKeuangan) {
                 GuardedFinancialRoute(
@@ -75,25 +145,50 @@ fun YansNavHost(
                 }
             }
             composable(Routes.SettingsDokumen) {
-                SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "dokumen")
+                GuardedFinancialRoute(
+                    userRole = userRole,
+                    onNavigateBack = { navController.popBackStack() }
+                ) {
+                    SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "dokumen")
+                }
             }
             composable(Routes.SettingsMember) {
-                SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "member")
+                GuardedFinancialRoute(
+                    userRole = userRole,
+                    onNavigateBack = { navController.popBackStack() }
+                ) {
+                    SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "member")
+                }
             }
             composable(Routes.SettingsBackup) {
-                SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "backup")
+                GuardedFinancialRoute(
+                    userRole = userRole,
+                    onNavigateBack = { navController.popBackStack() }
+                ) {
+                    SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "backup")
+                }
             }
             composable(Routes.SettingsAccount) {
                 SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "akun")
             }
             composable(Routes.SettingsOwnerCenter) {
-                SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "owner_center")
+                GuardedFinancialRoute(
+                    userRole = userRole,
+                    onNavigateBack = { navController.popBackStack() }
+                ) {
+                    SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "owner_center")
+                }
             }
             composable(Routes.SettingsMemberCenter) {
                 SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "member_center")
             }
             composable(Routes.SettingsRoleManagement) {
-                SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "role_management")
+                GuardedFinancialRoute(
+                    userRole = userRole,
+                    onNavigateBack = { navController.popBackStack() }
+                ) {
+                    SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "role_management")
+                }
             }
             composable(Routes.SettingsSecurity) {
                 SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "security")
@@ -102,16 +197,31 @@ fun YansNavHost(
                 SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "biometric")
             }
             composable(Routes.SettingsErpConfig) {
-                SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "erp_config")
+                GuardedFinancialRoute(
+                    userRole = userRole,
+                    onNavigateBack = { navController.popBackStack() }
+                ) {
+                    SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "erp_config")
+                }
             }
             composable(Routes.SettingsNotifications) {
                 SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "notifications")
             }
             composable(Routes.SettingsDbSync) {
-                SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "db_sync")
+                GuardedFinancialRoute(
+                    userRole = userRole,
+                    onNavigateBack = { navController.popBackStack() }
+                ) {
+                    SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "db_sync")
+                }
             }
             composable(Routes.SettingsStorage) {
-                SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "storage")
+                GuardedFinancialRoute(
+                    userRole = userRole,
+                    onNavigateBack = { navController.popBackStack() }
+                ) {
+                    SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "storage")
+                }
             }
             composable(Routes.SettingsAppearance) {
                 SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "appearance")
@@ -120,7 +230,12 @@ fun YansNavHost(
                 SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "info")
             }
             composable(Routes.SettingsMaintenance) {
-                SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "maintenance")
+                GuardedFinancialRoute(
+                    userRole = userRole,
+                    onNavigateBack = { navController.popBackStack() }
+                ) {
+                    SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "maintenance")
+                }
             }
             composable(Routes.SettingsDevDiag) {
                 SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "dev_diag")

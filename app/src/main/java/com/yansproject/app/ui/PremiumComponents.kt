@@ -1,7 +1,10 @@
 package com.yansproject.app.ui
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,11 +23,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -297,26 +303,32 @@ fun ConnectivityStatusBadge(
 
 /**
  * SholawatMarqueeBanner - DNA YANSPROJECT.ID Premium Luxury Ticker
- * Continuous smooth infinite marquee sliding animation of the Lafadz Sholawat:
- * "اَللّٰهُمَّ صَلِّ وَسَلِّمْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ"
+ * Unlimited smooth infinite marquee sliding animation of the Lafadz Sholawat
+ * with Premium Arabic Font Calligraphy and Zero-Gaps Continuous Loop.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SholawatMarqueeBanner(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val sholawatLafadz = "اَللّٰهُمَّ صَلِّ وَسَلِّمْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ"
-    val repeatedText = "$sholawatLafadz   ✦   $sholawatLafadz   ✦   $sholawatLafadz   ✦   $sholawatLafadz"
+    val sholawatLafadzUnit = "   ۞   اَللّٰهُمَّ صَلِّ وَسَلِّمْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ   ✦   صَلَّى اللهُ عَلَىٰ مُحَمَّدٍ   ✨   "
 
     val premiumArabicFontFamily = remember {
-        try {
-            val tf = android.graphics.Typeface.create("serif-arabic", android.graphics.Typeface.BOLD)
-            FontFamily(tf)
-        } catch (e: Exception) {
-            FontFamily.Serif
+        val typefaces = listOf("serif-arabic", "sans-serif-arabic", "arabic", "amiri", "scheherazade", "cairo")
+        var selectedTf: android.graphics.Typeface? = null
+        for (fontName in typefaces) {
+            try {
+                val tf = android.graphics.Typeface.create(fontName, android.graphics.Typeface.BOLD)
+                if (tf != android.graphics.Typeface.DEFAULT) {
+                    selectedTf = tf
+                    break
+                }
+            } catch (_: Exception) {}
         }
+        selectedTf?.let { FontFamily(it) } ?: FontFamily.Serif
     }
+
+    var showDetailDialog by remember { mutableStateOf(false) }
 
     Surface(
         modifier = modifier
@@ -326,19 +338,17 @@ fun SholawatMarqueeBanner(
                 width = 1.dp,
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        AgedGold.copy(alpha = 0.55f),
-                        HighlightSoftCyan.copy(alpha = 0.35f),
-                        AgedGold.copy(alpha = 0.55f)
+                        AgedGold.copy(alpha = 0.7f),
+                        HighlightSoftCyan.copy(alpha = 0.4f),
+                        AgedGold,
+                        HighlightSoftCyan.copy(alpha = 0.4f),
+                        AgedGold.copy(alpha = 0.7f)
                     )
                 ),
                 shape = RoundedCornerShape(14.dp)
             )
             .clickable {
-                Toast.makeText(
-                    context,
-                    "اَللّٰهُمَّ صَلِّ وَسَلِّمْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ\nSHOLAWAT - SHOLAWAT - SHOLAWAT\n\nDIDO'AKEUN KU ABAH",
-                    Toast.LENGTH_SHORT
-                ).show()
+                showDetailDialog = true
             },
         color = CardDarkCard,
         shape = RoundedCornerShape(14.dp)
@@ -361,7 +371,7 @@ fun SholawatMarqueeBanner(
                             )
                         )
                     )
-                    .border(0.8.dp, AgedGold.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                    .border(0.8.dp, AgedGold.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
                     .padding(horizontal = 8.dp, vertical = 5.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -372,7 +382,7 @@ fun SholawatMarqueeBanner(
                     Text(
                         text = "ﷺ",
                         color = AgedGold,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = premiumArabicFontFamily
                     )
@@ -388,7 +398,7 @@ fun SholawatMarqueeBanner(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Infinite Sliding Marquee Text (Bermula/muncul dari Kiri dengan LayOutDirection.Rtl)
+            // Unlimited Infinite Continuous Marquee Engine
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -396,26 +406,193 @@ fun SholawatMarqueeBanner(
                 contentAlignment = Alignment.CenterStart
             ) {
                 CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
-                    Text(
-                        text = repeatedText,
-                        color = AgedGold,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = premiumArabicFontFamily,
-                        maxLines = 1,
-                        style = androidx.compose.ui.text.TextStyle(
+                    SeamlessUnlimitedSholawatMarquee(
+                        text = sholawatLafadzUnit,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = AgedGold,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = premiumArabicFontFamily,
                             shadow = androidx.compose.ui.graphics.Shadow(
-                                color = AgedGold.copy(alpha = 0.35f),
-                                blurRadius = 6f
+                                color = AgedGold.copy(alpha = 0.5f),
+                                blurRadius = 8f
                             )
                         ),
-                        modifier = Modifier
-                            .padding(vertical = 2.dp)
-                            .basicMarquee(
-                                iterations = Int.MAX_VALUE,
-                                velocity = 35.dp
-                            )
+                        speedDpPerSecond = 40.dp
                     )
+                }
+            }
+        }
+    }
+
+    if (showDetailDialog) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showDetailDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = CardDarkCard,
+                border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.6f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(PrimaryDarkTeal, SecondaryShadowBlackTeal)
+                                )
+                            )
+                            .border(1.dp, AgedGold, RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "ﷺ",
+                            color = AgedGold,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = premiumArabicFontFamily
+                        )
+                    }
+
+                    Text(
+                        text = "BISMILLAH • BERSHOLAWAT",
+                        color = HighlightSoftCyan,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.5.sp
+                    )
+
+                    Text(
+                        text = "اَللّٰهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ",
+                        color = AgedGold,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = premiumArabicFontFamily,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 36.sp,
+                        style = androidx.compose.ui.text.TextStyle(
+                            shadow = androidx.compose.ui.graphics.Shadow(
+                                color = AgedGold.copy(alpha = 0.4f),
+                                blurRadius = 10f
+                            )
+                        )
+                    )
+
+                    Text(
+                        text = "\"Allahumma sholli 'ala sayyidina Muhammadin wa 'ala ali sayyidina Muhammad\"",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 13.sp,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        textAlign = TextAlign.Center
+                    )
+
+                    HorizontalDivider(color = CardGrey, thickness = 1.dp)
+
+                    Text(
+                        text = "Semoga Keberkahan, Kelancaran Rezeki, dan Keamanan Senantiasa Menyertai Usaha & Operasional YANSPROJECT.ID.",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+
+                    Button(
+                        onClick = { showDetailDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryDarkTeal),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                    ) {
+                        Text(
+                            text = "AAMIIN YA RABBAL 'ALAMIN",
+                            color = AgedGold,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * SeamlessUnlimitedSholawatMarquee - Mathematical zero-gap infinite marquee.
+ * Renders multiple identical layout copies side-by-side so when animation resets,
+ * there is zero glitch, zero delay, and completely unlimited continuous scrolling.
+ */
+@Composable
+fun SeamlessUnlimitedSholawatMarquee(
+    text: String,
+    textStyle: androidx.compose.ui.text.TextStyle,
+    modifier: Modifier = Modifier,
+    speedDpPerSecond: Dp = 40.dp
+) {
+    val density = LocalDensity.current
+    var unitWidthPx by remember { mutableStateOf(0) }
+
+    val durationMs = if (unitWidthPx > 0) {
+        val speedPxPerSec = with(density) { speedDpPerSecond.toPx() }
+        ((unitWidthPx / speedPxPerSec) * 1000).toInt().coerceAtLeast(1000)
+    } else {
+        10000
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "SholawatInfiniteLoop")
+    val currentOffsetX by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = if (unitWidthPx > 0) -unitWidthPx.toFloat() else -1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = durationMs,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "MarqueeOffset"
+    )
+
+    Box(
+        modifier = modifier.clipToBounds(),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        androidx.compose.ui.layout.Layout(
+            content = {
+                // Render 4 copies side by side to guarantee seamless coverage across mobile & tablet screens
+                repeat(4) {
+                    Text(
+                        text = text,
+                        style = textStyle,
+                        softWrap = false,
+                        onTextLayout = { textLayoutResult ->
+                            val w = textLayoutResult.size.width
+                            if (w > 0 && w != unitWidthPx) {
+                                unitWidthPx = w
+                            }
+                        }
+                    )
+                }
+            }
+        ) { measurables, constraints ->
+            val placeables = measurables.map { it.measure(constraints.copy(maxWidth = Constraints.Infinity)) }
+            val width = placeables.firstOrNull()?.width ?: 0
+            val height = placeables.maxOfOrNull { it.height } ?: 0
+
+            layout(constraints.maxWidth, height) {
+                var x = currentOffsetX.toInt()
+                placeables.forEach { placeable ->
+                    placeable.placeRelative(x = x, y = 0)
+                    x += width
                 }
             }
         }

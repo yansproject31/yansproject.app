@@ -144,22 +144,21 @@ fun InvoiceScreen(
 
         val matchesFilter = when (selectedFilter) {
             "Semua" -> true
-            "Persetujuan" -> invoice.status.equals("MENUNGGU PERSETUJUAN", ignoreCase = true) || 
-                            invoice.status.equals("MENUNGGU_APPROVAL", ignoreCase = true) || 
-                            invoice.status.equals("MENUNGGU PERSETUJUAN OWNER", ignoreCase = true) || 
-                            invoice.status.equals("PENDING", ignoreCase = true) || 
-                            invoice.status.equals("DIPROSES", ignoreCase = true) || 
-                            invoice.status.equals("DISETUJUI", ignoreCase = true) || 
-                            invoice.status.equals("MENUNGGU VERIFIKASI PEMBAYARAN", ignoreCase = true)
+            "Persetujuan" -> (invoice.status.equals("MENUNGGU PERSETUJUAN", ignoreCase = true) || 
+                             invoice.status.equals("MENUNGGU_APPROVAL", ignoreCase = true) || 
+                             invoice.status.equals("MENUNGGU PERSETUJUAN OWNER", ignoreCase = true) || 
+                             invoice.status.equals("PENDING", ignoreCase = true) || 
+                             invoice.status.equals("DIPROSES", ignoreCase = true) || 
+                             invoice.status.equals("MENUNGGU VERIFIKASI PEMBAYARAN", ignoreCase = true)) && invoice.paidAmount == 0.0
             "Lunas" -> invoice.status.equals("LUNAS", ignoreCase = true) || 
                       invoice.status.equals("PAID", ignoreCase = true) || 
                       (invoice.totalAmount > 0 && invoice.paidAmount >= invoice.totalAmount)
-            "Belum Dibayar", "Belum Lunas" -> invoice.status.equals("BELUM LUNAS", ignoreCase = true) || 
+            "Belum Dibayar", "Belum Lunas" -> (invoice.status.equals("BELUM LUNAS", ignoreCase = true) || 
                              invoice.status.equals("BELUM DIBAYAR", ignoreCase = true) || 
                              invoice.status.equals("BELUM_DIBAYAR", ignoreCase = true) || 
                              invoice.status.equals("UNPAID", ignoreCase = true) || 
-                             invoice.status.equals("MENUNGGU PEMBAYARAN", ignoreCase = true) || 
-                             (invoice.paidAmount < invoice.totalAmount && !invoice.status.equals("LUNAS", ignoreCase = true) && !invoice.status.equals("PAID", ignoreCase = true) && !invoice.status.equals("BATAL", ignoreCase = true) && !invoice.status.equals("REFUND", ignoreCase = true))
+                             invoice.status.equals("DISETUJUI", ignoreCase = true) || 
+                             invoice.status.equals("MENUNGGU PEMBAYARAN", ignoreCase = true)) && invoice.paidAmount == 0.0
             "DP" -> invoice.status.equals("DP", ignoreCase = true) || 
                    invoice.status.equals("DP AWAL", ignoreCase = true) || 
                    invoice.status.equals("DP PRODUKSI", ignoreCase = true) || 
@@ -379,8 +378,12 @@ fun InvoiceScreen(
         // --- Add Sale Dialog ---
         if (showAddSaleDialog) {
             val stockItems by viewModel.allStock.collectAsState()
+            val catalogs by viewModel.allCatalogs.collectAsState()
+            val masterStocks by viewModel.allStockMaster.collectAsState()
             AddSaleDialog(
                 stockItems = stockItems,
+                catalogs = catalogs,
+                masterStocks = masterStocks,
                 onDismiss = { showAddSaleDialog = false },
                 onSaveSale = { name: String, phone: String, selectedItems: List<Pair<com.yansproject.app.data.StockItem, Int>>, paidAmount: Double, priceType: String ->
                     viewModel.addOrder(name, phone, selectedItems, paidAmount, "Completed", priceType)
@@ -811,7 +814,7 @@ fun InvoiceDetailDialog(
     var selectedPaymentForDelete by remember { mutableStateOf<com.yansproject.app.data.InvoicePayment?>(null) }
 
     val paymentsList by if (viewModel != null) {
-        viewModel.getPaymentsForInvoice(invoice.id.toString()).collectAsState(initial = emptyList())
+        viewModel.getPaymentsForInvoice(invoice.id.toString(), invoice.invoiceNumber).collectAsState(initial = emptyList())
     } else {
         remember { mutableStateOf(emptyList<com.yansproject.app.data.InvoicePayment>()) }
     }
@@ -2951,6 +2954,8 @@ fun PaymentInputDialog(
 @Composable
 fun AddSaleDialog(
     stockItems: List<com.yansproject.app.data.StockItem>,
+    catalogs: List<com.yansproject.app.data.MasterCatalog> = emptyList(),
+    masterStocks: List<com.yansproject.app.data.MasterStock> = emptyList(),
     onDismiss: () -> Unit,
     onSaveSale: (clientName: String, clientPhone: String, selectedItems: List<Pair<com.yansproject.app.data.StockItem, Int>>, paidAmount: Double, priceType: String) -> Unit
 ) {
@@ -3009,23 +3014,26 @@ fun AddSaleDialog(
         return basePrice + sleeveCharge + upsizeAmount
     }
 
-    // Parse items into combinations
-    val parsedList = remember(stockItems) {
-        stockItems.map { item ->
-            item to FormatUtils.parseStockItemName(item.name)
+    // Combine all registered catalog sources and stock items to build ready seriesList
+    val defaultSeries = listOf("Rahasia Realita", "Hina Mulia", "Hilang Pulang", "Madad Auliya 68th", "Signature Yans")
+
+    val seriesList = remember(catalogs, stockItems) {
+        val catalogNames = catalogs.map { it.nama_catalog }
+        val stockSeries = stockItems.map { item ->
+            FormatUtils.parseStockItemName(item.name).series
         }
+        (catalogNames + stockSeries + defaultSeries)
+            .map { raw ->
+                raw.replace("AJIBQOBUL", "", ignoreCase = true)
+                    .replace(":", "")
+                    .trim()
+            }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
     }
 
-    // Group apparel by series name
-    val seriesGroups = remember(parsedList) {
-        parsedList.filter { it.second.isApparel }.groupBy { it.second.series }
-    }
-
-    val seriesList = remember(seriesGroups) {
-        seriesGroups.keys.sorted()
-    }
-
-    var selectedSeries by remember(seriesList) { mutableStateOf(seriesList.firstOrNull() ?: "") }
+    var selectedSeries by remember(seriesList) { mutableStateOf(seriesList.firstOrNull() ?: "Rahasia Realita") }
     var selectedSleeve by remember { mutableStateOf("Pendek") }
     var selectedSize by remember { mutableStateOf("S") }
     var itemQtyStr by remember { mutableStateOf("1") }
@@ -3034,15 +3042,36 @@ fun AddSaleDialog(
     val currentSeriesItems = remember(selectedSeries, selectedSleeve, stockItems) {
         stockItems.filter { item ->
             val parsed = FormatUtils.parseStockItemName(item.name)
-            parsed.isApparel && parsed.series == selectedSeries && parsed.sleeve == selectedSleeve
+            (parsed.series.contains(selectedSeries, ignoreCase = true) || selectedSeries.contains(parsed.series, ignoreCase = true) || item.name.contains(selectedSeries, ignoreCase = true)) &&
+            (parsed.sleeve.equals(selectedSleeve, ignoreCase = true) || item.name.contains(selectedSleeve, ignoreCase = true))
         }
     }
 
-    // Find the current active stock item matching selection
-    val matchedStockItem = remember(currentSeriesItems, selectedSize) {
-        currentSeriesItems.find { item ->
+    // Find or synthesize active stock item matching selection
+    val matchedStockItem = remember(currentSeriesItems, selectedSeries, selectedSleeve, selectedSize, stockItems) {
+        val found = currentSeriesItems.find { item ->
             val parsed = FormatUtils.parseStockItemName(item.name)
-            parsed.size == selectedSize
+            parsed.size.equals(selectedSize, ignoreCase = true) || item.name.contains("- $selectedSize -", ignoreCase = true)
+        }
+        if (found != null) {
+            found
+        } else {
+            val baseRetail = AppSettings.getAjibqobulHargaRetail(context)
+            val baseMember = AppSettings.getAjibqobulHargaMember(context)
+            val baseReseller = AppSettings.getAjibqobulHargaReseller(context)
+            val baseCustom = AppSettings.getAjibqobulHargaCustom(context)
+            val synthId = (selectedSeries.hashCode() * 31 + selectedSleeve.hashCode() * 17 + selectedSize.hashCode()).let { if (it < 0) -it else it }.coerceAtLeast(1000)
+            com.yansproject.app.data.StockItem(
+                id = synthId,
+                name = "AJIBQOBUL $selectedSeries - $selectedSize - $selectedSleeve",
+                sku = "AQ-${selectedSeries.take(3).uppercase()}-$selectedSize-${selectedSleeve.take(3).uppercase()}",
+                stockCount = 100,
+                price = if (baseRetail > 0) baseRetail else 125000.0,
+                priceMember = if (baseMember > 0) baseMember else 99000.0,
+                priceReseller = if (baseReseller > 0) baseReseller else 105000.0,
+                priceCustom = if (baseCustom > 0) baseCustom else 115000.0,
+                description = "Catalog: $selectedSeries, Ukuran: $selectedSize, Lengan: $selectedSleeve"
+            )
         }
     }
 
@@ -3213,23 +3242,24 @@ fun AddSaleDialog(
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 items(listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")) { sz ->
                                     val isSel = selectedSize == sz
-                                    // Check if item exists in stock
-                                    val itemForSize = currentSeriesItems.find { FormatUtils.parseStockItemName(it.name).size == sz }
-                                    val stCount = itemForSize?.stockCount ?: 0
-                                    val isAvailable = stCount > 0
+                                    val itemForSize = currentSeriesItems.find { item ->
+                                        val parsed = FormatUtils.parseStockItemName(item.name)
+                                        parsed.size.equals(sz, ignoreCase = true) || item.name.contains("- $sz -", ignoreCase = true)
+                                    }
+                                    val stCount = itemForSize?.stockCount ?: 100
                                     
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isSel) DarkTeal else if (isAvailable) CardGrey else CardGrey.copy(alpha = 0.5f))
+                                            .background(if (isSel) DarkTeal else CardGrey)
                                             .border(1.dp, if (isSel) AgedGold else BorderGrey, RoundedCornerShape(6.dp))
-                                            .clickable(enabled = isAvailable) { selectedSize = sz }
+                                            .clickable { selectedSize = sz }
                                             .padding(horizontal = 10.dp, vertical = 6.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text(text = sz, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isSel) AgedGold else if (isAvailable) Color.White else TextMuted)
-                                            Text(text = "stok: $stCount", fontSize = 8.sp, color = if (isAvailable) HighlightSoftCyan else AlertRed)
+                                            Text(text = sz, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isSel) AgedGold else Color.White)
+                                            Text(text = "stok: $stCount", fontSize = 8.sp, color = HighlightSoftCyan)
                                         }
                                     }
                                 }

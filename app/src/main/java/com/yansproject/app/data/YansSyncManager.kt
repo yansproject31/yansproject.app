@@ -366,21 +366,15 @@ class YansSyncManager private constructor(private val context: Context) {
 
         Log.d(TAG, "syncInvoicesAndOrdersWithTransaction starting: role=$role, uid=$currentSessionUid")
 
-        val invoiceQuery: Query
-        val orderQuery: Query
-
-        if (role == "MEMBER") {
-            invoiceQuery = firestore.collection("invoices").whereEqualTo("uid_member", currentSessionUid)
-            orderQuery = firestore.collection("orders").whereEqualTo("uid_member", currentSessionUid)
-        } else { // OWNER
-            invoiceQuery = firestore.collection("invoices")
-            orderQuery = firestore.collection("orders")
-        }
+        val invoiceQuery: Query = firestore.collection("invoices")
+        val orderQuery: Query = firestore.collection("orders")
+        val paymentQuery: Query = firestore.collection("invoice_payments")
 
         try {
             // Fetch SERVER data
             val invoiceSnapshot = invoiceQuery.get(Source.SERVER).await()
             val orderSnapshot = orderQuery.get(Source.SERVER).await()
+            val paymentSnapshot = try { paymentQuery.get(Source.SERVER).await() } catch (e: Exception) { null }
 
             val fetchedInvoices = mutableListOf<Invoice>()
             if (invoiceSnapshot != null && !invoiceSnapshot.isEmpty) {
@@ -402,35 +396,57 @@ class YansSyncManager private constructor(private val context: Context) {
                 }
             }
 
-            // Execute bulk-upsert atomically in a Room transaction
-            db.withTransaction {
-                // Clear and rebuild local cache for consistency
-                db.invoiceDao().clearAllInvoices()
-                db.orderDao().clearAllOrders()
-
-                // Deduplicate fetchedInvoices by invoiceNumber to keep only the latest/approved record
-                val distinctInvoices = fetchedInvoices
-                    .filter { !it.isDeleted }
-                    .groupBy { if (it.invoiceNumber.isNotBlank()) it.invoiceNumber.trim() else it.id.toString() }
-                    .mapValues { (_, list) ->
-                        list.sortedWith(compareByDescending<Invoice> { 
-                            when (it.status.uppercase().trim()) {
-                                "DISETUJUI", "LUNAS", "BELUM LUNAS", "DP AWAL", "DP PRODUKSI" -> 2
-                                "MENUNGGU PERSETUJUAN", "MENUNGGU PERSETUJUAN OWNER" -> 1
-                                else -> 0
-                            }
-                        }.thenByDescending { it.id }).first()
-                    }.values
-
-                distinctInvoices.forEach { invoice ->
-                    db.invoiceDao().insertInvoice(invoice)
-                }
-
-                fetchedOrders.forEach { order ->
-                    db.orderDao().insertOrder(order)
+            val fetchedPayments = mutableListOf<InvoicePayment>()
+            if (paymentSnapshot != null && !paymentSnapshot.isEmpty) {
+                for (doc in paymentSnapshot.documents) {
+                    doc.toObject(InvoicePayment::class.java)?.let { fetchedPayments.add(it) }
                 }
             }
-            Log.d(TAG, "Successfully synchronized & transactional-upserted ${fetchedInvoices.size} invoices and ${fetchedOrders.size} orders.")
+
+            // Execute bulk-upsert atomically in a Room transaction
+            db.withTransaction {
+                if (fetchedInvoices.isNotEmpty()) {
+                    val distinctInvoices = fetchedInvoices
+                        .filter { !it.isDeleted }
+                        .groupBy { if (it.invoiceNumber.isNotBlank()) it.invoiceNumber.trim() else it.id.toString() }
+                        .mapValues { (_, list) ->
+                            list.sortedWith(compareByDescending<Invoice> { 
+                                when (it.status.uppercase().trim()) {
+                                    "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "BELUM LUNAS", "DISETUJUI" -> 2
+                                    "MENUNGGU PERSETUJUAN", "MENUNGGU PERSETUJUAN OWNER" -> 1
+                                    else -> 0
+                                }
+                            }.thenByDescending { it.id }).first()
+                        }.values
+
+                    distinctInvoices.forEach { invoice ->
+                        val local = if (invoice.invoiceNumber.isNotBlank()) {
+                            db.invoiceDao().getInvoiceByNumber(invoice.invoiceNumber)
+                        } else {
+                            db.invoiceDao().getInvoiceById(invoice.id)
+                        }
+                        if (local != null) {
+                            db.invoiceDao().insertInvoice(invoice.copy(id = local.id))
+                        } else {
+                            db.invoiceDao().insertInvoice(invoice.copy(id = 0))
+                        }
+                    }
+                }
+
+                if (fetchedOrders.isNotEmpty()) {
+                    db.orderDao().clearAllOrders()
+                    fetchedOrders.forEach { order ->
+                        db.orderDao().insertOrder(order)
+                    }
+                }
+
+                if (fetchedPayments.isNotEmpty()) {
+                    fetchedPayments.forEach { payment ->
+                        db.invoicePaymentDao().insertPayment(payment)
+                    }
+                }
+            }
+            Log.d(TAG, "Successfully synchronized ${fetchedInvoices.size} invoices, ${fetchedOrders.size} orders, and ${fetchedPayments.size} payments.")
         } catch (e: Exception) {
             Log.e(TAG, "Failed syncInvoicesAndOrdersWithTransaction: ${e.message}", e)
         }

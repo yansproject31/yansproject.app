@@ -89,6 +89,10 @@ fun StartupScreen(
     val progressText by viewModel.progressText.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
+    val isAlreadyBootstrapped = remember {
+        SyncMetadataManager.getInstance(context).getState() == BootstrapState.FINISHED
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "terminal_cursor")
     val cursorAlpha by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -103,15 +107,15 @@ fun StartupScreen(
         label = "cursor_alpha"
     )
 
-    LaunchedEffect(state) {
-        if (state == BootstrapState.FINISHED) {
+    LaunchedEffect(state, isAlreadyBootstrapped) {
+        if (isAlreadyBootstrapped || state == BootstrapState.FINISHED) {
             val isDbEmpty = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 db.catalogDao().getCatalogsList().isEmpty() &&
                 db.stockDao().getAllStockList().isEmpty() &&
                 db.invoiceDao().getInvoicesList().isEmpty() &&
                 db.projectDao().getAllProjectsList().isEmpty()
             }
-            if (isDbEmpty) {
+            if (isDbEmpty && !isAlreadyBootstrapped) {
                 SyncMetadataManager.getInstance(context).reset()
                 viewModel.startBootstrap(context, db, firestore)
             } else {
@@ -133,6 +137,15 @@ fun StartupScreen(
                 viewModel.startBootstrap(context, db, firestore)
             }
         }
+    }
+
+    if (isAlreadyBootstrapped || state == BootstrapState.FINISHED) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ShadowBlack)
+        )
+        return
     }
 
     Box(

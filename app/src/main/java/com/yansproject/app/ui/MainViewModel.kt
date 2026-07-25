@@ -1077,8 +1077,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getPaymentsForInvoice(invoiceId: String): Flow<List<InvoicePayment>> {
-        return repository.getPaymentsForInvoice(invoiceId)
+    fun getPaymentsForInvoice(invoiceId: String, invoiceNumber: String = ""): Flow<List<InvoicePayment>> {
+        return repository.getPaymentsForInvoice(invoiceId, invoiceNumber)
     }
 
     fun addInvoicePayment(

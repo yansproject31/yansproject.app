@@ -1,5 +1,6 @@
 package com.yansproject.app.ui
 
+import com.yansproject.app.ui.theme.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -33,13 +34,13 @@ import com.yansproject.app.data.DomainProject
 // ==========================================
 // YANSPROJECT.ID COLOR DNA PALETTE DEFINITION
 // ==========================================
-val YansPrimary = Color(0xFF0F3D3E)       // Dark Teal
-val YansSecondary = Color(0xFF081F20)     // Shadow Black Teal
-val YansAccent = Color(0xFFC6A15B)        // Aged Gold (Premium)
-val YansHighlight = Color(0xFF4FD1C5)     // Soft Cyan (Interactive/Active)
-val YansBackground = Color(0xFF0A0A0A)    // Shadow Black
-val YansSurface = Color(0xFF112B2C)       // Dark Teal Surface
-val YansCard = Color(0xFF163536)          // Dark Card
+val YansPrimary: Color get() = dynamicPrimaryDarkTeal
+val YansSecondary: Color get() = dynamicSecondaryShadowBlackTeal
+val YansAccent: Color get() = dynamicAgedGold
+val YansHighlight: Color get() = dynamicHighlightSoftCyan
+val YansBackground: Color get() = dynamicShadowBlack
+val YansSurface: Color get() = dynamicDarkTealSurface
+val YansCard: Color get() = dynamicCardDarkCard
 
 /**
  * 1. LEVITATING CARD

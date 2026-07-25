@@ -101,6 +101,7 @@ object EnterpriseBootstrapEngine {
                 db.inventoryLedgerDao().clearAll()
                 db.productionBatchDao().clearAll()
                 db.inventorySummaryDao().clearAll()
+                db.invoicePaymentDao().clearAllPayments()
 
                 for ((registry, docs) in downloadedData) {
                     Log.d(TAG, "Inserting ${docs.size} elements for ${registry.collectionName} to local database...")
@@ -239,6 +240,14 @@ object EnterpriseBootstrapEngine {
                         }
                         CollectionRegistry.INVENTORY_SUMMARY -> {
                             // Rebuild dynamically instead of raw insert to ensure data consistency
+                        }
+                        CollectionRegistry.INVOICE_PAYMENTS -> {
+                            for (doc in docs) {
+                                val item = doc.toObject(InvoicePayment::class.java)
+                                if (item != null) {
+                                    db.invoicePaymentDao().insertPayment(item)
+                                }
+                            }
                         }
                     }
                 }

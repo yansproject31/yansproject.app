@@ -18,5 +18,6 @@ enum class CollectionRegistry(val collectionName: String) {
     AUDIT_LOGS("audit_logs"),
     INVENTORY_LEDGER("inventory_ledger"),
     PRODUCTION_BATCH("production_batch"),
-    INVENTORY_SUMMARY("inventory_summary")
+    INVENTORY_SUMMARY("inventory_summary"),
+    INVOICE_PAYMENTS("invoice_payments")
 }

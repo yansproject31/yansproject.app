@@ -62,13 +62,13 @@ fun MyApplicationTheme(
     }
 
     val primaryAccent = when(accentColorName) {
-        "Aged Gold" -> AgedGold
-        "Soft Cyan" -> HighlightSoftCyan
+        "Aged Gold" -> StaticAgedGold
+        "Soft Cyan" -> StaticHighlightSoftCyan
         "Emerald Green" -> Color(0xFF2ECC71)
         "Imperial Amber" -> Color(0xFFFFB300)
         "Sapphire Blue" -> Color(0xFF3B82F6)
         "Rose Gold" -> Color(0xFFE5A186)
-        else -> AgedGold
+        else -> StaticAgedGold
     }
 
     val canvasBackground = when(canvasStyleName) {
@@ -82,7 +82,7 @@ fun MyApplicationTheme(
         "Midnight Sapphire Luxury" -> Color(0xFF0A192F)
         "Onyx Platinum Edition" -> Color(0xFF1E293B)
         "Ruby Imperial Velvet" -> Color(0xFF2B0B14)
-        else -> DarkTealSurface
+        else -> StaticDarkTealSurface
     }
 
     val surfaceVariantBg = when(themeVariant) {
@@ -90,23 +90,44 @@ fun MyApplicationTheme(
         "Midnight Sapphire Luxury" -> Color(0xFF112240)
         "Onyx Platinum Edition" -> Color(0xFF334155)
         "Ruby Imperial Velvet" -> Color(0xFF3D101E)
-        else -> DarkTealSurfaceVariant
+        else -> StaticDarkTealSurfaceVariant
     }
+
+    val primaryContainerBg = when(themeVariant) {
+        "Royal Emerald Imperial" -> Color(0xFF061F1B)
+        "Midnight Sapphire Luxury" -> Color(0xFF060D1A)
+        "Onyx Platinum Edition" -> Color(0xFF0F172A)
+        "Ruby Imperial Velvet" -> Color(0xFF1A050B)
+        else -> StaticPrimaryDarkTeal
+    }
+
+    val secondaryAccent = if (primaryAccent == StaticHighlightSoftCyan) StaticAgedGold else StaticHighlightSoftCyan
+
+    // Sync dynamic theme snapshot states for real-time application-wide theme updates
+    dynamicShadowBlack = canvasBackground
+    dynamicDarkTealSurface = surfaceBg
+    dynamicCardDarkCard = surfaceVariantBg
+    dynamicPrimaryDarkTeal = primaryContainerBg
+    dynamicSecondaryShadowBlackTeal = surfaceVariantBg
+    dynamicAgedGold = primaryAccent
+    dynamicHighlightSoftCyan = secondaryAccent
+    dynamicBorderGrey = primaryAccent.copy(alpha = 0.3f)
 
     val dynamicColorScheme = darkColorScheme(
         primary = primaryAccent,
         onPrimary = Color.Black,
-        primaryContainer = surfaceBg,
+        primaryContainer = primaryContainerBg,
         onPrimaryContainer = primaryAccent,
-        secondary = HighlightSoftCyan,
+        secondary = secondaryAccent,
         onSecondary = Color.Black,
-        tertiary = HighlightSoftCyan,
+        tertiary = secondaryAccent,
         background = canvasBackground,
         onBackground = YansTextPrimary,
         surface = surfaceBg,
         onSurface = YansTextPrimary,
         surfaceVariant = surfaceVariantBg,
         onSurfaceVariant = YansTextSecondary,
+        outline = primaryAccent.copy(alpha = 0.3f),
         error = YansError,
         onError = Color.White
     )

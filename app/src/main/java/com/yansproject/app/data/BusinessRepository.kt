@@ -25,7 +25,17 @@ class BusinessRepository(private val db: AppDatabase) {
     val allStock: Flow<List<StockItem>> = stockDao.getAllStock()
     val allProjects: Flow<List<ProjectCustom>> = projectDao.getAllProjects()
     val allOrders: Flow<List<OrderHistory>> = orderDao.getAllOrders()
-    val allInvoices: Flow<List<Invoice>> = invoiceDao.getAllInvoices()
+    val allInvoices: Flow<List<Invoice>> = invoiceDao.getAllInvoices().map { list ->
+        val seenKeys = mutableSetOf<String>()
+        val deduplicated = mutableListOf<Invoice>()
+        for (inv in list) {
+            val key = if (inv.invoiceNumber.isNotBlank()) inv.invoiceNumber.trim() else "ID_${inv.id}"
+            if (seenKeys.add(key)) {
+                deduplicated.add(inv)
+            }
+        }
+        deduplicated
+    }
     val allExpenses: Flow<List<Expense>> = expenseDao.getAllExpenses()
     val allInflows: Flow<List<Inflow>> = inflowDao.getAllInflows()
     val allStockHistory: Flow<List<StockHistory>> = stockHistoryDao.getAllHistory()
@@ -627,13 +637,17 @@ class BusinessRepository(private val db: AppDatabase) {
                 updateSummariesForInvoice(updatedInvoice)
 
                 // Sync back to cloud
-                FirebaseSyncManager.syncItemToCloud("invoices", updatedInvoice.id.toString(), updatedInvoice)
+                val invCloudKey = updatedInvoice.invoiceNumber.ifEmpty { updatedInvoice.id.toString() }
+                FirebaseSyncManager.syncItemToCloud("invoices", invCloudKey, updatedInvoice)
+                if (updatedInvoice.id != 0 && updatedInvoice.id.toString() != invCloudKey) {
+                    FirebaseSyncManager.deleteItemFromCloud("invoices", updatedInvoice.id.toString())
+                }
             }
         }
     }
 
-    fun getPaymentsForInvoice(invoiceId: String): Flow<List<InvoicePayment>> {
-        return invoicePaymentDao.getPaymentsForInvoiceFlow(invoiceId)
+    fun getPaymentsForInvoice(invoiceId: String, invoiceNumber: String = ""): Flow<List<InvoicePayment>> {
+        return invoicePaymentDao.getPaymentsForInvoiceFlow(invoiceId, invoiceNumber)
     }
 
     suspend fun addInvoicePayment(
@@ -652,28 +666,31 @@ class BusinessRepository(private val db: AppDatabase) {
             return false // Validation: JANGAN mengizinkan Total Terbayar lebih besar dari Grand Total.
         }
 
+        val cloudKey = invoice.invoiceNumber.ifEmpty { invoice.id.toString() }
         var paymentId = UUID.randomUUID().toString()
-        val status = if (newPaid >= invoice.totalAmount) "Lunas" else if (newPaid > 0) "Sebagian" else "Belum Bayar"
+        val status = if (newPaid >= invoice.totalAmount && invoice.totalAmount > 0) "LUNAS" else if (newPaid > 0) "DP" else "BELUM LUNAS"
 
         try {
             val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            val invoiceDocRef = firestore.collection("invoices").document(invoiceId.toString())
+            val invoiceDocRef = firestore.collection("invoices").document(cloudKey)
             val paymentsColRef = invoiceDocRef.collection("payments")
             val newPaymentDocRef = paymentsColRef.document()
             paymentId = newPaymentDocRef.id
 
             firestore.runTransaction { transaction ->
                 val invoiceSnapshot = transaction.get(invoiceDocRef)
-                val currentPaid = invoiceSnapshot.getDouble("paidAmount") ?: 0.0
-                val totalAmount = invoiceSnapshot.getDouble("totalAmount") ?: 0.0
+                val currentPaid = if (invoiceSnapshot.exists()) (invoiceSnapshot.getDouble("paidAmount") ?: 0.0) else invoice.paidAmount
+                val totalAmount = if (invoiceSnapshot.exists()) (invoiceSnapshot.getDouble("totalAmount") ?: invoice.totalAmount) else invoice.totalAmount
                 val tNewPaid = currentPaid + amount
                 if (tNewPaid > totalAmount) {
                     throw Exception("Total Terbayar melebihi Grand Total!")
                 }
 
-                val tStatus = if (tNewPaid >= totalAmount) "Lunas" else if (tNewPaid > 0) "Sebagian" else "Belum Bayar"
+                val tStatus = if (tNewPaid >= totalAmount && totalAmount > 0) "LUNAS" else if (tNewPaid > 0) "DP" else "BELUM LUNAS"
 
                 val paymentData = hashMapOf(
+                    "id" to paymentId,
+                    "invoiceId" to cloudKey,
                     "date" to (customDate ?: System.currentTimeMillis()),
                     "amount" to amount,
                     "paymentMethod" to method,
@@ -685,19 +702,20 @@ class BusinessRepository(private val db: AppDatabase) {
                 )
 
                 transaction.set(newPaymentDocRef, paymentData)
-                transaction.update(invoiceDocRef, mapOf(
+                transaction.set(invoiceDocRef, mapOf(
                     "paidAmount" to tNewPaid,
-                    "status" to tStatus
-                ))
+                    "status" to tStatus,
+                    "dpAmount" to if (invoice.dpAmount > 0.0) invoice.dpAmount else tNewPaid
+                ), com.google.firebase.firestore.SetOptions.merge())
             }.await()
         } catch (e: Exception) {
             android.util.Log.e("BusinessRepository", "Firestore Transaction failed: ${e.message}")
         }
 
-        // Local Room persistence
+        // Local Room persistence for payment record
         val localPayment = InvoicePayment(
             id = paymentId,
-            invoiceId = invoiceId.toString(),
+            invoiceId = cloudKey,
             date = customDate ?: System.currentTimeMillis(),
             amount = amount,
             paymentMethod = method,
@@ -708,15 +726,29 @@ class BusinessRepository(private val db: AppDatabase) {
             timestamp = System.currentTimeMillis()
         )
         invoicePaymentDao.insertPayment(localPayment)
+        // Sync top-level payment record to Firestore
+        FirebaseSyncManager.syncItemToCloud("invoice_payments", paymentId, localPayment)
+
+        // Also insert fallback local ID reference so both queries hit
+        if (invoiceId.toString() != cloudKey) {
+            invoicePaymentDao.insertPayment(localPayment.copy(id = "${paymentId}_alt", invoiceId = invoiceId.toString()))
+        }
 
         db.withTransaction {
             val freshInvoice = invoiceDao.getInvoiceById(invoiceId)
             if (freshInvoice != null) {
                 val updatedInvoice = freshInvoice.copy(
                     paidAmount = newPaid,
-                    status = status
+                    status = status,
+                    dpAmount = if (freshInvoice.dpAmount > 0.0) freshInvoice.dpAmount else newPaid
                 )
                 invoiceDao.updateInvoice(updatedInvoice)
+
+                // Sync updated Invoice to Cloud
+                FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, updatedInvoice)
+                if (updatedInvoice.id != 0 && updatedInvoice.id.toString() != cloudKey) {
+                    FirebaseSyncManager.deleteItemFromCloud("invoices", updatedInvoice.id.toString())
+                }
 
                 // Automate ledger inflow record
                 val transactionNumber = "TX-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
@@ -746,6 +778,7 @@ class BusinessRepository(private val db: AppDatabase) {
                             status = if (newPaid >= project.totalCost) "Completed" else project.status
                         )
                         projectDao.updateProject(updatedProject)
+                        FirebaseSyncManager.syncItemToCloud("projects", updatedProject.id.toString(), updatedProject)
                     }
                 }
 
@@ -760,6 +793,7 @@ class BusinessRepository(private val db: AppDatabase) {
                             status = if (newPaid >= order.totalAmount) "Completed" else order.status
                         )
                         orderDao.updateOrder(updatedOrder)
+                        FirebaseSyncManager.syncItemToCloud("orders", updatedOrder.id.toString(), updatedOrder)
                     }
                 }
             }
@@ -785,27 +819,28 @@ class BusinessRepository(private val db: AppDatabase) {
             return false // Validation: JANGAN mengizinkan Total Terbayar lebih besar dari Grand Total.
         }
 
-        val status = if (newPaid >= invoice.totalAmount) "Lunas" else if (newPaid > 0) "Sebagian" else "Belum Bayar"
+        val cloudKey = invoice.invoiceNumber.ifEmpty { invoice.id.toString() }
+        val status = if (newPaid >= invoice.totalAmount && invoice.totalAmount > 0) "LUNAS" else if (newPaid > 0) "DP" else "BELUM LUNAS"
 
         try {
             val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            val invoiceDocRef = firestore.collection("invoices").document(invoiceId.toString())
+            val invoiceDocRef = firestore.collection("invoices").document(cloudKey)
             val paymentDocRef = invoiceDocRef.collection("payments").document(paymentId)
 
             firestore.runTransaction { transaction ->
                 val invoiceSnapshot = transaction.get(invoiceDocRef)
-                val currentPaid = invoiceSnapshot.getDouble("paidAmount") ?: 0.0
-                val totalAmount = invoiceSnapshot.getDouble("totalAmount") ?: 0.0
+                val currentPaid = if (invoiceSnapshot.exists()) (invoiceSnapshot.getDouble("paidAmount") ?: 0.0) else invoice.paidAmount
+                val totalAmount = if (invoiceSnapshot.exists()) (invoiceSnapshot.getDouble("totalAmount") ?: invoice.totalAmount) else invoice.totalAmount
                 
                 val paymentSnapshot = transaction.get(paymentDocRef)
-                val oldAmount = paymentSnapshot.getDouble("amount") ?: 0.0
+                val oldAmount = if (paymentSnapshot.exists()) (paymentSnapshot.getDouble("amount") ?: currentPayment.amount) else currentPayment.amount
 
                 val tNewPaid = currentPaid - oldAmount + newAmount
                 if (tNewPaid > totalAmount) {
                     throw Exception("Total Terbayar melebihi Grand Total!")
                 }
 
-                val tStatus = if (tNewPaid >= totalAmount) "Lunas" else if (tNewPaid > 0) "Sebagian" else "Belum Bayar"
+                val tStatus = if (tNewPaid >= totalAmount && totalAmount > 0) "LUNAS" else if (tNewPaid > 0) "DP" else "BELUM LUNAS"
 
                 val paymentData = mutableMapOf<String, Any>(
                     "amount" to newAmount,
@@ -821,10 +856,11 @@ class BusinessRepository(private val db: AppDatabase) {
                 }
 
                 transaction.update(paymentDocRef, paymentData)
-                transaction.update(invoiceDocRef, mapOf(
+                transaction.set(invoiceDocRef, mapOf(
                     "paidAmount" to tNewPaid,
-                    "status" to tStatus
-                ))
+                    "status" to tStatus,
+                    "dpAmount" to if (invoice.dpAmount > 0.0) invoice.dpAmount else tNewPaid
+                ), com.google.firebase.firestore.SetOptions.merge())
             }.await()
         } catch (e: Exception) {
             android.util.Log.e("BusinessRepository", "Firestore Transaction failed: ${e.message}")
@@ -841,6 +877,7 @@ class BusinessRepository(private val db: AppDatabase) {
             timestamp = System.currentTimeMillis()
         )
         invoicePaymentDao.insertPayment(updatedPayment)
+        FirebaseSyncManager.syncItemToCloud("invoice_payments", paymentId, updatedPayment)
 
         db.withTransaction {
             val freshInvoice = invoiceDao.getInvoiceById(invoiceId)
@@ -850,6 +887,9 @@ class BusinessRepository(private val db: AppDatabase) {
                     status = status
                 )
                 invoiceDao.updateInvoice(updatedInvoice)
+
+                // Sync updated Invoice to Cloud
+                FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, updatedInvoice)
 
                 // Sync back to Project if linked
                 val pId3 = updatedInvoice.projectId
@@ -861,6 +901,7 @@ class BusinessRepository(private val db: AppDatabase) {
                             status = if (newPaid >= project.totalCost) "Completed" else project.status
                         )
                         projectDao.updateProject(updatedProject)
+                        FirebaseSyncManager.syncItemToCloud("projects", updatedProject.id.toString(), updatedProject)
                     }
                 }
 
@@ -875,6 +916,7 @@ class BusinessRepository(private val db: AppDatabase) {
                             status = if (newPaid >= order.totalAmount) "Completed" else order.status
                         )
                         orderDao.updateOrder(updatedOrder)
+                        FirebaseSyncManager.syncItemToCloud("orders", updatedOrder.id.toString(), updatedOrder)
                     }
                 }
 
@@ -922,35 +964,39 @@ class BusinessRepository(private val db: AppDatabase) {
         val currentPayment = invoicePaymentDao.getPaymentById(paymentId) ?: return false
         val newPaid = (invoice.paidAmount - currentPayment.amount).coerceAtLeast(0.0)
 
-        val status = if (newPaid == invoice.totalAmount) "Lunas" else if (newPaid > 0) "Sebagian" else "Belum Bayar"
+        val cloudKey = invoice.invoiceNumber.ifEmpty { invoice.id.toString() }
+        val status = if (newPaid >= invoice.totalAmount && invoice.totalAmount > 0) "LUNAS" else if (newPaid > 0) "DP" else "BELUM LUNAS"
 
         try {
             val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            val invoiceDocRef = firestore.collection("invoices").document(invoiceId.toString())
+            val invoiceDocRef = firestore.collection("invoices").document(cloudKey)
             val paymentDocRef = invoiceDocRef.collection("payments").document(paymentId)
 
             firestore.runTransaction { transaction ->
                 val invoiceSnapshot = transaction.get(invoiceDocRef)
-                val currentPaid = invoiceSnapshot.getDouble("paidAmount") ?: 0.0
-                val totalAmount = invoiceSnapshot.getDouble("totalAmount") ?: 0.0
+                val currentPaid = if (invoiceSnapshot.exists()) (invoiceSnapshot.getDouble("paidAmount") ?: 0.0) else invoice.paidAmount
+                val totalAmount = if (invoiceSnapshot.exists()) (invoiceSnapshot.getDouble("totalAmount") ?: invoice.totalAmount) else invoice.totalAmount
                 
                 val paymentSnapshot = transaction.get(paymentDocRef)
-                val oldAmount = paymentSnapshot.getDouble("amount") ?: 0.0
+                val oldAmount = if (paymentSnapshot.exists()) (paymentSnapshot.getDouble("amount") ?: currentPayment.amount) else currentPayment.amount
 
                 val tNewPaid = (currentPaid - oldAmount).coerceAtLeast(0.0)
-                val tStatus = if (tNewPaid == totalAmount) "Lunas" else if (tNewPaid > 0) "Sebagian" else "Belum Bayar"
+                val tStatus = if (tNewPaid >= totalAmount && totalAmount > 0) "LUNAS" else if (tNewPaid > 0) "DP" else "BELUM LUNAS"
 
                 transaction.delete(paymentDocRef)
-                transaction.update(invoiceDocRef, mapOf(
+                transaction.set(invoiceDocRef, mapOf(
                     "paidAmount" to tNewPaid,
-                    "status" to tStatus
-                ))
+                    "status" to tStatus,
+                    "dpAmount" to if (tNewPaid == 0.0) 0.0 else (if (invoice.dpAmount > 0.0) invoice.dpAmount else tNewPaid)
+                ), com.google.firebase.firestore.SetOptions.merge())
             }.await()
         } catch (e: Exception) {
             android.util.Log.e("BusinessRepository", "Firestore Transaction failed: ${e.message}")
         }
 
         invoicePaymentDao.deletePaymentById(paymentId)
+        invoicePaymentDao.deletePaymentById("${paymentId}_alt")
+        FirebaseSyncManager.deleteItemFromCloud("invoice_payments", paymentId)
 
         db.withTransaction {
             val freshInvoice = invoiceDao.getInvoiceById(invoiceId)
@@ -960,6 +1006,9 @@ class BusinessRepository(private val db: AppDatabase) {
                     status = status
                 )
                 invoiceDao.updateInvoice(updatedInvoice)
+
+                // Sync updated Invoice to Cloud
+                FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, updatedInvoice)
 
                 // Sync back to Project if linked
                 val pId4 = updatedInvoice.projectId
@@ -971,6 +1020,7 @@ class BusinessRepository(private val db: AppDatabase) {
                             status = if (newPaid >= project.totalCost) "Completed" else project.status
                         )
                         projectDao.updateProject(updatedProject)
+                        FirebaseSyncManager.syncItemToCloud("projects", updatedProject.id.toString(), updatedProject)
                     }
                 }
 
@@ -985,6 +1035,7 @@ class BusinessRepository(private val db: AppDatabase) {
                             status = if (newPaid >= order.totalAmount) "Completed" else order.status
                         )
                         orderDao.updateOrder(updatedOrder)
+                        FirebaseSyncManager.syncItemToCloud("orders", updatedOrder.id.toString(), updatedOrder)
                     }
                 }
 
@@ -2452,9 +2503,10 @@ class BusinessRepository(private val db: AppDatabase) {
                     }
                 }
 
-                // Update invoice status to DISETUJUI
+                // Update invoice status to BELUM LUNAS (or DP/LUNAS if partial/full payment already registered)
+                val approvalStatus = if (invoice.paidAmount >= invoice.totalAmount && invoice.totalAmount > 0) "LUNAS" else if (invoice.paidAmount > 0) "DP" else "BELUM LUNAS"
                 val updatedInvoice = invoice.copy(
-                    status = "DISETUJUI",
+                    status = approvalStatus,
                     dueDate = System.currentTimeMillis() + (86400000 * 3) // Due 3 days from approval
                 )
                 db.invoiceDao().updateInvoice(updatedInvoice)
