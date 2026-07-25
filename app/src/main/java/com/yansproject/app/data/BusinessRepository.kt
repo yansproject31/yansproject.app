@@ -25,17 +25,7 @@ class BusinessRepository(private val db: AppDatabase) {
     val allStock: Flow<List<StockItem>> = stockDao.getAllStock()
     val allProjects: Flow<List<ProjectCustom>> = projectDao.getAllProjects()
     val allOrders: Flow<List<OrderHistory>> = orderDao.getAllOrders()
-    val allInvoices: Flow<List<Invoice>> = invoiceDao.getAllInvoices().map { list ->
-        val seenKeys = mutableSetOf<String>()
-        val deduplicated = mutableListOf<Invoice>()
-        for (inv in list) {
-            val key = if (inv.invoiceNumber.isNotBlank()) inv.invoiceNumber.trim() else "ID_${inv.id}"
-            if (seenKeys.add(key)) {
-                deduplicated.add(inv)
-            }
-        }
-        deduplicated
-    }
+    val allInvoices: Flow<List<Invoice>> = invoiceDao.getAllInvoices()
     val allExpenses: Flow<List<Expense>> = expenseDao.getAllExpenses()
     val allInflows: Flow<List<Inflow>> = inflowDao.getAllInflows()
     val allStockHistory: Flow<List<StockHistory>> = stockHistoryDao.getAllHistory()
