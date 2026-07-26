@@ -180,6 +180,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val allInvoices: StateFlow<List<Invoice>> = repository.allInvoices
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allInvoicePayments: StateFlow<List<InvoicePayment>> = repository.allInvoicePayments
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val selectedInvoiceTab = MutableStateFlow("Semua")
 
     val filteredInvoices: StateFlow<List<Invoice>> = combine(
@@ -252,12 +255,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 else 0.0
             }
         }
-        val salesInflows = inflows.filter { !it.isDeleted && !(it.category ?: "").contains("Modal", ignoreCase = true) }.sumOf { it.amount }
-        val allInflowsAmount = inflows.filter { !it.isDeleted }.sumOf { it.amount }
+        val nonInvoiceInflows = inflows.filter { 
+            !it.isDeleted && 
+            !(it.category ?: "").contains("Modal", ignoreCase = true) &&
+            !(it.notes ?: "").contains("[PAY_REF:") &&
+            !(it.notes ?: "").contains("Pembayaran Invoice")
+        }.sumOf { it.amount }
+        val allInflowsAmount = inflows.filter { 
+            !it.isDeleted &&
+            !(it.notes ?: "").contains("[PAY_REF:") &&
+            !(it.notes ?: "").contains("Pembayaran Invoice")
+        }.sumOf { it.amount }
 
-        val revenue = invRevenue + standaloneOrdRevenue + salesInflows
+        val revenue = invRevenue + standaloneOrdRevenue + nonInvoiceInflows
         val totalPemasukanAll = invRevenue + standaloneOrdRevenue + allInflowsAmount
-        val receivables = invoices.filter { !it.isDeleted && !(it.status ?: "").equals("Dibatalkan", ignoreCase = true) && !(it.status ?: "").equals("Cancelled", ignoreCase = true) }.sumOf { it.remainingPayment }
+        val receivables = invoices.filter { 
+            !it.isDeleted && 
+            !(it.status ?: "").equals("Dibatalkan", ignoreCase = true) && 
+            !(it.status ?: "").equals("BATAL", ignoreCase = true) && 
+            !(it.status ?: "").equals("Cancelled", ignoreCase = true) 
+        }.sumOf { maxOf(0.0, it.remainingPayment) }
         val projVal = projects.filter { !it.isDeleted }.sumOf { it.totalCost }
         val activeProj = projects.count { !it.isDeleted && ((it.status ?: "").equals("In Progress", ignoreCase = true) || (it.status ?: "").equals("Planning", ignoreCase = true) || (it.status ?: "").equals("Sedang Berjalan", ignoreCase = true) || (it.status ?: "").equals("Proses", ignoreCase = true)) }
         val lowStock = stock.count { !it.isDeleted && it.stockCount <= 5 }

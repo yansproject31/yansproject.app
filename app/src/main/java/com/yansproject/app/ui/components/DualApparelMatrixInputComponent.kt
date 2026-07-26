@@ -50,18 +50,10 @@ fun DualApparelMatrixInputComponent(
     val catalogsState by db.catalogDao().getAllCatalogs().collectAsState(initial = emptyList())
     val stockItemsState by db.stockDao().getAllStock().collectAsState(initial = emptyList())
 
-    val defaultSeriesList = listOf(
-        "Rahasia Realita",
-        "Hina Mulia",
-        "Hilang Pulang",
-        "Madad Auliya 68th",
-        "Signature Yans"
-    )
-
     val availableSeries = remember(catalogsState, stockItemsState) {
         val catalogNames = catalogsState.map { it.nama_catalog }
         val stockSeries = stockItemsState.map { FormatUtils.parseStockItemName(it.name).series }
-        (catalogNames + stockSeries + defaultSeriesList)
+        (catalogNames + stockSeries)
             .map { raw ->
                 raw.replace("AJIBQOBUL", "", ignoreCase = true)
                     .replace(":", "")
@@ -91,7 +83,7 @@ fun DualApparelMatrixInputComponent(
     // Pre-populate empty inputs and default series name for Ajibqobul mode
     LaunchedEffect(Unit) {
         if (!isCustomProject && itemName.isBlank()) {
-            itemName = "AJIBQOBUL Rahasia Realita"
+            itemName = availableSeries.firstOrNull()?.let { "AJIBQOBUL $it" } ?: "AJIBQOBUL"
         }
         adultSizes.forEach {
             shortSleeveQty[it] = ""
@@ -144,11 +136,33 @@ fun DualApparelMatrixInputComponent(
                 ) {
                     availableSeries.forEach { seriesName ->
                         val isSelected = itemName.contains(seriesName, ignoreCase = true)
+                        val matchingItems = stockItemsState.filter {
+                            it.name.contains(seriesName, ignoreCase = true)
+                        }
+                        val seriesTotalStock = if (matchingItems.isNotEmpty()) matchingItems.sumOf { it.stockCount } else 15
+                        val isLowStock = seriesTotalStock in 1..10
+                        val isOutOfStock = matchingItems.isNotEmpty() && seriesTotalStock <= 0
+
+                        val badgeBg = when {
+                            isOutOfStock -> StatusDangerRed.copy(alpha = 0.25f)
+                            isLowStock -> StatusDangerRed.copy(alpha = 0.2f)
+                            else -> AlertGreen.copy(alpha = 0.2f)
+                        }
+                        val badgeTextColor = when {
+                            isOutOfStock || isLowStock -> StatusDangerRed
+                            else -> AlertGreen
+                        }
+                        val badgeLabel = when {
+                            isOutOfStock -> "HABIS"
+                            isLowStock -> "TIPIS ($seriesTotalStock)"
+                            else -> "READY ($seriesTotalStock)"
+                        }
+
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) PrimaryDarkTeal else SurfaceDarkTealSurface)
-                                .border(1.dp, if (isSelected) AccentAgedGold else DividerDarkCyanGray, RoundedCornerShape(8.dp))
+                                .border(1.dp, if (isSelected) AccentAgedGold else (if (isLowStock || isOutOfStock) StatusDangerRed.copy(alpha = 0.6f) else DividerDarkCyanGray), RoundedCornerShape(8.dp))
                                 .clickable {
                                     itemName = "AJIBQOBUL $seriesName"
                                 }
@@ -165,12 +179,52 @@ fun DualApparelMatrixInputComponent(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(4.dp))
-                                        .background(AlertGreen.copy(alpha = 0.2f))
+                                        .background(badgeBg)
                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                 ) {
-                                    Text("READY", color = AlertGreen, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                    Text(badgeLabel, color = badgeTextColor, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
+                        }
+                    }
+                }
+
+                val activeSeriesRawName = itemName.replace("AJIBQOBUL", "", ignoreCase = true).trim()
+                val selectedSeriesMatchingItems = stockItemsState.filter {
+                    activeSeriesRawName.isNotBlank() && it.name.contains(activeSeriesRawName, ignoreCase = true)
+                }
+                val selectedSeriesStockCount = if (selectedSeriesMatchingItems.isNotEmpty()) selectedSeriesMatchingItems.sumOf { it.stockCount } else 15
+                val isSelectedSeriesLow = selectedSeriesStockCount in 1..10
+                val isSelectedSeriesEmpty = selectedSeriesMatchingItems.isNotEmpty() && selectedSeriesStockCount <= 0
+
+                if (isSelectedSeriesLow || isSelectedSeriesEmpty) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = StatusDangerRed.copy(alpha = 0.15f)),
+                        border = BorderStroke(1.dp, StatusDangerRed.copy(alpha = 0.6f)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Stock Alert",
+                                tint = StatusDangerRed,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = if (isSelectedSeriesEmpty)
+                                    "PERINGATAN STOK: Series $activeSeriesRawName sudah HABIS DI GUDANG (0 pcs). Transaksi baru akan mengurangi stok menjadi minus."
+                                else
+                                    "STOK SANGAT TIPIS: Persediaan $activeSeriesRawName tersisa $selectedSeriesStockCount pcs di Firestore Stock.",
+                                color = StatusDangerRed,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }

@@ -828,10 +828,11 @@ fun AddProjectDialog(
                 }
             }
             "T-Shirt Kids" -> {
+                val kidsBase = priceKidsPendekStr.toDoubleOrNull() ?: 0.0
                 if (sleeve == "Pendek") {
-                    priceKidsPendekStr.toDoubleOrNull() ?: 0.0
+                    kidsBase
                 } else {
-                    priceKidsPanjangStr.toDoubleOrNull() ?: 0.0
+                    kidsBase + 5000.0 // (+) 5000 fixed default setting for Kids long sleeve
                 }
             }
             else -> 0.0
@@ -930,43 +931,10 @@ fun AddProjectDialog(
 
                 item {
                     OutlinedTextField(
-                        value = clientInstitution,
-                        onValueChange = { clientInstitution = it },
-                        label = { Text("Instansi / Perusahaan Klien (Opsional)") },
-                        modifier = Modifier.fillMaxWidth().testTag("add_project_institution"),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
-                    )
-                }
-
-                item {
-                    OutlinedTextField(
                         value = clientAddress,
                         onValueChange = { clientAddress = it },
-                        label = { Text("Alamat Pengiriman / Klien (Opsional)") },
+                        label = { Text("Alamat Pengiriman / Customer") },
                         modifier = Modifier.fillMaxWidth().testTag("add_project_address"),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
-                    )
-                }
-
-                item {
-                    OutlinedTextField(
-                        value = clientNotes,
-                        onValueChange = { clientNotes = it },
-                        label = { Text("Catatan Khusus Klien (Opsional)") },
-                        modifier = Modifier.fillMaxWidth().testTag("add_project_client_notes"),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
-                    )
-                }
-
-                item {
-                    OutlinedTextField(
-                        value = pic,
-                        onValueChange = { pic = it },
-                        label = { Text("PIC Project (Petugas Lapangan)") },
-                        modifier = Modifier.fillMaxWidth().testTag("add_project_pic"),
                         shape = RoundedCornerShape(8.dp),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
                     )

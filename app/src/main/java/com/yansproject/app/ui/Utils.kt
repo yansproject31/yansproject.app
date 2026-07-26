@@ -19,6 +19,48 @@ import java.io.FileOutputStream
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
+import android.graphics.Typeface
+import androidx.compose.ui.text.font.FontFamily
+
+object FontUtils {
+    @Volatile
+    private var cachedArabicFontFamily: FontFamily? = null
+
+    fun getPremiumArabicFontFamily(context: Context): FontFamily {
+        cachedArabicFontFamily?.let { return it }
+
+        val assetFontNames = listOf(
+            "fonts/amiri_quran.ttf",
+            "fonts/scheherazade_bold.ttf",
+            "fonts/aref_ruqaa_bold.ttf"
+        )
+        var selectedTf: Typeface? = null
+        for (assetPath in assetFontNames) {
+            try {
+                val tf = Typeface.createFromAsset(context.assets, assetPath)
+                if (tf != null) {
+                    selectedTf = tf
+                    break
+                }
+            } catch (_: Exception) {}
+        }
+        if (selectedTf == null) {
+            val typefaces = listOf("serif-arabic", "sans-serif-arabic", "arabic", "amiri", "scheherazade", "cairo")
+            for (fontName in typefaces) {
+                try {
+                    val tf = Typeface.create(fontName, Typeface.BOLD)
+                    if (tf != Typeface.DEFAULT) {
+                        selectedTf = tf
+                        break
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+        val fontFamily = selectedTf?.let { FontFamily(it) } ?: FontFamily.Serif
+        cachedArabicFontFamily = fontFamily
+        return fontFamily
+    }
+}
 
 data class ParsedStock(
     val isApparel: Boolean,
@@ -80,7 +122,7 @@ object ProjectItemParser {
 }
 
 object InvoiceItemSorter {
-    val SIZE_ORDER = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL")
+    val SIZE_ORDER = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
 
     fun getSizeIndex(size: String): Int {
         val clean = size.trim().uppercase()

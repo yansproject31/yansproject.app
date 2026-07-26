@@ -1551,16 +1551,6 @@ fun VarianWarnaListView(
                             }
                             if (selectedVariantIds.isNotEmpty()) {
                                 Button(
-                                    onClick = { showBatchUpdateVariantModal = true },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AgedGold),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Icon(Icons.Outlined.Edit, contentDescription = null, tint = ShadowBlack, modifier = Modifier.size(14.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Update (${selectedVariantIds.size})", color = ShadowBlack, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Button(
                                     onClick = { showBatchDeleteVariantConfirm = true },
                                     colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
                                     shape = RoundedCornerShape(8.dp),
@@ -1794,20 +1784,6 @@ fun VarianWarnaListView(
                 showBatchDeleteVariantConfirm = false
             },
             onDismiss = { showBatchDeleteVariantConfirm = false }
-        )
-    }
-
-    if (showBatchUpdateVariantModal) {
-        BatchUpdateVariantModal(
-            selectedCount = selectedVariantIds.size,
-            onDismiss = { showBatchUpdateVariantModal = false },
-            onApplyBatch = { stockDelta, retail, member, reseller, notes ->
-                val selectedVars = variants.filter { selectedVariantIds.contains(it.id_varian) }
-                onUpdateVariantsBatch?.invoke(selectedVars, stockDelta, retail, member, reseller, notes)
-                selectedVariantIds = emptySet()
-                isMultiSelectModeVariant = false
-                showBatchUpdateVariantModal = false
-            }
         )
     }
 }

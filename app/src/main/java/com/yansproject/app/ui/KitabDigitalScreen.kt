@@ -1338,7 +1338,7 @@ fun KitabDigitalScreen(
                                                 fontWeight = FontWeight.Normal,
                                                 color = activeTheme.text,
                                                 lineHeight = (readerTextSize * 1.65f).sp,
-                                                fontFamily = if (isArabic) FontFamily.Default else activeFontFamily,
+                                                fontFamily = if (isArabic) FontUtils.getPremiumArabicFontFamily(androidx.compose.ui.platform.LocalContext.current) else activeFontFamily,
                                                 textAlign = if (isArabic) TextAlign.Right else TextAlign.Justify,
                                                 modifier = Modifier.fillMaxWidth()
                                             )

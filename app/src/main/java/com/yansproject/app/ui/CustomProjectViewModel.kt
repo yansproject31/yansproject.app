@@ -30,7 +30,7 @@ enum class CustomProjectTab {
 class CustomProjectViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getDatabase(application)
-    private val repository = CustomRepository(db)
+    private val repository = BusinessRepository(db)
 
     private val _state = MutableStateFlow(CustomProjectState())
     val state: StateFlow<CustomProjectState> = _state.asStateFlow()
@@ -164,13 +164,28 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
             viewModelScope.launch {
                 try {
                     val db = AppDatabase.getDatabase(getApplication())
-                    val project = db.projectDao().getProjectById(rawId)
-                    if (project != null) {
-                        val newPaid = project.paidAmount + payment.amount
-                        db.projectDao().updateProject(project.copy(
-                            paidAmount = newPaid,
-                            status = if (project.totalCost - newPaid <= 0.0) "Completed" else project.status
-                        ))
+                    val invoices = db.invoiceDao().getInvoicesList()
+                    val linkedInvoice = invoices.find { it.projectId == rawId }
+                    if (linkedInvoice != null) {
+                        repository.addInvoicePayment(
+                            invoiceId = linkedInvoice.id,
+                            amount = payment.amount,
+                            method = if (payment.paymentMethod.isBlank()) "Transfer" else payment.paymentMethod,
+                            methodDetail = "Tahapan Project Custom",
+                            notes = if (payment.description.isBlank()) "Pembayaran Tahapan Project Custom" else payment.description,
+                            adminName = "Owner",
+                            adminUid = "owner_sys",
+                            customDate = payment.dateTimestamp
+                        )
+                    } else {
+                        val project = db.projectDao().getProjectById(rawId)
+                        if (project != null) {
+                            val newPaid = project.paidAmount + payment.amount
+                            db.projectDao().updateProject(project.copy(
+                                paidAmount = newPaid,
+                                status = if (project.totalCost - newPaid <= 0.0) "Completed" else project.status
+                            ))
+                        }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -181,6 +196,23 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
 
     fun selectProject(project: CustomProject?) {
         _state.update { it.copy(selectedProject = project) }
+    }
+
+    fun deleteProject(project: CustomProject) {
+        val rawId = project.id.removePrefix("PRJ-").toIntOrNull()
+        if (rawId != null) {
+            viewModelScope.launch {
+                try {
+                    val db = AppDatabase.getDatabase(getApplication())
+                    val entity = db.projectDao().getProjectById(rawId)
+                    if (entity != null) {
+                        repository.deleteProject(entity)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     // High-Precision Accounting validations

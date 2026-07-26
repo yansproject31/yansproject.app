@@ -196,6 +196,27 @@ object AppSettings {
     fun setCustomSleeveLongPrice(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_sleeve_long_price", value.toFloat()).apply()
 
+    // --- CUSTOM PROJECT HPP ERP CONFIG ---
+    fun getCustomHppRegulerPendek(context: Context): Double =
+        getPrefs(context).getFloat("custom_hpp_reguler_pendek", 55000f).toDouble()
+    fun setCustomHppRegulerPendek(context: Context, value: Double) =
+        getPrefs(context).edit().putFloat("custom_hpp_reguler_pendek", value.toFloat()).apply()
+
+    fun getCustomHppRegulerPanjang(context: Context): Double =
+        getPrefs(context).getFloat("custom_hpp_reguler_panjang", 65000f).toDouble()
+    fun setCustomHppRegulerPanjang(context: Context, value: Double) =
+        getPrefs(context).edit().putFloat("custom_hpp_reguler_panjang", value.toFloat()).apply()
+
+    fun getCustomHppKidsPendek(context: Context): Double =
+        getPrefs(context).getFloat("custom_hpp_kids_pendek", 40000f).toDouble()
+    fun setCustomHppKidsPendek(context: Context, value: Double) =
+        getPrefs(context).edit().putFloat("custom_hpp_kids_pendek", value.toFloat()).apply()
+
+    fun getCustomHppKidsPanjang(context: Context): Double =
+        getPrefs(context).getFloat("custom_hpp_kids_panjang", 45000f).toDouble()
+    fun setCustomHppKidsPanjang(context: Context, value: Double) =
+        getPrefs(context).edit().putFloat("custom_hpp_kids_panjang", value.toFloat()).apply()
+
     fun getDefaultMargin(context: Context): Double =
         getPrefs(context).getFloat("default_margin", 35f).toDouble()
     fun setDefaultMargin(context: Context, value: Double) =

@@ -347,10 +347,10 @@ interface InventorySummaryDao {
 
 @Dao
 interface InvoicePaymentDao {
-    @Query("SELECT * FROM invoice_payments WHERE invoiceId = :invoiceId OR (:invoiceNumber != '' AND invoiceId = :invoiceNumber) ORDER BY date DESC")
+    @Query("SELECT DISTINCT * FROM invoice_payments WHERE (invoiceId = :invoiceId OR (:invoiceNumber != '' AND invoiceId = :invoiceNumber)) AND id NOT LIKE '%_alt' ORDER BY date DESC")
     fun getPaymentsForInvoiceFlow(invoiceId: String, invoiceNumber: String = ""): Flow<List<InvoicePayment>>
 
-    @Query("SELECT * FROM invoice_payments WHERE invoiceId = :invoiceId OR (:invoiceNumber != '' AND invoiceId = :invoiceNumber) ORDER BY date DESC")
+    @Query("SELECT DISTINCT * FROM invoice_payments WHERE (invoiceId = :invoiceId OR (:invoiceNumber != '' AND invoiceId = :invoiceNumber)) AND id NOT LIKE '%_alt' ORDER BY date DESC")
     suspend fun getPaymentsForInvoiceList(invoiceId: String, invoiceNumber: String = ""): List<InvoicePayment>
 
     @Query("SELECT * FROM invoice_payments WHERE id = :id")
@@ -368,14 +368,20 @@ interface InvoicePaymentDao {
     @Query("DELETE FROM invoice_payments WHERE id = :id")
     suspend fun deletePaymentById(id: String)
 
+    @Query("DELETE FROM invoice_payments WHERE id LIKE '%_alt'")
+    suspend fun deleteAltPayments()
+
     @Query("DELETE FROM invoice_payments WHERE invoiceId = :invoiceId")
     suspend fun deletePaymentsForInvoice(invoiceId: String)
 
     @Query("DELETE FROM invoice_payments")
     suspend fun clearAllPayments()
 
-    @Query("SELECT * FROM invoice_payments")
+    @Query("SELECT DISTINCT * FROM invoice_payments WHERE id NOT LIKE '%_alt'")
     suspend fun getAllPaymentsList(): List<InvoicePayment>
+
+    @Query("SELECT DISTINCT * FROM invoice_payments WHERE id NOT LIKE '%_alt' ORDER BY date DESC")
+    fun getAllPaymentsFlow(): Flow<List<InvoicePayment>>
 }
 
 @Dao

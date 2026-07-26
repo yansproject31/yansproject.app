@@ -124,6 +124,22 @@ fun FinanceConfigModule(
         val amt = try { AppSettings.getCustomUpsize4XL(context).toInt().toString() } catch (e: Exception) { "10000" }
         mutableStateOf(amt)
     }
+    var customHppRegulerPendek by remember {
+        val amt = try { AppSettings.getCustomHppRegulerPendek(context).toInt().toString() } catch (e: Exception) { "55000" }
+        mutableStateOf(amt)
+    }
+    var customHppRegulerPanjang by remember {
+        val amt = try { AppSettings.getCustomHppRegulerPanjang(context).toInt().toString() } catch (e: Exception) { "65000" }
+        mutableStateOf(amt)
+    }
+    var customHppKidsPendek by remember {
+        val amt = try { AppSettings.getCustomHppKidsPendek(context).toInt().toString() } catch (e: Exception) { "40000" }
+        mutableStateOf(amt)
+    }
+    var customHppKidsPanjang by remember {
+        val amt = try { AppSettings.getCustomHppKidsPanjang(context).toInt().toString() } catch (e: Exception) { "45000" }
+        mutableStateOf(amt)
+    }
 
     // Persist default values if initially empty
     LaunchedEffect(Unit) {
@@ -446,6 +462,55 @@ fun FinanceConfigModule(
                 }
 
                 Text(
+                    text = "Konfigurasi HPP Custom Project (Reguler & Kids)",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = customHppRegulerPendek,
+                        onValueChange = { customHppRegulerPendek = it },
+                        label = { Text("HPP Reguler Pendek", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = customHppRegulerPanjang,
+                        onValueChange = { customHppRegulerPanjang = it },
+                        label = { Text("HPP Reguler Panjang", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = customHppKidsPendek,
+                        onValueChange = { customHppKidsPendek = it },
+                        label = { Text("HPP Kids Pendek", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = customHppKidsPanjang,
+                        onValueChange = { customHppKidsPanjang = it },
+                        label = { Text("HPP Kids Panjang", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                }
+
+                Text(
                     text = "Tambahan Harga Ukuran Jumbo (Upsize Custom)",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -512,6 +577,10 @@ fun FinanceConfigModule(
                 val cXXL = customXXL.toDoubleOrNull() ?: 10000.0
                 val c3XL = custom3XL.toDoubleOrNull() ?: 10000.0
                 val c4XL = custom4XL.toDoubleOrNull() ?: 10000.0
+                val cHppRegPendek = customHppRegulerPendek.toDoubleOrNull() ?: 55000.0
+                val cHppRegPanjang = customHppRegulerPanjang.toDoubleOrNull() ?: 65000.0
+                val cHppKidsPendek = customHppKidsPendek.toDoubleOrNull() ?: 40000.0
+                val cHppKidsPanjang = customHppKidsPanjang.toDoubleOrNull() ?: 45000.0
 
                 isSaving = true
                 coroutineScope.launch {
@@ -540,6 +609,10 @@ fun FinanceConfigModule(
                         AppSettings.setCustomUpsizeXXL(context, cXXL)
                         AppSettings.setCustomUpsize3XL(context, c3XL)
                         AppSettings.setCustomUpsize4XL(context, c4XL)
+                        AppSettings.setCustomHppRegulerPendek(context, cHppRegPendek)
+                        AppSettings.setCustomHppRegulerPanjang(context, cHppRegPanjang)
+                        AppSettings.setCustomHppKidsPendek(context, cHppKidsPendek)
+                        AppSettings.setCustomHppKidsPanjang(context, cHppKidsPanjang)
 
                         // 2. Sync to Firebase Firestore under settings/finance_config
                         val firestoreData = mapOf(
@@ -566,6 +639,10 @@ fun FinanceConfigModule(
                             "custom_upsize_xxl" to cXXL,
                             "custom_upsize_3xl" to c3XL,
                             "custom_upsize_4xl" to c4XL,
+                            "custom_hpp_reguler_pendek" to cHppRegPendek,
+                            "custom_hpp_reguler_panjang" to cHppRegPanjang,
+                            "custom_hpp_kids_pendek" to cHppKidsPendek,
+                            "custom_hpp_kids_panjang" to cHppKidsPanjang,
                             "updated_at" to System.currentTimeMillis()
                         )
 

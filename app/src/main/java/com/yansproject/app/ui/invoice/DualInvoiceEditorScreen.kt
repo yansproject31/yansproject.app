@@ -400,7 +400,8 @@ fun DualInvoiceEditorScreen(
                                 // Standard system invoice mapping & sync
                                 // For standard system we update the live state so that they are instantly populated
                                 val listInvs = viewModel.state.value.ajibqobulInvoices.toMutableList()
-                                val num = "INV-2026-AJB00${listInvs.size + 1}"
+                                val timeCode = (System.currentTimeMillis() % 100000).toString().padStart(5, '0')
+                                val num = "INV/2026/AJB/$timeCode"
                                 val newInv = com.yansproject.app.data.Invoice(
                                     invoiceNumber = num,
                                     clientName = clientName,

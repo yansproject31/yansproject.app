@@ -1833,11 +1833,25 @@ fun RiwayatPiutangScreen(
     BackHandler { onBack() }
     val context = LocalContext.current
     val invoices by viewModel.allInvoices.collectAsState()
+    val allPayments by viewModel.allInvoicePayments.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
 
-    val unpaidInvs = remember(invoices, searchQuery) {
-        invoices.filter { !it.isDeleted && it.remainingPayment > 0 }.filter { inv ->
+    val unpaidInvs = remember(invoices, allPayments, searchQuery) {
+        invoices.filter { inv ->
+            !inv.isDeleted &&
+            !inv.status.equals("Dibatalkan", ignoreCase = true) &&
+            !inv.status.equals("BATAL", ignoreCase = true) &&
+            !inv.status.equals("Cancelled", ignoreCase = true) &&
+            run {
+                val paymentsForInv = allPayments.filter { 
+                    (it.invoiceId == inv.invoiceNumber && inv.invoiceNumber.isNotBlank()) || 
+                    it.invoiceId == inv.id.toString() 
+                }
+                val actualPaid = if (paymentsForInv.isNotEmpty()) paymentsForInv.sumOf { it.amount } else inv.paidAmount
+                maxOf(0.0, inv.totalAmount - actualPaid) > 0
+            }
+        }.filter { inv ->
             if (searchQuery.trim().isEmpty()) {
                 true
             } else {
@@ -1848,8 +1862,15 @@ fun RiwayatPiutangScreen(
         }.sortedByDescending { it.issueDate }
     }
 
-    val totalPiutang = remember(unpaidInvs) {
-        unpaidInvs.sumOf { it.remainingPayment }
+    val totalPiutang = remember(unpaidInvs, allPayments) {
+        unpaidInvs.sumOf { inv ->
+            val paymentsForInv = allPayments.filter { 
+                (it.invoiceId == inv.invoiceNumber && inv.invoiceNumber.isNotBlank()) || 
+                it.invoiceId == inv.id.toString() 
+            }
+            val actualPaid = if (paymentsForInv.isNotEmpty()) paymentsForInv.sumOf { it.amount } else inv.paidAmount
+            maxOf(0.0, inv.totalAmount - actualPaid)
+        }
     }
 
     Scaffold(
@@ -2002,11 +2023,24 @@ fun RiwayatPiutangScreen(
                                     }
                                 }
 
+                                val invPayments = remember(allPayments, inv) {
+                                    allPayments.filter { 
+                                        (it.invoiceId == inv.invoiceNumber && inv.invoiceNumber.isNotBlank()) || 
+                                        it.invoiceId == inv.id.toString() 
+                                    }
+                                }
+                                val actualPaid = remember(invPayments, inv.paidAmount) {
+                                    if (invPayments.isNotEmpty()) invPayments.sumOf { it.amount } else inv.paidAmount
+                                }
+                                val actualRemaining = remember(actualPaid, inv.totalAmount) {
+                                    maxOf(0.0, inv.totalAmount - actualPaid)
+                                }
+
                                 Spacer(modifier = Modifier.height(10.dp))
                                 DetailInfoRow(label = "Client Name", value = inv.clientName)
                                 DetailInfoRow(label = "Issue Date", value = dateStr)
                                 DetailInfoRow(label = "Total Tagihan", value = FormatUtils.formatRupiah(inv.totalAmount))
-                                DetailInfoRow(label = "Sudah Terbayar", value = FormatUtils.formatRupiah(inv.paidAmount), valueColor = AlertGreen)
+                                DetailInfoRow(label = "Sudah Terbayar", value = FormatUtils.formatRupiah(actualPaid), valueColor = AlertGreen)
                                 
                                 Spacer(modifier = Modifier.height(8.dp))
                                 HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
@@ -2019,14 +2053,14 @@ fun RiwayatPiutangScreen(
                                 ) {
                                     Column {
                                         Text("SISA PIUTANG (UNPAID)", fontSize = 10.sp, color = TextMuted, fontWeight = FontWeight.Bold)
-                                        Text(FormatUtils.formatRupiah(inv.remainingPayment), fontSize = 15.sp, color = AlertOrange, fontWeight = FontWeight.Black)
+                                        Text(FormatUtils.formatRupiah(actualRemaining), fontSize = 15.sp, color = AlertOrange, fontWeight = FontWeight.Black)
                                     }
 
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         // WhatsApp Remind
                                         IconButton(
                                             onClick = {
-                                                val msg = "Assalamu'alaikum Ibu/Bapak ${inv.clientName}.\nKami menginformasikan mengenai sisa tagihan untuk Invoice ${inv.invoiceNumber} senilai ${FormatUtils.formatRupiah(inv.remainingPayment)}.\nMohon dapat segera dikonfirmasi. Terima kasih."
+                                                val msg = "Assalamu'alaikum Ibu/Bapak ${inv.clientName}.\nKami menginformasikan mengenai sisa tagihan untuk Invoice ${inv.invoiceNumber} senilai ${FormatUtils.formatRupiah(actualRemaining)}.\nMohon dapat segera dikonfirmasi. Terima kasih."
                                                 val intent = android.content.Intent(
                                                     android.content.Intent.ACTION_VIEW,
                                                     android.net.Uri.parse("https://wa.me/${inv.clientPhone}?text=${java.net.URLEncoder.encode(msg, "UTF-8")}")

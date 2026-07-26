@@ -311,21 +311,10 @@ fun SholawatMarqueeBanner(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val sholawatLafadzUnit = "   ۞   اَللّٰهُمَّ صَلِّ وَسَلِّمْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ   ✦   صَلَّى اللهُ عَلَىٰ مُحَمَّدٍ   ✨   "
+    val sholawatLafadzUnit = "   ۞   اَللّٰهُمَّ صَلِّ وَسَلِّمْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ   "
 
-    val premiumArabicFontFamily = remember {
-        val typefaces = listOf("serif-arabic", "sans-serif-arabic", "arabic", "amiri", "scheherazade", "cairo")
-        var selectedTf: android.graphics.Typeface? = null
-        for (fontName in typefaces) {
-            try {
-                val tf = android.graphics.Typeface.create(fontName, android.graphics.Typeface.BOLD)
-                if (tf != android.graphics.Typeface.DEFAULT) {
-                    selectedTf = tf
-                    break
-                }
-            } catch (_: Exception) {}
-        }
-        selectedTf?.let { FontFamily(it) } ?: FontFamily.Serif
+    val premiumArabicFontFamily = remember(context) {
+        FontUtils.getPremiumArabicFontFamily(context)
     }
 
     var showDetailDialog by remember { mutableStateOf(false) }
@@ -464,7 +453,7 @@ fun SholawatMarqueeBanner(
                     }
 
                     Text(
-                        text = "BISMILLAH • BERSHOLAWAT",
+                        text = "RAHASIA BERSHOLAWAT",
                         color = HighlightSoftCyan,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Black,
@@ -472,9 +461,9 @@ fun SholawatMarqueeBanner(
                     )
 
                     Text(
-                        text = "اَللّٰهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ",
+                        text = "اَللّٰهُمَّ صَلِّ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ",
                         color = AgedGold,
-                        fontSize = 22.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = premiumArabicFontFamily,
                         textAlign = TextAlign.Center,
@@ -488,7 +477,7 @@ fun SholawatMarqueeBanner(
                     )
 
                     Text(
-                        text = "\"Allahumma sholli 'ala sayyidina Muhammadin wa 'ala ali sayyidina Muhammad\"",
+                        text = "\"Siapapun yang suka memuji, menyanjung, dan membesarkan Rosulullah, setiap detik Maqomnya naik. Kedudukan dan Martabatnya di sisi Allah itu bertambah mulia setiap detiknya.\"\nAbah Guru Sekumpul",
                         color = Color.White.copy(alpha = 0.85f),
                         fontSize = 13.sp,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
@@ -498,7 +487,7 @@ fun SholawatMarqueeBanner(
                     HorizontalDivider(color = CardGrey, thickness = 1.dp)
 
                     Text(
-                        text = "Semoga Keberkahan, Kelancaran Rezeki, dan Keamanan Senantiasa Menyertai Usaha & Operasional YANSPROJECT.ID.",
+                        text = "Semoga Keberkahan, Kejayaan, dan Keselamatan Senantiasa Menyertai YANSPROJECT.ID & Ashab AJIBQOBUL.",
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
@@ -514,7 +503,7 @@ fun SholawatMarqueeBanner(
                             .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                     ) {
                         Text(
-                            text = "AAMIIN YA RABBAL 'ALAMIN",
+                            text = "DIDO'AKEUN KU ABAH",
                             color = AgedGold,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp

@@ -1241,6 +1241,10 @@ object FirebaseSyncManager {
                         finDoc.getDouble("custom_upsize_xxl")?.let { AppSettings.setCustomUpsizeXXL(context, it) }
                         finDoc.getDouble("custom_upsize_3xl")?.let { AppSettings.setCustomUpsize3XL(context, it) }
                         finDoc.getDouble("custom_upsize_4xl")?.let { AppSettings.setCustomUpsize4XL(context, it) }
+                        finDoc.getDouble("custom_hpp_reguler_pendek")?.let { AppSettings.setCustomHppRegulerPendek(context, it) }
+                        finDoc.getDouble("custom_hpp_reguler_panjang")?.let { AppSettings.setCustomHppRegulerPanjang(context, it) }
+                        finDoc.getDouble("custom_hpp_kids_pendek")?.let { AppSettings.setCustomHppKidsPendek(context, it) }
+                        finDoc.getDouble("custom_hpp_kids_panjang")?.let { AppSettings.setCustomHppKidsPanjang(context, it) }
                         Log.d(TAG, "Successfully pulled finance_config settings from cloud.")
                     }
                 } catch (se: Exception) {

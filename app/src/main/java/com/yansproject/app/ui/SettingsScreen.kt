@@ -3129,6 +3129,10 @@ fun renderNestedSubScreen(
             var custXXL by remember { mutableStateOf(AppSettings.getCustomUpsizeXXL(context).toInt().toString()) }
             var cust3XL by remember { mutableStateOf(AppSettings.getCustomUpsize3XL(context).toInt().toString()) }
             var cust4XL by remember { mutableStateOf(AppSettings.getCustomUpsize4XL(context).toInt().toString()) }
+            var custHppRegPendek by remember { mutableStateOf(AppSettings.getCustomHppRegulerPendek(context).toInt().toString()) }
+            var custHppRegPanjang by remember { mutableStateOf(AppSettings.getCustomHppRegulerPanjang(context).toInt().toString()) }
+            var custHppKidsPendek by remember { mutableStateOf(AppSettings.getCustomHppKidsPendek(context).toInt().toString()) }
+            var custHppKidsPanjang by remember { mutableStateOf(AppSettings.getCustomHppKidsPanjang(context).toInt().toString()) }
 
             var curSelectedCurrency by remember { mutableStateOf("IDR (Rupiah Rp)") }
 
@@ -3276,6 +3280,42 @@ fun renderNestedSubScreen(
                                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
                             )
                         }
+
+                        Text("HPP PRODUKSI CUSTOM (REGULER & KIDS)", color = HighlightSoftCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = custHppRegPendek,
+                                onValueChange = { custHppRegPendek = it },
+                                label = { Text("HPP Reguler Pendek") },
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
+                            )
+                            OutlinedTextField(
+                                value = custHppRegPanjang,
+                                onValueChange = { custHppRegPanjang = it },
+                                label = { Text("HPP Reguler Panjang") },
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
+                            )
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = custHppKidsPendek,
+                                onValueChange = { custHppKidsPendek = it },
+                                label = { Text("HPP Kids Pendek") },
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
+                            )
+                            OutlinedTextField(
+                                value = custHppKidsPanjang,
+                                onValueChange = { custHppKidsPanjang = it },
+                                label = { Text("HPP Kids Panjang") },
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
+                            )
+                        }
                     }
                 }
 
@@ -3331,6 +3371,10 @@ fun renderNestedSubScreen(
                                 val cXXL = custXXL.toDoubleOrNull() ?: 10000.0
                                 val c3XL = cust3XL.toDoubleOrNull() ?: 10000.0
                                 val c4XL = cust4XL.toDoubleOrNull() ?: 10000.0
+                                val cHppRegPendek = custHppRegPendek.toDoubleOrNull() ?: 55000.0
+                                val cHppRegPanjang = custHppRegPanjang.toDoubleOrNull() ?: 65000.0
+                                val cHppKidsPendek = custHppKidsPendek.toDoubleOrNull() ?: 40000.0
+                                val cHppKidsPanjang = custHppKidsPanjang.toDoubleOrNull() ?: 45000.0
                                 
                                 AppSettings.setAjibqobulBasePrice(context, aBase)
                                 AppSettings.setAjibqobulSleeveLongPrice(context, aLong)
@@ -3343,6 +3387,10 @@ fun renderNestedSubScreen(
                                 AppSettings.setCustomUpsizeXXL(context, cXXL)
                                 AppSettings.setCustomUpsize3XL(context, c3XL)
                                 AppSettings.setCustomUpsize4XL(context, c4XL)
+                                AppSettings.setCustomHppRegulerPendek(context, cHppRegPendek)
+                                AppSettings.setCustomHppRegulerPanjang(context, cHppRegPanjang)
+                                AppSettings.setCustomHppKidsPendek(context, cHppKidsPendek)
+                                AppSettings.setCustomHppKidsPanjang(context, cHppKidsPanjang)
 
                                 // Async sync to Firebase Cloud settings
                                 val erpData = mapOf(
@@ -3356,6 +3404,10 @@ fun renderNestedSubScreen(
                                     "custom_upsize_xxl" to cXXL,
                                     "custom_upsize_3xl" to c3XL,
                                     "custom_upsize_4xl" to c4XL,
+                                    "custom_hpp_reguler_pendek" to cHppRegPendek,
+                                    "custom_hpp_reguler_panjang" to cHppRegPanjang,
+                                    "custom_hpp_kids_pendek" to cHppKidsPendek,
+                                    "custom_hpp_kids_panjang" to cHppKidsPanjang,
                                     "updated_at" to System.currentTimeMillis()
                                 )
                                 try {

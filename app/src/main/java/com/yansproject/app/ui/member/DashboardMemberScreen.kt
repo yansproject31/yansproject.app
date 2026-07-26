@@ -496,8 +496,13 @@ fun DashboardMemberScreen(
 
     // Modal Rincian Pesanan Member Detail
     if (selectedInvoiceForDetail != null) {
+        val activeInvoice = myInvoices.find { 
+            (selectedInvoiceForDetail!!.id != 0 && it.id == selectedInvoiceForDetail!!.id) || 
+            (selectedInvoiceForDetail!!.invoiceNumber.isNotBlank() && it.invoiceNumber == selectedInvoiceForDetail!!.invoiceNumber) 
+        } ?: selectedInvoiceForDetail!!
+
         RincianPesananMemberDialog(
-            invoice = selectedInvoiceForDetail!!,
+            invoice = activeInvoice,
             viewModel = viewModel,
             onDismiss = { selectedInvoiceForDetail = null }
         )
@@ -802,7 +807,27 @@ fun RincianPesananMemberDialog(
     }
     val payments by paymentsFlow.collectAsState(initial = emptyList())
 
-    val statusUpper = invoice.status.uppercase(Locale.getDefault())
+    val currentPaid = remember(payments, invoice.paidAmount) {
+        if (payments.isNotEmpty()) payments.sumOf { it.amount } else invoice.paidAmount
+    }
+    val currentRemaining = remember(currentPaid, invoice.totalAmount) {
+        maxOf(0.0, invoice.totalAmount - currentPaid)
+    }
+
+    val statusUpper = remember(currentPaid, invoice.totalAmount, invoice.status) {
+        val raw = invoice.status.uppercase(Locale.getDefault())
+        if (raw == "BATAL" || raw == "DITOLAK" || raw == "CANCELLED") {
+            "BATAL"
+        } else if (raw == "MENUNGGU PERSETUJUAN") {
+            "MENUNGGU PERSETUJUAN"
+        } else if (currentPaid >= invoice.totalAmount && invoice.totalAmount > 0) {
+            "LUNAS"
+        } else if (currentPaid > 0) {
+            "DP"
+        } else {
+            "BELUM LUNAS"
+        }
+    }
     val statusColor = when (statusUpper) {
         "LUNAS", "SELESAI" -> AlertGreen
         "BELUM LUNAS", "MENUNGGU PEMBAYARAN" -> AlertOrange
@@ -1032,16 +1057,16 @@ fun RincianPesananMemberDialog(
                                         }
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                             Text("Total Terbayar", fontSize = 11.sp, color = TextMuted)
-                                            Text(FormatUtils.formatRupiah(invoice.paidAmount), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AlertGreen)
+                                            Text(FormatUtils.formatRupiah(currentPaid), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AlertGreen)
                                         }
                                         HorizontalDivider(color = BorderGrey.copy(alpha = 0.3f), thickness = 0.5.dp)
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                             Text("Sisa Pembayaran", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextLight)
                                             Text(
-                                                FormatUtils.formatRupiah(invoice.remainingPayment),
+                                                FormatUtils.formatRupiah(currentRemaining),
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.ExtraBold,
-                                                color = if (invoice.remainingPayment > 0) AlertOrange else AlertGreen
+                                                color = if (currentRemaining > 0) AlertOrange else AlertGreen
                                             )
                                         }
                                     }

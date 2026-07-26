@@ -380,10 +380,12 @@ fun InvoiceScreen(
             val stockItems by viewModel.allStock.collectAsState()
             val catalogs by viewModel.allCatalogs.collectAsState()
             val masterStocks by viewModel.allStockMaster.collectAsState()
+            val varians by viewModel.allVarian.collectAsState()
             AddSaleDialog(
                 stockItems = stockItems,
                 catalogs = catalogs,
                 masterStocks = masterStocks,
+                varians = varians,
                 onDismiss = { showAddSaleDialog = false },
                 onSaveSale = { name: String, phone: String, selectedItems: List<Pair<com.yansproject.app.data.StockItem, Int>>, paidAmount: Double, priceType: String ->
                     viewModel.addOrder(name, phone, selectedItems, paidAmount, "Completed", priceType)
@@ -429,7 +431,7 @@ fun getInvoiceCardSummary(items: List<InvoiceItemDetail>): String {
     sb.append(seriesName).append("\n")
     sb.append("Warna :\n").append(colorName).append("\n\n")
 
-    val sizeOrder = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL")
+    val sizeOrder = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
 
     val grouped = cleanItems.groupBy {
         val parsed = FormatUtils.parseStockItemName(it.description.removePrefix("Pembelian: "))
@@ -535,7 +537,7 @@ fun InvoiceItemCard(
     }
 
     val qtySummary = remember(apparelItems, items) {
-        val sizeOrder = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL")
+        val sizeOrder = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
         val pendekMap = mutableMapOf<String, Int>()
         val panjangMap = mutableMapOf<String, Int>()
         apparelItems.forEach { item ->
@@ -802,7 +804,6 @@ fun InvoiceDetailDialog(
         invoiceItems.find { it.description.startsWith("__NOTE__:") }?.description?.removePrefix("__NOTE__:") ?: ""
     }
 
-    var showEditMetadata by remember { mutableStateOf(false) }
     var showEditNoteDialog by remember { mutableStateOf(false) }
     var showCancelConfirm by remember { mutableStateOf(false) }
     var exportSuccessFile by remember { mutableStateOf<java.io.File?>(null) }
@@ -817,6 +818,27 @@ fun InvoiceDetailDialog(
         viewModel.getPaymentsForInvoice(invoice.id.toString(), invoice.invoiceNumber).collectAsState(initial = emptyList())
     } else {
         remember { mutableStateOf(emptyList<com.yansproject.app.data.InvoicePayment>()) }
+    }
+
+    val currentPaid = remember(paymentsList, invoice.paidAmount) {
+        if (paymentsList.isNotEmpty()) paymentsList.sumOf { it.amount } else invoice.paidAmount
+    }
+    val currentRemaining = remember(currentPaid, invoice.totalAmount) {
+        maxOf(0.0, invoice.totalAmount - currentPaid)
+    }
+    val currentStatus = remember(currentPaid, invoice.totalAmount, invoice.status) {
+        val upper = invoice.status.trim().uppercase()
+        if (upper == "BATAL" || upper == "CANCELLED" || upper == "VOID") {
+            "BATAL"
+        } else if (upper == "MENUNGGU PERSETUJUAN") {
+            "MENUNGGU PERSETUJUAN"
+        } else if (currentPaid >= invoice.totalAmount && invoice.totalAmount > 0) {
+            "LUNAS"
+        } else if (currentPaid > 0) {
+            if (upper.startsWith("DP")) invoice.status else "DP"
+        } else {
+            "BELUM BAYAR"
+        }
     }
 
     PremiumBottomSheet(
@@ -949,7 +971,7 @@ fun InvoiceDetailDialog(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(text = "Status Pembayaran", fontSize = 12.sp, color = TextMuted)
-                                        val statusColor = when (invoice.status.trim().uppercase()) {
+                                        val statusColor = when (currentStatus.trim().uppercase()) {
                                             "LUNAS" -> AlertGreen
                                             "MENUNGGU PERSETUJUAN" -> AgedGold
                                             "DP AWAL", "DP_AWAL" -> HighlightSoftCyan
@@ -966,23 +988,8 @@ fun InvoiceDetailDialog(
                                                 .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.4f)), RoundedCornerShape(30.dp))
                                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                                         ) {
-                                            Text(text = invoice.status, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = statusColor)
+                                            Text(text = currentStatus, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = statusColor)
                                         }
-                                    }
-                                }
-
-                                if (isOwner && invoice.status != "LUNAS" && invoice.status != "BATAL") {
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    OutlinedButton(
-                                        onClick = { showEditMetadata = true },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        border = BorderStroke(1.dp, AgedGold),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AgedGold),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Icon(imageVector = Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(14.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Edit Informasi Customer", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -1162,16 +1169,16 @@ fun InvoiceDetailDialog(
                                         Text(text = "- ${FormatUtils.formatRupiah(invoice.discount)}", fontSize = 12.sp, color = AlertRed)
                                     }
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(text = "Uang Muka (DP)", fontSize = 12.sp, color = TextMuted)
-                                        Text(text = FormatUtils.formatRupiah(invoice.dpAmount), fontSize = 12.sp, color = AlertGreen)
+                                        Text(text = "Total Terbayar", fontSize = 12.sp, color = TextMuted)
+                                        Text(text = FormatUtils.formatRupiah(currentPaid), fontSize = 12.sp, color = AlertGreen, fontWeight = FontWeight.Bold)
                                     }
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text(text = "Sisa Pembayaran", fontSize = 12.sp, color = TextMuted)
                                         Text(
-                                            text = FormatUtils.formatRupiah(invoice.remainingPayment),
+                                            text = FormatUtils.formatRupiah(currentRemaining),
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (invoice.remainingPayment > 0) AlertOrange else AlertGreen
+                                            color = if (currentRemaining > 0) AlertOrange else AlertGreen
                                         )
                                     }
                                 }
@@ -1800,23 +1807,7 @@ fun InvoiceDetailDialog(
                 }
             }
         }
-    if (showEditMetadata) {
-        EditMetadataDialog(
-            invoice = invoice,
-            currentAddress = currentAddress,
-            currentNote = currentNote,
-            onDismiss = { showEditMetadata = false },
-            onSave = { name, phone, address, notes ->
-                onUpdateMetadata(invoice.id, name, phone, address, notes)
-                showEditMetadata = false
-            },
-            isOwner = isOwner,
-            onSaveFull = { updatedInvoice ->
-                viewModel?.updateInvoiceFully(updatedInvoice)
-                showEditMetadata = false
-            }
-        )
-    }
+
 
     if (showEditNoteDialog) {
         EditAdminNoteDialog(
@@ -2328,7 +2319,7 @@ fun InvoiceDetailDialog(
 
 @Composable
 fun InvoiceSizeMatrixLayout(sizes: Map<String, Int>) {
-    val standardLabels = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL")
+    val standardLabels = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
     val customKeys = sizes.keys.filter { it.uppercase() !in standardLabels && (sizes[it] ?: 0) > 0 }
     val allLabels = (standardLabels + customKeys).distinct()
     val totalQtyInMatrix = allLabels.sumOf { sizes[it] ?: 0 }
@@ -2494,350 +2485,7 @@ fun EditAdminNoteDialog(
     )
 }
 
-@Composable
-fun EditMetadataDialog(
-    invoice: Invoice,
-    currentAddress: String,
-    currentNote: String,
-    onDismiss: () -> Unit,
-    onSave: (String, String, String, String) -> Unit,
-    isOwner: Boolean = false,
-    onSaveFull: ((Invoice) -> Unit)? = null
-) {
-    val sdf = remember { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.US) }
-    var name by remember { mutableStateOf(invoice.clientName) }
-    var phone by remember { mutableStateOf(invoice.clientPhone) }
-    var address by remember { mutableStateOf(currentAddress) }
-    var note by remember { mutableStateOf(currentNote) }
 
-    // Owner specific fields
-    var invoiceNumber by remember { mutableStateOf(invoice.invoiceNumber) }
-    var dateStr by remember { mutableStateOf(sdf.format(java.util.Date(invoice.issueDate))) }
-    var paidAmountStr by remember { mutableStateOf(invoice.paidAmount.toLong().toString()) }
-    var dpAmountStr by remember { mutableStateOf(invoice.dpAmount.toLong().toString()) }
-    var discountStr by remember { mutableStateOf(invoice.discount.toLong().toString()) }
-    var status by remember { mutableStateOf(invoice.status) }
-
-    // Dynamic Invoice Item Editor (Owner can modify items completely)
-    var itemsList by remember {
-        val converters = AppTypeConverters()
-        val rawItems = converters.toInvoiceItemList(invoice.itemsJson)
-        mutableStateOf(rawItems.filter { !it.description.startsWith("__") }.toMutableList())
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = if (isOwner) "Owner Panel: Edit Invoice & Transaksi" else "Edit Informasi Invoice",
-                color = AgedGold,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (isOwner) {
-                    Text(
-                        text = "Otoritas Owner Aktif: Seluruh data transaksi, item pesanan, dan status pembayaran dapat dimodifikasi bebas.",
-                        color = HighlightSoftCyan,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nama Customer") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                )
-
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("No. WhatsApp") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                )
-
-                OutlinedTextField(
-                    value = address,
-                    onValueChange = { address = it },
-                    label = { Text("Alamat Customer") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                )
-
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text("Catatan Admin") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                )
-
-                if (isOwner) {
-                    androidx.compose.material3.HorizontalDivider(color = DividerDarkCyanGray, modifier = Modifier.padding(vertical = 4.dp))
-                    Text("Pengaturan Invoice (Owner)", color = AgedGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-
-                    OutlinedTextField(
-                        value = invoiceNumber,
-                        onValueChange = { invoiceNumber = it },
-                        label = { Text("Nomor Invoice") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                    )
-
-                    OutlinedTextField(
-                        value = dateStr,
-                        onValueChange = { dateStr = it },
-                        label = { Text("Tanggal Invoice (DD/MM/YYYY)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                    )
-
-                    OutlinedTextField(
-                        value = paidAmountStr,
-                        onValueChange = { paidAmountStr = it.filter { char -> char.isDigit() } },
-                        label = { Text("Jumlah Terbayar (Rp)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                    )
-
-                    OutlinedTextField(
-                        value = dpAmountStr,
-                        onValueChange = { dpAmountStr = it.filter { char -> char.isDigit() } },
-                        label = { Text("Jumlah DP (Rp)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                    )
-
-                    OutlinedTextField(
-                        value = discountStr,
-                        onValueChange = { discountStr = it.filter { char -> char.isDigit() } },
-                        label = { Text("Diskon (Rp)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                    )
-
-                    // VISUAL STATUS CHOICE CHIPS (Anti Typo)
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Ubah Status Pembayaran (Owner)", color = AgedGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            val statusOptions = listOf("DISETUJUI", "BELUM LUNAS", "DP AWAL", "DP PRODUKSI", "LUNAS", "REFUND", "BATAL")
-                            statusOptions.forEach { opt ->
-                                val isSelected = status.trim().uppercase() == opt
-                                val optColor = when (opt) {
-                                    "LUNAS" -> AlertGreen
-                                    "DISETUJUI" -> HighlightSoftCyan
-                                    "DP AWAL" -> HighlightSoftCyan
-                                    "DP PRODUKSI" -> AgedGold
-                                    "REFUND" -> Color(0xFFE289F2)
-                                    "BATAL" -> Color.Gray
-                                    else -> AlertRed
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isSelected) optColor.copy(alpha = 0.25f) else CardGrey)
-                                        .border(1.dp, if (isSelected) optColor else Color.Transparent, RoundedCornerShape(6.dp))
-                                        .clickable { status = opt }
-                                        .padding(vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = opt.replace(" ", "\n"),
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) optColor else TextMuted,
-                                        textAlign = TextAlign.Center,
-                                        lineHeight = 10.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // DYNAMIC LINE-ITEM EDITOR (Edit Item, Edit Qty, Edit Harga)
-                    androidx.compose.material3.HorizontalDivider(color = DividerDarkCyanGray, modifier = Modifier.padding(vertical = 4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Daftar Item Pesanan (Owner)", color = AgedGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        TextButton(
-                            onClick = {
-                                val updated = itemsList.toMutableList()
-                                updated.add(InvoiceItemDetail("Item Baru", 1, 0.0))
-                                itemsList = updated
-                            }
-                        ) {
-                            Icon(imageVector = Icons.Outlined.Add, contentDescription = null, tint = AgedGold, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Tambah Item", color = AgedGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    itemsList.forEachIndexed { index, item ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface)
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Item #${index + 1}", color = AgedGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    IconButton(
-                                        onClick = {
-                                            val updated = itemsList.toMutableList()
-                                            updated.removeAt(index)
-                                            itemsList = updated
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(imageVector = Icons.Outlined.Delete, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
-                                    }
-                                }
-
-                                OutlinedTextField(
-                                    value = item.description,
-                                    onValueChange = { newDesc ->
-                                        val updated = itemsList.toMutableList()
-                                        updated[index] = item.copy(description = newDesc)
-                                        itemsList = updated
-                                    },
-                                    label = { Text("Nama Item / Detail", fontSize = 10.sp) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textStyle = TextStyle(fontSize = 12.sp),
-                                    shape = RoundedCornerShape(6.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                                )
-
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedTextField(
-                                        value = if (item.quantity == 0) "" else item.quantity.toString(),
-                                        onValueChange = { qtyStr ->
-                                            val updated = itemsList.toMutableList()
-                                            val parsedQty = qtyStr.filter { it.isDigit() }.toIntOrNull() ?: 0
-                                            updated[index] = item.copy(quantity = parsedQty)
-                                            itemsList = updated
-                                        },
-                                        label = { Text("Qty", fontSize = 10.sp) },
-                                        modifier = Modifier.weight(1f),
-                                        textStyle = TextStyle(fontSize = 12.sp),
-                                        shape = RoundedCornerShape(6.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                                    )
-
-                                    OutlinedTextField(
-                                        value = if (item.price == 0.0) "" else item.price.toLong().toString(),
-                                        onValueChange = { priceStr ->
-                                            val updated = itemsList.toMutableList()
-                                            val parsedPrice = priceStr.filter { it.isDigit() }.toDoubleOrNull() ?: 0.0
-                                            updated[index] = item.copy(price = parsedPrice)
-                                            itemsList = updated
-                                        },
-                                        label = { Text("Harga (Rp)", fontSize = 10.sp) },
-                                        modifier = Modifier.weight(2.2f),
-                                        textStyle = TextStyle(fontSize = 12.sp),
-                                        shape = RoundedCornerShape(6.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = CardGrey)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    val calculatedSubtotal = itemsList.sumOf { it.price * it.quantity }
-                    val currentDiscount = discountStr.toDoubleOrNull() ?: 0.0
-                    val calculatedTotal = (calculatedSubtotal - currentDiscount).coerceAtLeast(0.0)
-                    
-                    androidx.compose.material3.HorizontalDivider(color = DividerDarkCyanGray, modifier = Modifier.padding(vertical = 4.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Subtotal:", fontSize = 12.sp, color = TextMuted)
-                        Text(FormatUtils.formatRupiah(calculatedSubtotal), fontSize = 12.sp, color = TextLight, fontWeight = FontWeight.Bold)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total Tagihan Baru:", fontSize = 13.sp, color = AgedGold, fontWeight = FontWeight.Bold)
-                        Text(FormatUtils.formatRupiah(calculatedTotal), fontSize = 13.sp, color = AgedGold, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.trim().isNotEmpty()) {
-                        if (isOwner && onSaveFull != null) {
-                            val parsedDate = try {
-                                sdf.parse(dateStr.trim())?.time ?: invoice.issueDate
-                            } catch (e: Exception) {
-                                invoice.issueDate
-                            }
-                            val converters = AppTypeConverters()
-                            val finalItems = itemsList.toMutableList()
-                            finalItems.add(InvoiceItemDetail("__ADDRESS__:${address.trim()}", 0, 0.0))
-                            finalItems.add(InvoiceItemDetail("__NOTE__:${note.trim()}", 0, 0.0))
-
-                            val calculatedSubtotal = itemsList.sumOf { it.price * it.quantity }
-                            val discountVal = discountStr.toDoubleOrNull() ?: 0.0
-                            val calculatedTotal = (calculatedSubtotal - discountVal).coerceAtLeast(0.0)
-
-                            val updatedInvoice = invoice.copy(
-                                clientName = name.trim(),
-                                clientPhone = phone.trim(),
-                                invoiceNumber = invoiceNumber.trim(),
-                                issueDate = parsedDate,
-                                totalAmount = calculatedTotal,
-                                paidAmount = paidAmountStr.toDoubleOrNull() ?: invoice.paidAmount,
-                                dpAmount = dpAmountStr.toDoubleOrNull() ?: invoice.dpAmount,
-                                discount = discountVal,
-                                status = status.trim().uppercase(),
-                                itemsJson = converters.fromInvoiceItemList(finalItems)
-                            )
-                            onSaveFull(updatedInvoice)
-                        } else {
-                            onSave(name.trim(), phone.trim(), address.trim(), note.trim())
-                        }
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack)
-            ) {
-                Text("Simpan")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, colors = ButtonDefaults.textButtonColors(contentColor = TextMuted)) {
-                Text("Batal")
-            }
-        },
-        containerColor = CardGrey
-    )
-}
 
 @Composable
 fun PaymentInputDialog(
@@ -2956,6 +2604,7 @@ fun AddSaleDialog(
     stockItems: List<com.yansproject.app.data.StockItem>,
     catalogs: List<com.yansproject.app.data.MasterCatalog> = emptyList(),
     masterStocks: List<com.yansproject.app.data.MasterStock> = emptyList(),
+    varians: List<com.yansproject.app.data.MasterVarianWarna> = emptyList(),
     onDismiss: () -> Unit,
     onSaveSale: (clientName: String, clientPhone: String, selectedItems: List<Pair<com.yansproject.app.data.StockItem, Int>>, paidAmount: Double, priceType: String) -> Unit
 ) {
@@ -2977,10 +2626,48 @@ fun AddSaleDialog(
         }
     }
 
-    // Multi-item Cart state (Priority 7)
+    // Filter active catalogs strictly from DB (Single Source of Truth)
+    val activeCatalogs = remember(catalogs) {
+        catalogs.filter { !it.isDeleted && it.status.equals("Active", ignoreCase = true) }
+    }
+
+    var selectedCatalogId by remember(activeCatalogs) {
+        mutableStateOf(activeCatalogs.firstOrNull()?.id_catalog ?: 0)
+    }
+
+    val selectedCatalog = remember(activeCatalogs, selectedCatalogId) {
+        activeCatalogs.find { it.id_catalog == selectedCatalogId } ?: activeCatalogs.firstOrNull()
+    }
+
+    // Filter varians corresponding to selected catalog
+    val activeVarians = remember(varians, selectedCatalog) {
+        if (selectedCatalog != null) {
+            varians.filter { it.id_catalog == selectedCatalog.id_catalog && !it.isDeleted }
+        } else emptyList()
+    }
+
+    var selectedVarianId by remember(activeVarians) {
+        mutableStateOf(activeVarians.firstOrNull()?.id_varian ?: 0)
+    }
+
+    val selectedVarian = remember(activeVarians, selectedVarianId) {
+        activeVarians.find { it.id_varian == selectedVarianId } ?: activeVarians.firstOrNull()
+    }
+
+    // Master stock for selected varian
+    val currentMasterStock = remember(masterStocks, selectedVarian) {
+        if (selectedVarian != null) {
+            masterStocks.find { it.id_varian == selectedVarian.id_varian && !it.isDeleted }
+        } else null
+    }
+
+    // Multi-item Cart state
     val cartList = remember { mutableStateListOf<Pair<com.yansproject.app.data.StockItem, Int>>() }
-    
-    // Delivery note template (Priority 11)
+
+    // Matrix input quantities for current catalog & varian: Key = "${catalogId}_${varianId}_${size}_${sleeve}"
+    val matrixQtyState = remember { mutableStateMapOf<String, Int>() }
+
+    // Delivery note template
     var deliveryNotes by remember {
         mutableStateOf(
             "--- TEMPLATE PENGIRIMAN ---\n" +
@@ -2991,109 +2678,96 @@ fun AddSaleDialog(
         )
     }
 
-    // Helper to calculate pricing with settings-based upsize rules (Priority 8)
-    fun getAjibqobulItemPrice(item: com.yansproject.app.data.StockItem, size: String, sleeve: String, priceType: String): Double {
-        val basePrice = when (priceType.lowercase().trim()) {
-            "member" -> item.priceMember
-            "reseller" -> item.priceReseller
-            "custom" -> item.priceCustom
-            "retail" -> item.price
-            else -> item.price
+    // Helper: get available stock count for size & sleeve
+    fun getAvailableStock(mStock: com.yansproject.app.data.MasterStock?, size: String, sleeve: String): Int {
+        if (mStock == null) return 0
+        val isPendek = sleeve.equals("Pendek", ignoreCase = true)
+        return when (size.uppercase()) {
+            "XS" -> if (isPendek) mStock.xs_pendek else mStock.xs_panjang
+            "S" -> if (isPendek) mStock.s_pendek else mStock.s_panjang
+            "M" -> if (isPendek) mStock.m_pendek else mStock.m_panjang
+            "L" -> if (isPendek) mStock.l_pendek else mStock.l_panjang
+            "XL" -> if (isPendek) mStock.xl_pendek else mStock.xl_panjang
+            "XXL" -> if (isPendek) mStock.xxl_pendek else mStock.xxl_panjang
+            "3XL" -> if (isPendek) mStock.three_xl_pendek else mStock.three_xl_panjang
+            "4XL" -> if (isPendek) mStock.four_xl_pendek else mStock.four_xl_panjang
+            else -> 0
         }
-        val sleeveCharge = if (sleeve.lowercase() == "panjang") {
-            AppSettings.getAjibqobulSleeveLongPrice(context)
+    }
+
+    // Helper: calculate item price based on price type, sleeve charge, and size upsize
+    fun getCalculatedUnitPrice(mStock: com.yansproject.app.data.MasterStock?, size: String, sleeve: String, priceType: String): Double {
+        val basePrice = if (mStock != null) {
+            when (priceType.lowercase().trim()) {
+                "member" -> if (mStock.harga_member > 0) mStock.harga_member else mStock.harga_retail
+                "reseller" -> if (mStock.harga_reseller > 0) mStock.harga_reseller else mStock.harga_retail
+                "custom" -> if (mStock.harga_custom > 0) mStock.harga_custom else mStock.harga_retail
+                else -> mStock.harga_retail
+            }
         } else {
-            0.0
+            when (priceType.lowercase().trim()) {
+                "member" -> AppSettings.getAjibqobulHargaMember(context).let { if (it > 0) it else 99000.0 }
+                "reseller" -> AppSettings.getAjibqobulHargaReseller(context).let { if (it > 0) it else 105000.0 }
+                "custom" -> AppSettings.getAjibqobulHargaCustom(context).let { if (it > 0) it else 115000.0 }
+                else -> AppSettings.getAjibqobulHargaRetail(context).let { if (it > 0) it else 125000.0 }
+            }
         }
-        val upsizeAmount = when (size.uppercase()) {
+        val sleeveCharge = if (sleeve.equals("Panjang", ignoreCase = true)) AppSettings.getAjibqobulSleeveLongPrice(context) else 0.0
+        val upsize = when (size.uppercase()) {
             "XXL" -> AppSettings.getAjibqobulUpsizeXXL(context)
             "3XL" -> AppSettings.getAjibqobulUpsize3XL(context)
             "4XL" -> AppSettings.getAjibqobulUpsize4XL(context)
             else -> 0.0
         }
-        return basePrice + sleeveCharge + upsizeAmount
+        return basePrice + sleeveCharge + upsize
     }
 
-    // Combine all registered catalog sources and stock items to build ready seriesList
-    val defaultSeries = listOf("Rahasia Realita", "Hina Mulia", "Hilang Pulang", "Madad Auliya 68th", "Signature Yans")
+    val sizes = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
 
-    val seriesList = remember(catalogs, stockItems) {
-        val catalogNames = catalogs.map { it.nama_catalog }
-        val stockSeries = stockItems.map { item ->
-            FormatUtils.parseStockItemName(item.name).series
-        }
-        (catalogNames + stockSeries + defaultSeries)
-            .map { raw ->
-                raw.replace("AJIBQOBUL", "", ignoreCase = true)
-                    .replace(":", "")
-                    .trim()
-            }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
-    }
-
-    var selectedSeries by remember(seriesList) { mutableStateOf(seriesList.firstOrNull() ?: "Rahasia Realita") }
-    var selectedSleeve by remember { mutableStateOf("Pendek") }
-    var selectedSize by remember { mutableStateOf("S") }
-    var itemQtyStr by remember { mutableStateOf("1") }
-
-    // Filter current series items based on selected sleeve
-    val currentSeriesItems = remember(selectedSeries, selectedSleeve, stockItems) {
-        stockItems.filter { item ->
-            val parsed = FormatUtils.parseStockItemName(item.name)
-            (parsed.series.contains(selectedSeries, ignoreCase = true) || selectedSeries.contains(parsed.series, ignoreCase = true) || item.name.contains(selectedSeries, ignoreCase = true)) &&
-            (parsed.sleeve.equals(selectedSleeve, ignoreCase = true) || item.name.contains(selectedSleeve, ignoreCase = true))
-        }
-    }
-
-    // Find or synthesize active stock item matching selection
-    val matchedStockItem = remember(currentSeriesItems, selectedSeries, selectedSleeve, selectedSize, stockItems) {
-        val found = currentSeriesItems.find { item ->
-            val parsed = FormatUtils.parseStockItemName(item.name)
-            parsed.size.equals(selectedSize, ignoreCase = true) || item.name.contains("- $selectedSize -", ignoreCase = true)
-        }
-        if (found != null) {
-            found
-        } else {
-            val baseRetail = AppSettings.getAjibqobulHargaRetail(context)
-            val baseMember = AppSettings.getAjibqobulHargaMember(context)
-            val baseReseller = AppSettings.getAjibqobulHargaReseller(context)
-            val baseCustom = AppSettings.getAjibqobulHargaCustom(context)
-            val synthId = (selectedSeries.hashCode() * 31 + selectedSleeve.hashCode() * 17 + selectedSize.hashCode()).let { if (it < 0) -it else it }.coerceAtLeast(1000)
-            com.yansproject.app.data.StockItem(
-                id = synthId,
-                name = "AJIBQOBUL $selectedSeries - $selectedSize - $selectedSleeve",
-                sku = "AQ-${selectedSeries.take(3).uppercase()}-$selectedSize-${selectedSleeve.take(3).uppercase()}",
-                stockCount = 100,
-                price = if (baseRetail > 0) baseRetail else 125000.0,
-                priceMember = if (baseMember > 0) baseMember else 99000.0,
-                priceReseller = if (baseReseller > 0) baseReseller else 105000.0,
-                priceCustom = if (baseCustom > 0) baseCustom else 115000.0,
-                description = "Catalog: $selectedSeries, Ukuran: $selectedSize, Lengan: $selectedSleeve"
-            )
-        }
-    }
-
-    // Calculations of checkout list totals
+    // Calculate totals
     val totalQuantity = cartList.sumOf { it.second }
     val grandTotal = cartList.sumOf { (item, qty) ->
         val parsed = FormatUtils.parseStockItemName(item.name)
-        getAjibqobulItemPrice(item, parsed.size, parsed.sleeve, selectedPriceType) * qty
+        val mStock = masterStocks.find { st ->
+            val v = varians.find { v -> v.id_varian == st.id_varian }
+            v?.nama_warna.equals(parsed.series, ignoreCase = true) || item.name.contains(parsed.series, ignoreCase = true)
+        }
+        getCalculatedUnitPrice(mStock, parsed.size, parsed.sleeve, selectedPriceType) * qty
     }
-    
+
     val paidAmount = paidAmountStr.toDoubleOrNull() ?: grandTotal
     val remainingPayment = (grandTotal - paidAmount).coerceAtLeast(0.0)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Catat Penjualan AJIBQOBUL",
-                color = AgedGold,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Catat Penjualan AJIBQOBUL",
+                        color = AgedGold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                    Text(
+                        text = "Sistem Penjualan Single Source of Truth",
+                        color = TextMuted,
+                        fontSize = 10.sp
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(DarkTeal)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(text = "YANSPROJECT.ID", color = AgedGold, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         },
         text = {
             LazyColumn(
@@ -3102,56 +2776,57 @@ fun AddSaleDialog(
             ) {
                 item {
                     Text(
-                        text = "Gunakan form ini untuk mencatat penjualan langsung seri AJIBQOBUL. Anda dapat menggabungkan lengan pendek dan panjang dalam satu transaksi.",
+                        text = "Gunakan form ini untuk mencatat penjualan langsung seri AJIBQOBUL. Data stok dan katalog terhubung secara realtime dengan database.",
                         fontSize = 11.sp,
                         color = TextMuted
                     )
                 }
-                
-                // Client Info (Phone is optional - Priority 10)
+
+                // 1. Customer Info
                 item {
-                    OutlinedTextField(
-                        value = clientName,
-                        onValueChange = { clientName = it },
-                        label = { Text("Nama Customer") },
-                        modifier = Modifier.fillMaxWidth().testTag("sale_client_name"),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(text = "1. DATA PELANGGAN / MEMBER", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                        OutlinedTextField(
+                            value = clientName,
+                            onValueChange = { clientName = it },
+                            label = { Text("Nama Customer / Member") },
+                            placeholder = { Text("Masukkan nama...") },
+                            modifier = Modifier.fillMaxWidth().testTag("sale_client_name"),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
+                        )
+
+                        OutlinedTextField(
+                            value = clientPhone,
+                            onValueChange = { clientPhone = it.filter { char -> char.isDigit() || char == '+' } },
+                            label = { Text("No. WhatsApp (Opsional)") },
+                            placeholder = { Text("Contoh: 08123456789") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            modifier = Modifier.fillMaxWidth().testTag("sale_client_phone"),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
+                        )
+                    }
                 }
 
+                // 2. Price Type Selection
                 item {
-                    OutlinedTextField(
-                        value = clientPhone,
-                        onValueChange = { clientPhone = it.filter { char -> char.isDigit() || char == '+' } },
-                        label = { Text("No. WhatsApp (Opsional)") },
-                        placeholder = { Text("Contoh: 08123456789") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        modifier = Modifier.fillMaxWidth().testTag("sale_client_phone"),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
-                    )
-                }
-
-                // Price Type Selection
-                item {
-                    Column {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Pilihan Tipe Harga:", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                            Text(text = "2. PILIHAN TIPE HARGA:", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
                             if (matchedMember != null) {
                                 Text(
-                                    text = "✓ Member Resmi",
+                                    text = "✓ Terdeteksi Member",
                                     fontSize = 10.sp,
                                     color = HighlightSoftCyan,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -3164,31 +2839,23 @@ fun AddSaleDialog(
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(if (isSelected) DarkTeal else CardGrey)
                                         .border(1.dp, if (isSelected) AgedGold else BorderGrey, RoundedCornerShape(6.dp))
-                                        .clickable(enabled = matchedMember == null) { selectedPriceType = priceType }
-                                        .padding(vertical = 6.dp),
+                                        .clickable { selectedPriceType = priceType }
+                                        .padding(vertical = 8.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = priceType,
-                                        color = if (isSelected) AgedGold else if (matchedMember != null) TextMuted else TextLight,
-                                        fontSize = 10.sp,
+                                        color = if (isSelected) AgedGold else TextLight,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
                         }
-                        if (matchedMember != null) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Harga terkunci otomatis ke tier '${selectedPriceType}' untuk member '${matchedMember}'.",
-                                fontSize = 9.sp,
-                                color = TextMuted
-                            )
-                        }
                     }
                 }
 
-                // INTERACTIVE STOCK ITEM CONSTRUCTOR
+                // 3. Catalog Series Selection
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = SecondaryShadowBlackTeal),
@@ -3197,161 +2864,357 @@ fun AddSaleDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(text = "CONSTRUCT ITEM PENJUALAN", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
-                            
-                            // Series selection
-                            Text(text = "Pilih Series AJIBQOBUL:", fontSize = 11.sp, color = TextLight)
-                            if (seriesList.isEmpty()) {
-                                Text(text = "Belum ada seri terdaftar. Silakan tambah seri di tab Stok terlebih dahulu.", color = AlertRed, fontSize = 11.sp)
+                            Text(text = "3. PILIH SERIES AJIBQOBUL", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+
+                            if (activeCatalogs.isEmpty()) {
+                                Text(
+                                    text = "Belum ada Katalog Series terdaftar di Stok. Silakan tambahkan katalog di menu Stok terlebih dahulu.",
+                                    color = AlertRed,
+                                    fontSize = 11.sp
+                                )
                             } else {
+                                Text(text = "Series Catalog (Master Catalog DB):", fontSize = 11.sp, color = TextMuted)
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    items(seriesList) { series ->
-                                        val isSelected = selectedSeries == series
+                                    items(activeCatalogs) { cat ->
+                                        val isSel = cat.id_catalog == selectedCatalog?.id_catalog
                                         Box(
                                             modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(if (isSelected) DarkTeal else CardGrey)
-                                                .border(1.dp, if (isSelected) AgedGold else BorderGrey, RoundedCornerShape(6.dp))
-                                                .clickable { selectedSeries = series }
-                                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (isSel) DarkTeal else CardGrey)
+                                                .border(1.dp, if (isSel) AgedGold else BorderGrey, RoundedCornerShape(8.dp))
+                                                .clickable { selectedCatalogId = cat.id_catalog }
+                                                .padding(horizontal = 12.dp, vertical = 8.dp)
                                         ) {
-                                            Text(text = series, color = if (isSelected) AgedGold else TextLight, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Text(
+                                                text = cat.nama_catalog,
+                                                color = if (isSel) AgedGold else TextLight,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
                                         }
                                     }
                                 }
-                            }
 
-                            // Sleeve Selection
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "Jenis Lengan:", fontSize = 11.sp, color = TextLight, modifier = Modifier.weight(1f))
-                                listOf("Pendek", "Panjang").forEach { sleeve ->
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier
-                                            .clickable { selectedSleeve = sleeve }
-                                            .padding(end = 12.dp)
-                                    ) {
-                                        RadioButton(selected = selectedSleeve == sleeve, onClick = { selectedSleeve = sleeve })
-                                        Text(text = sleeve, fontSize = 12.sp, color = TextLight)
-                                    }
-                                }
-                            }
-
-                            // Size Selection
-                            Text(text = "Pilih Ukuran Kaos:", fontSize = 11.sp, color = TextLight)
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                items(listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")) { sz ->
-                                    val isSel = selectedSize == sz
-                                    val itemForSize = currentSeriesItems.find { item ->
-                                        val parsed = FormatUtils.parseStockItemName(item.name)
-                                        parsed.size.equals(sz, ignoreCase = true) || item.name.contains("- $sz -", ignoreCase = true)
-                                    }
-                                    val stCount = itemForSize?.stockCount ?: 100
-                                    
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isSel) DarkTeal else CardGrey)
-                                            .border(1.dp, if (isSel) AgedGold else BorderGrey, RoundedCornerShape(6.dp))
-                                            .clickable { selectedSize = sz }
-                                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text(text = sz, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isSel) AgedGold else Color.White)
-                                            Text(text = "stok: $stCount", fontSize = 8.sp, color = HighlightSoftCyan)
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Matched stock item details + quantity picker
-                            if (matchedStockItem != null) {
-                                val itemPrice = getAjibqobulItemPrice(matchedStockItem, selectedSize, selectedSleeve, selectedPriceType)
-                                val subtotalCurrent = itemPrice * (itemQtyStr.toIntOrNull() ?: 0)
-                                
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    OutlinedTextField(
-                                        value = itemQtyStr,
-                                        onValueChange = { itemQtyStr = it.filter { char -> char.isDigit() } },
-                                        label = { Text("Jumlah") },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        modifier = Modifier.width(90.dp),
-                                        shape = RoundedCornerShape(6.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
-                                    )
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(text = "Harga/Pcs: ${FormatUtils.formatRupiah(itemPrice)}", fontSize = 11.sp, color = TextLight)
-                                        Text(text = "Subtotal: ${FormatUtils.formatRupiah(subtotalCurrent)}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = HighlightSoftCyan)
-                                    }
-                                }
-
-                                Button(
-                                    onClick = {
-                                        val qtyVal = itemQtyStr.toIntOrNull() ?: 0
-                                        if (qtyVal <= 0) {
-                                            Toast.makeText(context, "Jumlah item harus lebih dari 0!", Toast.LENGTH_SHORT).show()
-                                            return@Button
-                                        }
-                                        if (qtyVal > matchedStockItem.stockCount) {
-                                            Toast.makeText(context, "Stok tidak mencukupi! Hanya tersedia ${matchedStockItem.stockCount} Pcs", Toast.LENGTH_LONG).show()
-                                            return@Button
-                                        }
-
-                                        // Add to cart or aggregate if same stock item
-                                        val existingIdx = cartList.indexOfFirst { it.first.id == matchedStockItem.id }
-                                        if (existingIdx != -1) {
-                                            val prevQty = cartList[existingIdx].second
-                                            val newQty = prevQty + qtyVal
-                                            if (newQty > matchedStockItem.stockCount) {
-                                                Toast.makeText(context, "Akumulasi keranjang (${newQty} pcs) melebihi stok yang tersedia!", Toast.LENGTH_LONG).show()
-                                                return@Button
+                                // Varian selection
+                                if (activeVarians.isNotEmpty()) {
+                                    Text(text = "Varian Warna:", fontSize = 11.sp, color = TextMuted)
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(activeVarians) { varItem ->
+                                            val isSel = varItem.id_varian == selectedVarian?.id_varian
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(if (isSel) DarkTeal else CardGrey)
+                                                    .border(1.dp, if (isSel) HighlightSoftCyan else BorderGrey, RoundedCornerShape(8.dp))
+                                                    .clickable { selectedVarianId = varItem.id_varian }
+                                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(10.dp)
+                                                            .clip(RoundedCornerShape(2.dp))
+                                                            .background(
+                                                                try {
+                                                                    Color(android.graphics.Color.parseColor(varItem.kode_warna))
+                                                                } catch (e: Exception) {
+                                                                    AgedGold
+                                                                }
+                                                            )
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = varItem.nama_warna,
+                                                        color = if (isSel) HighlightSoftCyan else TextLight,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                             }
-                                            cartList[existingIdx] = cartList[existingIdx].first to newQty
-                                        } else {
-                                            cartList.add(matchedStockItem to qtyVal)
                                         }
-                                        itemQtyStr = "1"
-                                        Toast.makeText(context, "Item dimasukkan ke keranjang belanja!", Toast.LENGTH_SHORT).show()
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(6.dp)
-                                ) {
-                                    Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(14.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Masukkan ke Keranjang", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                } else {
+                                    Text(
+                                        text = "Belum ada varian warna terdaftar untuk catalog ini.",
+                                        fontSize = 10.sp,
+                                        color = AlertOrange
+                                    )
                                 }
-                            } else {
-                                Box(
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                // Real-time Stock Status Indicator Banner
+                                val totalSeriesStock = remember(currentMasterStock) {
+                                    if (currentMasterStock == null) 0
+                                    else {
+                                        currentMasterStock.xs_pendek + currentMasterStock.s_pendek + currentMasterStock.m_pendek +
+                                        currentMasterStock.l_pendek + currentMasterStock.xl_pendek + currentMasterStock.xxl_pendek +
+                                        currentMasterStock.three_xl_pendek + currentMasterStock.four_xl_pendek +
+                                        currentMasterStock.xs_panjang + currentMasterStock.s_panjang + currentMasterStock.m_panjang +
+                                        currentMasterStock.l_panjang + currentMasterStock.xl_panjang + currentMasterStock.xxl_panjang +
+                                        currentMasterStock.three_xl_panjang + currentMasterStock.four_xl_panjang
+                                    }
+                                }
+
+                                val isLowStock = totalSeriesStock in 1..10
+                                val isOutOfStock = totalSeriesStock == 0
+
+                                Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(CardGrey)
-                                        .padding(10.dp),
-                                    contentAlignment = Alignment.Center
+                                        .background(
+                                            when {
+                                                isOutOfStock -> AlertRed.copy(alpha = 0.2f)
+                                                isLowStock -> AlertOrange.copy(alpha = 0.2f)
+                                                else -> DarkTeal.copy(alpha = 0.4f)
+                                            }
+                                        )
+                                        .border(
+                                            1.dp,
+                                            when {
+                                                isOutOfStock -> AlertRed
+                                                isLowStock -> AlertOrange
+                                                else -> HighlightSoftCyan.copy(alpha = 0.5f)
+                                            },
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(text = "Kombinasi item pakaian ini tidak tersedia dalam stok.", color = AlertOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(
+                                                    when {
+                                                        isOutOfStock -> AlertRed
+                                                        isLowStock -> AlertOrange
+                                                        else -> AlertGreen
+                                                    }
+                                                )
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = when {
+                                                isOutOfStock -> "STATUS STOK: KHABIS / STOK KOSONG (0 Pcs)"
+                                                isLowStock -> "STATUS STOK: STOK TIPIS (Sisa $totalSeriesStock Pcs)"
+                                                else -> "STATUS STOK: TERSEDIA (Total $totalSeriesStock Pcs)"
+                                            },
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = when {
+                                                isOutOfStock -> AlertRed
+                                                isLowStock -> AlertOrange
+                                                else -> HighlightSoftCyan
+                                            }
+                                        )
+                                    }
+                                    Text(
+                                        text = "LIVE DB",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextMuted
+                                    )
+                                }
+
+                                Text(
+                                    text = "MATRIKS INPUT UKURAN & STOK (${selectedCatalog?.nama_catalog ?: "-"} - ${selectedVarian?.nama_warna ?: "-"})",
+                                    fontSize = 11.sp,
+                                    color = AgedGold,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                // Dual Sleeve Matrices: Lengan Pendek & Lengan Panjang
+                                listOf("Pendek", "Panjang").forEach { sleeve ->
+                                    val sleeveLabel = if (sleeve == "Pendek") "LENGAN PENDEK" else "LENGAN PANJANG (+Rp ${AppSettings.getAjibqobulSleeveLongPrice(context).toInt()})"
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(CardGrey)
+                                            .border(1.dp, BorderGrey, RoundedCornerShape(8.dp))
+                                            .padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = sleeveLabel,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (sleeve == "Pendek") HighlightSoftCyan else AgedGold
+                                        )
+
+                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            items(sizes) { sz ->
+                                                val availStock = getAvailableStock(currentMasterStock, sz, sleeve)
+                                                val unitPrice = getCalculatedUnitPrice(currentMasterStock, sz, sleeve, selectedPriceType)
+                                                val key = "${selectedCatalog?.id_catalog}_${selectedVarian?.id_varian}_${sz}_${sleeve}"
+                                                val currentQty = matrixQtyState[key] ?: 0
+
+                                                Column(
+                                                    modifier = Modifier
+                                                        .width(72.dp)
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(SecondaryShadowBlackTeal)
+                                                        .border(1.dp, if (currentQty > 0) AgedGold else BorderGrey, RoundedCornerShape(6.dp))
+                                                        .padding(4.dp),
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                ) {
+                                                    Text(text = sz, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                                    Text(
+                                                        text = "Stok: $availStock",
+                                                        fontSize = 8.sp,
+                                                        color = if (availStock > 0) HighlightSoftCyan else AlertRed
+                                                    )
+                                                    Text(
+                                                        text = FormatUtils.formatRupiah(unitPrice).replace(",00", ""),
+                                                        fontSize = 8.sp,
+                                                        color = TextMuted
+                                                    )
+
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.Center,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(20.dp)
+                                                                .clip(RoundedCornerShape(4.dp))
+                                                                .background(DarkTeal)
+                                                                .clickable {
+                                                                    if (currentQty > 0) {
+                                                                        matrixQtyState[key] = currentQty - 1
+                                                                    }
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text("-", color = AgedGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                        }
+
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = "$currentQty",
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = if (currentQty > 0) AgedGold else TextLight
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(20.dp)
+                                                                .clip(RoundedCornerShape(4.dp))
+                                                                .background(DarkTeal)
+                                                                .clickable {
+                                                                    if (currentQty < availStock) {
+                                                                        matrixQtyState[key] = currentQty + 1
+                                                                    } else {
+                                                                        Toast.makeText(context, "Stok maksimal terlampaui (Tersedia $availStock Pcs)", Toast.LENGTH_SHORT).show()
+                                                                    }
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text("+", color = AgedGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Add matrix selection button
+                                Button(
+                                    onClick = {
+                                        if (selectedCatalog == null || selectedVarian == null) {
+                                            Toast.makeText(context, "Pilih Series dan Varian Warna terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                                            return@Button
+                                        }
+
+                                        var addedCount = 0
+                                        sizes.forEach { sz ->
+                                            listOf("Pendek", "Panjang").forEach { slv ->
+                                                val key = "${selectedCatalog.id_catalog}_${selectedVarian.id_varian}_${sz}_${slv}"
+                                                val qtyToAdd = matrixQtyState[key] ?: 0
+                                                if (qtyToAdd > 0) {
+                                                    val itemName = "AJIBQOBUL ${selectedCatalog.nama_catalog} - ${selectedVarian.nama_warna} - $sz - $slv"
+                                                    val availStock = getAvailableStock(currentMasterStock, sz, slv)
+
+                                                    // Match stock item or create synthesized stock item
+                                                    val existingStock = stockItems.find { st ->
+                                                        val p = FormatUtils.parseStockItemName(st.name)
+                                                        st.name.contains(selectedCatalog.nama_catalog, ignoreCase = true) &&
+                                                        st.name.contains(selectedVarian.nama_warna, ignoreCase = true) &&
+                                                        p.size.equals(sz, ignoreCase = true) &&
+                                                        p.sleeve.equals(slv, ignoreCase = true)
+                                                    }
+
+                                                    val targetStockItem = existingStock ?: com.yansproject.app.data.StockItem(
+                                                        id = (selectedCatalog.id_catalog * 10000 + selectedVarian.id_varian * 100 + sz.hashCode() + slv.hashCode()).let { if (it < 0) -it else it }.coerceAtLeast(1000),
+                                                        name = itemName,
+                                                        sku = "AQ-${selectedCatalog.nama_catalog.take(3).uppercase()}-${selectedVarian.nama_warna.take(3).uppercase()}-$sz-${slv.take(3).uppercase()}",
+                                                        stockCount = availStock,
+                                                        price = if (currentMasterStock?.harga_retail ?: 0.0 > 0) currentMasterStock!!.harga_retail else AppSettings.getAjibqobulHargaRetail(context).let { if (it > 0) it else 125000.0 },
+                                                        priceMember = if (currentMasterStock?.harga_member ?: 0.0 > 0) currentMasterStock!!.harga_member else AppSettings.getAjibqobulHargaMember(context).let { if (it > 0) it else 99000.0 },
+                                                        priceReseller = if (currentMasterStock?.harga_reseller ?: 0.0 > 0) currentMasterStock!!.harga_reseller else AppSettings.getAjibqobulHargaReseller(context).let { if (it > 0) it else 105000.0 },
+                                                        priceCustom = if (currentMasterStock?.harga_custom ?: 0.0 > 0) currentMasterStock!!.harga_custom else AppSettings.getAjibqobulHargaCustom(context).let { if (it > 0) it else 115000.0 },
+                                                        description = "Catalog: ${selectedCatalog.nama_catalog}, Varian: ${selectedVarian.nama_warna}, Size: $sz, Sleeve: $slv"
+                                                    )
+
+                                                    val cartIdx = cartList.indexOfFirst { it.first.name == targetStockItem.name }
+                                                    if (cartIdx != -1) {
+                                                        val newQty = cartList[cartIdx].second + qtyToAdd
+                                                        cartList[cartIdx] = cartList[cartIdx].first to newQty
+                                                    } else {
+                                                        cartList.add(targetStockItem to qtyToAdd)
+                                                    }
+                                                    addedCount += qtyToAdd
+                                                    matrixQtyState[key] = 0
+                                                }
+                                            }
+                                        }
+
+                                        if (addedCount > 0) {
+                                            Toast.makeText(context, "Berhasil menambahkan $addedCount Pcs ke Keranjang Penjualan!", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Pilih kuantitas pada matriks terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Masukkan Pilihan Matriks ke Keranjang", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
                     }
                 }
 
-                // CART LIST DISPLAY (Priority 7)
+                // 4. CART LIST DISPLAY
                 if (cartList.isNotEmpty()) {
                     item {
-                        Text(text = "KERANJANG BELANJA PENJUALAN (${cartList.size} Item):", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "4. KERANJANG PENJUALAN (${cartList.sumOf { it.second }} Pcs / ${cartList.size} Item):",
+                            fontSize = 11.sp,
+                            color = AgedGold,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
 
                     items(cartList.toList()) { (item, qty) ->
                         val parsed = FormatUtils.parseStockItemName(item.name)
-                        val priceCalculated = getAjibqobulItemPrice(item, parsed.size, parsed.sleeve, selectedPriceType)
+                        val mStock = masterStocks.find { st ->
+                            val v = varians.find { v -> v.id_varian == st.id_varian }
+                            v?.nama_warna.equals(parsed.series, ignoreCase = true) || item.name.contains(parsed.series, ignoreCase = true)
+                        }
+                        val priceCalculated = getCalculatedUnitPrice(mStock, parsed.size, parsed.sleeve, selectedPriceType)
                         val subtotalCalculated = priceCalculated * qty
 
                         Row(
@@ -3365,15 +3228,16 @@ fun AddSaleDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(text = parsed.series, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(text = item.name, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                 Text(
-                                    text = "Lengan ${parsed.sleeve} • Size ${parsed.size} • $qty Pcs",
-                                    fontSize = 11.sp,
+                                    text = "Qty: $qty Pcs • @ ${FormatUtils.formatRupiah(priceCalculated)}",
+                                    fontSize = 10.sp,
                                     color = TextLight
                                 )
                                 Text(
-                                    text = "Harga: ${FormatUtils.formatRupiah(priceCalculated)} | Sub: ${FormatUtils.formatRupiah(subtotalCalculated)}",
+                                    text = "Subtotal: ${FormatUtils.formatRupiah(subtotalCalculated)}",
                                     fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
                                     color = HighlightSoftCyan
                                 )
                             }
@@ -3393,12 +3257,12 @@ fun AddSaleDialog(
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Keranjang belanja kosong. Tambahkan item di atas!", fontSize = 11.sp, color = AlertOrange, fontWeight = FontWeight.Bold)
+                            Text("Keranjang penjualan masih kosong. Pilih matriks di atas!", fontSize = 11.sp, color = AlertOrange, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
-                // CHECKOUT SUMMARY DISPLAY
+                // 5. SUMMARY & DP PAYMENT INPUT
                 item {
                     Column(
                         modifier = Modifier
@@ -3413,19 +3277,19 @@ fun AddSaleDialog(
                             Text(text = "$totalQuantity Pcs", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Grand Total Pembelian (Otomatis):", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                            Text(text = "Grand Total Penjualan:", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
                             Text(text = FormatUtils.formatRupiah(grandTotal), fontSize = 13.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
                         }
                     }
                 }
 
-                // PAID AMOUNT INPUT
+                // PAID AMOUNT / DP INPUT
                 item {
                     OutlinedTextField(
                         value = paidAmountStr,
-                        onValueChange = { paidAmountStr = it.filter { it.isDigit() } },
-                        label = { Text("Jumlah Pembayaran / Uang Muka (Rp)") },
-                        placeholder = { Text("Contoh: ${grandTotal.toInt()}") },
+                        onValueChange = { paidAmountStr = it.filter { c -> c.isDigit() } },
+                        label = { Text("Jumlah Pembayaran / Uang Muka DP (Rp)") },
+                        placeholder = { Text("Kosongkan / Isi ${grandTotal.toInt()} untuk lunas") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth().testTag("sale_paid_amount"),
                         shape = RoundedCornerShape(8.dp),
@@ -3439,7 +3303,7 @@ fun AddSaleDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Sisa Tagihan:", fontSize = 12.sp, color = TextMuted)
+                        Text(text = "Sisa Tagihan Penjualan:", fontSize = 12.sp, color = TextMuted)
                         Text(
                             text = FormatUtils.formatRupiah(remainingPayment),
                             fontSize = 12.sp,
@@ -3449,28 +3313,32 @@ fun AddSaleDialog(
                     }
                 }
 
-                // SHIPPING / DELIVERY NOTES TEMPLATE (Priority 11)
+                // SHIPPING / DELIVERY NOTES TEMPLATE
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(text = "Catatan Pengiriman / Delivery Note:", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
                             IconButton(
                                 onClick = {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                     val clip = android.content.ClipData.newPlainText("Shipping Note YANSPROJECT.ID", deliveryNotes)
                                     clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(context, "Catatan Pengiriman berhasil disalin ke Clipboard!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Catatan Pengiriman berhasil disalin!", Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.size(24.dp)
                             ) {
                                 Icon(Icons.Outlined.ContentCopy, contentDescription = "Salin", tint = AgedGold, modifier = Modifier.size(16.dp))
                             }
                         }
-                        
+
                         OutlinedTextField(
                             value = deliveryNotes,
                             onValueChange = { deliveryNotes = it },
-                            modifier = Modifier.fillMaxWidth().height(120.dp),
+                            modifier = Modifier.fillMaxWidth().height(100.dp),
                             shape = RoundedCornerShape(8.dp),
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
                         )
@@ -3482,7 +3350,7 @@ fun AddSaleDialog(
             Button(
                 onClick = {
                     var hasError = false
-                    
+
                     if (clientName.trim().isEmpty()) {
                         Toast.makeText(context, "Nama Customer wajib diisi!", Toast.LENGTH_SHORT).show()
                         hasError = true
@@ -3492,24 +3360,13 @@ fun AddSaleDialog(
                     } else if (cartList.isEmpty()) {
                         Toast.makeText(context, "Pilih kuantitas item yang ingin dijual!", Toast.LENGTH_SHORT).show()
                         hasError = true
-                    } else {
-                        // Check stock levels dynamically
-                        for (pair in cartList) {
-                            val itemInCart = pair.first
-                            val qtyInCart = pair.second
-                            if (qtyInCart > itemInCart.stockCount) {
-                                Toast.makeText(context, "Stok ${itemInCart.name} tidak mencukupi (Tersedia: ${itemInCart.stockCount} Pcs)!", Toast.LENGTH_LONG).show()
-                                hasError = true
-                                break
-                            }
-                        }
                     }
 
                     if (!hasError) {
                         if (paidAmount > grandTotal) {
                             Toast.makeText(context, "Jumlah Pembayaran tidak boleh melebihi Grand Total!", Toast.LENGTH_SHORT).show()
                         } else {
-                            // Copy Shipping Note automatically upon saving to make pasting into WhatsApp easy
+                            // Copy Shipping Note automatically upon saving
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             val clip = android.content.ClipData.newPlainText("Shipping Note YANSPROJECT.ID", deliveryNotes)
                             clipboard.setPrimaryClip(clip)

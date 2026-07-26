@@ -26,6 +26,7 @@ class BusinessRepository(private val db: AppDatabase) {
     val allProjects: Flow<List<ProjectCustom>> = projectDao.getAllProjects()
     val allOrders: Flow<List<OrderHistory>> = orderDao.getAllOrders()
     val allInvoices: Flow<List<Invoice>> = invoiceDao.getAllInvoices()
+    val allInvoicePayments: Flow<List<InvoicePayment>> = invoicePaymentDao.getAllPaymentsFlow()
     val allExpenses: Flow<List<Expense>> = expenseDao.getAllExpenses()
     val allInflows: Flow<List<Inflow>> = inflowDao.getAllInflows()
     val allStockHistory: Flow<List<StockHistory>> = stockHistoryDao.getAllHistory()
@@ -248,6 +249,40 @@ class BusinessRepository(private val db: AppDatabase) {
             )
             val invoiceId = invoiceDao.insertInvoice(invoice).toInt()
             val finalInvoice = invoice.copy(id = invoiceId)
+
+            if (project.paidAmount > 0.0) {
+                val paymentId = UUID.randomUUID().toString()
+                val paymentDate = project.startDate
+                val localPayment = InvoicePayment(
+                    id = paymentId,
+                    invoiceId = invoiceNum,
+                    date = paymentDate,
+                    amount = project.paidAmount,
+                    paymentMethod = "Transfer",
+                    methodDetail = "DP Awal Project Custom",
+                    notes = "Uang Muka / DP Awal Project Custom: ${project.projectName}",
+                    inputBy = project.pic.ifEmpty { "Owner" },
+                    inputByUid = "owner_sys",
+                    timestamp = System.currentTimeMillis()
+                )
+                invoicePaymentDao.insertPayment(localPayment)
+                FirebaseSyncManager.syncItemToCloud("invoice_payments", paymentId, localPayment)
+
+                val transactionNumber = "TX-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
+                val payRefTag = "[PAY_REF:$paymentId]"
+                val inflowEntity = Inflow(
+                    transactionNumber = transactionNumber,
+                    category = "Pembayaran Customer",
+                    amount = project.paidAmount,
+                    date = paymentDate,
+                    notes = "Pembayaran Invoice $invoiceNum (${project.clientName}) - $payRefTag. DP Awal Project Custom: ${project.projectName}",
+                    paymentMethod = "Transfer (DP Awal)",
+                    createdBy = project.pic.ifEmpty { "Owner" }
+                )
+                val insertedInflowId = inflowDao.insertInflow(inflowEntity).toInt()
+                val finalInflow = inflowEntity.copy(id = insertedInflowId)
+                FirebaseSyncManager.syncItemToCloud("inflows", insertedInflowId.toString(), finalInflow)
+            }
 
             FirebaseSyncManager.syncItemToCloud("projects", projectId.toString(), finalProject)
             val invoiceCloudKey = finalInvoice.invoiceNumber.ifEmpty { invoiceId.toString() }
@@ -719,18 +754,20 @@ class BusinessRepository(private val db: AppDatabase) {
         // Sync top-level payment record to Firestore
         FirebaseSyncManager.syncItemToCloud("invoice_payments", paymentId, localPayment)
 
-        // Also insert fallback local ID reference so both queries hit
-        if (invoiceId.toString() != cloudKey) {
-            invoicePaymentDao.insertPayment(localPayment.copy(id = "${paymentId}_alt", invoiceId = invoiceId.toString()))
-        }
+        invoicePaymentDao.deleteAltPayments()
 
         db.withTransaction {
             val freshInvoice = invoiceDao.getInvoiceById(invoiceId)
             if (freshInvoice != null) {
+                val currentPayments = invoicePaymentDao.getPaymentsForInvoiceList(cloudKey, freshInvoice.invoiceNumber)
+                val uniquePayments = currentPayments.distinctBy { Pair(it.id.ifEmpty { "${it.date}_${it.amount}" }, Pair(it.date, Pair(it.amount, it.paymentMethod))) }
+                val calculatedPaid = uniquePayments.sumOf { it.amount }
+                val calculatedStatus = if (calculatedPaid >= freshInvoice.totalAmount && freshInvoice.totalAmount > 0) "LUNAS" else if (calculatedPaid > 0) "DP" else "BELUM LUNAS"
+
                 val updatedInvoice = freshInvoice.copy(
-                    paidAmount = newPaid,
-                    status = status,
-                    dpAmount = if (freshInvoice.dpAmount > 0.0) freshInvoice.dpAmount else newPaid
+                    paidAmount = calculatedPaid,
+                    status = calculatedStatus,
+                    dpAmount = if (freshInvoice.dpAmount > 0.0) freshInvoice.dpAmount else (if (calculatedPaid > 0) calculatedPaid else 0.0)
                 )
                 invoiceDao.updateInvoice(updatedInvoice)
 
@@ -872,9 +909,14 @@ class BusinessRepository(private val db: AppDatabase) {
         db.withTransaction {
             val freshInvoice = invoiceDao.getInvoiceById(invoiceId)
             if (freshInvoice != null) {
+                val currentPayments = invoicePaymentDao.getPaymentsForInvoiceList(cloudKey, freshInvoice.invoiceNumber)
+                val uniquePayments = currentPayments.distinctBy { Pair(it.id.ifEmpty { "${it.date}_${it.amount}" }, Pair(it.date, Pair(it.amount, it.paymentMethod))) }
+                val calculatedPaid = uniquePayments.sumOf { it.amount }
+                val calculatedStatus = if (calculatedPaid >= freshInvoice.totalAmount && freshInvoice.totalAmount > 0) "LUNAS" else if (calculatedPaid > 0) "DP" else "BELUM LUNAS"
+
                 val updatedInvoice = freshInvoice.copy(
-                    paidAmount = newPaid,
-                    status = status
+                    paidAmount = calculatedPaid,
+                    status = calculatedStatus
                 )
                 invoiceDao.updateInvoice(updatedInvoice)
 
@@ -986,14 +1028,21 @@ class BusinessRepository(private val db: AppDatabase) {
 
         invoicePaymentDao.deletePaymentById(paymentId)
         invoicePaymentDao.deletePaymentById("${paymentId}_alt")
+        invoicePaymentDao.deleteAltPayments()
         FirebaseSyncManager.deleteItemFromCloud("invoice_payments", paymentId)
 
         db.withTransaction {
             val freshInvoice = invoiceDao.getInvoiceById(invoiceId)
             if (freshInvoice != null) {
+                val currentPayments = invoicePaymentDao.getPaymentsForInvoiceList(cloudKey, freshInvoice.invoiceNumber)
+                val uniquePayments = currentPayments.distinctBy { Pair(it.id.ifEmpty { "${it.date}_${it.amount}" }, Pair(it.date, Pair(it.amount, it.paymentMethod))) }
+                val calculatedPaid = uniquePayments.sumOf { it.amount }
+                val calculatedStatus = if (calculatedPaid >= freshInvoice.totalAmount && freshInvoice.totalAmount > 0) "LUNAS" else if (calculatedPaid > 0) "DP" else "BELUM LUNAS"
+
                 val updatedInvoice = freshInvoice.copy(
-                    paidAmount = newPaid,
-                    status = status
+                    paidAmount = calculatedPaid,
+                    status = calculatedStatus,
+                    dpAmount = if (calculatedPaid == 0.0) 0.0 else (if (freshInvoice.dpAmount > 0.0) freshInvoice.dpAmount else calculatedPaid)
                 )
                 invoiceDao.updateInvoice(updatedInvoice)
 
@@ -1108,9 +1157,21 @@ class BusinessRepository(private val db: AppDatabase) {
     }
 
     private suspend fun restoreStockForInvoice(invoice: Invoice) {
-        val approvedStatuses = listOf("DISETUJUI", "BELUM LUNAS", "DP AWAL", "DP PRODUKSI", "LUNAS", "REFUND", "PAID", "PARTIAL", "DIPROSES", "MENUNGGU PERSETUJUAN", "MENUNGGU PERSETUJUAN OWNER", "MENUNGGU VERIFIKASI PEMBAYARAN", "LOCAL_SAVED")
-        if (!approvedStatuses.contains(invoice.status.uppercase().trim())) {
+        // Custom Projects stand alone with their own system and DO NOT touch or restore Stock Ajibqobul
+        if (invoice.projectId != null || invoice.invoiceNumber.startsWith("PRJ-") || invoice.invoiceNumber.startsWith("YP-")) {
             return
+        }
+
+        // Prevent duplicate restoration for the same invoice
+        if (invoice.invoiceNumber.isNotBlank()) {
+            val existingLedgers = db.inventoryLedgerDao().getLedgerList()
+            val alreadyRestored = existingLedgers.any { 
+                it.invoiceNumber == invoice.invoiceNumber && 
+                it.notes.contains("Batal/Hapus Invoice", ignoreCase = true) 
+            }
+            if (alreadyRestored) {
+                return
+            }
         }
 
         val converters = AppTypeConverters()
@@ -1126,8 +1187,11 @@ class BusinessRepository(private val db: AppDatabase) {
         for (item in items) {
             val parsed = parseInvoiceItemDetails(item.description)
             if (parsed != null) {
-                val catalog = catalogs.find { it.nama_catalog.equals(parsed.catalogName, ignoreCase = true) }
-                val varian = variants.find { it.id_catalog == catalog?.id_catalog && it.nama_warna.equals(parsed.varianName, ignoreCase = true) }
+                val catalog = catalogs.find { it.nama_catalog.trim().equals(parsed.catalogName.trim(), ignoreCase = true) }
+                val varian = variants.find { 
+                    (catalog == null || it.id_catalog == catalog.id_catalog) && 
+                    it.nama_warna.trim().equals(parsed.varianName.trim(), ignoreCase = true) 
+                } ?: variants.find { it.nama_warna.trim().equals(parsed.varianName.trim(), ignoreCase = true) }
 
                 if (catalog != null && varian != null) {
                     val masterStock = db.masterStockDao().getStockByVarian(varian.id_varian)
@@ -1174,25 +1238,83 @@ class BusinessRepository(private val db: AppDatabase) {
                         )
                         val insertedLedgerId = db.inventoryLedgerDao().insertLedger(ledgerEntry)
                         FirebaseSyncManager.syncItemToCloud("inventory_ledger", insertedLedgerId.toString(), ledgerEntry.copy(id = insertedLedgerId.toInt()))
+                        updateInventorySummaryForVarian(varian.id_varian)
+                    } else {
+                        restoreFallbackStockItem(item)
                     }
+                } else {
+                    restoreFallbackStockItem(item)
                 }
             } else {
-                val allStock = stockDao.getAllStock().firstOrNull() ?: emptyList()
-                val matchedStock = allStock.find { it.name.equals(item.description, ignoreCase = true) }
-                if (matchedStock != null) {
-                    val newCount = matchedStock.stockCount + item.quantity
-                    stockDao.updateStockCount(matchedStock.id, newCount)
-                    val updatedStockItem = matchedStock.copy(stockCount = newCount)
-                    FirebaseSyncManager.syncItemToCloud("stock_items", matchedStock.id.toString(), updatedStockItem)
-                    syncStockItemToMasterStock(updatedStockItem)
-                }
+                restoreFallbackStockItem(item)
             }
         }
+    }
+
+    private suspend fun restoreFallbackStockItem(item: InvoiceItemDetail) {
+        val allStock = stockDao.getAllStock().firstOrNull() ?: emptyList()
+        val matchedStock = allStock.find { 
+            it.name.trim().equals(item.description.trim(), ignoreCase = true) ||
+            (it.name.isNotBlank() && item.description.contains(it.name, ignoreCase = true))
+        }
+        if (matchedStock != null) {
+            val newCount = matchedStock.stockCount + item.quantity
+            stockDao.updateStockCount(matchedStock.id, newCount)
+            val updatedStockItem = matchedStock.copy(stockCount = newCount)
+            FirebaseSyncManager.syncItemToCloud("stock_items", matchedStock.id.toString(), updatedStockItem)
+            syncStockItemToMasterStock(updatedStockItem)
+        }
+    }
+
+    private suspend fun cleanupPaymentsAndInflowsForInvoice(invoice: Invoice) {
+        val cloudKey = invoice.invoiceNumber.ifEmpty { invoice.id.toString() }
+        val invoicePayments = invoicePaymentDao.getPaymentsForInvoiceList(cloudKey, invoice.invoiceNumber)
+        for (pay in invoicePayments) {
+            invoicePaymentDao.deletePaymentById(pay.id)
+            invoicePaymentDao.deletePaymentById("${pay.id}_alt")
+            FirebaseSyncManager.deleteItemFromCloud("invoice_payments", pay.id)
+
+            val payRefTag = "[PAY_REF:${pay.id}]"
+            val allInflows = inflowDao.getAllInflowsList()
+            val matchedInflow = allInflows.find {
+                it.notes.contains(payRefTag) ||
+                (invoice.invoiceNumber.isNotBlank() && it.notes.contains(invoice.invoiceNumber) && it.amount == pay.amount)
+            }
+            if (matchedInflow != null) {
+                val deletedInflow = matchedInflow.copy(
+                    isDeleted = true,
+                    deletedAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
+                )
+                inflowDao.updateInflow(deletedInflow)
+                FirebaseSyncManager.syncItemToCloud("inflows", matchedInflow.id.toString(), deletedInflow)
+                FirebaseSyncManager.deleteItemFromCloud("inflows", matchedInflow.id.toString())
+            }
+        }
+        if (invoice.invoiceNumber.isNotBlank()) {
+            val allInflows = inflowDao.getAllInflowsList()
+            allInflows.filter { !it.isDeleted && it.notes.contains(invoice.invoiceNumber) }.forEach { matched ->
+                val deletedInflow = matched.copy(
+                    isDeleted = true,
+                    deletedAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
+                )
+                inflowDao.updateInflow(deletedInflow)
+                FirebaseSyncManager.syncItemToCloud("inflows", matched.id.toString(), deletedInflow)
+                FirebaseSyncManager.deleteItemFromCloud("inflows", matched.id.toString())
+            }
+        }
+        invoicePaymentDao.deletePaymentsForInvoice(cloudKey)
+        if (invoice.invoiceNumber.isNotBlank()) {
+            invoicePaymentDao.deletePaymentsForInvoice(invoice.invoiceNumber)
+        }
+        invoicePaymentDao.deleteAltPayments()
     }
 
     suspend fun deleteInvoice(invoice: Invoice) {
         db.withTransaction {
             restoreStockForInvoice(invoice)
+            cleanupPaymentsAndInflowsForInvoice(invoice)
             val matches = if (invoice.invoiceNumber.isNotBlank()) {
                 invoiceDao.getInvoicesList().filter { it.invoiceNumber == invoice.invoiceNumber }
             } else listOf(invoice)
@@ -1249,6 +1371,9 @@ class BusinessRepository(private val db: AppDatabase) {
                 }
             }
 
+            if (invoice.status.equals("BATAL", ignoreCase = true) || invoice.status.equals("CANCELLED", ignoreCase = true) || invoice.status.equals("DITOLAK", ignoreCase = true)) {
+                restoreStockForInvoice(invoice)
+            }
             invoiceDao.updateInvoice(invoice)
             updateSummariesForInvoice(invoice)
             val cloudKey = invoice.invoiceNumber.ifEmpty { invoice.id.toString() }
@@ -1264,7 +1389,11 @@ class BusinessRepository(private val db: AppDatabase) {
             val invoice = invoiceDao.getInvoiceById(invoiceId)
             if (invoice != null) {
                 restoreStockForInvoice(invoice)
-                deleteInvoice(invoice)
+                val canceledInvoice = invoice.copy(status = "BATAL")
+                invoiceDao.updateInvoice(canceledInvoice)
+                updateSummariesForInvoice(canceledInvoice)
+                val cloudKey = canceledInvoice.invoiceNumber.ifEmpty { canceledInvoice.id.toString() }
+                FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, canceledInvoice)
             }
         }
     }
@@ -2334,6 +2463,7 @@ class BusinessRepository(private val db: AppDatabase) {
     suspend fun deleteInvoicePermanently(invoice: Invoice) {
         db.withTransaction {
             restoreStockForInvoice(invoice)
+            cleanupPaymentsAndInflowsForInvoice(invoice)
             val matches = if (invoice.invoiceNumber.isNotBlank()) {
                 invoiceDao.getInvoicesList().filter { it.invoiceNumber == invoice.invoiceNumber }
             } else listOf(invoice)

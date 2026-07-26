@@ -1,6 +1,7 @@
 package com.yansproject.app.ui
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,7 +33,6 @@ import com.yansproject.app.data.VariantCell
 import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import java.math.BigDecimal
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,136 +44,125 @@ fun CustomProjectFormScreen(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    // 1. Text Field States
+    // 1. Core Form Text Field States (Instansi, Catatan Khusus, PIC, Status Awal removed)
     var projectName by remember { mutableStateOf("") }
     var clientName by remember { mutableStateOf("") }
     var clientPhone by remember { mutableStateOf("") }
-    var clientCompany by remember { mutableStateOf("") }
     var deliveryAddress by remember { mutableStateOf("") }
-    var specialNotes by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
 
-    // 2. Pricing & Cost States (Owner Manual Input - Centralized ERP standard configuration)
-    val defaultCustomBase = com.yansproject.app.ui.AppSettings.getCustomBasePrice(context).toInt().let { if (it > 0) it else 100000 }
-    val defaultCustomLongAdd = com.yansproject.app.ui.AppSettings.getCustomSleeveLongPrice(context).toInt().let { if (it > 0) it else 15000 }
+    // 2. Pricing & Cost States (Owner Manual Input for Base Prices)
+    val defaultCustomBase = com.yansproject.app.ui.AppSettings.getCustomBasePrice(context).toInt().let { if (it > 0) it else 85000 }
+    val defaultCustomLongAdd = com.yansproject.app.ui.AppSettings.getCustomSleeveLongPrice(context).toInt().let { if (it > 0) it else 10000 }
 
     var adultPriceShort by remember { mutableStateOf(defaultCustomBase.toString()) }
     var adultPriceLong by remember { mutableStateOf((defaultCustomBase + defaultCustomLongAdd).toString()) }
-    var kidsPriceShort by remember { mutableStateOf("75000") }
-    var kidsPriceLong by remember { mutableStateOf("85000") }
 
-    fun calculateCustomItemPrice(size: String, sleeve: String): Double {
-        val customBase = adultPriceShort.toDoubleOrNull() ?: com.yansproject.app.ui.AppSettings.getCustomBasePrice(context)
-        val customLongAdd = com.yansproject.app.ui.AppSettings.getCustomSleeveLongPrice(context)
-        val basePrice = if (sleeve.lowercase() == "panjang") {
-            customBase + customLongAdd
-        } else {
-            customBase
-        }
-        val upsizeCharge = when (size.uppercase()) {
-            "XXL" -> com.yansproject.app.ui.AppSettings.getCustomUpsizeXXL(context)
-            "3XL" -> com.yansproject.app.ui.AppSettings.getCustomUpsize3XL(context)
-            "4XL" -> com.yansproject.app.ui.AppSettings.getCustomUpsize4XL(context)
-            else -> 0.0
-        }
-        return basePrice + upsizeCharge
-    }
+    var kidsPriceShort by remember { mutableStateOf("65000") }
+    // Kids Long sleeve is FIXED (+) Rp 5.000 default setting
+    val kidsLongAddon = 5000.0
+    val kidsPriceLongComputed = (kidsPriceShort.toDoubleOrNull() ?: 65000.0) + kidsLongAddon
 
-    fun calculateCustomKidsItemPrice(size: String, sleeve: String): Double {
-        val kidsBase = kidsPriceShort.toDoubleOrNull() ?: 75000.0
-        val basePrice = if (sleeve.lowercase() == "panjang") {
-            kidsPriceLong.toDoubleOrNull() ?: (kidsBase + 10000.0)
-        } else {
-            kidsBase
-        }
-        return basePrice
-    }
-
-    var adultHppShort by remember { mutableStateOf("60000") }
-    var adultHppLong by remember { mutableStateOf("70000") }
-    var kidsHppShort by remember { mutableStateOf("45000") }
-    var kidsHppLong by remember { mutableStateOf("55000") }
-
-    // 3. Matrix Quantity States
-    // Adult Size quantities (XS to 4XL) for both Lengan Pendek & Lengan Panjang
-    val adultSizes = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
-    val adultQuantitiesShort = remember { mutableStateMapOf<String, Int>().apply { adultSizes.forEach { put(it, 0) } } }
-    val adultQuantitiesLong = remember { mutableStateMapOf<String, Int>().apply { adultSizes.forEach { put(it, 0) } } }
-
-    // Kids Size quantities (XS to XXL) for both Lengan Pendek & Lengan Panjang
-    val kidsSizes = listOf("XS", "S", "M", "L", "XL", "XXL")
-    val kidsQuantitiesShort = remember { mutableStateMapOf<String, Int>().apply { kidsSizes.forEach { put(it, 0) } } }
-    val kidsQuantitiesLong = remember { mutableStateMapOf<String, Int>().apply { kidsSizes.forEach { put(it, 0) } } }
-
-    LaunchedEffect(Unit) {
-        projectName = ""
-        clientName = ""
-        clientPhone = ""
-        clientCompany = ""
-        deliveryAddress = ""
-        specialNotes = ""
-        
-        adultSizes.forEach {
-            adultQuantitiesShort[it] = 0
-            adultQuantitiesLong[it] = 0
-        }
-        kidsSizes.forEach {
-            kidsQuantitiesShort[it] = 0
-            kidsQuantitiesLong[it] = 0
-        }
-    }
-
-    // Computations
-    val totalAdultShortCount = adultQuantitiesShort.values.sum()
-    val totalAdultLongCount = adultQuantitiesLong.values.sum()
-    val totalKidsShortCount = kidsQuantitiesShort.values.sum()
-    val totalKidsLongCount = kidsQuantitiesLong.values.sum()
-
+    // ERP Upsize Configurations for Reguler
     val upsizeXxlPrice = remember(context) { com.yansproject.app.ui.AppSettings.getCustomUpsizeXXL(context) }
     val upsize3xlPrice = remember(context) { com.yansproject.app.ui.AppSettings.getCustomUpsize3XL(context) }
     val upsize4xlPrice = remember(context) { com.yansproject.app.ui.AppSettings.getCustomUpsize4XL(context) }
 
-    val totalXxlCount = (adultQuantitiesShort["XXL"] ?: 0) + (adultQuantitiesLong["XXL"] ?: 0)
-    val total3xlCount = (adultQuantitiesShort["3XL"] ?: 0) + (adultQuantitiesLong["3XL"] ?: 0)
-    val total4xlCount = (adultQuantitiesShort["4XL"] ?: 0) + (adultQuantitiesLong["4XL"] ?: 0)
+    // ERP Custom HPP Configurations
+    val hppRegPendek = remember(context) { com.yansproject.app.ui.AppSettings.getCustomHppRegulerPendek(context) }
+    val hppRegPanjang = remember(context) { com.yansproject.app.ui.AppSettings.getCustomHppRegulerPanjang(context) }
+    val hppKidsPendek = remember(context) { com.yansproject.app.ui.AppSettings.getCustomHppKidsPendek(context) }
+    val hppKidsPanjang = remember(context) { com.yansproject.app.ui.AppSettings.getCustomHppKidsPanjang(context) }
 
-    val calculationResult = remember(
-        totalAdultShortCount, totalAdultLongCount, totalKidsShortCount, totalKidsLongCount,
-        adultPriceShort, adultPriceLong, kidsPriceShort, kidsPriceLong,
-        totalXxlCount, total3xlCount, total4xlCount, upsizeXxlPrice, upsize3xlPrice, upsize4xlPrice
-    ) {
-        viewModel.calculateTotals(
-            adultShortCount = totalAdultShortCount,
-            adultLongCount = totalAdultLongCount,
-            kidsShortCount = totalKidsShortCount,
-            kidsLongCount = totalKidsLongCount,
-            adultPriceShort = adultPriceShort.toDoubleOrNull() ?: 0.0,
-            adultPriceLong = adultPriceLong.toDoubleOrNull() ?: 0.0,
-            kidsPriceShort = kidsPriceShort.toDoubleOrNull() ?: 0.0,
-            kidsPriceLong = kidsPriceLong.toDoubleOrNull() ?: 0.0,
-            discountPercent = 0.0,
-            taxPercent = 11.0, // PPN 11% standard
-            xxlCount = totalXxlCount,
-            threeXlCount = total3xlCount,
-            fourXlCount = total4xlCount,
-            upsizeXxlPrice = upsizeXxlPrice,
-            upsize3xlPrice = upsize3xlPrice,
-            upsize4xlPrice = upsize4xlPrice
-        )
+    // Item Price Calculations
+    fun calculateRegulerPrice(size: String, sleeve: String): Double {
+        val base = if (sleeve.equals("Panjang", ignoreCase = true)) {
+            adultPriceLong.toDoubleOrNull() ?: 95000.0
+        } else {
+            adultPriceShort.toDoubleOrNull() ?: 85000.0
+        }
+        val upsizeCharge = when (size.uppercase()) {
+            "XXL" -> upsizeXxlPrice
+            "3XL" -> upsize3xlPrice
+            "4XL" -> upsize4xlPrice
+            else -> 0.0
+        }
+        return base + upsizeCharge
     }
 
-    val grandTotal = calculationResult["grandTotal"] ?: BigDecimal.ZERO
+    fun calculateKidsPrice(size: String, sleeve: String): Double {
+        val kidsBase = kidsPriceShort.toDoubleOrNull() ?: 65000.0
+        val base = if (sleeve.equals("Panjang", ignoreCase = true)) {
+            kidsBase + kidsLongAddon
+        } else {
+            kidsBase
+        }
+        // Kids: TIDAK BERLAKU HARGA UPSIZE
+        return base
+    }
+
+    // 3. Size Matrix Quantities (DNA YANSPROJECT.ID Matrix)
+    val adultSizes = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
+    val adultQuantitiesShort = remember { mutableStateMapOf<String, Int>().apply { adultSizes.forEach { put(it, 0) } } }
+    val adultQuantitiesLong = remember { mutableStateMapOf<String, Int>().apply { adultSizes.forEach { put(it, 0) } } }
+
+    val kidsSizes = listOf("XS", "S", "M", "L", "XL", "XXL")
+    val kidsQuantitiesShort = remember { mutableStateMapOf<String, Int>().apply { kidsSizes.forEach { put(it, 0) } } }
+    val kidsQuantitiesLong = remember { mutableStateMapOf<String, Int>().apply { kidsSizes.forEach { put(it, 0) } } }
+
+    // Selected product tab in Construct Item section
+    var selectedProductTab by remember { mutableStateOf("REGULER") } // "REGULER" or "KIDS"
+
+    // Diskon, DP / Paid Amount States
+    var discountNominalStr by remember { mutableStateOf("") }
+    var dpAmountStr by remember { mutableStateOf("") }
+
+    // Live Totals Calculations
+    val totalAdultShortCount = adultQuantitiesShort.values.sum()
+    val totalAdultLongCount = adultQuantitiesLong.values.sum()
+    val totalKidsShortCount = kidsQuantitiesShort.values.sum()
+    val totalKidsLongCount = kidsQuantitiesLong.values.sum()
+    val totalQty = totalAdultShortCount + totalAdultLongCount + totalKidsShortCount + totalKidsLongCount
+
+    // Gross Total Cost Calculation
+    var grossTotal = 0.0
+    adultSizes.forEach { sz ->
+        val qShort = adultQuantitiesShort[sz] ?: 0
+        val qLong = adultQuantitiesLong[sz] ?: 0
+        if (qShort > 0) grossTotal += qShort * calculateRegulerPrice(sz, "Pendek")
+        if (qLong > 0) grossTotal += qLong * calculateRegulerPrice(sz, "Panjang")
+    }
+    kidsSizes.forEach { sz ->
+        val qShort = kidsQuantitiesShort[sz] ?: 0
+        val qLong = kidsQuantitiesLong[sz] ?: 0
+        if (qShort > 0) grossTotal += qShort * calculateKidsPrice(sz, "Pendek")
+        if (qLong > 0) grossTotal += qLong * calculateKidsPrice(sz, "Panjang")
+    }
+
+    val discountNominal = discountNominalStr.toDoubleOrNull() ?: 0.0
+    val totalPembayaran = maxOf(0.0, grossTotal - discountNominal)
+    val dpAmount = dpAmountStr.toDoubleOrNull() ?: 0.0
+    val sisaPembayaran = maxOf(0.0, totalPembayaran - dpAmount)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        "TAMBAH PROJECT CUSTOM",
-                        color = LuxuryGold,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
+                    Column {
+                        Text(
+                            "FORMULIR PROJECT CUSTOM",
+                            color = LuxuryGold,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 16.sp,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            "Standard Luxury YANSPROJECT.ID",
+                            color = TextMuted,
+                            fontSize = 10.sp
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -190,512 +180,382 @@ fun CustomProjectFormScreen(
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // SECTION 1: Informasi Project
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+
+            // ==========================================
+            // SECTION 1: INFORMASI UTAMA PROJECT & CUSTOMER
+            // ==========================================
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                modifier = Modifier.fillMaxWidth().glassCard()
             ) {
-                Text(
-                    "SECTION 1: INFORMASI PROJECT",
-                    color = LuxuryGold,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp
-                )
-                Divider(color = DividerDarkCyanGray.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 6.dp))
-                
-                YansGlowingTextField(
-                    value = projectName,
-                    onValueChange = { projectName = it },
-                    label = "Nama Project / Event *",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("form_project_name"),
-                    singleLine = true
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                YansGlowingTextField(
-                    value = specialNotes,
-                    onValueChange = { specialNotes = it },
-                    label = "Catatan Khusus Produksi (Opsional)",
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = false
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // SECTION 2: Informasi Klien
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "SECTION 2: INFORMASI KLIEN",
-                    color = LuxuryGold,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp
-                )
-                Divider(color = DividerDarkCyanGray.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 6.dp))
-
-                YansGlowingTextField(
-                    value = clientName,
-                    onValueChange = { clientName = it },
-                    label = "Nama Lengkap Klien *",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("form_client_name"),
-                    singleLine = true
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                YansGlowingTextField(
-                    value = clientCompany,
-                    onValueChange = { clientCompany = it },
-                    label = "Instansi / Perusahaan Klien (Opsional)",
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // SECTION 3: Alamat
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "SECTION 3: ALAMAT PENGIRIMAN",
-                    color = LuxuryGold,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp
-                )
-                Divider(color = DividerDarkCyanGray.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 6.dp))
-
-                YansGlowingTextField(
-                    value = deliveryAddress,
-                    onValueChange = { deliveryAddress = it },
-                    label = "Alamat Pengiriman Klien (Opsional)",
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = false
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // SECTION 4: PIC / Kontak
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "SECTION 4: PIC / KONTAK KLIEN",
-                    color = LuxuryGold,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp
-                )
-                Divider(color = DividerDarkCyanGray.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 6.dp))
-
-                YansGlowingTextField(
-                    value = clientPhone,
-                    onValueChange = { clientPhone = it },
-                    label = "No. HP WhatsApp Klien (Opsional)",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // SECTION 5: Construct Item
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "SECTION 5: CONSTRUCT ITEM & PRICING MATRIKS",
-                    color = LuxuryGold,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp
-                )
-                Divider(color = DividerDarkCyanGray.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 6.dp))
-
-                Text(
-                    "KONFIGURASI HARGA & HPP MANUAL",
-                    color = LuxuryGold,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    modifier = Modifier.fillMaxWidth().glassCard()
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Matriks Harga Dewasa (Adult)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(LuxuryGold.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("1", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        Text(
+                            "INFORMASI PROJECT & CUSTOMER",
+                            color = LuxuryGold,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+
+                    Divider(color = DividerDarkCyanGray.copy(alpha = 0.5f))
+
+                    // Nama Project
+                    YansGlowingTextField(
+                        value = projectName,
+                        onValueChange = { projectName = it },
+                        label = "Nama Project *",
+                        placeholder = "Contoh: PO Reuni Akbar 2026",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("form_project_name"),
+                        singleLine = true
+                    )
+
+                    // Nama Customer (Opsional)
+                    YansGlowingTextField(
+                        value = clientName,
+                        onValueChange = { clientName = it },
+                        label = "Nama Customer (Opsional)",
+                        placeholder = "Contoh: Bpk. Hendra",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("form_client_name"),
+                        singleLine = true
+                    )
+
+                    // No. WhatsApp
+                    YansGlowingTextField(
+                        value = clientPhone,
+                        onValueChange = { clientPhone = it.filter { char -> char.isDigit() || char == '+' } },
+                        label = "No. WhatsApp",
+                        placeholder = "Contoh: 08123456789",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("form_client_phone"),
+                        singleLine = true
+                    )
+
+                    // Alamat
+                    YansGlowingTextField(
+                        value = deliveryAddress,
+                        onValueChange = { deliveryAddress = it },
+                        label = "Alamat Pengiriman",
+                        placeholder = "Masukkan alamat lengkap customer...",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("form_delivery_address"),
+                        singleLine = false
+                    )
+                }
+            }
+
+            // ==========================================
+            // SECTION 2: CONSTRUCT ITEM BARU & PRICING
+            // ==========================================
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                modifier = Modifier.fillMaxWidth().glassCard()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(LuxuryGold.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("2", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        Text(
+                            "CONSTRUCT ITEM BARU & PRICING",
+                            color = LuxuryGold,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+
+                    Divider(color = DividerDarkCyanGray.copy(alpha = 0.5f))
+
+                    // Owner Manual Input Header Note
+                    Text(
+                        "SETTING HARGA DASAR MANUAL OWNER",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    // Harga Dasar Input Block
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        // T-Shirt Reguler Manual Price Inputs
+                        Text("1. T-Shirt Reguler", color = AccentAgedGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             YansGlowingTextField(
                                 value = adultPriceShort,
-                                onValueChange = { adultPriceShort = it },
-                                label = "Harga Jual Pendek",
+                                onValueChange = { adultPriceShort = it.filter { c -> c.isDigit() } },
+                                label = "Harga Reguler Pendek (Rp)",
+                                placeholder = "85000",
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f).testTag("input_reguler_short_price")
                             )
                             YansGlowingTextField(
                                 value = adultPriceLong,
-                                onValueChange = { adultPriceLong = it },
-                                label = "Harga Jual Panjang",
+                                onValueChange = { adultPriceLong = it.filter { c -> c.isDigit() } },
+                                label = "Harga Reguler Panjang (Rp)",
+                                placeholder = "95000",
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            YansGlowingTextField(
-                                value = adultHppShort,
-                                onValueChange = { adultHppShort = it },
-                                label = "HPP Pendek",
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
-                            )
-                            YansGlowingTextField(
-                                value = adultHppLong,
-                                onValueChange = { adultHppLong = it },
-                                label = "HPP Panjang",
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f).testTag("input_reguler_long_price")
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
-                        Text("Matriks Harga Anak (Kids)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // T-Shirt Kids Manual Price Inputs
+                        Text("2. T-Shirt Kids", color = AccentAgedGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             YansGlowingTextField(
                                 value = kidsPriceShort,
-                                onValueChange = { kidsPriceShort = it },
-                                label = "Harga Jual Pendek",
+                                onValueChange = { kidsPriceShort = it.filter { c -> c.isDigit() } },
+                                label = "Harga Kids Pendek (Rp)",
+                                placeholder = "65000",
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f).testTag("input_kids_short_price")
                             )
-                            YansGlowingTextField(
-                                value = kidsPriceLong,
-                                onValueChange = { kidsPriceLong = it },
-                                label = "Harga Jual Panjang",
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
-                            )
+
+                            // Readonly Display for Kids Long (+5.000 Default Setting)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(CardGrey.copy(alpha = 0.4f))
+                                    .border(1.dp, BorderGrey, RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                            ) {
+                                Column {
+                                    Text("Harga Kids Panjang", fontSize = 10.sp, color = TextMuted)
+                                    Text(
+                                        FormatUtils.formatRupiah(kidsPriceLongComputed),
+                                        color = AlertGreen,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                    Text("(+) 5.000 Default Sistem", fontSize = 9.sp, color = AccentAgedGold)
+                                }
+                            }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            YansGlowingTextField(
-                                value = kidsHppShort,
-                                onValueChange = { kidsHppShort = it },
-                                label = "HPP Pendek",
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
-                            )
-                            YansGlowingTextField(
-                                value = kidsHppLong,
-                                onValueChange = { kidsHppLong = it },
-                                label = "HPP Panjang",
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
+                    }
+
+                    // Upsize Rules Info Banner
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = PrimaryDarkTeal.copy(alpha = 0.3f)),
+                        border = BorderStroke(1.dp, DividerDarkCyanGray),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = LuxuryGold, modifier = Modifier.size(16.dp))
+                            Text(
+                                "Aturan Upsize: Reguler mengambil setting ERP [XXL +${upsizeXxlPrice.toInt()/1000}K, 3XL +${upsize3xlPrice.toInt()/1000}K, 4XL +${upsize4xlPrice.toInt()/1000}K]. Untuk T-Shirt Kids TIDAK BERLAKU HARGA UPSIZE.",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                lineHeight = 14.sp
                             )
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                Text(
-                    "MATRIKS UKURAN DEWASA (XS - 4XL)",
-                    color = LuxuryGold,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                    // MATRIX UKURAN CUSTOM PROJECT - TABS
+                    Text(
+                        "MATRIX UKURAN DNA YANSPROJECT.ID",
+                        color = LuxuryGold,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
 
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    modifier = Modifier.fillMaxWidth().glassCard()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        adultSizes.forEach { size ->
-                            val upsizeBadge = when (size) {
-                                "XXL" -> " (+${upsizeXxlPrice.toInt() / 1000}K)"
-                                "3XL" -> " (+${upsize3xlPrice.toInt() / 1000}K)"
-                                "4XL" -> " (+${upsize4xlPrice.toInt() / 1000}K)"
-                                else -> ""
-                            }
-                            Row(
+                    // Product Tabs Selector
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("REGULER", "KIDS").forEach { tab ->
+                            val isSelected = selectedProductTab == tab
+                            val labelText = if (tab == "REGULER") "T-SHIRT REGULER" else "T-SHIRT KIDS"
+                            val badgeCount = if (tab == "REGULER") (totalAdultShortCount + totalAdultLongCount) else (totalKidsShortCount + totalKidsLongCount)
+
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
+                                    .weight(1f)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(CardGrey.copy(alpha = 0.3f))
-                                    .border(1.dp, BorderGrey.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .background(if (isSelected) LuxuryGold else CardGrey)
+                                    .clickable { selectedProductTab = tab }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
                                     Text(
-                                        text = "UKURAN",
-                                        fontSize = 8.sp,
-                                        color = TextMuted,
+                                        text = labelText,
+                                        color = if (isSelected) DeepCarbonBlack else Color.White,
                                         fontWeight = FontWeight.Bold,
-                                        letterSpacing = 1.sp
+                                        fontSize = 12.sp
                                     )
-                                    Text(
-                                        text = "$size$upsizeBadge",
-                                        color = Color.White,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Black
-                                    )
-                                }
-
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    // Short Sleeve count Adjuster Chip
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("PENDEK", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, modifier = Modifier.padding(bottom = 4.dp))
-                                        val currentShort = adultQuantitiesShort[size] ?: 0
+                                    if (badgeCount > 0) {
                                         Box(
                                             modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(SecondaryShadowBlackTeal)
-                                                .border(1.dp, DividerDarkCyanGray.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                                .clip(RoundedCornerShape(50.dp))
+                                                .background(if (isSelected) DeepCarbonBlack else LuxuryGold)
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
                                         ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(28.dp)
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(PrimaryDarkTeal.copy(alpha = 0.5f))
-                                                        .clickable { if (currentShort > 0) adultQuantitiesShort[size] = currentShort - 1 },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("-", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                                }
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Text("$currentShort", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(28.dp)
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(PrimaryDarkTeal.copy(alpha = 0.5f))
-                                                        .clickable { adultQuantitiesShort[size] = currentShort + 1 },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("+", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                                }
-                                            }
+                                            Text(
+                                                text = "$badgeCount",
+                                                color = if (isSelected) LuxuryGold else DeepCarbonBlack,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Black
+                                            )
                                         }
-                                        val shortItemPrice = calculateCustomItemPrice(size, "Pendek")
-                                        Text(
-                                            text = FormatUtils.formatRupiah(shortItemPrice),
-                                            color = AccentAgedGold,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(top = 4.dp)
-                                        )
-                                    }
-
-                                    // Long Sleeve count Adjuster Chip
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("PANJANG", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, modifier = Modifier.padding(bottom = 4.dp))
-                                        val currentLong = adultQuantitiesLong[size] ?: 0
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(SecondaryShadowBlackTeal)
-                                                .border(1.dp, DividerDarkCyanGray.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(28.dp)
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(PrimaryDarkTeal.copy(alpha = 0.5f))
-                                                        .clickable { if (currentLong > 0) adultQuantitiesLong[size] = currentLong - 1 },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("-", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                                }
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Text("$currentLong", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(28.dp)
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(PrimaryDarkTeal.copy(alpha = 0.5f))
-                                                        .clickable { adultQuantitiesLong[size] = currentLong + 1 },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("+", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                                }
-                                            }
-                                        }
-                                        val longItemPrice = calculateCustomItemPrice(size, "Panjang")
-                                        Text(
-                                            text = FormatUtils.formatRupiah(longItemPrice),
-                                            color = AccentAgedGold,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(top = 4.dp)
-                                        )
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    "MATRIKS UKURAN KIDS (XS - XXL)",
-                    color = LuxuryGold,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    modifier = Modifier.fillMaxWidth().glassCard()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        kidsSizes.forEach { size ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(CardGrey.copy(alpha = 0.3f))
-                                    .border(1.dp, BorderGrey.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "UKURAN",
-                                        fontSize = 8.sp,
-                                        color = TextMuted,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 1.sp
-                                    )
-                                    Text(
-                                        text = size,
-                                        color = Color.White,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Black
-                                    )
+                    // ACTIVE MATRIX SIZE DISPLAY
+                    if (selectedProductTab == "REGULER") {
+                        // REGULER MATRIX
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            adultSizes.forEach { size ->
+                                val upsizeBadge = when (size) {
+                                    "XXL" -> " (+${upsizeXxlPrice.toInt() / 1000}K)"
+                                    "3XL" -> " (+${upsize3xlPrice.toInt() / 1000}K)"
+                                    "4XL" -> " (+${upsize4xlPrice.toInt() / 1000}K)"
+                                    else -> ""
                                 }
+                                val pShort = calculateRegulerPrice(size, "Pendek")
+                                val pLong = calculateRegulerPrice(size, "Panjang")
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    // Short Sleeve count Adjuster Chip
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("PENDEK", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, modifier = Modifier.padding(bottom = 4.dp))
-                                        val currentShort = kidsQuantitiesShort[size] ?: 0
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(SecondaryShadowBlackTeal)
-                                                .border(1.dp, DividerDarkCyanGray.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(28.dp)
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(PrimaryDarkTeal.copy(alpha = 0.5f))
-                                                        .clickable { if (currentShort > 0) kidsQuantitiesShort[size] = currentShort - 1 },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("-", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                                }
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Text("$currentShort", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(28.dp)
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(PrimaryDarkTeal.copy(alpha = 0.5f))
-                                                        .clickable { kidsQuantitiesShort[size] = currentShort + 1 },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("+", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                                }
-                                            }
-                                        }
-                                        val kidsShortPrice = calculateCustomKidsItemPrice(size, "Pendek")
-                                        Text(
-                                            text = FormatUtils.formatRupiah(kidsShortPrice),
-                                            color = AccentAgedGold,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(top = 4.dp)
-                                        )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(CardGrey.copy(alpha = 0.3f))
+                                        .border(1.dp, BorderGrey.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text("UKURAN", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                        Text("$size$upsizeBadge", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Black)
                                     }
 
-                                    // Long Sleeve count Adjuster Chip
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("PANJANG", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, modifier = Modifier.padding(bottom = 4.dp))
-                                        val currentLong = kidsQuantitiesLong[size] ?: 0
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(SecondaryShadowBlackTeal)
-                                                .border(1.dp, DividerDarkCyanGray.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(28.dp)
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(PrimaryDarkTeal.copy(alpha = 0.5f))
-                                                        .clickable { if (currentLong > 0) kidsQuantitiesLong[size] = currentLong - 1 },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("-", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                                }
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Text("$currentLong", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(28.dp)
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(PrimaryDarkTeal.copy(alpha = 0.5f))
-                                                        .clickable { kidsQuantitiesLong[size] = currentLong + 1 },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("+", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                                }
-                                            }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        // Pendek
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("PENDEK", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                            val currentShort = adultQuantitiesShort[size] ?: 0
+                                            QuantityCounterChip(
+                                                value = currentShort,
+                                                onDecrement = { if (currentShort > 0) adultQuantitiesShort[size] = currentShort - 1 },
+                                                onIncrement = { adultQuantitiesShort[size] = currentShort + 1 }
+                                            )
+                                            Text(FormatUtils.formatRupiah(pShort), color = AccentAgedGold, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                         }
-                                        val kidsLongPrice = calculateCustomKidsItemPrice(size, "Panjang")
-                                        Text(
-                                            text = FormatUtils.formatRupiah(kidsLongPrice),
-                                            color = AccentAgedGold,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(top = 4.dp)
-                                        )
+
+                                        // Panjang
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("PANJANG", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                            val currentLong = adultQuantitiesLong[size] ?: 0
+                                            QuantityCounterChip(
+                                                value = currentLong,
+                                                onDecrement = { if (currentLong > 0) adultQuantitiesLong[size] = currentLong - 1 },
+                                                onIncrement = { adultQuantitiesLong[size] = currentLong + 1 }
+                                            )
+                                            Text(FormatUtils.formatRupiah(pLong), color = AccentAgedGold, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // KIDS MATRIX
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            kidsSizes.forEach { size ->
+                                val pShort = calculateKidsPrice(size, "Pendek")
+                                val pLong = calculateKidsPrice(size, "Panjang")
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(CardGrey.copy(alpha = 0.3f))
+                                        .border(1.dp, BorderGrey.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text("KIDS SIZE", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                        Text(size, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Black)
+                                    }
+
+                                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        // Pendek
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("PENDEK", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                            val currentShort = kidsQuantitiesShort[size] ?: 0
+                                            QuantityCounterChip(
+                                                value = currentShort,
+                                                onDecrement = { if (currentShort > 0) kidsQuantitiesShort[size] = currentShort - 1 },
+                                                onIncrement = { kidsQuantitiesShort[size] = currentShort + 1 }
+                                            )
+                                            Text(FormatUtils.formatRupiah(pShort), color = AccentAgedGold, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        // Panjang
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("PANJANG", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                            val currentLong = kidsQuantitiesLong[size] ?: 0
+                                            QuantityCounterChip(
+                                                value = currentLong,
+                                                onDecrement = { if (currentLong > 0) kidsQuantitiesLong[size] = currentLong - 1 },
+                                                onIncrement = { kidsQuantitiesLong[size] = currentLong + 1 }
+                                            )
+                                            Text(FormatUtils.formatRupiah(pLong), color = AccentAgedGold, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
@@ -704,132 +564,272 @@ fun CustomProjectFormScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // SECTION 6: Ringkasan
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+            // ==========================================
+            // SECTION 3: RINGKASAN & TOTAL PEMBAYARAN
+            // ==========================================
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                modifier = Modifier.fillMaxWidth().glassCard()
             ) {
-                Text(
-                    "SECTION 6: RINGKASAN ESTIMASI BIAYA",
-                    color = LuxuryGold,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp
-                )
-                Divider(color = DividerDarkCyanGray.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 6.dp))
-
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    modifier = Modifier.fillMaxWidth().glassCard()
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Rincian Estimasi Biaya", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Gross Subtotal", color = Color.Gray, fontSize = 12.sp)
-                            val grossVal = calculationResult["gross"] ?: BigDecimal.ZERO
-                            Text(IdrAccountingEngine.formatRupiah(grossVal), color = Color.White, fontSize = 13.sp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(LuxuryGold.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("3", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("PPN (11%)", color = Color.Gray, fontSize = 12.sp)
-                            val taxVal = calculationResult["tax"] ?: BigDecimal.ZERO
-                            Text(IdrAccountingEngine.formatRupiah(taxVal), color = Color.White, fontSize = 13.sp)
-                        }
-                        Divider(color = MutedSilver, thickness = 0.5.dp)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("TOTAL ESTIMASI", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text(IdrAccountingEngine.formatRupiah(grandTotal), color = LuxuryGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // SECTION 7: Action
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "SECTION 7: SIMPAN TRANSAKSI",
-                    color = LuxuryGold,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp
-                )
-                Divider(color = DividerDarkCyanGray.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 6.dp))
-
-                YansPremiumButton(
-                    text = "SIMPAN PROJECT KE DATABASE",
-                    onClick = {
-                        if (projectName.isBlank() || clientName.isBlank()) {
-                            com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Harap isi nama project dan nama klien!")
-                            return@YansPremiumButton
-                        }
-
-                        // Package matric lists
-                        val adultCells = mutableListOf<VariantCell>()
-                        adultQuantitiesShort.forEach { (size, qty) ->
-                            if (qty > 0) adultCells.add(VariantCell(size, SleeveType.PENDEK, qty))
-                        }
-                        adultQuantitiesLong.forEach { (size, qty) ->
-                            if (qty > 0) adultCells.add(VariantCell(size, SleeveType.PANJANG, qty))
-                        }
-
-                        val kidsCells = mutableListOf<VariantCell>()
-                        kidsQuantitiesShort.forEach { (size, qty) ->
-                            if (qty > 0) kidsCells.add(VariantCell(size, SleeveType.PENDEK, qty))
-                        }
-                        kidsQuantitiesLong.forEach { (size, qty) ->
-                            if (qty > 0) kidsCells.add(VariantCell(size, SleeveType.PANJANG, qty))
-                        }
-
-                        val totalQtySum = adultCells.sumOf { it.quantity } + kidsCells.sumOf { it.quantity }
-                        if (totalQtySum <= 0) {
-                            com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Harap masukkan kuantitas pakaian minimal 1 pcs!")
-                            return@YansPremiumButton
-                        }
-
-                        val newProject = CustomProject(
-                            id = "PRJ-${System.currentTimeMillis().toString().substring(5)}",
-                            projectName = projectName,
-                            clientName = clientName,
-                            clientPhone = clientPhone,
-                            clientCompany = clientCompany,
-                            deliveryAddress = deliveryAddress,
-                            specialNotes = specialNotes,
-                            status = "PENDING",
-                            adultPriceShort = adultPriceShort.toDoubleOrNull() ?: 0.0,
-                            adultPriceLong = adultPriceLong.toDoubleOrNull() ?: 0.0,
-                            kidsPriceShort = kidsPriceShort.toDoubleOrNull() ?: 0.0,
-                            kidsPriceLong = kidsPriceLong.toDoubleOrNull() ?: 0.0,
-                            adultHppShort = adultHppShort.toDoubleOrNull() ?: 0.0,
-                            adultHppLong = adultHppLong.toDoubleOrNull() ?: 0.0,
-                            kidsHppShort = kidsHppShort.toDoubleOrNull() ?: 0.0,
-                            kidsHppLong = kidsHppLong.toDoubleOrNull() ?: 0.0,
-                            adultMatrix = adultCells,
-                            kidsMatrix = kidsCells,
-                            discountPercent = 0.0,
-                            discountNominal = 0.0,
-                            taxPercent = 11.0,
-                            gatewayFeePercent = 0.0,
-                            grandTotal = grandTotal.toDouble(),
-                            paidAmount = 0.0,
-                            remainingBalance = grandTotal.toDouble(),
-                            stagedPayments = emptyList()
+                        Text(
+                            "RINGKASAN TOTAL & PEMBAYARAN",
+                            color = LuxuryGold,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp
                         )
+                    }
 
-                        viewModel.saveProjectToDatabase(newProject)
-                        com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Project Custom berhasil disimpan!")
-                        onNavigateBack()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .testTag("save_custom_project_button")
-                )
+                    Divider(color = DividerDarkCyanGray.copy(alpha = 0.5f))
+
+                    // Row Qty & Subtotal
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("JUMLAH QUANTITY", color = TextLight, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("$totalQty Pcs", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("TOTAL HARGA (SUBTOTAL)", color = TextLight, fontSize = 12.sp)
+                        Text(FormatUtils.formatRupiah(grossTotal), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Input Diskon
+                    YansGlowingTextField(
+                        value = discountNominalStr,
+                        onValueChange = { discountNominalStr = it.filter { c -> c.isDigit() } },
+                        label = "Input Diskon (Rp)",
+                        placeholder = "0",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth().testTag("input_discount_nominal")
+                    )
+
+                    // Grand Total
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("TOTAL PEMBAYARAN (OMSET)", color = LuxuryGold, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(FormatUtils.formatRupiah(totalPembayaran), color = LuxuryGold, fontSize = 16.sp, fontWeight = FontWeight.Black)
+                    }
+
+                    // --- KALKULASI HPP & MARGIN PROFIT ERP ---
+                    val calculatedTotalHpp = (totalAdultShortCount * hppRegPendek) +
+                            (totalAdultLongCount * hppRegPanjang) +
+                            (totalKidsShortCount * hppKidsPendek) +
+                            (totalKidsLongCount * hppKidsPanjang)
+
+                    val estimatedProfit = totalPembayaran - calculatedTotalHpp
+                    val estimatedMargin = if (totalPembayaran > 0) (estimatedProfit / totalPembayaran) * 100.0 else 0.0
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(CardGrey.copy(alpha = 0.5f))
+                            .border(1.dp, LuxuryGold.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                            .padding(12.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("ANALISIS PROFIT & MARGIN ERP", color = LuxuryGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Estimasi Total HPP Modal", color = TextMuted, fontSize = 11.sp)
+                                Text(FormatUtils.formatRupiah(calculatedTotalHpp), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Estimasi Laba Kotor (Profit)", color = TextMuted, fontSize = 11.sp)
+                                Text(
+                                    FormatUtils.formatRupiah(estimatedProfit),
+                                    color = if (estimatedProfit >= 0) AlertGreen else StatusDangerRed,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Profit Margin (%)", color = TextMuted, fontSize = 11.sp)
+                                Text(
+                                    String.format("%.1f%%", estimatedMargin),
+                                    color = if (estimatedMargin >= 20.0) AlertGreen else LuxuryGold,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Divider(color = DividerDarkCyanGray.copy(alpha = 0.3f))
+
+                    // Input DP
+                    YansGlowingTextField(
+                        value = dpAmountStr,
+                        onValueChange = { dpAmountStr = it.filter { c -> c.isDigit() } },
+                        label = "Uang Muka / DP (Rp)",
+                        placeholder = "0",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth().testTag("input_dp_amount")
+                    )
+
+                    // Sisa Pembayaran
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("SISA PEMBAYARAN", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            FormatUtils.formatRupiah(sisaPembayaran),
+                            color = if (sisaPembayaran > 0) StatusDangerRed else AlertGreen,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Catatan
+                    YansGlowingTextField(
+                        value = notes,
+                        onValueChange = { notes = it },
+                        label = "Catatan Project",
+                        placeholder = "Masukkan catatan atau instruksi tambahan...",
+                        modifier = Modifier.fillMaxWidth().testTag("input_project_notes"),
+                        singleLine = false
+                    )
+                }
+            }
+
+            // ==========================================
+            // SECTION 4: SIMPAN BUTTON
+            // ==========================================
+            YansPremiumButton(
+                text = "SIMPAN PROJECT CUSTOM",
+                onClick = {
+                    if (projectName.isBlank()) {
+                        com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Harap masukkan Nama Project terlebih dahulu!")
+                        return@YansPremiumButton
+                    }
+
+                    if (totalQty <= 0) {
+                        com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Harap isi kuantitas pakaian minimal 1 pcs pada matrix!")
+                        return@YansPremiumButton
+                    }
+
+                    // Package Matrix Lists
+                    val adultCells = mutableListOf<VariantCell>()
+                    adultQuantitiesShort.forEach { (sz, qty) ->
+                        if (qty > 0) adultCells.add(VariantCell(sz, SleeveType.PENDEK, qty))
+                    }
+                    adultQuantitiesLong.forEach { (sz, qty) ->
+                        if (qty > 0) adultCells.add(VariantCell(sz, SleeveType.PANJANG, qty))
+                    }
+
+                    val kidsCells = mutableListOf<VariantCell>()
+                    kidsQuantitiesShort.forEach { (sz, qty) ->
+                        if (qty > 0) kidsCells.add(VariantCell(sz, SleeveType.PENDEK, qty))
+                    }
+                    kidsQuantitiesLong.forEach { (sz, qty) ->
+                        if (qty > 0) kidsCells.add(VariantCell(sz, SleeveType.PANJANG, qty))
+                    }
+
+                    val newProject = CustomProject(
+                        id = "PRJ-${System.currentTimeMillis().toString().substring(5)}",
+                        projectName = projectName,
+                        clientName = if (clientName.isBlank()) "Umum / Cash" else clientName,
+                        clientPhone = clientPhone,
+                        clientCompany = "", // Removed Instansi
+                        deliveryAddress = deliveryAddress,
+                        specialNotes = notes, // Standardized Catatan
+                        status = "PENDING", // Default status
+                        adultPriceShort = adultPriceShort.toDoubleOrNull() ?: 85000.0,
+                        adultPriceLong = adultPriceLong.toDoubleOrNull() ?: 95000.0,
+                        kidsPriceShort = kidsPriceShort.toDoubleOrNull() ?: 65000.0,
+                        kidsPriceLong = kidsPriceLongComputed,
+                        adultHppShort = hppRegPendek,
+                        adultHppLong = hppRegPanjang,
+                        kidsHppShort = hppKidsPendek,
+                        kidsHppLong = hppKidsPanjang,
+                        adultMatrix = adultCells,
+                        kidsMatrix = kidsCells,
+                        discountNominal = discountNominal,
+                        grandTotal = totalPembayaran,
+                        paidAmount = dpAmount,
+                        remainingBalance = sisaPembayaran
+                    )
+
+                    viewModel.saveProjectToDatabase(newProject)
+                    com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Project Custom '${projectName}' berhasil disimpan!")
+                    onNavigateBack()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .testTag("save_custom_project_button")
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun QuantityCounterChip(
+    value: Int,
+    onDecrement: () -> Unit,
+    onIncrement: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(SecondaryShadowBlackTeal)
+            .border(1.dp, DividerDarkCyanGray.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 4.dp, vertical = 2.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(PrimaryDarkTeal.copy(alpha = 0.5f))
+                    .clickable { onDecrement() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("-", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("$value", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(PrimaryDarkTeal.copy(alpha = 0.5f))
+                    .clickable { onIncrement() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("+", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         }
     }

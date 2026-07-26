@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.WorkOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +23,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.testTag
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -137,21 +142,29 @@ fun BottomNavigationBar(
         )
 
         // 1. Dashboard
+        val isDashSelected = currentTab == AppTab.DASHBOARD
+        val dashScale by animateFloatAsState(
+            targetValue = if (isDashSelected) 1.15f else 1.0f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+            label = "dash_scale"
+        )
         NavigationBarItem(
-            selected = currentTab == AppTab.DASHBOARD,
+            selected = isDashSelected,
             onClick = { handleTabSelect(AppTab.DASHBOARD) },
             icon = {
                 Icon(
                     imageVector = Icons.Outlined.Dashboard,
                     contentDescription = "Dashboard",
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier
+                        .size(24.dp)
+                        .graphicsLayer { scaleX = dashScale; scaleY = dashScale }
                 )
             },
             label = {
                 Text(
                     text = "Dashboard",
                     fontSize = 10.sp,
-                    fontWeight = if (currentTab == AppTab.DASHBOARD) FontWeight.Bold else FontWeight.Normal
+                    fontWeight = if (isDashSelected) FontWeight.Bold else FontWeight.Normal
                 )
             },
             colors = itemColors,
@@ -160,21 +173,29 @@ fun BottomNavigationBar(
 
         // 2. Project
         if (canAccessProjects) {
+            val isProjSelected = currentTab == AppTab.PROJECT
+            val projScale by animateFloatAsState(
+                targetValue = if (isProjSelected) 1.15f else 1.0f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+                label = "proj_scale"
+            )
             NavigationBarItem(
-                selected = currentTab == AppTab.PROJECT,
+                selected = isProjSelected,
                 onClick = { handleTabSelect(AppTab.PROJECT) },
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.WorkOutline,
                         contentDescription = "Project",
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer { scaleX = projScale; scaleY = projScale }
                     )
                 },
                 label = {
                     Text(
                         text = "Project",
                         fontSize = 10.sp,
-                        fontWeight = if (currentTab == AppTab.PROJECT) FontWeight.Bold else FontWeight.Normal
+                        fontWeight = if (isProjSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 },
                 colors = itemColors,
@@ -183,21 +204,29 @@ fun BottomNavigationBar(
         }
 
         // 3. Stock / Catalog
+        val isStockSelected = currentTab == AppTab.STOCK
+        val stockScale by animateFloatAsState(
+            targetValue = if (isStockSelected) 1.15f else 1.0f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+            label = "stock_scale"
+        )
         NavigationBarItem(
-            selected = currentTab == AppTab.STOCK,
+            selected = isStockSelected,
             onClick = { handleTabSelect(AppTab.STOCK) },
             icon = {
                 Icon(
                     imageVector = Icons.Outlined.Inventory2,
                     contentDescription = "Stock",
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier
+                        .size(24.dp)
+                        .graphicsLayer { scaleX = stockScale; scaleY = stockScale }
                 )
             },
             label = {
                 Text(
                     text = if (canManageInventory) "Stock" else "Catalog",
                     fontSize = 10.sp,
-                    fontWeight = if (currentTab == AppTab.STOCK) FontWeight.Bold else FontWeight.Normal
+                    fontWeight = if (isStockSelected) FontWeight.Bold else FontWeight.Normal
                 )
             },
             colors = itemColors,
@@ -206,21 +235,29 @@ fun BottomNavigationBar(
 
         // 4. Invoice
         if (canAccessInvoices) {
+            val isInvSelected = currentTab == AppTab.INVOICE
+            val invScale by animateFloatAsState(
+                targetValue = if (isInvSelected) 1.15f else 1.0f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+                label = "inv_scale"
+            )
             NavigationBarItem(
-                selected = currentTab == AppTab.INVOICE,
+                selected = isInvSelected,
                 onClick = { handleTabSelect(AppTab.INVOICE) },
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.ReceiptLong,
                         contentDescription = "Invoice",
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer { scaleX = invScale; scaleY = invScale }
                     )
                 },
                 label = {
                     Text(
                         text = "Invoice",
                         fontSize = 10.sp,
-                        fontWeight = if (currentTab == AppTab.INVOICE) FontWeight.Bold else FontWeight.Normal
+                        fontWeight = if (isInvSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 },
                 colors = itemColors,
@@ -230,21 +267,29 @@ fun BottomNavigationBar(
 
         // 5. Riwayat (Khusus Owner / Admin)
         if (canManageInventory) {
+            val isRiwSelected = currentTab == AppTab.RIWAYAT
+            val riwScale by animateFloatAsState(
+                targetValue = if (isRiwSelected) 1.15f else 1.0f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+                label = "riw_scale"
+            )
             NavigationBarItem(
-                selected = currentTab == AppTab.RIWAYAT,
+                selected = isRiwSelected,
                 onClick = { handleTabSelect(AppTab.RIWAYAT) },
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.History,
                         contentDescription = "Riwayat",
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer { scaleX = riwScale; scaleY = riwScale }
                     )
                 },
                 label = {
                     Text(
                         text = "Riwayat",
                         fontSize = 10.sp,
-                        fontWeight = if (currentTab == AppTab.RIWAYAT) FontWeight.Bold else FontWeight.Normal
+                        fontWeight = if (isRiwSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 },
                 colors = itemColors,

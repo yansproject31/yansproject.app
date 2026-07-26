@@ -28,14 +28,19 @@ import com.yansproject.app.ui.navigation.Routes
 import com.yansproject.app.ui.invoice.DualInvoiceEditorScreen as ActionHubAndPdfModule
 import com.yansproject.app.ui.inventory.MatrixScreen as OmniverseMatrixModule
 
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yansproject.app.data.FirebaseSyncManager
+
+private val LuxuryMotionEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
 @Composable
 fun YansNavHost(
@@ -57,10 +62,26 @@ fun YansNavHost(
         navController = navController,
         startDestination = initialRoute,
         modifier = modifier,
-        enterTransition = { fadeIn(animationSpec = tween(200)) + slideInHorizontally(animationSpec = tween(200)) { it / 10 } },
-        exitTransition = { fadeOut(animationSpec = tween(200)) + slideOutHorizontally(animationSpec = tween(200)) { -it / 10 } },
-        popEnterTransition = { fadeIn(animationSpec = tween(200)) + slideInHorizontally(animationSpec = tween(200)) { -it / 10 } },
-        popExitTransition = { fadeOut(animationSpec = tween(200)) + slideOutHorizontally(animationSpec = tween(200)) { it / 10 } }
+        enterTransition = {
+            fadeIn(animationSpec = tween(320, easing = LuxuryMotionEasing)) +
+            scaleIn(initialScale = 0.96f, animationSpec = tween(320, easing = LuxuryMotionEasing)) +
+            slideInHorizontally(animationSpec = tween(320, easing = LuxuryMotionEasing)) { it / 12 }
+        },
+        exitTransition = {
+            fadeOut(animationSpec = tween(240, easing = LuxuryMotionEasing)) +
+            scaleOut(targetScale = 0.96f, animationSpec = tween(240, easing = LuxuryMotionEasing)) +
+            slideOutHorizontally(animationSpec = tween(240, easing = LuxuryMotionEasing)) { -it / 12 }
+        },
+        popEnterTransition = {
+            fadeIn(animationSpec = tween(320, easing = LuxuryMotionEasing)) +
+            scaleIn(initialScale = 0.96f, animationSpec = tween(320, easing = LuxuryMotionEasing)) +
+            slideInHorizontally(animationSpec = tween(320, easing = LuxuryMotionEasing)) { -it / 12 }
+        },
+        popExitTransition = {
+            fadeOut(animationSpec = tween(240, easing = LuxuryMotionEasing)) +
+            scaleOut(targetScale = 0.96f, animationSpec = tween(240, easing = LuxuryMotionEasing)) +
+            slideOutHorizontally(animationSpec = tween(240, easing = LuxuryMotionEasing)) { it / 12 }
+        }
     ) {
         composable(Routes.Startup) {
             StartupScreen(onFinished = {

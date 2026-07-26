@@ -64,6 +64,18 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.CubicBezierEasing
+
+private val LuxuryMotionEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+
 // Data class representasi aktivitas log di Dashboard
 data class DashboardActivity(
     val title: String,
@@ -960,6 +972,8 @@ fun DashboardScreen(
         return
     }
 
+
+
     // Koleksi aliran data secara reaktif dari ViewModel
     val invoices by viewModel.allInvoices.collectAsState()
     val projects by viewModel.allProjects.collectAsState()
@@ -1081,20 +1095,27 @@ fun DashboardScreen(
         }
     }
 
-    // 3. Total Penjualan Terfilter (Omset Operasional Bruto: Paid Invoices + Standalone Orders + Inflows Penjualan)
+    // 3. Total Penjualan Terfilter (Omset Operasional Bruto: Paid Invoices + Standalone Orders + Non-Invoice Sales Inflows)
     val totalPenjualan = remember(filteredInvoices, filteredInflows, filteredStandaloneOrders) {
         val invoicePaid = filteredInvoices.sumOf { getEffectiveInvoicePaid(it) }
         val orderPaid = filteredStandaloneOrders.sumOf { getEffectiveOrderPaid(it) }
-        val salesInflows = filteredInflows.filter { !it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
+        val salesInflows = filteredInflows.filter { 
+            !it.category.contains("Modal", ignoreCase = true) &&
+            !it.notes.contains("[PAY_REF:") &&
+            !it.notes.contains("Pembayaran Invoice")
+        }.sumOf { it.amount }
         invoicePaid + orderPaid + salesInflows
     }
 
-    // Total Pemasukan Terfilter (Seluruh Uang Masuk Kas: Paid Invoices + Standalone Orders + All Inflows)
+    // Total Pemasukan Terfilter (Seluruh Uang Masuk Kas: Paid Invoices + Standalone Orders + Direct Inflows)
     val totalPemasukan = remember(filteredInvoices, filteredInflows, filteredStandaloneOrders) {
         val invoicePaid = filteredInvoices.sumOf { getEffectiveInvoicePaid(it) }
         val orderPaid = filteredStandaloneOrders.sumOf { getEffectiveOrderPaid(it) }
-        val allInflows = filteredInflows.sumOf { it.amount }
-        invoicePaid + orderPaid + allInflows
+        val nonInvoiceInflows = filteredInflows.filter { 
+            !it.notes.contains("[PAY_REF:") &&
+            !it.notes.contains("Pembayaran Invoice")
+        }.sumOf { it.amount }
+        invoicePaid + orderPaid + nonInvoiceInflows
     }
 
     // 4. Total Pengeluaran Terfilter (Pengeluaran Operasional)
@@ -1110,6 +1131,7 @@ fun DashboardScreen(
         invoices.filter {
             !it.isDeleted &&
             !it.status.equals("Dibatalkan", ignoreCase = true) &&
+            !it.status.equals("BATAL", ignoreCase = true) &&
             !it.status.equals("Cancelled", ignoreCase = true)
         }.sumOf { getEffectiveInvoicePaid(it) }
     }
@@ -1118,7 +1140,13 @@ fun DashboardScreen(
             !ord.isDeleted && invoices.none { inv -> inv.orderId == ord.id }
         }.sumOf { getEffectiveOrderPaid(it) }
     }
-    val allTimeInflowsAmount = remember(inflows) { inflows.filter { !it.isDeleted }.sumOf { it.amount } }
+    val allTimeInflowsAmount = remember(inflows) { 
+        inflows.filter { 
+            !it.isDeleted && 
+            !it.notes.contains("[PAY_REF:") &&
+            !it.notes.contains("Pembayaran Invoice")
+        }.sumOf { it.amount } 
+    }
     val allTimeExpensesAmount = remember(expenses) { expenses.filter { !it.isDeleted }.sumOf { it.amount } }
 
     // Saldo Kas Aktif = Total Uang Masuk All-Time - Total Pengeluaran All-Time
@@ -1126,7 +1154,12 @@ fun DashboardScreen(
 
     // Modal Berjalan = Modal Awal + Laba Bersih Operasional Akumulatif
     val allTimeNonModalInflows = remember(inflows) {
-        inflows.filter { !it.isDeleted && !it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
+        inflows.filter { 
+            !it.isDeleted && 
+            !it.category.contains("Modal", ignoreCase = true) &&
+            !it.notes.contains("[PAY_REF:") &&
+            !it.notes.contains("Pembayaran Invoice")
+        }.sumOf { it.amount }
     }
     val allTimeNetProfit = (allTimeInvoicesPaid + allTimeStandaloneOrdersPaid + allTimeNonModalInflows) - allTimeExpensesAmount
     val modalBerjalan = modalAwal + allTimeNetProfit
@@ -1137,7 +1170,7 @@ fun DashboardScreen(
         if (summarySum > 0 || inventorySummaries.isNotEmpty()) {
             summarySum
         } else {
-            stockItems.sumOf { it.stockCount }
+            stockItems.filter { !it.isDeleted }.sumOf { it.stockCount }
         }
     }
     val nilaiTotalStock = remember(inventorySummaries, stockItems) {
@@ -1145,21 +1178,23 @@ fun DashboardScreen(
         if (summaryNilai > 0 || inventorySummaries.isNotEmpty()) {
             summaryNilai
         } else {
-            stockItems.sumOf { (it.stockCount * it.costPrice) }
+            stockItems.filter { !it.isDeleted }.sumOf { (it.stockCount * it.costPrice) }
         }
     }
 
     // 8. Piutang Dagang & Invoice Unpaid (Hanya invoice aktif yang belum lunas)
     val unpaidInvoices = remember(invoices) {
         invoices.filter {
+            !it.isDeleted &&
             !it.status.equals("Dibatalkan", ignoreCase = true) &&
+            !it.status.equals("BATAL", ignoreCase = true) &&
             !it.status.equals("Cancelled", ignoreCase = true) &&
-            it.remainingPayment > 0
+            maxOf(0.0, it.totalAmount - it.paidAmount) > 0
         }
     }
     val invoiceBelumLunasCount = unpaidInvoices.size
     val invoiceBelumLunasAmount = remember(unpaidInvoices) {
-        unpaidInvoices.sumOf { it.remainingPayment }
+        unpaidInvoices.sumOf { maxOf(0.0, it.totalAmount - it.paidAmount) }
     }
 
     // 9. Project Aktif (Jumlah proyek berjalan)
@@ -1810,11 +1845,9 @@ fun DashboardScreen(
                 onInvoiceClick = { selectedInvoiceForDetail = it }
             )
         }
-
-
     }
-    }
-    }
+}
+}
 
     if (selectedInvoiceForDetail != null) {
         DetailRiwayatBottomSheet(
