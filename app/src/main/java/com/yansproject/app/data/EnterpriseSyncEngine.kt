@@ -3,10 +3,13 @@ package com.yansproject.app.data
 import android.content.Context
 import android.util.Log
 import androidx.annotation.Keep
+import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,35 +28,68 @@ object EnterpriseSyncEngine {
     private val _syncStatus = MutableStateFlow<String>("Offline / Terhubung Lokal")
     val syncStatus: StateFlow<String> = _syncStatus.asStateFlow()
 
+    private val syncExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e(TAG, "Sync Scope Exception prevented crash: ${throwable.message}", throwable)
+        _syncStatus.value = "Modus Offline (Proteksi Aktif)"
+    }
+
     fun startRealtimeSyncListeners(context: Context) {
-        val metadataManager = SyncMetadataManager.getInstance(context)
+        val metadataManager = try {
+            SyncMetadataManager.getInstance(context)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get SyncMetadataManager: ${e.message}")
+            return
+        }
+
         if (metadataManager.getState() != BootstrapState.FINISHED) {
-            val db = AppDatabase.getDatabase(context)
-            CoroutineScope(Dispatchers.IO).launch {
+            val db = try {
+                AppDatabase.getDatabase(context)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to open AppDatabase: ${e.message}")
+                return
+            }
+
+            CoroutineScope(Dispatchers.IO + syncExceptionHandler).launch {
                 try {
-                    val isDbPopulated = db.catalogDao().getCatalogsList().isNotEmpty() ||
-                                        db.invoiceDao().getInvoicesList().isNotEmpty() ||
-                                        db.stockDao().getAllStockList().isNotEmpty()
+                    val isDbPopulated = try {
+                        db.catalogDao().getCatalogsList().isNotEmpty() ||
+                        db.invoiceDao().getInvoicesList().isNotEmpty() ||
+                        db.stockDao().getAllStockList().isNotEmpty()
+                    } catch (dbEx: Exception) {
+                        Log.w(TAG, "Database read check failed during bootstrap verification: ${dbEx.message}")
+                        false
+                    }
+
                     if (isDbPopulated) {
                         metadataManager.setState(BootstrapState.FINISHED)
                         startRealtimeSyncListeners(context)
                     } else {
-                        val firestore = try { FirebaseFirestore.getInstance() } catch (e: Throwable) { null }
+                        val firestore = try { 
+                            FirebaseFirestore.getInstance() 
+                        } catch (e: Throwable) { 
+                            null 
+                        }
                         if (firestore != null) {
                             _syncStatus.value = "Menjalankan bootstrap otomatis..."
-                            EnterpriseBootstrapEngine.executeFullBootstrap(
-                                context = context,
-                                db = db,
-                                firestore = firestore,
-                                metadataManager = metadataManager,
-                                onProgress = { text, _ -> _syncStatus.value = text }
-                            )
+                            try {
+                                EnterpriseBootstrapEngine.executeFullBootstrap(
+                                    context = context,
+                                    db = db,
+                                    firestore = firestore,
+                                    metadataManager = metadataManager,
+                                    onProgress = { text, _ -> _syncStatus.value = text }
+                                )
+                            } catch (bootEx: Exception) {
+                                Log.e(TAG, "Bootstrap execution failed safely: ${bootEx.message}")
+                                _syncStatus.value = "Modus Offline (Database Lokal Aktif)"
+                            }
                         } else {
                             _syncStatus.value = "Modus Offline (Database Lokal)"
                         }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error during automatic bootstrap check: ${e.message}")
+                    _syncStatus.value = "Modus Offline (Database Lokal)"
                 }
             }
             return
@@ -66,8 +102,15 @@ object EnterpriseSyncEngine {
             _syncStatus.value = "Modus Offline (Firebase tidak aktif)"
             return
         }
-        val db = AppDatabase.getDatabase(context)
-        val scope = CoroutineScope(Dispatchers.IO)
+
+        val db = try {
+            AppDatabase.getDatabase(context)
+        } catch (e: Exception) {
+            Log.e(TAG, "AppDatabase unavailable for sync listeners: ${e.message}")
+            return
+        }
+
+        val scope = CoroutineScope(Dispatchers.IO + syncExceptionHandler)
 
         stopRealtimeSyncListeners()
 
@@ -82,244 +125,258 @@ object EnterpriseSyncEngine {
             try {
                 val registration = firestore.collection(col)
                     .addSnapshotListener { snapshots, e ->
-                        if (e != null || snapshots == null) return@addSnapshotListener
+                        if (e != null || snapshots == null) {
+                            Log.w(TAG, "Snapshot error or null for collection $col: ${e?.message}")
+                            return@addSnapshotListener
+                        }
+                        if (snapshots.isEmpty) {
+                            Log.d(TAG, "Collection $col is empty on Firestore.")
+                            return@addSnapshotListener
+                        }
+
                         for (change in snapshots.documentChanges) {
                             val doc = change.document
-                            val isRemove = change.type == com.google.firebase.firestore.DocumentChange.Type.REMOVED
+                            val isRemove = change.type == DocumentChange.Type.REMOVED
                             scope.launch {
                                 try {
                                     when (col) {
                                         "stock_items" -> {
-                                            val item = doc.toObject(StockItem::class.java) ?: return@launch
+                                            val item = try { doc.toObject(StockItem::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
                                             val local = if (item.id > 0) {
-                                                db.stockDao().getStockById(item.id)
+                                                try { db.stockDao().getStockById(item.id) } catch (ex: Exception) { null }
                                             } else {
-                                                db.stockDao().getAllStockList().find { it.name.equals(item.name, ignoreCase = true) || (item.sku.isNotBlank() && it.sku == item.sku) }
+                                                try { db.stockDao().getAllStockList().find { it.name.equals(item.name, ignoreCase = true) || (item.sku.isNotBlank() && it.sku == item.sku) } } catch (ex: Exception) { null }
                                             }
                                             if (isSoftDeleted) {
-                                                if (local != null) db.stockDao().deleteStock(local)
+                                                if (local != null) try { db.stockDao().deleteStock(local) } catch (ex: Exception) {}
                                             } else if (!isRemove) {
                                                 if (local != null) {
                                                     val updated = item.copy(id = local.id)
-                                                    if (updated != local) db.stockDao().insertStock(updated)
+                                                    if (updated != local) try { db.stockDao().insertStock(updated) } catch (ex: Exception) {}
                                                 } else {
                                                     val toInsert = if (item.id > 0) item else item.copy(id = 0)
-                                                    db.stockDao().insertStock(toInsert)
+                                                    try { db.stockDao().insertStock(toInsert) } catch (ex: Exception) {}
                                                 }
                                             }
                                         }
                                         "projects" -> {
-                                            val item = doc.toObject(ProjectCustom::class.java) ?: return@launch
+                                            val item = try { doc.toObject(ProjectCustom::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
                                             val local = if (item.id > 0) {
-                                                db.projectDao().getProjectById(item.id)
+                                                try { db.projectDao().getProjectById(item.id) } catch (ex: Exception) { null }
                                             } else {
-                                                db.projectDao().getAllProjectsList().find { it.projectName.equals(item.projectName, ignoreCase = true) && it.clientName.equals(item.clientName, ignoreCase = true) }
+                                                try { db.projectDao().getAllProjectsList().find { it.projectName.equals(item.projectName, ignoreCase = true) && it.clientName.equals(item.clientName, ignoreCase = true) } } catch (ex: Exception) { null }
                                             }
                                             if (isSoftDeleted) {
-                                                if (local != null) db.projectDao().deleteProject(local)
+                                                if (local != null) try { db.projectDao().deleteProject(local) } catch (ex: Exception) {}
                                             } else if (!isRemove) {
                                                 if (local != null) {
                                                     val updated = item.copy(id = local.id)
-                                                    if (updated != local) db.projectDao().insertProject(updated)
+                                                    if (updated != local) try { db.projectDao().insertProject(updated) } catch (ex: Exception) {}
                                                 } else {
                                                     val toInsert = if (item.id > 0) item else item.copy(id = 0)
-                                                    db.projectDao().insertProject(toInsert)
+                                                    try { db.projectDao().insertProject(toInsert) } catch (ex: Exception) {}
                                                 }
                                             }
                                         }
                                         "invoices" -> {
-                                            val item = doc.toObject(Invoice::class.java) ?: return@launch
+                                            val item = try { doc.toObject(Invoice::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
                                             val local = if (item.invoiceNumber.isNotBlank()) {
-                                                db.invoiceDao().getInvoiceByNumber(item.invoiceNumber)
+                                                try { db.invoiceDao().getInvoiceByNumber(item.invoiceNumber) } catch (ex: Exception) { null }
                                             } else {
-                                                db.invoiceDao().getInvoiceById(item.id)
+                                                try { db.invoiceDao().getInvoiceById(item.id) } catch (ex: Exception) { null }
                                             }
                                             if (isSoftDeleted) {
-                                                if (local != null) db.invoiceDao().deleteInvoice(local)
+                                                if (local != null) try { db.invoiceDao().deleteInvoice(local) } catch (ex: Exception) {}
                                                 if (item.invoiceNumber.isNotBlank()) {
-                                                    db.invoiceDao().deleteInvoiceByNumber(item.invoiceNumber)
+                                                    try { db.invoiceDao().deleteInvoiceByNumber(item.invoiceNumber) } catch (ex: Exception) {}
                                                 }
                                             } else if (!isRemove) {
                                                 if (local != null) {
                                                     val updated = item.copy(id = local.id)
-                                                    if (updated != local) db.invoiceDao().insertInvoice(updated)
+                                                    if (updated != local) try { db.invoiceDao().insertInvoice(updated) } catch (ex: Exception) {}
                                                 } else {
                                                     val toInsert = if (item.id > 0) item else item.copy(id = 0)
-                                                    db.invoiceDao().insertInvoice(toInsert)
+                                                    try { db.invoiceDao().insertInvoice(toInsert) } catch (ex: Exception) {}
                                                 }
                                             }
                                         }
                                         "orders" -> {
-                                            val item = doc.toObject(OrderHistory::class.java) ?: return@launch
+                                            val item = try { doc.toObject(OrderHistory::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
-                                            val local = if (item.id > 0) db.orderDao().getOrderById(item.id) else null
+                                            val local = if (item.id > 0) try { db.orderDao().getOrderById(item.id) } catch (ex: Exception) { null } else null
                                             if (isSoftDeleted) {
-                                                if (local != null) db.orderDao().deleteOrder(local)
+                                                if (local != null) try { db.orderDao().deleteOrder(local) } catch (ex: Exception) {}
                                             } else if (!isRemove) {
                                                 if (local != null) {
                                                     val updated = item.copy(id = local.id)
-                                                    if (updated != local) db.orderDao().insertOrder(updated)
+                                                    if (updated != local) try { db.orderDao().insertOrder(updated) } catch (ex: Exception) {}
                                                 } else {
                                                     val toInsert = if (item.id > 0) item else item.copy(id = 0)
-                                                    db.orderDao().insertOrder(toInsert)
+                                                    try { db.orderDao().insertOrder(toInsert) } catch (ex: Exception) {}
                                                 }
                                             }
                                         }
                                         "expenses" -> {
-                                            val item = doc.toObject(Expense::class.java) ?: return@launch
+                                            val item = try { doc.toObject(Expense::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
                                             val local = if (item.id > 0) {
-                                                db.expenseDao().getExpenseById(item.id)
+                                                try { db.expenseDao().getExpenseById(item.id) } catch (ex: Exception) { null }
                                             } else {
-                                                db.expenseDao().getAllExpensesList().find { item.transactionNumber.isNotBlank() && it.transactionNumber == item.transactionNumber }
+                                                try { db.expenseDao().getAllExpensesList().find { item.transactionNumber.isNotBlank() && it.transactionNumber == item.transactionNumber } } catch (ex: Exception) { null }
                                             }
                                             if (isSoftDeleted) {
-                                                if (local != null) db.expenseDao().deleteExpense(local)
+                                                if (local != null) try { db.expenseDao().deleteExpense(local) } catch (ex: Exception) {}
                                             } else if (!isRemove) {
                                                 if (local != null) {
                                                     val updated = item.copy(id = local.id)
-                                                    if (updated != local) db.expenseDao().insertExpense(updated)
+                                                    if (updated != local) try { db.expenseDao().insertExpense(updated) } catch (ex: Exception) {}
                                                 } else {
                                                     val toInsert = if (item.id > 0) item else item.copy(id = 0)
-                                                    db.expenseDao().insertExpense(toInsert)
+                                                    try { db.expenseDao().insertExpense(toInsert) } catch (ex: Exception) {}
                                                 }
                                             }
                                         }
                                         "inflows" -> {
-                                            val item = doc.toObject(Inflow::class.java) ?: return@launch
+                                            val item = try { doc.toObject(Inflow::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
                                             val local = if (item.id > 0) {
-                                                db.inflowDao().getInflowById(item.id)
+                                                try { db.inflowDao().getInflowById(item.id) } catch (ex: Exception) { null }
                                             } else {
-                                                db.inflowDao().getAllInflowsList().find { item.transactionNumber.isNotBlank() && it.transactionNumber == item.transactionNumber }
+                                                try { db.inflowDao().getAllInflowsList().find { item.transactionNumber.isNotBlank() && it.transactionNumber == item.transactionNumber } } catch (ex: Exception) { null }
                                             }
                                             if (isSoftDeleted) {
-                                                if (local != null) db.inflowDao().deleteInflow(local)
+                                                if (local != null) try { db.inflowDao().deleteInflow(local) } catch (ex: Exception) {}
                                             } else if (!isRemove) {
                                                 if (local != null) {
                                                     val updated = item.copy(id = local.id)
-                                                    if (updated != local) db.inflowDao().insertInflow(updated)
+                                                    if (updated != local) try { db.inflowDao().insertInflow(updated) } catch (ex: Exception) {}
                                                 } else {
                                                     val toInsert = if (item.id > 0) item else item.copy(id = 0)
-                                                    db.inflowDao().insertInflow(toInsert)
+                                                    try { db.inflowDao().insertInflow(toInsert) } catch (ex: Exception) {}
                                                 }
                                             }
                                         }
                                         "master_catalog" -> {
-                                            val item = doc.toObject(MasterCatalog::class.java) ?: return@launch
+                                            val item = try { doc.toObject(MasterCatalog::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
                                             val local = if (item.id_catalog > 0) {
-                                                db.catalogDao().getCatalogById(item.id_catalog)
+                                                try { db.catalogDao().getCatalogById(item.id_catalog) } catch (ex: Exception) { null }
                                             } else {
-                                                db.catalogDao().getCatalogsList().find { it.nama_catalog.equals(item.nama_catalog, ignoreCase = true) }
+                                                try { db.catalogDao().getCatalogsList().find { it.nama_catalog.equals(item.nama_catalog, ignoreCase = true) } } catch (ex: Exception) { null }
                                             }
                                             if (isSoftDeleted) {
-                                                if (local != null) db.catalogDao().deleteCatalog(local)
+                                                if (local != null) try { db.catalogDao().deleteCatalog(local) } catch (ex: Exception) {}
                                             } else if (!isRemove) {
                                                 if (local != null) {
                                                     val updated = item.copy(id_catalog = local.id_catalog)
-                                                    if (updated != local) db.catalogDao().insertCatalog(updated)
+                                                    if (updated != local) try { db.catalogDao().insertCatalog(updated) } catch (ex: Exception) {}
                                                 } else {
                                                     val toInsert = if (item.id_catalog > 0) item else item.copy(id_catalog = 0)
-                                                    db.catalogDao().insertCatalog(toInsert)
+                                                    try { db.catalogDao().insertCatalog(toInsert) } catch (ex: Exception) {}
                                                 }
                                             }
                                         }
                                         "master_varian_warna" -> {
-                                            val item = doc.toObject(MasterVarianWarna::class.java) ?: return@launch
+                                            val item = try { doc.toObject(MasterVarianWarna::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
                                             val local = if (item.id_varian > 0) {
-                                                db.varianWarnaDao().getVarianById(item.id_varian)
+                                                try { db.varianWarnaDao().getVarianById(item.id_varian) } catch (ex: Exception) { null }
                                             } else {
-                                                db.varianWarnaDao().getAllVarianList().find { it.id_catalog == item.id_catalog && it.nama_warna.equals(item.nama_warna, ignoreCase = true) }
+                                                try { db.varianWarnaDao().getAllVarianList().find { it.id_catalog == item.id_catalog && it.nama_warna.equals(item.nama_warna, ignoreCase = true) } } catch (ex: Exception) { null }
                                             }
                                             if (isSoftDeleted) {
-                                                if (local != null) db.varianWarnaDao().deleteVarian(local)
+                                                if (local != null) try { db.varianWarnaDao().deleteVarian(local) } catch (ex: Exception) {}
                                             } else if (!isRemove) {
                                                 if (local != null) {
                                                     val updated = item.copy(id_varian = local.id_varian)
-                                                    if (updated != local) db.varianWarnaDao().insertVarian(updated)
+                                                    if (updated != local) try { db.varianWarnaDao().insertVarian(updated) } catch (ex: Exception) {}
                                                 } else {
                                                     val toInsert = if (item.id_varian > 0) item else item.copy(id_varian = 0)
-                                                    db.varianWarnaDao().insertVarian(toInsert)
+                                                    try { db.varianWarnaDao().insertVarian(toInsert) } catch (ex: Exception) {}
                                                 }
                                             }
                                         }
                                         "master_stock" -> {
-                                            val item = doc.toObject(MasterStock::class.java) ?: return@launch
+                                            val item = try { doc.toObject(MasterStock::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
                                             val local = if (item.id_stock > 0) {
-                                                db.masterStockDao().getStockById(item.id_stock)
+                                                try { db.masterStockDao().getStockById(item.id_stock) } catch (ex: Exception) { null }
                                             } else {
-                                                db.masterStockDao().getStockByVarian(item.id_varian)
+                                                try { db.masterStockDao().getStockByVarian(item.id_varian) } catch (ex: Exception) { null }
                                             }
                                             if (isSoftDeleted) {
-                                                if (local != null) db.masterStockDao().deleteStockMaster(local)
+                                                if (local != null) try { db.masterStockDao().deleteStockMaster(local) } catch (ex: Exception) {}
                                             } else if (!isRemove) {
                                                 if (local != null) {
                                                     val updated = item.copy(id_stock = local.id_stock)
-                                                    if (updated != local) db.masterStockDao().insertStockMaster(updated)
+                                                    if (updated != local) try { db.masterStockDao().insertStockMaster(updated) } catch (ex: Exception) {}
                                                 } else {
                                                     val toInsert = if (item.id_stock > 0) item else item.copy(id_stock = 0)
-                                                    db.masterStockDao().insertStockMaster(toInsert)
+                                                    try { db.masterStockDao().insertStockMaster(toInsert) } catch (ex: Exception) {}
                                                 }
                                             }
                                         }
                                         "stock_history" -> {
-                                            val item = doc.toObject(StockHistory::class.java) ?: return@launch
+                                            val item = try { doc.toObject(StockHistory::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             if (!isRemove) {
                                                 val toInsert = if (item.id > 0) item else item.copy(id = 0)
-                                                db.stockHistoryDao().insertHistory(toInsert)
+                                                try { db.stockHistoryDao().insertHistory(toInsert) } catch (ex: Exception) {}
                                             }
                                         }
                                         "audit_logs" -> {
-                                            val item = doc.toObject(AuditLog::class.java) ?: return@launch
+                                            val item = try { doc.toObject(AuditLog::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             if (!isRemove) {
                                                 val toInsert = if (item.id > 0) item else item.copy(id = 0)
-                                                db.auditLogDao().insertLog(toInsert)
+                                                try { db.auditLogDao().insertLog(toInsert) } catch (ex: Exception) {}
                                             }
                                         }
                                         "inventory_ledger" -> {
-                                            val item = doc.toObject(InventoryLedger::class.java) ?: return@launch
+                                            val item = try { doc.toObject(InventoryLedger::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             if (!isRemove) {
                                                 val toInsert = if (item.id > 0) item else item.copy(id = 0)
-                                                db.inventoryLedgerDao().insertLedger(toInsert)
+                                                try { db.inventoryLedgerDao().insertLedger(toInsert) } catch (ex: Exception) {}
                                             }
                                         }
                                         "production_batch" -> {
-                                            val item = doc.toObject(ProductionBatch::class.java) ?: return@launch
+                                            val item = try { doc.toObject(ProductionBatch::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             if (!isRemove) {
                                                 val toInsert = if (item.id > 0) item else item.copy(id = 0)
-                                                db.productionBatchDao().insertBatch(toInsert)
+                                                try { db.productionBatchDao().insertBatch(toInsert) } catch (ex: Exception) {}
                                             }
                                         }
                                         "inventory_summary" -> {
-                                            val item = doc.toObject(InventorySummary::class.java) ?: return@launch
-                                            if (!isRemove) db.inventorySummaryDao().insertSummary(item)
+                                            val item = try { doc.toObject(InventorySummary::class.java) } catch (ex: Exception) { null } ?: return@launch
+                                            if (!isRemove) {
+                                                try { db.inventorySummaryDao().insertSummary(item) } catch (ex: Exception) {}
+                                            }
                                         }
                                         "invoice_payments" -> {
-                                            val item = doc.toObject(InvoicePayment::class.java) ?: return@launch
+                                            val item = try { doc.toObject(InvoicePayment::class.java) } catch (ex: Exception) { null } ?: return@launch
                                             if (!isRemove && item.id.isNotBlank()) {
-                                                db.invoicePaymentDao().insertPayment(item)
+                                                try { db.invoicePaymentDao().insertPayment(item) } catch (ex: Exception) {}
                                             }
                                         }
                                     }
-                                } catch (ex: Exception) { Log.e(TAG, "Sync error col $col: ${ex.message}") }
+                                } catch (ex: Exception) { 
+                                    Log.e(TAG, "Sync error col $col: ${ex.message}") 
+                                }
                             }
                         }
                         val formattedTime = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date())
                         _syncStatus.value = "Tersinkronisasi Realtime: $formattedTime"
                     }
                 registration?.let { listenerRegistrations.add(it) }
-            } catch (ex: Exception) { Log.e(TAG, "Listener col $col setup fail: ${ex.message}") }
+            } catch (ex: Exception) { 
+                Log.e(TAG, "Listener col $col setup fail: ${ex.message}") 
+            }
         }
     }
 
     fun stopRealtimeSyncListeners() {
-        listenerRegistrations.forEach { it.remove() }
+        listenerRegistrations.forEach { try { it.remove() } catch (e: Exception) {} }
         listenerRegistrations.clear()
         _syncStatus.value = "Sync listeners dinonaktifkan."
     }
@@ -337,41 +394,54 @@ object EnterpriseSyncEngine {
 
     fun deleteItemFromCloud(context: Context, colPath: String, id: String) {
         try {
-            val updates = hashMapOf<String, Any>("isDeleted" to true, "is_deleted" to true, "updatedAt" to System.currentTimeMillis(), "updated_at" to System.currentTimeMillis(), "lastUpdated" to System.currentTimeMillis())
+            val updates = hashMapOf<String, Any>(
+                "isDeleted" to true, 
+                "is_deleted" to true, 
+                "updatedAt" to System.currentTimeMillis(), 
+                "updated_at" to System.currentTimeMillis(), 
+                "lastUpdated" to System.currentTimeMillis()
+            )
             FirebaseFirestore.getInstance().collection(colPath).document(id).update(updates)
                 .addOnSuccessListener { Log.d(TAG, "Delete SUCCESS: $colPath ID $id") }
                 .addOnFailureListener {
                     try {
-                        FirebaseFirestore.getInstance().collection(colPath).document(id).set(updates, com.google.firebase.firestore.SetOptions.merge())
-                            .addOnFailureListener { CoroutineScope(Dispatchers.IO).launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) } }
+                        FirebaseFirestore.getInstance().collection(colPath).document(id).set(updates, SetOptions.merge())
+                            .addOnFailureListener { CoroutineScope(Dispatchers.IO + syncExceptionHandler).launch { try { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) } catch (ex: Exception) {} } }
                     } catch (e: Throwable) {
-                        CoroutineScope(Dispatchers.IO).launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) }
+                        CoroutineScope(Dispatchers.IO + syncExceptionHandler).launch { try { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) } catch (ex: Exception) {} }
                     }
                 }
         } catch (e: Throwable) {
             Log.e(TAG, "deleteItemFromCloud error: ${e.message}")
-            CoroutineScope(Dispatchers.IO).launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) }
+            CoroutineScope(Dispatchers.IO + syncExceptionHandler).launch { try { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) } catch (ex: Exception) {} }
         }
     }
 
     private fun <T : Any> enqueueOfflineAction(context: Context, colPath: String, id: String, item: T) {
-        CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO + syncExceptionHandler).launch {
             try {
-                val db = YansRoomDatabase.getDatabase(context)
+                val db = try { YansRoomDatabase.getDatabase(context) } catch (e: Exception) { return@launch }
                 val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
                 val payload = moshi.adapter(item.javaClass).toJson(item)
                 if (db.offlineActionDao().getAllActions().any { it.targetCollection == colPath && it.additionalMeta == id }) return@launch
                 db.offlineActionDao().insertAction(OfflineActionEntity(stringPayload = payload, targetCollection = colPath, timestamp = System.currentTimeMillis(), retryCount = 0, additionalMeta = id))
-            } catch (e: Exception) { Log.e(TAG, "Error queuing action: ${e.message}") }
+            } catch (e: Exception) { 
+                Log.e(TAG, "Error queuing action: ${e.message}") 
+            }
         }
     }
 
     fun triggerOfflineQueueSync(context: Context) {
-        if (SyncMetadataManager.getInstance(context).getState() != BootstrapState.FINISHED) return
-        CoroutineScope(Dispatchers.IO).launch {
+        val metadataManager = try { SyncMetadataManager.getInstance(context) } catch (e: Exception) { return }
+        if (metadataManager.getState() != BootstrapState.FINISHED) return
+        CoroutineScope(Dispatchers.IO + syncExceptionHandler).launch {
             try {
-                DataConflictResolver(context).resolveAndSyncQueue(AppDatabase.getDatabase(context), YansRoomDatabase.getDatabase(context).offlineActionDao())
-            } catch (e: Exception) { Log.e(TAG, "Queue sync fail: ${e.message}") }
+                val appDb = AppDatabase.getDatabase(context)
+                val yansDb = YansRoomDatabase.getDatabase(context)
+                DataConflictResolver(context).resolveAndSyncQueue(appDb, yansDb.offlineActionDao())
+            } catch (e: Exception) { 
+                Log.e(TAG, "Queue sync fail: ${e.message}") 
+            }
         }
     }
 }
