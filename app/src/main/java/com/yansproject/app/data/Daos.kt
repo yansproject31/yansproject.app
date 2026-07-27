@@ -122,6 +122,9 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE isDeleted = 0 ORDER BY date DESC")
     fun getAllExpenses(): Flow<List<Expense>>
 
+    @Query("SELECT * FROM expenses")
+    suspend fun getAllExpensesList(): List<Expense>
+
     @Query("SELECT * FROM expenses WHERE isDeleted = 1 ORDER BY date DESC")
     fun getTrashedExpenses(): Flow<List<Expense>>
 

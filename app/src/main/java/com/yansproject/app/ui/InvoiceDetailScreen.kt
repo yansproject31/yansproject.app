@@ -152,7 +152,7 @@ fun InvoiceDetailScreen(
 
     // Dynamic state trackers for reactive updates
     var currentPaidAmount by remember(invoice.paidAmount) { mutableStateOf(invoice.paidAmount) }
-    val remainingBalance = invoice.totalAmount - currentPaidAmount - invoice.discount
+    val remainingBalance = (invoice.totalAmount - currentPaidAmount).coerceAtLeast(0.0)
 
     // Staged Payment Calculations (Tenor Splits)
     val tenor1Amount = if (invoice.dpAmount > 0) invoice.dpAmount else (invoice.totalAmount * 0.3)
@@ -161,7 +161,7 @@ fun InvoiceDetailScreen(
 
     val isTenor1Paid = currentPaidAmount >= tenor1Amount
     val isTenor2Paid = currentPaidAmount >= (tenor1Amount + tenor2Amount)
-    val isTenor3Paid = currentPaidAmount >= (invoice.totalAmount - invoice.discount)
+    val isTenor3Paid = currentPaidAmount >= invoice.totalAmount
 
     // Bluetooth Printer & Preview dialog states
     var showPrinterDialog by remember { mutableStateOf(false) }

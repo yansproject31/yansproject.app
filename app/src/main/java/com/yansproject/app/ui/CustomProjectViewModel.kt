@@ -122,7 +122,7 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
                     clientAddress = project.deliveryAddress,
                     clientNotes = project.specialNotes
                 )
-                repository.createProject(entity, "PRJ")
+                repository.createProject(entity, "PRJ", discountNominal = project.discountNominal)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

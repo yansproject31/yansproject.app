@@ -14,9 +14,45 @@ class MemberRepository(private val context: Context) {
         FirebaseFirestore.getInstance()
     }
 
+    private fun getLocalMembers(): List<MemberModel> {
+        val membersList = mutableListOf<MemberModel>()
+        val memberNames = com.yansproject.app.ui.AppSettings.getMembers(context)
+        val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+        for (name in memberNames) {
+            if (name.isBlank() || name.equals("Owner", ignoreCase = true) || name.contains("Admin", ignoreCase = true)) continue
+            val email = prefs.getString("email_for_$name", "$name@yansproject.id") ?: "$name@yansproject.id"
+            val normalizedEmail = email.lowercase().trim()
+            val wa = prefs.getString("wa_$normalizedEmail", "") ?: ""
+            val address = prefs.getString("address_$normalizedEmail", "") ?: ""
+            val priceCategory = com.yansproject.app.ui.AppSettings.getMemberPriceCategory(context, name)
+            val createdAt = prefs.getLong("created_at_$normalizedEmail", System.currentTimeMillis())
+            val statusVerifikasi = prefs.getString("status_verifikasi_$normalizedEmail", "Terverifikasi") ?: "Terverifikasi"
+            val passwordOrPin = prefs.getString("pass_$normalizedEmail", "1234") ?: "1234"
+
+            if (membersList.none { it.displayName.equals(name.trim(), ignoreCase = true) }) {
+                membersList.add(
+                    MemberModel(
+                        email = email,
+                        displayName = name,
+                        role = "MEMBER",
+                        priceCategory = priceCategory,
+                        passwordOrPin = passwordOrPin,
+                        whatsapp = wa,
+                        address = address,
+                        createdAt = createdAt,
+                        lastLogin = System.currentTimeMillis(),
+                        statusAkun = "Aktif",
+                        statusVerifikasi = statusVerifikasi
+                    )
+                )
+            }
+        }
+        return membersList
+    }
+
     fun observeMembersRealtime(): Flow<List<MemberModel>> = callbackFlow {
         if (!FirebaseSyncManager.isFirebaseActive) {
-            trySend(emptyList())
+            trySend(getLocalMembers())
             close()
             return@callbackFlow
         }
@@ -26,7 +62,7 @@ class MemberRepository(private val context: Context) {
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e("MemberRepository", "Error observing members: ${error.message}")
-                    close(error)
+                    trySend(getLocalMembers())
                     return@addSnapshotListener
                 }
 
@@ -48,8 +84,6 @@ class MemberRepository(private val context: Context) {
                         val statusAkun = doc.getString("statusAkun") ?: doc.getString("status") ?: "Aktif"
                         val statusVerifikasi = doc.getString("statusVerifikasi") ?: doc.getString("status_verifikasi") ?: "Terverifikasi"
 
-                        // System Role separation: Dashboard / Member Management only handles actual registered "MEMBER" role
-                        // Filter out OWNER accounts completely so Owner is never listed as a Member
                         val isOwner = role.equals("OWNER", ignoreCase = true) ||
                                 role.equals("ADMIN", ignoreCase = true) ||
                                 displayName.contains("Owner", ignoreCase = true) ||
@@ -58,10 +92,8 @@ class MemberRepository(private val context: Context) {
                                 email.equals("yansart31@gmail.com", ignoreCase = true)
 
                         if (!isOwner && displayName.isNotBlank() && (role.equals("MEMBER", ignoreCase = true) || role.isBlank())) {
-                            val normalizedName = displayName.trim().lowercase()
                             val normalizedEmail = email.lowercase().trim()
                             
-                            // Synchronize with local offline cache
                             com.yansproject.app.ui.AppSettings.addMember(context, displayName)
                             com.yansproject.app.ui.AppSettings.saveLocalUserCredential(
                                 context, email, passwordOrPin, displayName, "MEMBER", priceCategory
@@ -74,6 +106,7 @@ class MemberRepository(private val context: Context) {
                                 .putLong("last_login_$normalizedEmail", lastLogin)
                                 .putString("status_akun_$normalizedEmail", statusAkun)
                                 .putString("status_verifikasi_$normalizedEmail", statusVerifikasi)
+                                .putString("email_for_${displayName.trim()}", email)
 
                             val finalModel = MemberModel(
                                 email = email,
@@ -88,14 +121,17 @@ class MemberRepository(private val context: Context) {
                                 statusAkun = "Aktif",
                                 statusVerifikasi = statusVerifikasi
                             )
-                            // Deduplicate by display name
                             if (membersList.none { it.displayName.equals(displayName.trim(), ignoreCase = true) }) {
                                 membersList.add(finalModel)
                             }
                         }
                     }
                     edit.apply()
-                    trySend(membersList)
+                    if (membersList.isNotEmpty()) {
+                        trySend(membersList)
+                    } else {
+                        trySend(getLocalMembers())
+                    }
                 }
             }
 

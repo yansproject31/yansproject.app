@@ -235,15 +235,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         allProjects,
         allStock,
         allOrders,
-        allInflows
-    ) { invoices, projects, stock, orders, inflows ->
-        val invRevenue = invoices.filter { !it.isDeleted }.sumOf { inv ->
-            val paid = inv.paidAmount
-            if (paid > 0.0) paid
-            else {
-                val st = (inv.status ?: "").trim().uppercase()
-                if (st == "LUNAS" || st == "PAID" || st == "SELESAI" || st == "LUNAS (PAID)") inv.totalAmount
-                else inv.dpAmount
+        allInflows,
+        allInvoicePayments
+    ) { flowArray ->
+        @Suppress("UNCHECKED_CAST")
+        val invoices = flowArray[0] as List<Invoice>
+        @Suppress("UNCHECKED_CAST")
+        val projects = flowArray[1] as List<ProjectCustom>
+        @Suppress("UNCHECKED_CAST")
+        val stock = flowArray[2] as List<StockItem>
+        @Suppress("UNCHECKED_CAST")
+        val orders = flowArray[3] as List<OrderHistory>
+        @Suppress("UNCHECKED_CAST")
+        val inflows = flowArray[4] as List<Inflow>
+        @Suppress("UNCHECKED_CAST")
+        val payments = flowArray[5] as List<InvoicePayment>
+        val invRevenue = invoices.filter { inv ->
+            if (inv.isDeleted) return@filter false
+            val st = (inv.status ?: "").trim().uppercase()
+            st !in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT")
+        }.sumOf { inv ->
+            val st = (inv.status ?: "").trim().uppercase()
+            if (st in listOf("LUNAS", "PAID", "SELESAI", "LUNAS (PAID)")) {
+                if (inv.totalAmount > 0.0) inv.totalAmount else 0.0
+            } else {
+                val paymentsForInv = payments.filter { p ->
+                    (p.invoiceId == inv.invoiceNumber && inv.invoiceNumber.isNotBlank()) || 
+                    p.invoiceId == inv.id.toString()
+                }
+                val paymentRecordsSum = paymentsForInv
+                    .distinctBy { p -> p.id.ifEmpty { "${p.date}_${p.amount}_${p.paymentMethod}" } }
+                    .sumOf { p -> p.amount }
+                val effectivePaid = if (inv.paidAmount > 0.0) inv.paidAmount else if (inv.dpAmount > 0.0) inv.dpAmount else 0.0
+                maxOf(effectivePaid, paymentRecordsSum)
             }
         }
         val standaloneOrdRevenue = orders.filter { ord -> !ord.isDeleted && invoices.none { inv -> inv.orderId == ord.id } }.sumOf { ord ->
@@ -258,23 +282,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val nonInvoiceInflows = inflows.filter { 
             !it.isDeleted && 
             !(it.category ?: "").contains("Modal", ignoreCase = true) &&
-            !(it.notes ?: "").contains("[PAY_REF:") &&
+            !(it.category ?: "").contains("Pembayaran Customer", ignoreCase = true) &&
+            !(it.notes ?: "").contains("[PAY_") &&
             !(it.notes ?: "").contains("Pembayaran Invoice")
         }.sumOf { it.amount }
         val allInflowsAmount = inflows.filter { 
             !it.isDeleted &&
-            !(it.notes ?: "").contains("[PAY_REF:") &&
+            !(it.category ?: "").contains("Pembayaran Customer", ignoreCase = true) &&
+            !(it.notes ?: "").contains("[PAY_") &&
             !(it.notes ?: "").contains("Pembayaran Invoice")
         }.sumOf { it.amount }
 
         val revenue = invRevenue + standaloneOrdRevenue + nonInvoiceInflows
         val totalPemasukanAll = invRevenue + standaloneOrdRevenue + allInflowsAmount
-        val receivables = invoices.filter { 
-            !it.isDeleted && 
-            !(it.status ?: "").equals("Dibatalkan", ignoreCase = true) && 
-            !(it.status ?: "").equals("BATAL", ignoreCase = true) && 
-            !(it.status ?: "").equals("Cancelled", ignoreCase = true) 
-        }.sumOf { maxOf(0.0, it.remainingPayment) }
+        val receivables = invoices.filter { inv ->
+            if (inv.isDeleted) return@filter false
+            val st = (inv.status ?: "").trim().uppercase()
+            st !in listOf("LUNAS", "PAID", "SELESAI", "LUNAS (PAID)", "CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT")
+        }.sumOf { inv ->
+            val paymentsForInv = payments.filter { p ->
+                (p.invoiceId == inv.invoiceNumber && inv.invoiceNumber.isNotBlank()) || 
+                p.invoiceId == inv.id.toString()
+            }
+            val paymentRecordsSum = paymentsForInv
+                .distinctBy { p -> p.id.ifEmpty { "${p.date}_${p.amount}_${p.paymentMethod}" } }
+                .sumOf { p -> p.amount }
+            val effectivePaid = if (inv.paidAmount > 0.0) inv.paidAmount else if (inv.dpAmount > 0.0) inv.dpAmount else 0.0
+            val actualPaid = maxOf(effectivePaid, paymentRecordsSum)
+            maxOf(0.0, inv.totalAmount - actualPaid)
+        }
         val projVal = projects.filter { !it.isDeleted }.sumOf { it.totalCost }
         val activeProj = projects.count { !it.isDeleted && ((it.status ?: "").equals("In Progress", ignoreCase = true) || (it.status ?: "").equals("Planning", ignoreCase = true) || (it.status ?: "").equals("Sedang Berjalan", ignoreCase = true) || (it.status ?: "").equals("Proses", ignoreCase = true)) }
         val lowStock = stock.count { !it.isDeleted && it.stockCount <= 5 }

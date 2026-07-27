@@ -189,7 +189,7 @@ class BusinessRepository(private val db: AppDatabase) {
     }
 
     // --- PROJECT OPERATIONS (Auto Invoice) ---
-    suspend fun createProject(project: ProjectCustom, invoicePrefix: String) {
+    suspend fun createProject(project: ProjectCustom, invoicePrefix: String, discountNominal: Double = 0.0) {
         db.withTransaction {
             val invoiceNum = generateInvoiceNumber(invoicePrefix, project.startDate)
             
@@ -244,7 +244,7 @@ class BusinessRepository(private val db: AppDatabase) {
                 projectId = projectId,
                 orderId = null,
                 itemsJson = converters.fromInvoiceItemList(invoiceItems),
-                discount = 0.0,
+                discount = discountNominal,
                 dpAmount = project.paidAmount
             )
             val invoiceId = invoiceDao.insertInvoice(invoice).toInt()
@@ -269,13 +269,15 @@ class BusinessRepository(private val db: AppDatabase) {
                 FirebaseSyncManager.syncItemToCloud("invoice_payments", paymentId, localPayment)
 
                 val transactionNumber = "TX-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
-                val payRefTag = "[PAY_REF:$paymentId]"
+                val dateCode = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault()).format(java.util.Date(paymentDate))
+                val clientPart = if (project.clientName.isNotBlank()) " (${project.clientName})" else ""
+                val formattedNote = "$invoiceNum$clientPart - [PAY_1:$dateCode]"
                 val inflowEntity = Inflow(
                     transactionNumber = transactionNumber,
-                    category = "Pembayaran Customer",
+                    category = "Penjualan",
                     amount = project.paidAmount,
                     date = paymentDate,
-                    notes = "Pembayaran Invoice $invoiceNum (${project.clientName}) - $payRefTag. DP Awal Project Custom: ${project.projectName}",
+                    notes = formattedNote,
                     paymentMethod = "Transfer (DP Awal)",
                     createdBy = project.pic.ifEmpty { "Owner" }
                 )
@@ -287,9 +289,6 @@ class BusinessRepository(private val db: AppDatabase) {
             FirebaseSyncManager.syncItemToCloud("projects", projectId.toString(), finalProject)
             val invoiceCloudKey = finalInvoice.invoiceNumber.ifEmpty { invoiceId.toString() }
             FirebaseSyncManager.syncItemToCloud("invoices", invoiceCloudKey, finalInvoice)
-            if (invoiceId != 0 && invoiceId.toString() != invoiceCloudKey) {
-                FirebaseSyncManager.deleteItemFromCloud("invoices", invoiceId.toString())
-            }
         }
     }
 
@@ -327,9 +326,6 @@ class BusinessRepository(private val db: AppDatabase) {
                 invoiceDao.updateInvoice(updatedInvoice)
                 val invCloudKey = updatedInvoice.invoiceNumber.ifEmpty { updatedInvoice.id.toString() }
                 FirebaseSyncManager.syncItemToCloud("invoices", invCloudKey, updatedInvoice)
-                if (updatedInvoice.id != 0 && updatedInvoice.id.toString() != invCloudKey) {
-                    FirebaseSyncManager.deleteItemFromCloud("invoices", updatedInvoice.id.toString())
-                }
             }
         }
     }
@@ -477,12 +473,15 @@ class BusinessRepository(private val db: AppDatabase) {
                 FirebaseSyncManager.syncItemToCloud("invoices/$invCloudKey/payments", payId, initPayment)
 
                 val transactionNumber = "TX-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
+                val dateCode = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault()).format(java.util.Date(order.orderDate))
+                val clientPart = if (order.clientName.isNotBlank()) " (${order.clientName})" else ""
+                val formattedNote = "$invoiceNum$clientPart - [PAY_1:$dateCode]"
                 val inflowEntity = Inflow(
                     transactionNumber = transactionNumber,
-                    category = "Pembayaran Customer",
+                    category = "Penjualan",
                     amount = order.paidAmount,
                     date = order.orderDate,
-                    notes = "Pembayaran Awal Invoice $invoiceNum (${order.clientName}) - [PAY_REF:$payId]",
+                    notes = formattedNote,
                     paymentMethod = "CASH",
                     createdBy = "Owner"
                 )
@@ -513,9 +512,6 @@ class BusinessRepository(private val db: AppDatabase) {
                 invoiceDao.updateInvoice(updatedInvoice)
                 val invCloudKey = updatedInvoice.invoiceNumber.ifEmpty { updatedInvoice.id.toString() }
                 FirebaseSyncManager.syncItemToCloud("invoices", invCloudKey, updatedInvoice)
-                if (updatedInvoice.id != 0 && updatedInvoice.id.toString() != invCloudKey) {
-                    FirebaseSyncManager.deleteItemFromCloud("invoices", updatedInvoice.id.toString())
-                }
             }
         }
     }
@@ -781,13 +777,18 @@ class BusinessRepository(private val db: AppDatabase) {
                 val transactionNumber = "TX-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
                 val inflowDate = customDate ?: System.currentTimeMillis()
                 val fullMethod = if (methodDetail.isNotBlank()) "$method ($methodDetail)" else method
-                val payRefTag = "[PAY_REF:$paymentId]"
+                val payIndex = maxOf(1, uniquePayments.size)
+                val dateCode = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault()).format(java.util.Date(inflowDate))
+                val clientPart = if (updatedInvoice.clientName.isNotBlank()) " (${updatedInvoice.clientName})" else ""
+                val cleanUserNotes = if (notes.isNotBlank() && !notes.startsWith("Pembayaran", ignoreCase = true) && !notes.startsWith("DP Awal", ignoreCase = true) && !notes.startsWith("Uang Muka", ignoreCase = true) && !notes.contains("tagihan", ignoreCase = true)) ". $notes" else ""
+                val formattedNote = "${updatedInvoice.invoiceNumber}$clientPart - [PAY_${payIndex}:${dateCode}]$cleanUserNotes".trim()
+
                 val inflowEntity = Inflow(
                     transactionNumber = transactionNumber,
-                    category = "Pembayaran Customer",
+                    category = "Penjualan",
                     amount = amount,
                     date = inflowDate,
-                    notes = "Pembayaran Invoice ${updatedInvoice.invoiceNumber} (${updatedInvoice.clientName}) - $payRefTag. $notes".trim(),
+                    notes = formattedNote,
                     paymentMethod = fullMethod,
                     createdBy = adminName
                 )
@@ -954,20 +955,30 @@ class BusinessRepository(private val db: AppDatabase) {
 
                 // Sync/Update matching Inflow record
                 val fullMethod = if (methodDetail.isNotBlank()) "$method ($methodDetail)" else method
-                val payRefTag = "[PAY_REF:$paymentId]"
+                val sortedPayments = uniquePayments.sortedBy { it.timestamp }
+                val foundIdx = sortedPayments.indexOfFirst { it.id == paymentId }
+                val payIndex = if (foundIdx >= 0) foundIdx + 1 else maxOf(1, uniquePayments.size)
+
+                val inflowDate = customDate ?: currentPayment.date
+                val dateCode = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault()).format(java.util.Date(inflowDate))
+                val clientPart = if (updatedInvoice.clientName.isNotBlank()) " (${updatedInvoice.clientName})" else ""
+                val cleanUserNotes = if (notes.isNotBlank() && !notes.startsWith("Pembayaran", ignoreCase = true) && !notes.startsWith("DP Awal", ignoreCase = true) && !notes.startsWith("Uang Muka", ignoreCase = true) && !notes.contains("tagihan", ignoreCase = true)) ". $notes" else ""
+                val formattedNote = "${updatedInvoice.invoiceNumber}$clientPart - [PAY_${payIndex}:${dateCode}]$cleanUserNotes".trim()
+
                 val allInflows = inflowDao.getAllInflowsList()
                 val matchedInflow = allInflows.find { 
-                    it.notes.contains(payRefTag) || 
-                    (it.notes.contains(updatedInvoice.invoiceNumber) && it.amount == currentPayment.amount) 
+                    it.notes.contains("[PAY_REF:$paymentId]") || 
+                    it.notes.contains("[PAY_${payIndex}:") ||
+                    (it.notes.contains(updatedInvoice.invoiceNumber) && (it.notes.contains("[PAY_") || it.amount == currentPayment.amount)) 
                 }
 
                 if (matchedInflow != null) {
                     val updatedInflow = matchedInflow.copy(
-                        category = "Pembayaran Customer",
+                        category = "Penjualan",
                         amount = newAmount,
-                        date = customDate ?: currentPayment.date,
+                        date = inflowDate,
                         paymentMethod = fullMethod,
-                        notes = "Pembayaran Invoice ${updatedInvoice.invoiceNumber} (${updatedInvoice.clientName}) - $payRefTag. $notes".trim(),
+                        notes = formattedNote,
                         updatedAt = System.currentTimeMillis()
                     )
                     inflowDao.updateInflow(updatedInflow)
@@ -976,10 +987,10 @@ class BusinessRepository(private val db: AppDatabase) {
                     val transactionNumber = "TX-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
                     val newInflow = Inflow(
                         transactionNumber = transactionNumber,
-                        category = "Pembayaran Customer",
+                        category = "Penjualan",
                         amount = newAmount,
-                        date = customDate ?: currentPayment.date,
-                        notes = "Pembayaran Invoice ${updatedInvoice.invoiceNumber} (${updatedInvoice.clientName}) - $payRefTag. $notes".trim(),
+                        date = inflowDate,
+                        notes = formattedNote,
                         paymentMethod = fullMethod,
                         createdBy = adminName
                     )
@@ -1122,12 +1133,9 @@ class BusinessRepository(private val db: AppDatabase) {
                 val duplicates = sorted.drop(1)
                 for (dup in duplicates) {
                     invoiceDao.deleteInvoice(dup)
-                    val dupCloudKey = dup.invoiceNumber.ifEmpty { dup.id.toString() }
-                    FirebaseSyncManager.deleteItemFromCloud("invoices", dupCloudKey)
-                    if (dup.id != 0 && dup.id.toString() != dupCloudKey) {
-                        FirebaseSyncManager.deleteItemFromCloud("invoices", dup.id.toString())
-                    }
                 }
+                val keepCloudKey = keep.invoiceNumber.ifEmpty { keep.id.toString() }
+                FirebaseSyncManager.syncItemToCloud("invoices", keepCloudKey, keep)
             }
         }
     }
@@ -1150,9 +1158,6 @@ class BusinessRepository(private val db: AppDatabase) {
             updateSummariesForInvoice(finalInvoice)
             val cloudKey = finalInvoice.invoiceNumber.ifEmpty { finalInvoice.id.toString() }
             FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, finalInvoice)
-            if (finalInvoice.id != 0 && finalInvoice.id.toString() != cloudKey) {
-                FirebaseSyncManager.deleteItemFromCloud("invoices", finalInvoice.id.toString())
-            }
         }
     }
 
@@ -1378,9 +1383,6 @@ class BusinessRepository(private val db: AppDatabase) {
             updateSummariesForInvoice(invoice)
             val cloudKey = invoice.invoiceNumber.ifEmpty { invoice.id.toString() }
             FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, invoice)
-            if (invoice.id != 0 && invoice.id.toString() != cloudKey) {
-                FirebaseSyncManager.deleteItemFromCloud("invoices", invoice.id.toString())
-            }
         }
     }
 
@@ -1419,9 +1421,6 @@ class BusinessRepository(private val db: AppDatabase) {
             // Sync back to cloud
             val cloudKey = updatedInvoice.invoiceNumber.ifEmpty { updatedInvoice.id.toString() }
             FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, updatedInvoice)
-            if (updatedInvoice.id != 0 && updatedInvoice.id.toString() != cloudKey) {
-                FirebaseSyncManager.deleteItemFromCloud("invoices", updatedInvoice.id.toString())
-            }
 
             // Also sync back to linked project if exists
             val pId6 = invoice.projectId
@@ -2042,6 +2041,7 @@ class BusinessRepository(private val db: AppDatabase) {
     )
 
     fun parseInvoiceItemDetails(description: String): ParsedItem? {
+        if (description.startsWith("__")) return null
         val clean = description
             .replace("AJIBQOBUL:", "", ignoreCase = true)
             .replace("Pembelian:", "", ignoreCase = true)
@@ -2056,6 +2056,20 @@ class BusinessRepository(private val db: AppDatabase) {
                 varianName = parts[1].trim(),
                 size = parts[2].trim(),
                 sleeve = parts[3].trim()
+            )
+        } else if (parts.size == 3) {
+            return ParsedItem(
+                catalogName = parts[0].trim(),
+                varianName = parts[1].trim(),
+                size = parts[2].trim(),
+                sleeve = "Pendek"
+            )
+        } else if (parts.size == 2) {
+            return ParsedItem(
+                catalogName = parts[0].trim(),
+                varianName = parts[1].trim(),
+                size = "All Size",
+                sleeve = "Pendek"
             )
         }
         return null
@@ -2094,8 +2108,9 @@ class BusinessRepository(private val db: AppDatabase) {
         val invoices = invoiceDao.getInvoicesList().filter { !it.isDeleted }
         val converters = AppTypeConverters()
         
-        val approvedStatuses = listOf("DISETUJUI", "BELUM LUNAS", "DP AWAL", "DP PRODUKSI", "LUNAS", "REFUND", "PAID", "PARTIAL")
-        val approvedInvoices = invoices.filter { it.status.uppercase().trim() in approvedStatuses }
+        val approvedInvoices = invoices.filter { 
+            !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
+        }
         
         var invoicesApprovedQtyPendek = 0
         var invoicesApprovedQtyPanjang = 0
@@ -2504,15 +2519,13 @@ class BusinessRepository(private val db: AppDatabase) {
     )
 
     private fun parseInvoiceItem(item: InvoiceItemDetail): ParsedInvoiceItem? {
-        if (!item.description.startsWith("AJIBQOBUL: ")) return null
-        val content = item.description.substringAfter("AJIBQOBUL: ")
-        val parts = content.split(" - ")
-        if (parts.size < 4) return null
+        if (item.description.startsWith("__")) return null
+        val parsedDetails = parseInvoiceItemDetails(item.description) ?: return null
         return ParsedInvoiceItem(
-            catalogName = parts[0].trim(),
-            varianName = parts[1].trim(),
-            size = parts[2].trim(),
-            sleeve = parts[3].trim(),
+            catalogName = parsedDetails.catalogName,
+            varianName = parsedDetails.varianName,
+            size = parsedDetails.size,
+            sleeve = parsedDetails.sleeve,
             quantity = item.quantity,
             price = item.price
         )
@@ -2823,9 +2836,6 @@ class BusinessRepository(private val db: AppDatabase) {
             db.invoiceDao().updateInvoice(updatedInvoice)
             val cloudKey = updatedInvoice.invoiceNumber.ifEmpty { updatedInvoice.id.toString() }
             FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, updatedInvoice)
-            if (updatedInvoice.id != 0 && updatedInvoice.id.toString() != cloudKey) {
-                FirebaseSyncManager.deleteItemFromCloud("invoices", updatedInvoice.id.toString())
-            }
 
             val log = AuditLog(
                 activity = "Order Rejected",

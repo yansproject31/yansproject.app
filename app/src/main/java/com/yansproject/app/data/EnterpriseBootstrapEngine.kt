@@ -21,6 +21,7 @@ object EnterpriseBootstrapEngine {
     private const val TAG = "EnterpriseBootstrap"
 
     fun parseInvoiceItemDetails(description: String): ParsedItem? {
+        if (description.startsWith("__")) return null
         val clean = description
             .replace("AJIBQOBUL:", "", ignoreCase = true)
             .replace("Pembelian:", "", ignoreCase = true)
@@ -35,6 +36,20 @@ object EnterpriseBootstrapEngine {
                 varianName = parts[1].trim(),
                 size = parts[2].trim(),
                 sleeve = parts[3].trim()
+            )
+        } else if (parts.size == 3) {
+            return ParsedItem(
+                catalogName = parts[0].trim(),
+                varianName = parts[1].trim(),
+                size = parts[2].trim(),
+                sleeve = "Pendek"
+            )
+        } else if (parts.size == 2) {
+            return ParsedItem(
+                catalogName = parts[0].trim(),
+                varianName = parts[1].trim(),
+                size = "All Size",
+                sleeve = "Pendek"
             )
         }
         return null
@@ -274,8 +289,9 @@ object EnterpriseBootstrapEngine {
                     val ledgersPendek = varianLedgers.filter { it.sleeve.equals("Pendek", ignoreCase = true) }
                     val ledgersPanjang = varianLedgers.filter { !it.sleeve.equals("Pendek", ignoreCase = true) }
                     
-                    val approvedStatuses = listOf("DISETUJUI", "BELUM LUNAS", "DP AWAL", "DP PRODUKSI", "LUNAS", "REFUND", "PAID", "PARTIAL")
-                    val approvedInvoices = invoices.filter { it.status.uppercase() in approvedStatuses }
+                    val approvedInvoices = invoices.filter { 
+                        !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
+                    }
                     
                     var invoicesApprovedQty = 0
                     var invoicesApprovedQtyPendek = 0
