@@ -38,10 +38,22 @@ object EnterpriseSyncEngine {
                         metadataManager.setState(BootstrapState.FINISHED)
                         startRealtimeSyncListeners(context)
                     } else {
-                        _syncStatus.value = "Menunggu penyelesaian bootstrap..."
+                        val firestore = try { FirebaseFirestore.getInstance() } catch (e: Throwable) { null }
+                        if (firestore != null) {
+                            _syncStatus.value = "Menjalankan bootstrap otomatis..."
+                            EnterpriseBootstrapEngine.executeFullBootstrap(
+                                context = context,
+                                db = db,
+                                firestore = firestore,
+                                metadataManager = metadataManager,
+                                onProgress = { text, _ -> _syncStatus.value = text }
+                            )
+                        } else {
+                            _syncStatus.value = "Modus Offline (Database Lokal)"
+                        }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error checking DB population: ${e.message}")
+                    Log.e(TAG, "Error during automatic bootstrap check: ${e.message}")
                 }
             }
             return
@@ -59,7 +71,12 @@ object EnterpriseSyncEngine {
 
         stopRealtimeSyncListeners()
 
-        val collections = listOf("stock_items", "projects", "invoices", "orders", "expenses", "inflows", "master_catalog", "master_varian_warna", "master_stock", "stock_history", "audit_logs", "inventory_ledger", "production_batch", "inventory_summary")
+        val collections = listOf(
+            "stock_items", "projects", "invoices", "orders", "expenses",
+            "inflows", "master_catalog", "master_varian_warna", "master_stock",
+            "stock_history", "audit_logs", "inventory_ledger", "production_batch",
+            "inventory_summary", "invoice_payments"
+        )
 
         for (col in collections) {
             try {
@@ -74,95 +91,220 @@ object EnterpriseSyncEngine {
                                     when (col) {
                                         "stock_items" -> {
                                             val item = doc.toObject(StockItem::class.java) ?: return@launch
-                                            val local = db.stockDao().getStockById(item.id)
-                                            if (isRemove) { if (local != null) db.stockDao().deleteStock(item) }
-                                            else if (local == null || item != local) db.stockDao().insertStock(item)
+                                            val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
+                                            val local = if (item.id > 0) {
+                                                db.stockDao().getStockById(item.id)
+                                            } else {
+                                                db.stockDao().getAllStockList().find { it.name.equals(item.name, ignoreCase = true) || (item.sku.isNotBlank() && it.sku == item.sku) }
+                                            }
+                                            if (isSoftDeleted) {
+                                                if (local != null) db.stockDao().deleteStock(local)
+                                            } else if (!isRemove) {
+                                                if (local != null) {
+                                                    val updated = item.copy(id = local.id)
+                                                    if (updated != local) db.stockDao().insertStock(updated)
+                                                } else {
+                                                    val toInsert = if (item.id > 0) item else item.copy(id = 0)
+                                                    db.stockDao().insertStock(toInsert)
+                                                }
+                                            }
                                         }
                                         "projects" -> {
                                             val item = doc.toObject(ProjectCustom::class.java) ?: return@launch
-                                            val local = db.projectDao().getProjectById(item.id)
-                                            if (isRemove) { if (local != null) db.projectDao().deleteProject(item) }
-                                            else if (local == null || item != local) db.projectDao().insertProject(item)
+                                            val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
+                                            val local = if (item.id > 0) {
+                                                db.projectDao().getProjectById(item.id)
+                                            } else {
+                                                db.projectDao().getAllProjectsList().find { it.projectName.equals(item.projectName, ignoreCase = true) && it.clientName.equals(item.clientName, ignoreCase = true) }
+                                            }
+                                            if (isSoftDeleted) {
+                                                if (local != null) db.projectDao().deleteProject(local)
+                                            } else if (!isRemove) {
+                                                if (local != null) {
+                                                    val updated = item.copy(id = local.id)
+                                                    if (updated != local) db.projectDao().insertProject(updated)
+                                                } else {
+                                                    val toInsert = if (item.id > 0) item else item.copy(id = 0)
+                                                    db.projectDao().insertProject(toInsert)
+                                                }
+                                            }
                                         }
                                         "invoices" -> {
                                             val item = doc.toObject(Invoice::class.java) ?: return@launch
+                                            val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
                                             val local = if (item.invoiceNumber.isNotBlank()) {
                                                 db.invoiceDao().getInvoiceByNumber(item.invoiceNumber)
                                             } else {
                                                 db.invoiceDao().getInvoiceById(item.id)
                                             }
-                                            if (isRemove || item.isDeleted) {
+                                            if (isSoftDeleted) {
                                                 if (local != null) db.invoiceDao().deleteInvoice(local)
                                                 if (item.invoiceNumber.isNotBlank()) {
                                                     db.invoiceDao().deleteInvoiceByNumber(item.invoiceNumber)
                                                 }
-                                            } else {
+                                            } else if (!isRemove) {
                                                 if (local != null) {
                                                     val updated = item.copy(id = local.id)
-                                                    if (updated != local) {
-                                                        db.invoiceDao().insertInvoice(updated)
-                                                    }
+                                                    if (updated != local) db.invoiceDao().insertInvoice(updated)
                                                 } else {
-                                                    db.invoiceDao().insertInvoice(item.copy(id = 0))
+                                                    val toInsert = if (item.id > 0) item else item.copy(id = 0)
+                                                    db.invoiceDao().insertInvoice(toInsert)
                                                 }
                                             }
                                         }
                                         "orders" -> {
                                             val item = doc.toObject(OrderHistory::class.java) ?: return@launch
-                                            val local = db.orderDao().getOrderById(item.id)
-                                            if (isRemove) { if (local != null) db.orderDao().deleteOrder(item) }
-                                            else if (local == null || item != local) db.orderDao().insertOrder(item)
+                                            val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
+                                            val local = if (item.id > 0) db.orderDao().getOrderById(item.id) else null
+                                            if (isSoftDeleted) {
+                                                if (local != null) db.orderDao().deleteOrder(local)
+                                            } else if (!isRemove) {
+                                                if (local != null) {
+                                                    val updated = item.copy(id = local.id)
+                                                    if (updated != local) db.orderDao().insertOrder(updated)
+                                                } else {
+                                                    val toInsert = if (item.id > 0) item else item.copy(id = 0)
+                                                    db.orderDao().insertOrder(toInsert)
+                                                }
+                                            }
                                         }
                                         "expenses" -> {
                                             val item = doc.toObject(Expense::class.java) ?: return@launch
-                                            val local = db.expenseDao().getExpenseById(item.id)
-                                            if (isRemove) { if (local != null) db.expenseDao().deleteExpense(item) }
-                                            else if (local == null || item != local) db.expenseDao().insertExpense(item)
+                                            val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
+                                            val local = if (item.id > 0) {
+                                                db.expenseDao().getExpenseById(item.id)
+                                            } else {
+                                                db.expenseDao().getAllExpensesList().find { item.transactionNumber.isNotBlank() && it.transactionNumber == item.transactionNumber }
+                                            }
+                                            if (isSoftDeleted) {
+                                                if (local != null) db.expenseDao().deleteExpense(local)
+                                            } else if (!isRemove) {
+                                                if (local != null) {
+                                                    val updated = item.copy(id = local.id)
+                                                    if (updated != local) db.expenseDao().insertExpense(updated)
+                                                } else {
+                                                    val toInsert = if (item.id > 0) item else item.copy(id = 0)
+                                                    db.expenseDao().insertExpense(toInsert)
+                                                }
+                                            }
                                         }
                                         "inflows" -> {
                                             val item = doc.toObject(Inflow::class.java) ?: return@launch
-                                            val local = db.inflowDao().getInflowById(item.id)
-                                            if (isRemove) { if (local != null) db.inflowDao().deleteInflow(item) }
-                                            else if (local == null || item != local) db.inflowDao().insertInflow(item)
+                                            val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
+                                            val local = if (item.id > 0) {
+                                                db.inflowDao().getInflowById(item.id)
+                                            } else {
+                                                db.inflowDao().getAllInflowsList().find { item.transactionNumber.isNotBlank() && it.transactionNumber == item.transactionNumber }
+                                            }
+                                            if (isSoftDeleted) {
+                                                if (local != null) db.inflowDao().deleteInflow(local)
+                                            } else if (!isRemove) {
+                                                if (local != null) {
+                                                    val updated = item.copy(id = local.id)
+                                                    if (updated != local) db.inflowDao().insertInflow(updated)
+                                                } else {
+                                                    val toInsert = if (item.id > 0) item else item.copy(id = 0)
+                                                    db.inflowDao().insertInflow(toInsert)
+                                                }
+                                            }
                                         }
                                         "master_catalog" -> {
                                             val item = doc.toObject(MasterCatalog::class.java) ?: return@launch
-                                            val local = db.catalogDao().getCatalogById(item.id_catalog)
-                                            if (isRemove) { if (local != null) db.catalogDao().deleteCatalog(item) }
-                                            else if (local == null || item != local) db.catalogDao().insertCatalog(item)
+                                            val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
+                                            val local = if (item.id_catalog > 0) {
+                                                db.catalogDao().getCatalogById(item.id_catalog)
+                                            } else {
+                                                db.catalogDao().getCatalogsList().find { it.nama_catalog.equals(item.nama_catalog, ignoreCase = true) }
+                                            }
+                                            if (isSoftDeleted) {
+                                                if (local != null) db.catalogDao().deleteCatalog(local)
+                                            } else if (!isRemove) {
+                                                if (local != null) {
+                                                    val updated = item.copy(id_catalog = local.id_catalog)
+                                                    if (updated != local) db.catalogDao().insertCatalog(updated)
+                                                } else {
+                                                    val toInsert = if (item.id_catalog > 0) item else item.copy(id_catalog = 0)
+                                                    db.catalogDao().insertCatalog(toInsert)
+                                                }
+                                            }
                                         }
                                         "master_varian_warna" -> {
                                             val item = doc.toObject(MasterVarianWarna::class.java) ?: return@launch
-                                            val local = db.varianWarnaDao().getVarianById(item.id_varian)
-                                            if (isRemove) { if (local != null) db.varianWarnaDao().deleteVarian(item) }
-                                            else if (local == null || item != local) db.varianWarnaDao().insertVarian(item)
+                                            val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
+                                            val local = if (item.id_varian > 0) {
+                                                db.varianWarnaDao().getVarianById(item.id_varian)
+                                            } else {
+                                                db.varianWarnaDao().getAllVarianList().find { it.id_catalog == item.id_catalog && it.nama_warna.equals(item.nama_warna, ignoreCase = true) }
+                                            }
+                                            if (isSoftDeleted) {
+                                                if (local != null) db.varianWarnaDao().deleteVarian(local)
+                                            } else if (!isRemove) {
+                                                if (local != null) {
+                                                    val updated = item.copy(id_varian = local.id_varian)
+                                                    if (updated != local) db.varianWarnaDao().insertVarian(updated)
+                                                } else {
+                                                    val toInsert = if (item.id_varian > 0) item else item.copy(id_varian = 0)
+                                                    db.varianWarnaDao().insertVarian(toInsert)
+                                                }
+                                            }
                                         }
                                         "master_stock" -> {
                                             val item = doc.toObject(MasterStock::class.java) ?: return@launch
-                                            val local = db.masterStockDao().getStockById(item.id_stock)
-                                            if (isRemove) { if (local != null) db.masterStockDao().deleteStockMaster(item) }
-                                            else if (local == null || item != local) db.masterStockDao().insertStockMaster(item)
+                                            val isSoftDeleted = doc.getBoolean("isDeleted") == true || doc.getBoolean("is_deleted") == true || item.isDeleted
+                                            val local = if (item.id_stock > 0) {
+                                                db.masterStockDao().getStockById(item.id_stock)
+                                            } else {
+                                                db.masterStockDao().getStockByVarian(item.id_varian)
+                                            }
+                                            if (isSoftDeleted) {
+                                                if (local != null) db.masterStockDao().deleteStockMaster(local)
+                                            } else if (!isRemove) {
+                                                if (local != null) {
+                                                    val updated = item.copy(id_stock = local.id_stock)
+                                                    if (updated != local) db.masterStockDao().insertStockMaster(updated)
+                                                } else {
+                                                    val toInsert = if (item.id_stock > 0) item else item.copy(id_stock = 0)
+                                                    db.masterStockDao().insertStockMaster(toInsert)
+                                                }
+                                            }
                                         }
                                         "stock_history" -> {
                                             val item = doc.toObject(StockHistory::class.java) ?: return@launch
-                                            if (!isRemove) db.stockHistoryDao().insertHistory(item)
+                                            if (!isRemove) {
+                                                val toInsert = if (item.id > 0) item else item.copy(id = 0)
+                                                db.stockHistoryDao().insertHistory(toInsert)
+                                            }
                                         }
                                         "audit_logs" -> {
                                             val item = doc.toObject(AuditLog::class.java) ?: return@launch
-                                            if (!isRemove) db.auditLogDao().insertLog(item)
+                                            if (!isRemove) {
+                                                val toInsert = if (item.id > 0) item else item.copy(id = 0)
+                                                db.auditLogDao().insertLog(toInsert)
+                                            }
                                         }
                                         "inventory_ledger" -> {
                                             val item = doc.toObject(InventoryLedger::class.java) ?: return@launch
-                                            if (!isRemove) db.inventoryLedgerDao().insertLedger(item)
+                                            if (!isRemove) {
+                                                val toInsert = if (item.id > 0) item else item.copy(id = 0)
+                                                db.inventoryLedgerDao().insertLedger(toInsert)
+                                            }
                                         }
                                         "production_batch" -> {
                                             val item = doc.toObject(ProductionBatch::class.java) ?: return@launch
-                                            if (!isRemove) db.productionBatchDao().insertBatch(item)
+                                            if (!isRemove) {
+                                                val toInsert = if (item.id > 0) item else item.copy(id = 0)
+                                                db.productionBatchDao().insertBatch(toInsert)
+                                            }
                                         }
                                         "inventory_summary" -> {
                                             val item = doc.toObject(InventorySummary::class.java) ?: return@launch
-                                            if (isRemove) db.inventorySummaryDao().deleteSummaryByVarian(item.id_varian)
-                                            else db.inventorySummaryDao().insertSummary(item)
+                                            if (!isRemove) db.inventorySummaryDao().insertSummary(item)
+                                        }
+                                        "invoice_payments" -> {
+                                            val item = doc.toObject(InvoicePayment::class.java) ?: return@launch
+                                            if (!isRemove && item.id.isNotBlank()) {
+                                                db.invoicePaymentDao().insertPayment(item)
+                                            }
                                         }
                                     }
                                 } catch (ex: Exception) { Log.e(TAG, "Sync error col $col: ${ex.message}") }

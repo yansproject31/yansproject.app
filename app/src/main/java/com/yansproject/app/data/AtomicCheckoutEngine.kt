@@ -118,6 +118,7 @@ object AtomicCheckoutEngine {
                         }
                         invoiceItemsArray.put(obj)
                     }
+
                     if (clientAddress.isNotBlank()) {
                         invoiceItemsArray.put(JSONObject().apply {
                             put("description", "__ADDRESS__:${clientAddress.trim()}")
@@ -125,6 +126,7 @@ object AtomicCheckoutEngine {
                             put("price", 0.0)
                         })
                     }
+
                     if (notes.isNotBlank()) {
                         invoiceItemsArray.put(JSONObject().apply {
                             put("description", "__NOTE__:${notes.trim()}")
@@ -132,6 +134,7 @@ object AtomicCheckoutEngine {
                             put("price", 0.0)
                         })
                     }
+
                     if (currentUserEmail.isNotBlank()) {
                         invoiceItemsArray.put(JSONObject().apply {
                             put("description", "__EMAIL__:${currentUserEmail.trim().lowercase()}")
@@ -211,15 +214,20 @@ object AtomicCheckoutEngine {
                     )
                     batch.set(firestore.collection("notification_queue").document(notificationId), notifData)
                     batch.set(firestore.collection("notifications").document(notificationId), notifData)
-
                     Log.d(TAG, "Batch actions successfully queued for execution.")
                 }.await()
 
                 Log.d(TAG, "Batch completed successfully!")
-                onComplete(true, invoiceNum)
+                // PERBAIKAN: Pindahkan callback ke Main Thread agar UI tidak Crash!
+                withContext(Dispatchers.Main) {
+                    onComplete(true, invoiceNum)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed executing atomic checkout batch: ${e.message}")
-                onComplete(false, e.localizedMessage ?: "Gagal checkout atomik.")
+                // PERBAIKAN: Pindahkan callback error ke Main Thread!
+                withContext(Dispatchers.Main) {
+                    onComplete(false, e.localizedMessage ?: "Gagal checkout atomik.")
+                }
             }
         }
     }

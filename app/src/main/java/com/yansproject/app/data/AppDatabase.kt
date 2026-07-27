@@ -36,7 +36,6 @@ import java.security.SecureRandom
 )
 @TypeConverters(AppTypeConverters::class)
 abstract class AppDatabase : RoomDatabase() {
-
     abstract fun stockDao(): StockDao
     abstract fun projectDao(): ProjectDao
     abstract fun orderDao(): OrderDao
@@ -98,24 +97,34 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
+                var isSqlCipherLoaded = false
                 try {
+                    // PERBAIKAN FATAL: Gunakan catch(Throwable) karena UnsatisfiedLinkError adalah Error, bukan Exception!
                     net.sqlcipher.database.SQLiteDatabase.loadLibs(context.applicationContext)
-                } catch (e: Exception) {
-                    android.util.Log.e("AppDatabase", "Failed to load SQLCipher native libraries: ${e.message}")
+                    isSqlCipherLoaded = true
+                } catch (t: Throwable) {
+                    android.util.Log.e("AppDatabase", "Failed to load SQLCipher native libraries: ${t.message}")
                 }
 
                 val passphrase = DatabaseEncryptionManager.getDatabasePassphrase(context)
-                val factory = SupportFactory(passphrase)
-                val instance = Room.databaseBuilder(
+                
+                val builder = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     DATABASE_NAME
                 )
-                .openHelperFactory(factory)
                 .addMigrations(MIGRATION_4_5, MIGRATION_17_18)
                 .fallbackToDestructiveMigration()
-                .build()
 
+                // PERBAIKAN FATAL: Hanya pasang SupportFactory jika library native berhasil dimuat!
+                if (isSqlCipherLoaded) {
+                    val factory = SupportFactory(passphrase)
+                    builder.openHelperFactory(factory)
+                } else {
+                    android.util.Log.w("AppDatabase", "Running Room without SQLCipher factory fallback to prevent Force Close!")
+                }
+
+                val instance = builder.build()
                 INSTANCE = instance
                 instance
             }
