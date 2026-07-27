@@ -434,3 +434,11 @@ interface ReportCacheDao {
     @Query("DELETE FROM report_cache")
     suspend fun clearAll()
 }
+
+
+
+
+
+
+
+

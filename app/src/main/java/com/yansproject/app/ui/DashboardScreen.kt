@@ -1358,20 +1358,20 @@ fun DashboardScreen(
     val isSyncingState by syncManager.isSyncing.collectAsState()
     val syncStatusState by syncManager.syncStatus.collectAsState()
 
+    // 1. Deklarasikan animasi berjalan di latar belakang (tanpa peduli syncing atau tidak)
     val infiniteTransition = rememberInfiniteTransition(label = "sync_rotation")
-    val rotationAngle by if (isSyncingState) {
-        infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1500, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "rotation"
-        )
-    } else {
-        remember { mutableStateOf(0f) }
-    }
+    val animatedAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+
+    // 2. Berikan nilai sudut rotasi berdasarkan status secara aman
+    val rotationAngle = if (isSyncingState) animatedAngle else 0f
 
     PullToRefreshBox(
         isRefreshing = isSyncingState,
