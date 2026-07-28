@@ -48,13 +48,18 @@ class StartupViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
-    fun startBootstrap(context: Context, db: AppDatabase, firestore: FirebaseFirestore) {
+    fun startBootstrap(context: Context, db: AppDatabase) {
         viewModelScope.launch {
             _errorMessage.value = null
             val metadataManager = SyncMetadataManager.getInstance(context)
             _state.value = BootstrapState.DOWNLOADING
             
-            try {
+try {
+                val firestore = try { FirebaseFirestore.getInstance() } catch(e: Throwable) { null }
+                if (firestore == null) {
+                    _state.value = BootstrapState.FINISHED
+                    return@launch
+                }
                 EnterpriseBootstrapEngine.executeFullBootstrap(
                     context = context,
                     db = db,
@@ -83,7 +88,7 @@ fun StartupScreen(
 ) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context) }
-    val firestore = remember { FirebaseFirestore.getInstance() }
+    
     val state by viewModel.state.collectAsState()
     val progress by viewModel.progress.collectAsState()
     val progressText by viewModel.progressText.collectAsState()
@@ -117,7 +122,7 @@ fun StartupScreen(
             }
             if (isDbEmpty && !isAlreadyBootstrapped) {
                 SyncMetadataManager.getInstance(context).reset()
-                viewModel.startBootstrap(context, db, firestore)
+                viewModel.startBootstrap(context, db)
             } else {
                 EnterpriseSyncEngine.startRealtimeSyncListeners(context)
                 onFinished()
@@ -134,7 +139,7 @@ fun StartupScreen(
                 EnterpriseSyncEngine.startRealtimeSyncListeners(context)
                 onFinished()
             } else {
-                viewModel.startBootstrap(context, db, firestore)
+                viewModel.startBootstrap(context, db)
             }
         }
     }
@@ -228,7 +233,7 @@ fun StartupScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
-                    onClick = { viewModel.startBootstrap(context, db, firestore) },
+                    onClick = { viewModel.startBootstrap(context, db) },
                     colors = ButtonDefaults.buttonColors(containerColor = AgedGold),
                     shape = RoundedCornerShape(4.dp)
                 ) {
