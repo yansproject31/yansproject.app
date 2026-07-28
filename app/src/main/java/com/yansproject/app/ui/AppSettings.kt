@@ -28,7 +28,7 @@ object AppSettings {
         getPrefs(context).edit().putString(KEY_LAST_SYNC, value).apply()
 
     fun getStoreName(context: Context): String =
-        getPrefs(context).getString("store_name", "YANSPROJECT.ID") ?: "YANSPROJECT.ID"
+        getPrefs(context).getString("store_name", "") ?: ""
 
     fun setStoreName(context: Context, value: String) =
         getPrefs(context).edit().putString("store_name", value).apply()
@@ -40,19 +40,19 @@ object AppSettings {
         getPrefs(context).edit().putString("store_logo", value).apply()
 
     fun getAddress(context: Context): String =
-        getPrefs(context).getString("store_address", "Tangerang, Banten") ?: "Tangerang, Banten"
+        getPrefs(context).getString("store_address", "") ?: ""
 
     fun setAddress(context: Context, value: String) =
         getPrefs(context).edit().putString("store_address", value).apply()
 
     fun getWhatsApp(context: Context): String =
-        getPrefs(context).getString("store_whatsapp", "+62 877-7739-8813") ?: "+62 877-7739-8813"
+        getPrefs(context).getString("store_whatsapp", "") ?: ""
 
     fun setWhatsApp(context: Context, value: String) =
         getPrefs(context).edit().putString("store_whatsapp", value).apply()
 
     fun getEmail(context: Context): String =
-        getPrefs(context).getString("store_email", "yansart31@gmail.com") ?: "yansart31@gmail.com"
+        getPrefs(context).getString("store_email", "") ?: ""
 
     fun setEmail(context: Context, value: String) =
         getPrefs(context).edit().putString("store_email", value).apply()
@@ -87,6 +87,7 @@ object AppSettings {
     fun setInvoiceFooter(context: Context, value: String) =
         getPrefs(context).edit().putString("invoice_footer", value).apply()
 
+    // Prefix for auto-numbering
     fun getProjectPrefix(context: Context): String =
         getPrefs(context).getString("project_prefix", "YP") ?: "YP"
 
@@ -99,6 +100,7 @@ object AppSettings {
     fun setInvoicePrefix(context: Context, value: String) =
         getPrefs(context).edit().putString("invoice_prefix", value).apply()
 
+    // --- CONFIGURABLE UPSIZE RULES (PRIORITY 6 & 8) ---
     fun getCustomUpsizeXXL(context: Context): Double =
         getPrefs(context).getFloat("custom_upsize_xxl", 10000f).toDouble()
     fun setCustomUpsizeXXL(context: Context, value: Double) =
@@ -190,17 +192,18 @@ object AppSettings {
         getPrefs(context).edit().putFloat("custom_base_price", value.toFloat()).apply()
 
     fun getCustomSleeveLongPrice(context: Context): Double =
-        getPrefs(context).getFloat("custom_sleeve_long_price", 10000f).toDouble()
+        getPrefs(context).getFloat("custom_sleeve_long_price", 15000f).toDouble()
     fun setCustomSleeveLongPrice(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_sleeve_long_price", value.toFloat()).apply()
 
+    // --- CUSTOM PROJECT HPP ERP CONFIG ---
     fun getCustomHppRegulerPendek(context: Context): Double =
-        getPrefs(context).getFloat("custom_hpp_reguler_pendek", 67000f).toDouble()
+        getPrefs(context).getFloat("custom_hpp_reguler_pendek", 55000f).toDouble()
     fun setCustomHppRegulerPendek(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_hpp_reguler_pendek", value.toFloat()).apply()
 
     fun getCustomHppRegulerPanjang(context: Context): Double =
-        getPrefs(context).getFloat("custom_hpp_reguler_panjang", 77000f).toDouble()
+        getPrefs(context).getFloat("custom_hpp_reguler_panjang", 65000f).toDouble()
     fun setCustomHppRegulerPanjang(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_hpp_reguler_panjang", value.toFloat()).apply()
 
@@ -224,6 +227,7 @@ object AppSettings {
     fun setDefaultTax(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("default_tax", value.toFloat()).apply()
 
+    // Member customer management
     fun getMembers(context: Context): Set<String> {
         val raw = getPrefs(context).getStringSet(KEY_MEMBERS, emptySet()) ?: emptySet()
         return raw.filter { name ->
@@ -348,13 +352,14 @@ object AppSettings {
     fun setDeveloperMode(context: Context, value: Boolean) =
         getPrefs(context).edit().putBoolean("developer_mode", value).apply()
 
+    // App Notification Center
     data class AppNotification(
         val id: String = java.util.UUID.randomUUID().toString(),
         val title: String,
         val message: String,
         val timestamp: Long = System.currentTimeMillis(),
-        val category: String,
-        val targetTab: String? = null,
+        val category: String, // "SYSTEM", "INVOICE", "PAYMENT", "STOCK", "PROJECT", "MEMBER", "PROMOTION"
+        val targetTab: String? = null, // "INVOICE", "STOCK", "PROJECT" etc.
         var isRead: Boolean = false,
         val roleTarget: String = "ALL",
         val userId: String = "ALL",
@@ -489,6 +494,7 @@ object DatabaseBackupHelper {
         val walFile = context.getDatabasePath("${AppDatabase.DATABASE_NAME}-wal")
 
         try {
+            // 1. Close current database safely
             try {
                 val db = AppDatabase.getDatabase(context)
                 db.close()
@@ -496,6 +502,7 @@ object DatabaseBackupHelper {
                 android.util.Log.w(TAG, "Failed to close open DB instance: ${e.message}")
             }
 
+            // 2. Clear static Room instance using reflection
             try {
                 val dbClass = AppDatabase::class.java
                 val instanceField = dbClass.getDeclaredField("INSTANCE")
@@ -506,6 +513,7 @@ object DatabaseBackupHelper {
                 return false
             }
 
+            // 3. Temporary Backup current DB file for safe Rollback
             val tempDir = context.cacheDir
             tempDb = File(tempDir, "temp_restore_backup.db")
             if (dbFile.exists()) {
@@ -521,16 +529,19 @@ object DatabaseBackupHelper {
                 }
             }
 
+            // 4. Clear current DB files
             if (dbFile.exists()) dbFile.delete()
             if (shmFile.exists()) shmFile.delete()
             if (walFile.exists()) walFile.delete()
 
+            // 5. Copy new DB file from Uri
             context.contentResolver.openInputStream(backupUri)?.use { input ->
                 dbFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
             } ?: throw Exception("File stream not found")
 
+            // 6. Verify database integrity and encryption passphrase
             var isIntegrityOk = false
             try {
                 val restoredDb = AppDatabase.getDatabase(context)
@@ -555,6 +566,7 @@ object DatabaseBackupHelper {
                 throw Exception("Corrupted Backup: Berkas cadangan tidak lulus uji integritas.")
             }
 
+            // 7. Write success Audit Log
             try {
                 val finalDb = AppDatabase.getDatabase(context)
                 val auditLog = com.yansproject.app.data.AuditLog(
@@ -576,6 +588,7 @@ object DatabaseBackupHelper {
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Restore operation failed", e)
             
+            // Perform Rollback if failure occurs
             if (hasBackup && tempDb != null && tempDb.exists()) {
                 android.util.Log.i(TAG, "ROLLBACK ENGAGED: Restoring original database files...")
                 try {

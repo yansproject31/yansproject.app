@@ -20,87 +20,45 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 import android.graphics.Typeface
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 
 object FontUtils {
     @Volatile
     private var cachedArabicFontFamily: FontFamily? = null
-    @Volatile
-    private var cachedRuqaaFontFamily: FontFamily? = null
-    @Volatile
-    private var cachedScheherazadeFontFamily: FontFamily? = null
-    @Volatile
-    private var cachedAmiriFontFamily: FontFamily? = null
-
-    private fun buildComposeFontFamily(context: Context, assetPath: String): FontFamily? {
-        return try {
-            context.assets.open(assetPath).close()
-            FontFamily(
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.Normal),
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.Medium),
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.SemiBold),
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.Bold),
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.ExtraBold),
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.Black)
-            )
-        } catch (_: Exception) {
-            null
-        }
-    }
 
     fun getPremiumArabicFontFamily(context: Context): FontFamily {
         cachedArabicFontFamily?.let { return it }
 
         val assetFontNames = listOf(
-            "fonts/aref_ruqaa_bold.ttf",
+            "fonts/amiri_quran.ttf",
             "fonts/scheherazade_bold.ttf",
-            "fonts/amiri_quran.ttf"
+            "fonts/aref_ruqaa_bold.ttf"
         )
-        for (assetPath in assetFontNames) {
-            val family = buildComposeFontFamily(context, assetPath)
-            if (family != null) {
-                cachedArabicFontFamily = family
-                return family
-            }
-        }
-
         var selectedTf: Typeface? = null
-        val typefaces = listOf("serif-arabic", "sans-serif-arabic", "arabic", "amiri", "scheherazade", "cairo")
-        for (fontName in typefaces) {
+        for (assetPath in assetFontNames) {
             try {
-                val tf = Typeface.create(fontName, Typeface.BOLD)
-                if (tf != Typeface.DEFAULT) {
+                val tf = Typeface.createFromAsset(context.assets, assetPath)
+                if (tf != null) {
                     selectedTf = tf
                     break
                 }
             } catch (_: Exception) {}
         }
+        if (selectedTf == null) {
+            val typefaces = listOf("serif-arabic", "sans-serif-arabic", "arabic", "amiri", "scheherazade", "cairo")
+            for (fontName in typefaces) {
+                try {
+                    val tf = Typeface.create(fontName, Typeface.BOLD)
+                    if (tf != Typeface.DEFAULT) {
+                        selectedTf = tf
+                        break
+                    }
+                } catch (_: Exception) {}
+            }
+        }
         val fontFamily = selectedTf?.let { FontFamily(it) } ?: FontFamily.Serif
         cachedArabicFontFamily = fontFamily
         return fontFamily
-    }
-
-    fun getArabicRuqaaCalligraphyFontFamily(context: Context): FontFamily {
-        cachedRuqaaFontFamily?.let { return it }
-        val family = buildComposeFontFamily(context, "fonts/aref_ruqaa_bold.ttf") ?: getPremiumArabicFontFamily(context)
-        cachedRuqaaFontFamily = family
-        return family
-    }
-
-    fun getArabicScheherazadeFontFamily(context: Context): FontFamily {
-        cachedScheherazadeFontFamily?.let { return it }
-        val family = buildComposeFontFamily(context, "fonts/scheherazade_bold.ttf") ?: getPremiumArabicFontFamily(context)
-        cachedScheherazadeFontFamily = family
-        return family
-    }
-
-    fun getArabicAmiriQuranFontFamily(context: Context): FontFamily {
-        cachedAmiriFontFamily?.let { return it }
-        val family = buildComposeFontFamily(context, "fonts/amiri_quran.ttf") ?: getPremiumArabicFontFamily(context)
-        cachedAmiriFontFamily = family
-        return family
     }
 }
 
@@ -121,15 +79,14 @@ data class ProjectItem(
 )
 
 object ProjectItemParser {
-    fun serialize(items: List<ProjectItem>?): String {
-        if (items == null) return ""
+    fun serialize(items: List<ProjectItem>): String {
         return items.joinToString(";") { item ->
             "${item.productType}|${item.sleeveType}|${item.size}|${item.qty}|${item.price}|${item.subtotal}"
         }
     }
 
-    fun deserialize(serialized: String?): List<ProjectItem> {
-        if (serialized.isNullOrBlank()) return emptyList()
+    fun deserialize(serialized: String): List<ProjectItem> {
+        if (serialized.isBlank()) return emptyList()
         val list = mutableListOf<ProjectItem>()
         val parts = serialized.split(";")
         for (part in parts) {
@@ -150,14 +107,12 @@ object ProjectItemParser {
         return list
     }
     
-    fun getProjectDescription(fullText: String?): String {
-        if (fullText.isNullOrBlank()) return ""
+    fun getProjectDescription(fullText: String): String {
         val parts = fullText.split(" ===ITEMS_DATA=== ")
-        return parts.firstOrNull() ?: ""
+        return parts.first()
     }
 
-    fun getProjectItems(fullText: String?): List<ProjectItem> {
-        if (fullText.isNullOrBlank()) return emptyList()
+    fun getProjectItems(fullText: String): List<ProjectItem> {
         val parts = fullText.split(" ===ITEMS_DATA=== ")
         if (parts.size >= 2) {
             return deserialize(parts[1])
@@ -169,15 +124,13 @@ object ProjectItemParser {
 object InvoiceItemSorter {
     val SIZE_ORDER = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
 
-    fun getSizeIndex(size: String?): Int {
-        if (size.isNullOrBlank()) return 999
+    fun getSizeIndex(size: String): Int {
         val clean = size.trim().uppercase()
         val idx = SIZE_ORDER.indexOf(clean)
         return if (idx != -1) idx else 999
     }
 
-    fun getSleeveIndex(sleeve: String?): Int {
-        if (sleeve.isNullOrBlank()) return 2
+    fun getSleeveIndex(sleeve: String): Int {
         val clean = sleeve.trim().lowercase()
         return when {
             clean.contains("pendek") || clean.contains("short") -> 0
@@ -186,49 +139,42 @@ object InvoiceItemSorter {
         }
     }
 
-    fun sortInvoiceItems(items: List<InvoiceItemDetail>?): List<InvoiceItemDetail> {
-        if (items.isNullOrEmpty()) return emptyList()
+    fun sortInvoiceItems(items: List<InvoiceItemDetail>): List<InvoiceItemDetail> {
         val filtered = items.filter { !it.description.startsWith("__") }
         val meta = items.filter { it.description.startsWith("__") }
 
-        val sorted = try {
-            filtered.sortedWith(
-                compareBy<InvoiceItemDetail> { item ->
-                    val parsed = FormatUtils.parseStockItemName(item.description ?: "")
-                    getSleeveIndex(parsed.sleeve)
-                }.thenBy { item ->
-                    val parsed = FormatUtils.parseStockItemName(item.description ?: "")
-                    getSizeIndex(parsed.size)
-                }
-            )
-        } catch (e: Exception) {
-            filtered
-        }
+        val sorted = filtered.sortedWith(
+            compareBy<InvoiceItemDetail> { item ->
+                val parsed = FormatUtils.parseStockItemName(item.description)
+                getSleeveIndex(parsed.sleeve)
+            }.thenBy { item ->
+                val parsed = FormatUtils.parseStockItemName(item.description)
+                getSizeIndex(parsed.size)
+            }
+        )
         return sorted + meta
     }
 }
 
 object FormatUtils {
-    fun formatRupiah(amount: Double?): String {
-        val valAmount = amount ?: 0.0
+    fun formatRupiah(amount: Double): String {
         return try {
             val format = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
-            val formatted = format.format(valAmount)
+            val formatted = format.format(amount)
+            // Remove fractional cents (e.g. ,00) for clean premium dashboard presentation
             formatted.replace(",00", "").replace("Rp", "Rp ")
         } catch (e: Exception) {
-            "Rp " + String.format("%,.0f", valAmount)
+            "Rp " + String.format("%,.0f", amount)
         }
     }
 
-    fun formatDate(timestamp: Long?): String {
-        val valTime = timestamp ?: System.currentTimeMillis()
+    fun formatDate(timestamp: Long): String {
         val sdf = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
-        return sdf.format(Date(valTime))
+        return sdf.format(Date(timestamp))
     }
 
-    fun parseStockItemName(name: String?): ParsedStock {
-        val safeName = name ?: ""
-        val cleanName = safeName
+    fun parseStockItemName(name: String): ParsedStock {
+        val cleanName = name
             .replace("Pembelian: ", "", ignoreCase = true)
             .replace("AJIBQOBUL:", "", ignoreCase = true)
             .replace("AJIBQOBUL", "", ignoreCase = true)
@@ -250,8 +196,8 @@ object FormatUtils {
                 sleeve = parts[2].trim()
             )
         }
-        val isApparel = safeName.contains("AJIBQOBUL", ignoreCase = true)
-        return ParsedStock(isApparel = isApparel, series = safeName, size = "", sleeve = "")
+        val isApparel = name.contains("AJIBQOBUL", ignoreCase = true)
+        return ParsedStock(isApparel = isApparel, series = name, size = "", sleeve = "")
     }
 }
 
@@ -271,6 +217,7 @@ object DocumentExporter {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            // Fallback inside externalFilesDir
             val fallbackParent = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
             if (!fallbackParent.exists()) fallbackParent.mkdirs()
             folders.forEach { sub ->
@@ -329,6 +276,7 @@ object DocumentExporter {
             context.startActivity(intent)
         } catch (e: Exception) {
             try {
+                // Fallback to general storage
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     type = "*/*"
                     addCategory(Intent.CATEGORY_OPENABLE)
@@ -343,21 +291,24 @@ object DocumentExporter {
 
     fun exportToPdf(context: Context, invoice: Invoice, items: List<InvoiceItemDetail>, viewModel: MainViewModel? = null): File? {
         val pdfDocument = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 size in points
         val page = pdfDocument.startPage(pageInfo)
         val canvas = page.canvas
         val paint = Paint()
 
+        // Draw Logo & Header
         val logoDrawable = androidx.core.content.ContextCompat.getDrawable(context, com.yansproject.app.R.drawable.ic_logo)
         if (logoDrawable != null) {
-            logoDrawable.setBounds(40, 32, 75, 67)
+            logoDrawable.setBounds(40, 32, 75, 67) // 35x35 size
             logoDrawable.draw(canvas)
         }
 
-        paint.color = android.graphics.Color.parseColor("#0F3D3E")
+        paint.color = android.graphics.Color.parseColor("#0F3D3E") // Dark Teal
         paint.textSize = 20f
         paint.isFakeBoldText = true
         canvas.drawText("YANSPROJECT.ID", 85f, 60f, paint)
+
+        // Subheader "Premium Clothing & Custom Apparels" is removed per branding requirement
 
         paint.textSize = 16f
         paint.isFakeBoldText = true
@@ -368,9 +319,11 @@ object DocumentExporter {
         canvas.drawText("No: ${invoice.invoiceNumber}", 400f, 75f, paint)
         canvas.drawText("Date: ${FormatUtils.formatDate(invoice.issueDate)}", 400f, 90f, paint)
 
+        // Draw Line
         paint.color = android.graphics.Color.GRAY
         canvas.drawLine(40f, 105f, 555f, 105f, paint)
 
+        // Draw Customer Info
         paint.color = android.graphics.Color.BLACK
         paint.textSize = 11f
         paint.isFakeBoldText = true
@@ -391,6 +344,7 @@ object DocumentExporter {
             nextY += 15f
         }
 
+        // Draw Items Table Header - positioned dynamically based on fields
         val tableHeaderY = (nextY + 15f).coerceAtLeast(180f)
         paint.color = android.graphics.Color.LTGRAY
         canvas.drawRect(40f, tableHeaderY, 555f, tableHeaderY + 20f, paint)
@@ -401,6 +355,7 @@ object DocumentExporter {
         canvas.drawText("Price", 430f, tableHeaderY + 14f, paint)
         canvas.drawText("Total", 500f, tableHeaderY + 14f, paint)
 
+        // Draw Items
         paint.isFakeBoldText = false
         var currentY = tableHeaderY + 40f
         val filteredItems = InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
@@ -413,6 +368,7 @@ object DocumentExporter {
             currentY += 20f
         }
 
+        // Draw Summary Line
         currentY += 15f
         canvas.drawLine(40f, currentY, 555f, currentY, paint)
         currentY += 20f
@@ -446,6 +402,7 @@ object DocumentExporter {
         canvas.drawText("GRAND TOTAL:", 380f, currentY, paint)
         canvas.drawText(FormatUtils.formatRupiah(invoice.totalAmount), 480f, currentY, paint)
 
+        // Draw Watermark
         paint.textSize = 50f
         paint.color = when (invoice.status) {
             "LUNAS" -> android.graphics.Color.argb(35, 46, 125, 50)
@@ -459,6 +416,7 @@ object DocumentExporter {
         canvas.drawText(invoice.status, 200f, 500f, paint)
         canvas.restore()
 
+        // Admin Note - Render ONLY if present, dynamic layout
         val noteItem = items.find { it.description.startsWith("__NOTE__:") }
         val note = noteItem?.description?.removePrefix("__NOTE__:")?.trim()
         if (!note.isNullOrBlank()) {
@@ -469,6 +427,7 @@ object DocumentExporter {
             currentY += 45f
         }
 
+        // Footer Brand
         paint.textSize = 9f
         paint.isFakeBoldText = false
         paint.textAlign = Paint.Align.CENTER
@@ -485,6 +444,7 @@ object DocumentExporter {
             pdfDocument.close()
             outputStream.close()
 
+            // Also copy to public Downloads directory for immediate user download access
             try {
                 val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 if (!downloadsDir.exists()) downloadsDir.mkdirs()
@@ -502,6 +462,7 @@ object DocumentExporter {
                 Toast.makeText(context, "Ringkasan PDF Invoice-${safeNum} berhasil diunduh ke Downloads!", Toast.LENGTH_LONG).show()
             }
 
+            // Log Export PDF Event
             val params = android.os.Bundle().apply {
                 putString("invoice_number", invoice.invoiceNumber)
                 putString("type", "Invoice")
@@ -522,13 +483,17 @@ object DocumentExporter {
         val canvas = Canvas(bitmap)
         val paint = Paint()
 
+        // Fill White background
         paint.color = android.graphics.Color.WHITE
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 
+        // Draw elegant printable invoice
         paint.color = android.graphics.Color.rgb(33, 33, 33)
         paint.textSize = 26f
         paint.isFakeBoldText = true
         canvas.drawText("YANSPROJECT.ID", 60f, 80f, paint)
+
+        // Subheader "Premium Clothing & Custom Apparels" is removed per branding requirement
 
         paint.textSize = 22f
         paint.isFakeBoldText = true
@@ -542,6 +507,7 @@ object DocumentExporter {
         paint.color = android.graphics.Color.LTGRAY
         canvas.drawLine(60f, 150f, 740f, 150f, paint)
 
+        // Customer Info
         paint.color = android.graphics.Color.BLACK
         paint.textSize = 14f
         paint.isFakeBoldText = true
@@ -562,6 +528,7 @@ object DocumentExporter {
             nextY += 20f
         }
 
+        // Draw Items Table Header - dynamic position
         val tableHeaderY = (nextY + 20f).coerceAtLeast(260f)
         paint.color = android.graphics.Color.rgb(240, 240, 240)
         canvas.drawRect(60f, tableHeaderY, 740f, tableHeaderY + 30f, paint)
@@ -617,6 +584,7 @@ object DocumentExporter {
         canvas.drawText("GRAND TOTAL:", 500f, currentY, paint)
         canvas.drawText(FormatUtils.formatRupiah(invoice.totalAmount), 650f, currentY, paint)
 
+        // Draw Watermark
         paint.textSize = 70f
         paint.color = when (invoice.status) {
             "LUNAS" -> android.graphics.Color.argb(35, 46, 125, 50)
@@ -630,6 +598,7 @@ object DocumentExporter {
         canvas.drawText(invoice.status, 250f, 650f, paint)
         canvas.restore()
 
+        // Admin Note - Render ONLY if present, dynamic layout
         val noteItem = items.find { it.description.startsWith("__NOTE__:") }
         val note = noteItem?.description?.removePrefix("__NOTE__:")?.trim()
         if (!note.isNullOrBlank()) {
@@ -641,6 +610,7 @@ object DocumentExporter {
             currentY += 50f
         }
 
+        // Footer Brand
         paint.textSize = 12f
         paint.isFakeBoldText = false
         paint.textAlign = Paint.Align.CENTER
@@ -680,21 +650,24 @@ object DocumentExporter {
         viewModel: MainViewModel? = null
     ) {
         val pdfDocument = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 size in points
         val page = pdfDocument.startPage(pageInfo)
         val canvas = page.canvas
         val paint = Paint()
 
-        paint.color = android.graphics.Color.parseColor("#121212")
+        // Header Background
+        paint.color = android.graphics.Color.parseColor("#121212") // Dark theme color
         canvas.drawRect(0f, 0f, 595f, 110f, paint)
 
+        // Draw Logo
         val logoDrawable = androidx.core.content.ContextCompat.getDrawable(context, com.yansproject.app.R.drawable.ic_logo)
         if (logoDrawable != null) {
-            logoDrawable.setBounds(40, 25, 80, 65)
+            logoDrawable.setBounds(40, 25, 80, 65) // 40x40 size
             logoDrawable.draw(canvas)
         }
 
-        paint.color = android.graphics.Color.parseColor("#C6A15B")
+        // Store Name
+        paint.color = android.graphics.Color.parseColor("#C6A15B") // AgedGold
         paint.textSize = 22f
         paint.isFakeBoldText = true
         canvas.drawText(AppSettings.getStoreName(context).uppercase(), 95f, 50f, paint)
@@ -705,7 +678,10 @@ object DocumentExporter {
         canvas.drawText("RINGKASAN LAPORAN KEUANGAN & OPERASIONAL", 95f, 70f, paint)
         canvas.drawText("Periode: $period | Tanggal Cetak: ${FormatUtils.formatDate(System.currentTimeMillis())}", 95f, 85f, paint)
 
+        // Reset Paint
         paint.color = android.graphics.Color.BLACK
+        
+        // --- 1. RINGKASAN METRIK ---
         paint.textSize = 12f
         paint.isFakeBoldText = true
         canvas.drawText("1. RINGKASAN KINERJA KEUANGAN", 40f, 140f, paint)
@@ -731,6 +707,7 @@ object DocumentExporter {
         paint.isFakeBoldText = true
         canvas.drawText("$totalOrdersCount Transaksi", 230f, 200f, paint)
 
+        // Column 2 inside metrics
         paint.isFakeBoldText = false
         canvas.drawText("Project Custom Aktif:", 350f, 170f, paint)
         paint.isFakeBoldText = true
@@ -741,6 +718,7 @@ object DocumentExporter {
         paint.isFakeBoldText = true
         canvas.drawText("$lowStockCount Item", 480f, 185f, paint)
 
+        // --- 2. PIUTANG (INVOICE BELUM LUNAS) ---
         var yPos = 245f
         paint.color = android.graphics.Color.BLACK
         paint.textSize = 12f
@@ -748,7 +726,7 @@ object DocumentExporter {
         canvas.drawText("2. DAFTAR PIUTANG (BELUM LUNAS)", 40f, yPos, paint)
         
         yPos += 12f
-        paint.color = android.graphics.Color.parseColor("#C39B4B")
+        paint.color = android.graphics.Color.parseColor("#C39B4B") // AgedGold/Brown accent
         canvas.drawRect(40f, yPos, 555f, yPos + 18f, paint)
         
         paint.color = android.graphics.Color.WHITE
@@ -779,6 +757,7 @@ object DocumentExporter {
             }
         }
 
+        // --- 3. PROJECT AKTIF ---
         yPos += 30f
         paint.color = android.graphics.Color.BLACK
         paint.textSize = 12f
@@ -816,6 +795,7 @@ object DocumentExporter {
             }
         }
 
+        // Footer Note
         yPos = 780f
         paint.color = android.graphics.Color.GRAY
         canvas.drawLine(40f, yPos, 555f, yPos, paint)
@@ -825,6 +805,7 @@ object DocumentExporter {
 
         pdfDocument.finishPage(page)
 
+        // Save file
         try {
             val documentsDir = getExportDirectory(context, "export")
             val file = File(documentsDir, "YANS_LAPORAN_KEUANGAN_${System.currentTimeMillis()}.pdf")
@@ -837,6 +818,7 @@ object DocumentExporter {
                 Toast.makeText(context, "PDF Laporan berhasil disimpan di: ${file.name}", Toast.LENGTH_LONG).show()
             }
 
+            // Log Export PDF Event
             val params = android.os.Bundle().apply {
                 putString("type", "Financial_Summary")
                 putString("filename", file.name)
@@ -858,18 +840,19 @@ object DocumentExporter {
         viewModel: MainViewModel? = null
     ): File? {
         val pdfDocument = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4
         val page = pdfDocument.startPage(pageInfo)
         val canvas = page.canvas
         val paint = Paint()
 
+        // Logo
         val logoDrawable = androidx.core.content.ContextCompat.getDrawable(context, com.yansproject.app.R.drawable.ic_logo)
         if (logoDrawable != null) {
             logoDrawable.setBounds(40, 32, 75, 67)
             logoDrawable.draw(canvas)
         }
 
-        paint.color = android.graphics.Color.parseColor("#0F3D3E")
+        paint.color = android.graphics.Color.parseColor("#0F3D3E") // Dark Teal
         paint.textSize = 20f
         paint.isFakeBoldText = true
         canvas.drawText("YANSPROJECT.ID", 85f, 60f, paint)
@@ -884,9 +867,11 @@ object DocumentExporter {
         val dateString = dateFormat.format(Date())
         canvas.drawText("Date: $dateString", 400f, 78f, paint)
 
+        // Line Divider
         paint.color = android.graphics.Color.GRAY
         canvas.drawLine(40f, 105f, 555f, 105f, paint)
 
+        // Customer Info
         paint.color = android.graphics.Color.BLACK
         paint.textSize = 11f
         paint.isFakeBoldText = true
@@ -895,6 +880,7 @@ object DocumentExporter {
         canvas.drawText("Name: $clientName", 40f, 145f, paint)
         canvas.drawText("WhatsApp: $clientPhone", 40f, 160f, paint)
 
+        // Table Header
         val tableHeaderY = 185f
         paint.color = android.graphics.Color.LTGRAY
         canvas.drawRect(40f, tableHeaderY, 555f, tableHeaderY + 20f, paint)
@@ -905,6 +891,7 @@ object DocumentExporter {
         canvas.drawText("Price", 410f, tableHeaderY + 14f, paint)
         canvas.drawText("Total", 490f, tableHeaderY + 14f, paint)
 
+        // Items
         paint.isFakeBoldText = false
         var currentY = tableHeaderY + 35f
         for (item in items) {
@@ -917,6 +904,7 @@ object DocumentExporter {
             currentY += 20f
         }
 
+        // Summary Line
         currentY += 10f
         canvas.drawLine(40f, currentY, 555f, currentY, paint)
         currentY += 20f
@@ -943,6 +931,7 @@ object DocumentExporter {
             canvas.drawText("Catatan: $notes", 40f, currentY + 30f, paint)
         }
 
+        // Footer Brand
         paint.color = android.graphics.Color.GRAY
         paint.textSize = 9f
         paint.isFakeBoldText = false
@@ -987,10 +976,12 @@ object DocumentExporter {
         val canvas = Canvas(bitmap)
         val paint = Paint()
 
+        // Background
         paint.color = android.graphics.Color.WHITE
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 
-        paint.color = android.graphics.Color.rgb(15, 61, 62)
+        // Logo / Title
+        paint.color = android.graphics.Color.rgb(15, 61, 62) // Dark Teal
         paint.textSize = 26f
         paint.isFakeBoldText = true
         canvas.drawText("YANSPROJECT.ID", 60f, 80f, paint)
@@ -1008,6 +999,7 @@ object DocumentExporter {
         paint.color = android.graphics.Color.LTGRAY
         canvas.drawLine(60f, 140f, 740f, 140f, paint)
 
+        // Customer Info
         paint.color = android.graphics.Color.BLACK
         paint.textSize = 14f
         paint.isFakeBoldText = true
@@ -1016,6 +1008,7 @@ object DocumentExporter {
         canvas.drawText("Name: $clientName", 60f, 205f, paint)
         canvas.drawText("WhatsApp: $clientPhone", 60f, 225f, paint)
 
+        // Table Header
         val tableHeaderY = 255f
         paint.color = android.graphics.Color.rgb(240, 240, 240)
         canvas.drawRect(60f, tableHeaderY, 740f, tableHeaderY + 30f, paint)
@@ -1026,6 +1019,7 @@ object DocumentExporter {
         canvas.drawText("Price", 560f, tableHeaderY + 20f, paint)
         canvas.drawText("Total", 660f, tableHeaderY + 20f, paint)
 
+        // Items
         paint.isFakeBoldText = false
         var currentY = tableHeaderY + 50f
         for (item in items) {
@@ -1066,6 +1060,7 @@ object DocumentExporter {
             canvas.drawText("Catatan: $notes", 60f, currentY + 40f, paint)
         }
 
+        // Footer
         paint.color = android.graphics.Color.GRAY
         paint.textSize = 12f
         paint.isFakeBoldText = false
