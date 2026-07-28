@@ -108,20 +108,20 @@ fun SettingsScreen(
     var showLogoutConfirmDialog by remember { mutableStateOf(false) }
     var showTrashScreen by remember { mutableStateOf(false) }
 
-    // Preferences states (diamankan dengan ?: "" untuk menghindari NullPointerException)
-    var storeName by remember { mutableStateOf(AppSettings.getStoreName(context) ?: "") }
-    var address by remember { mutableStateOf(AppSettings.getAddress(context) ?: "") }
-    var whatsapp by remember { mutableStateOf(AppSettings.getWhatsApp(context) ?: "") }
-    var email by remember { mutableStateOf(AppSettings.getEmail(context) ?: "") }
-    var website by remember { mutableStateOf(AppSettings.getWebsite(context) ?: "") }
+    // Preferences states
+    var storeName by remember { mutableStateOf(AppSettings.getStoreName(context)) }
+    var address by remember { mutableStateOf(AppSettings.getAddress(context)) }
+    var whatsapp by remember { mutableStateOf(AppSettings.getWhatsApp(context)) }
+    var email by remember { mutableStateOf(AppSettings.getEmail(context)) }
+    var website by remember { mutableStateOf(AppSettings.getWebsite(context)) }
     
-    var bankName by remember { mutableStateOf(AppSettings.getBankName(context) ?: "") }
-    var accountNumber by remember { mutableStateOf(AppSettings.getAccountNumber(context) ?: "") }
-    var accountHolder by remember { mutableStateOf(AppSettings.getAccountHolder(context) ?: "") }
-    var invoiceFooter by remember { mutableStateOf(AppSettings.getInvoiceFooter(context) ?: "") }
+    var bankName by remember { mutableStateOf(AppSettings.getBankName(context)) }
+    var accountNumber by remember { mutableStateOf(AppSettings.getAccountNumber(context)) }
+    var accountHolder by remember { mutableStateOf(AppSettings.getAccountHolder(context)) }
+    var invoiceFooter by remember { mutableStateOf(AppSettings.getInvoiceFooter(context)) }
 
-    var projectPrefix by remember { mutableStateOf(AppSettings.getProjectPrefix(context) ?: "") }
-    var invoicePrefix by remember { mutableStateOf(AppSettings.getInvoicePrefix(context) ?: "") }
+    var projectPrefix by remember { mutableStateOf(AppSettings.getProjectPrefix(context)) }
+    var invoicePrefix by remember { mutableStateOf(AppSettings.getInvoicePrefix(context)) }
 
     // State variables for upsize rules (Priority 6 & 8)
     var customUpsizeXXL by remember { mutableStateOf(AppSettings.getCustomUpsizeXXL(context).toInt().toString()) }
@@ -1708,11 +1708,11 @@ fun renderNestedSubScreen(
         "identitas" -> {
             com.yansproject.app.ui.settings.BusinessIdentityModule(
                 onSaveSuccess = {
-                    onStoreNameChange(AppSettings.getStoreName(context) ?: "")
-                    onAddressChange(AppSettings.getAddress(context) ?: "")
-                    onWhatsappChange(AppSettings.getWhatsApp(context) ?: "")
-                    onEmailChange(AppSettings.getEmail(context) ?: "")
-                    onWebsiteChange(AppSettings.getWebsite(context) ?: "")
+                    onStoreNameChange(AppSettings.getStoreName(context))
+                    onAddressChange(AppSettings.getAddress(context))
+                    onWhatsappChange(AppSettings.getWhatsApp(context))
+                    onEmailChange(AppSettings.getEmail(context))
+                    onWebsiteChange(AppSettings.getWebsite(context))
                 }
             )
         }
@@ -1720,9 +1720,9 @@ fun renderNestedSubScreen(
         "keuangan" -> {
             com.yansproject.app.ui.settings.FinanceConfigModule(
                 onSaveSuccess = {
-                    onBankNameChange(AppSettings.getBankName(context) ?: "")
-                    onAccountNumberChange(AppSettings.getAccountNumber(context) ?: "")
-                    onAccountHolderChange(AppSettings.getAccountHolder(context) ?: "")
+                    onBankNameChange(AppSettings.getBankName(context))
+                    onAccountNumberChange(AppSettings.getAccountNumber(context))
+                    onAccountHolderChange(AppSettings.getAccountHolder(context))
                     onCustomUpsizeXXLChange(AppSettings.getCustomUpsizeXXL(context).toInt().toString())
                     onCustomUpsize3XLChange(AppSettings.getCustomUpsize3XL(context).toInt().toString())
                     onCustomUpsize4XLChange(AppSettings.getCustomUpsize4XL(context).toInt().toString())
@@ -1736,9 +1736,9 @@ fun renderNestedSubScreen(
         "dokumen" -> {
             com.yansproject.app.ui.settings.DocumentFormatModule(
                 onSaveSuccess = {
-                    onInvoiceFooterChange(AppSettings.getInvoiceFooter(context) ?: "")
-                    onProjectPrefixChange(AppSettings.getProjectPrefix(context) ?: "")
-                    onInvoicePrefixChange(AppSettings.getInvoicePrefix(context) ?: "")
+                    onInvoiceFooterChange(AppSettings.getInvoiceFooter(context))
+                    onProjectPrefixChange(AppSettings.getProjectPrefix(context))
+                    onInvoicePrefixChange(AppSettings.getInvoicePrefix(context))
                 }
             )
         }
@@ -2209,17 +2209,11 @@ fun renderNestedSubScreen(
         "akun" -> {
             val userPrefs = remember { context.getSharedPreferences("yans_user_prefs_${currentUser?.email ?: "guest"}", android.content.Context.MODE_PRIVATE) }
             
-            val defaultName = if (isOwner) "YANSPROJECT.ID OWNER" else (currentUser?.displayName ?: "")
-            val defaultUsername = if (isOwner) "admin" else ""
-            val defaultEmail = if (isOwner) "admin@yansproject.id" else (currentUser?.email ?: "")
-            val defaultWhatsapp = if (isOwner) "+62 877-7739-8813" else ""
-            val defaultAddress = if (isOwner) "Tangerang, Banten" else ""
-
-            var nameInput by remember { mutableStateOf(userPrefs.getString("user_full_name", defaultName)?.ifBlank { defaultName } ?: defaultName) }
-            var usernameInput by remember { mutableStateOf(userPrefs.getString("user_username", defaultUsername)?.ifBlank { defaultUsername } ?: defaultUsername) }
-            var emailInput by remember { mutableStateOf(userPrefs.getString("user_email", defaultEmail)?.ifBlank { defaultEmail } ?: defaultEmail) }
-            var whatsappInput by remember { mutableStateOf(userPrefs.getString("user_whatsapp", defaultWhatsapp)?.ifBlank { defaultWhatsapp } ?: defaultWhatsapp) }
-            var addressInput by remember { mutableStateOf(userPrefs.getString("user_address", defaultAddress)?.ifBlank { defaultAddress } ?: defaultAddress) }
+            var nameInput by remember { mutableStateOf(currentUser?.displayName ?: "") }
+            var usernameInput by remember { mutableStateOf(userPrefs.getString("user_username", "") ?: "") }
+            var emailInput by remember { mutableStateOf(currentUser?.email ?: "") }
+            var whatsappInput by remember { mutableStateOf(userPrefs.getString("user_whatsapp", "") ?: "") }
+            var addressInput by remember { mutableStateOf(userPrefs.getString("user_address", "") ?: "") }
             var recoveryAccountInput by remember { mutableStateOf(userPrefs.getString("user_recovery_email", "") ?: "") }
             
             var passwordInput by remember { mutableStateOf("") }
@@ -3178,6 +3172,14 @@ fun renderNestedSubScreen(
                         HorizontalDivider(color = AgedGold.copy(alpha = 0.15f), thickness = 1.dp)
                         
                         OutlinedTextField(
+                            value = ajibBase,
+                            onValueChange = { ajibBase = it },
+                            label = { Text("Harga Dasar Lengan Pendek (Rp)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
+                        )
+
+                        OutlinedTextField(
                             value = ajibLong,
                             onValueChange = { ajibLong = it },
                             label = { Text("Tambahan Harga Lengan Panjang (Rp)") },
@@ -3238,6 +3240,14 @@ fun renderNestedSubScreen(
                         }
                         
                         HorizontalDivider(color = HighlightSoftCyan.copy(alpha = 0.15f), thickness = 1.dp)
+
+                        OutlinedTextField(
+                            value = custBase,
+                            onValueChange = { custBase = it },
+                            label = { Text("Harga Dasar Lengan Pendek (Rp)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
+                        )
 
                         OutlinedTextField(
                             value = custLong,
@@ -4879,3 +4889,5 @@ fun AboutYansScreen(onBack: () -> Unit) {
         }
     }
 }
+
+

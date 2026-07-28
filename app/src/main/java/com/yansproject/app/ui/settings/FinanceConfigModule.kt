@@ -39,24 +39,7 @@ fun FinanceConfigModule(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Helper functions for 100% Null-Safety & Crash-Proof number conversions
-    fun safeIntString(action: () -> Double, defaultVal: String): String {
-        return try {
-            action().toInt().toString()
-        } catch (e: Exception) {
-            defaultVal
-        }
-    }
-
-    fun safeDouble(value: String, defaultVal: Double): Double {
-        return try {
-            value.trim().toDoubleOrNull() ?: defaultVal
-        } catch (e: Exception) {
-            defaultVal
-        }
-    }
-
-    // Load bank details safely
+    // Load bank details
     val dataBankName = try { AppSettings.getBankName(context).ifBlank { null } } catch (e: Exception) { null }
     var bankName by remember { mutableStateOf(dataBankName ?: "BRI") }
 
@@ -68,84 +51,106 @@ fun FinanceConfigModule(
 
     // Engine AJIBQOBUL Ready Stock variables
     var ajibqobulHppPendek by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulHppPendek(context) }, "67000"))
+        val valStr = try { AppSettings.getAjibqobulHppPendek(context).toInt().toString() } catch (e: Exception) { "67000" }
+        mutableStateOf(valStr)
     }
     var ajibqobulHppPanjang by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulHppPanjang(context) }, "77000"))
+        val valStr = try { AppSettings.getAjibqobulHppPanjang(context).toInt().toString() } catch (e: Exception) { "77000" }
+        mutableStateOf(valStr)
     }
     var ajibqobulHppUpsizeXXL by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulHppUpsizeXXL(context) }, "5000"))
+        val valStr = try { AppSettings.getAjibqobulHppUpsizeXXL(context).toInt().toString() } catch (e: Exception) { "5000" }
+        mutableStateOf(valStr)
     }
     var ajibqobulHppUpsize3XL by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulHppUpsize3XL(context) }, "10000"))
+        val valStr = try { AppSettings.getAjibqobulHppUpsize3XL(context).toInt().toString() } catch (e: Exception) { "10000" }
+        mutableStateOf(valStr)
     }
     var ajibqobulHppUpsize4XL by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulHppUpsize4XL(context) }, "15000"))
+        val valStr = try { AppSettings.getAjibqobulHppUpsize4XL(context).toInt().toString() } catch (e: Exception) { "15000" }
+        mutableStateOf(valStr)
     }
     var ajibqobulHargaRetail by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulHargaRetail(context) }, "100000"))
+        val valStr = try { AppSettings.getAjibqobulHargaRetail(context).toInt().toString() } catch (e: Exception) { "100000" }
+        mutableStateOf(valStr)
     }
     var ajibqobulHargaMember by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulHargaMember(context) }, "85000"))
+        val valStr = try { AppSettings.getAjibqobulHargaMember(context).toInt().toString() } catch (e: Exception) { "85000" }
+        mutableStateOf(valStr)
     }
     var ajibqobulHargaReseller by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulHargaReseller(context) }, "90000"))
+        val valStr = try { AppSettings.getAjibqobulHargaReseller(context).toInt().toString() } catch (e: Exception) { "90000" }
+        mutableStateOf(valStr)
     }
     var ajibqobulHargaCustom by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulHargaCustom(context) }, "80000"))
+        val valStr = try { AppSettings.getAjibqobulHargaCustom(context).toInt().toString() } catch (e: Exception) { "80000" }
+        mutableStateOf(valStr)
     }
     var ajibqobulSleeveLongPrice by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulSleeveLongPrice(context) }, "10000"))
+        val valStr = try { AppSettings.getAjibqobulSleeveLongPrice(context).toInt().toString() } catch (e: Exception) { "10000" }
+        mutableStateOf(valStr)
     }
     var ajibqobulXXL by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulUpsizeXXL(context) }, "10000"))
+        val valStr = try { AppSettings.getAjibqobulUpsizeXXL(context).toInt().toString() } catch (e: Exception) { "10000" }
+        mutableStateOf(valStr)
     }
     var ajibqobul3XL by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulUpsize3XL(context) }, "10000"))
+        val valStr = try { AppSettings.getAjibqobulUpsize3XL(context).toInt().toString() } catch (e: Exception) { "10000" }
+        mutableStateOf(valStr)
     }
     var ajibqobul4XL by remember {
-        mutableStateOf(safeIntString({ AppSettings.getAjibqobulUpsize4XL(context) }, "20000"))
+        val valStr = try { AppSettings.getAjibqobulUpsize4XL(context).toInt().toString() } catch (e: Exception) { "20000" }
+        mutableStateOf(valStr)
     }
 
     // Engine Project Custom variables
     var customBasePrice by remember {
-        mutableStateOf(safeIntString({ AppSettings.getCustomBasePrice(context) }, "100000"))
+        val valStr = try { AppSettings.getCustomBasePrice(context).toInt().toString() } catch (e: Exception) { "100000" }
+        mutableStateOf(valStr)
     }
     var customSleeveLongPrice by remember {
-        mutableStateOf(safeIntString({ AppSettings.getCustomSleeveLongPrice(context) }, "10000"))
+        val valStr = try { AppSettings.getCustomSleeveLongPrice(context).toInt().toString() } catch (e: Exception) { "15000" }
+        mutableStateOf(valStr)
     }
     var customXXL by remember {
-        mutableStateOf(safeIntString({ AppSettings.getCustomUpsizeXXL(context) }, "10000"))
+        val amt = try { AppSettings.getCustomUpsizeXXL(context).toInt().toString() } catch (e: Exception) { "10000" }
+        mutableStateOf(amt)
     }
     var custom3XL by remember {
-        mutableStateOf(safeIntString({ AppSettings.getCustomUpsize3XL(context) }, "10000"))
+        val amt = try { AppSettings.getCustomUpsize3XL(context).toInt().toString() } catch (e: Exception) { "10000" }
+        mutableStateOf(amt)
     }
     var custom4XL by remember {
-        mutableStateOf(safeIntString({ AppSettings.getCustomUpsize4XL(context) }, "10000"))
+        val amt = try { AppSettings.getCustomUpsize4XL(context).toInt().toString() } catch (e: Exception) { "10000" }
+        mutableStateOf(amt)
     }
     var customHppRegulerPendek by remember {
-        mutableStateOf(safeIntString({ AppSettings.getCustomHppRegulerPendek(context) }, "67000"))
+        val amt = try { AppSettings.getCustomHppRegulerPendek(context).toInt().toString() } catch (e: Exception) { "55000" }
+        mutableStateOf(amt)
     }
     var customHppRegulerPanjang by remember {
-        mutableStateOf(safeIntString({ AppSettings.getCustomHppRegulerPanjang(context) }, "77000"))
+        val amt = try { AppSettings.getCustomHppRegulerPanjang(context).toInt().toString() } catch (e: Exception) { "65000" }
+        mutableStateOf(amt)
     }
     var customHppKidsPendek by remember {
-        mutableStateOf(safeIntString({ AppSettings.getCustomHppKidsPendek(context) }, "40000"))
+        val amt = try { AppSettings.getCustomHppKidsPendek(context).toInt().toString() } catch (e: Exception) { "40000" }
+        mutableStateOf(amt)
     }
     var customHppKidsPanjang by remember {
-        mutableStateOf(safeIntString({ AppSettings.getCustomHppKidsPanjang(context) }, "45000"))
+        val amt = try { AppSettings.getCustomHppKidsPanjang(context).toInt().toString() } catch (e: Exception) { "45000" }
+        mutableStateOf(amt)
     }
 
     // Persist default values if initially empty
     LaunchedEffect(Unit) {
         try {
-            if ((try { AppSettings.getBankName(context) } catch (e: Exception) { "" } ?: "").isBlank()) {
+            if (AppSettings.getBankName(context).isBlank()) {
                 AppSettings.setBankName(context, "BRI")
             }
-            if ((try { AppSettings.getAccountNumber(context) } catch (e: Exception) { "" } ?: "").isBlank()) {
+            if (AppSettings.getAccountNumber(context).isBlank()) {
                 AppSettings.setAccountNumber(context, "736901039928537")
             }
-            if ((try { AppSettings.getAccountHolder(context) } catch (e: Exception) { "" } ?: "").isBlank()) {
+            if (AppSettings.getAccountHolder(context).isBlank()) {
                 AppSettings.setAccountHolder(context, "ACHMAD ROBBIYANSYAH")
             }
         } catch (e: Exception) {
@@ -209,7 +214,7 @@ fun FinanceConfigModule(
 
                 OutlinedTextField(
                     value = bankName,
-                    onValueChange = { bankName = it ?: "" },
+                    onValueChange = { bankName = it },
                     label = { Text("Nama Bank", color = TextNonActive) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -224,7 +229,7 @@ fun FinanceConfigModule(
 
                 OutlinedTextField(
                     value = accountNumber,
-                    onValueChange = { accountNumber = it ?: "" },
+                    onValueChange = { accountNumber = it },
                     label = { Text("Nomor Rekening", color = TextNonActive) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -240,7 +245,7 @@ fun FinanceConfigModule(
 
                 OutlinedTextField(
                     value = accountHolder,
-                    onValueChange = { accountHolder = it ?: "" },
+                    onValueChange = { accountHolder = it },
                     label = { Text("Nama Pemilik Rekening", color = TextNonActive) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -274,30 +279,31 @@ fun FinanceConfigModule(
                     color = AccentAgedGold
                 )
 
-                OutlinedTextField(
-                    value = ajibqobulHppPendek,
-                    onValueChange = { ajibqobulHppPendek = it ?: "" },
-                    label = { Text("HPP Lengan Pendek (Rp)", fontSize = 11.sp, color = TextNonActive) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = ajibqobulHppPanjang,
-                    onValueChange = { ajibqobulHppPanjang = it ?: "" },
-                    label = { Text("HPP Lengan Panjang (Rp)", fontSize = 11.sp, color = TextNonActive) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = ajibqobulHppPendek,
+                        onValueChange = { ajibqobulHppPendek = it },
+                        label = { Text("HPP Lengan Pendek", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = ajibqobulHppPanjang,
+                        onValueChange = { ajibqobulHppPanjang = it },
+                        label = { Text("HPP Lengan Panjang", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                }
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = ajibqobulHppUpsizeXXL,
-                        onValueChange = { ajibqobulHppUpsizeXXL = it ?: "" },
+                        onValueChange = { ajibqobulHppUpsizeXXL = it },
                         label = { Text("HPP Upsize XXL (+)", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -306,7 +312,7 @@ fun FinanceConfigModule(
                     )
                     OutlinedTextField(
                         value = ajibqobulHppUpsize3XL,
-                        onValueChange = { ajibqobulHppUpsize3XL = it ?: "" },
+                        onValueChange = { ajibqobulHppUpsize3XL = it },
                         label = { Text("HPP Upsize 3XL (+)", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -315,7 +321,7 @@ fun FinanceConfigModule(
                     )
                     OutlinedTextField(
                         value = ajibqobulHppUpsize4XL,
-                        onValueChange = { ajibqobulHppUpsize4XL = it ?: "" },
+                        onValueChange = { ajibqobulHppUpsize4XL = it },
                         label = { Text("HPP Upsize 4XL (+)", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -327,7 +333,7 @@ fun FinanceConfigModule(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = ajibqobulHargaRetail,
-                        onValueChange = { ajibqobulHargaRetail = it ?: "" },
+                        onValueChange = { ajibqobulHargaRetail = it },
                         label = { Text("Harga Retail", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -336,7 +342,7 @@ fun FinanceConfigModule(
                     )
                     OutlinedTextField(
                         value = ajibqobulHargaMember,
-                        onValueChange = { ajibqobulHargaMember = it ?: "" },
+                        onValueChange = { ajibqobulHargaMember = it },
                         label = { Text("Harga Member", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -348,7 +354,7 @@ fun FinanceConfigModule(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = ajibqobulHargaReseller,
-                        onValueChange = { ajibqobulHargaReseller = it ?: "" },
+                        onValueChange = { ajibqobulHargaReseller = it },
                         label = { Text("Harga Reseller", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -357,7 +363,7 @@ fun FinanceConfigModule(
                     )
                     OutlinedTextField(
                         value = ajibqobulHargaCustom,
-                        onValueChange = { ajibqobulHargaCustom = it ?: "" },
+                        onValueChange = { ajibqobulHargaCustom = it },
                         label = { Text("Harga Custom", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -368,7 +374,7 @@ fun FinanceConfigModule(
 
                 OutlinedTextField(
                     value = ajibqobulSleeveLongPrice,
-                    onValueChange = { ajibqobulSleeveLongPrice = it ?: "" },
+                    onValueChange = { ajibqobulSleeveLongPrice = it },
                     label = { Text("Tambahan Harga Lengan Panjang (Rp)", fontSize = 11.sp, color = TextNonActive) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -386,7 +392,7 @@ fun FinanceConfigModule(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = ajibqobulXXL,
-                        onValueChange = { ajibqobulXXL = it ?: "" },
+                        onValueChange = { ajibqobulXXL = it },
                         label = { Text("Tambahan XXL", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -395,7 +401,7 @@ fun FinanceConfigModule(
                     )
                     OutlinedTextField(
                         value = ajibqobul3XL,
-                        onValueChange = { ajibqobul3XL = it ?: "" },
+                        onValueChange = { ajibqobul3XL = it },
                         label = { Text("Tambahan 3XL", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -404,7 +410,7 @@ fun FinanceConfigModule(
                     )
                     OutlinedTextField(
                         value = ajibqobul4XL,
-                        onValueChange = { ajibqobul4XL = it ?: "" },
+                        onValueChange = { ajibqobul4XL = it },
                         label = { Text("Tambahan 4XL", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -434,25 +440,26 @@ fun FinanceConfigModule(
                     color = AccentAgedGold
                 )
 
-                OutlinedTextField(
-                    value = customBasePrice,
-                    onValueChange = { customBasePrice = it ?: "" },
-                    label = { Text("Harga Dasar Lengan Pendek (Rp)", fontSize = 11.sp, color = TextNonActive) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = customSleeveLongPrice,
-                    onValueChange = { customSleeveLongPrice = it ?: "" },
-                    label = { Text("Tambahan Harga Lengan Panjang (Rp)", fontSize = 11.sp, color = TextNonActive) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = customBasePrice,
+                        onValueChange = { customBasePrice = it },
+                        label = { Text("Harga Dasar Pendek (Rp)", fontSize = 11.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = customSleeveLongPrice,
+                        onValueChange = { customSleeveLongPrice = it },
+                        label = { Text("Tambahan Harga Panjang (Rp)", fontSize = 11.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                }
 
                 Text(
                     text = "Konfigurasi HPP Custom Project (Reguler & Kids)",
@@ -464,7 +471,7 @@ fun FinanceConfigModule(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = customHppRegulerPendek,
-                        onValueChange = { customHppRegulerPendek = it ?: "" },
+                        onValueChange = { customHppRegulerPendek = it },
                         label = { Text("HPP Reguler Pendek", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -473,7 +480,7 @@ fun FinanceConfigModule(
                     )
                     OutlinedTextField(
                         value = customHppRegulerPanjang,
-                        onValueChange = { customHppRegulerPanjang = it ?: "" },
+                        onValueChange = { customHppRegulerPanjang = it },
                         label = { Text("HPP Reguler Panjang", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -485,7 +492,7 @@ fun FinanceConfigModule(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = customHppKidsPendek,
-                        onValueChange = { customHppKidsPendek = it ?: "" },
+                        onValueChange = { customHppKidsPendek = it },
                         label = { Text("HPP Kids Pendek", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -494,7 +501,7 @@ fun FinanceConfigModule(
                     )
                     OutlinedTextField(
                         value = customHppKidsPanjang,
-                        onValueChange = { customHppKidsPanjang = it ?: "" },
+                        onValueChange = { customHppKidsPanjang = it },
                         label = { Text("HPP Kids Panjang", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -513,7 +520,7 @@ fun FinanceConfigModule(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = customXXL,
-                        onValueChange = { customXXL = it ?: "" },
+                        onValueChange = { customXXL = it },
                         label = { Text("Tambahan XXL", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -522,7 +529,7 @@ fun FinanceConfigModule(
                     )
                     OutlinedTextField(
                         value = custom3XL,
-                        onValueChange = { custom3XL = it ?: "" },
+                        onValueChange = { custom3XL = it },
                         label = { Text("Tambahan 3XL", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -531,7 +538,7 @@ fun FinanceConfigModule(
                     )
                     OutlinedTextField(
                         value = custom4XL,
-                        onValueChange = { custom4XL = it ?: "" },
+                        onValueChange = { custom4XL = it },
                         label = { Text("Tambahan 4XL", fontSize = 10.sp, color = TextNonActive) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
@@ -545,47 +552,43 @@ fun FinanceConfigModule(
         // Save Button
         Button(
             onClick = {
-                val safeBankName = (bankName ?: "").trim()
-                val safeAccountNum = (accountNumber ?: "").trim()
-                val safeHolder = (accountHolder ?: "").trim()
-
-                if (safeBankName.isBlank() || safeAccountNum.isBlank() || safeHolder.isBlank()) {
+                if (bankName.isBlank() || accountNumber.isBlank() || accountHolder.isBlank()) {
                     com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Harap isi seluruh data bank!")
                     return@Button
                 }
 
-                // Parse variables safely
-                val hppPendek = safeDouble(ajibqobulHppPendek, 67000.0)
-                val hppPanjang = safeDouble(ajibqobulHppPanjang, 77000.0)
-                val hppUpsizeXXL = safeDouble(ajibqobulHppUpsizeXXL, 5000.0)
-                val hppUpsize3XL = safeDouble(ajibqobulHppUpsize3XL, 10000.0)
-                val hppUpsize4XL = safeDouble(ajibqobulHppUpsize4XL, 15000.0)
-                val retailPrice = safeDouble(ajibqobulHargaRetail, 100000.0)
-                val memberPrice = safeDouble(ajibqobulHargaMember, 85000.0)
-                val resellerPrice = safeDouble(ajibqobulHargaReseller, 90000.0)
-                val customPrice = safeDouble(ajibqobulHargaCustom, 80000.0)
-                val sleeveLongPrice = safeDouble(ajibqobulSleeveLongPrice, 10000.0)
-                val aXXL = safeDouble(ajibqobulXXL, 10000.0)
-                val a3XL = safeDouble(ajibqobul3XL, 10000.0)
-                val a4XL = safeDouble(ajibqobul4XL, 20000.0)
+                // Parse variables
+                val hppPendek = ajibqobulHppPendek.toDoubleOrNull() ?: 67000.0
+                val hppPanjang = ajibqobulHppPanjang.toDoubleOrNull() ?: 77000.0
+                val hppUpsizeXXL = ajibqobulHppUpsizeXXL.toDoubleOrNull() ?: 5000.0
+                val hppUpsize3XL = ajibqobulHppUpsize3XL.toDoubleOrNull() ?: 10000.0
+                val hppUpsize4XL = ajibqobulHppUpsize4XL.toDoubleOrNull() ?: 15000.0
+                val retailPrice = ajibqobulHargaRetail.toDoubleOrNull() ?: 100000.0
+                val memberPrice = ajibqobulHargaMember.toDoubleOrNull() ?: 85000.0
+                val resellerPrice = ajibqobulHargaReseller.toDoubleOrNull() ?: 90000.0
+                val customPrice = ajibqobulHargaCustom.toDoubleOrNull() ?: 80000.0
+                val sleeveLongPrice = ajibqobulSleeveLongPrice.toDoubleOrNull() ?: 10000.0
+                val aXXL = ajibqobulXXL.toDoubleOrNull() ?: 10000.0
+                val a3XL = ajibqobul3XL.toDoubleOrNull() ?: 10000.0
+                val a4XL = ajibqobul4XL.toDoubleOrNull() ?: 20000.0
 
-                val cBasePrice = safeDouble(customBasePrice, 100000.0)
-                val cSleeveLongPrice = safeDouble(customSleeveLongPrice, 10000.0)
-                val cXXL = safeDouble(customXXL, 10000.0)
-                val c3XL = safeDouble(custom3XL, 10000.0)
-                val c4XL = safeDouble(custom4XL, 10000.0)
-                val cHppRegPendek = safeDouble(customHppRegulerPendek, 55000.0)
-                val cHppRegPanjang = safeDouble(customHppRegulerPanjang, 65000.0)
-                val cHppKidsPendek = safeDouble(customHppKidsPendek, 40000.0)
-                val cHppKidsPanjang = safeDouble(customHppKidsPanjang, 45000.0)
+                val cBasePrice = customBasePrice.toDoubleOrNull() ?: 100000.0
+                val cSleeveLongPrice = customSleeveLongPrice.toDoubleOrNull() ?: 15000.0
+                val cXXL = customXXL.toDoubleOrNull() ?: 10000.0
+                val c3XL = custom3XL.toDoubleOrNull() ?: 10000.0
+                val c4XL = custom4XL.toDoubleOrNull() ?: 10000.0
+                val cHppRegPendek = customHppRegulerPendek.toDoubleOrNull() ?: 55000.0
+                val cHppRegPanjang = customHppRegulerPanjang.toDoubleOrNull() ?: 65000.0
+                val cHppKidsPendek = customHppKidsPendek.toDoubleOrNull() ?: 40000.0
+                val cHppKidsPanjang = customHppKidsPanjang.toDoubleOrNull() ?: 45000.0
 
                 isSaving = true
                 coroutineScope.launch {
                     try {
                         // 1. Save locally via AppSettings
-                        AppSettings.setBankName(context, safeBankName)
-                        AppSettings.setAccountNumber(context, safeAccountNum)
-                        AppSettings.setAccountHolder(context, safeHolder)
+                        AppSettings.setBankName(context, bankName.trim())
+                        AppSettings.setAccountNumber(context, accountNumber.trim())
+                        AppSettings.setAccountHolder(context, accountHolder.trim())
 
                         AppSettings.setAjibqobulHppPendek(context, hppPendek)
                         AppSettings.setAjibqobulHppPanjang(context, hppPanjang)
@@ -613,9 +616,9 @@ fun FinanceConfigModule(
 
                         // 2. Sync to Firebase Firestore under settings/finance_config
                         val firestoreData = mapOf(
-                            "bank_name" to safeBankName,
-                            "account_number" to safeAccountNum,
-                            "account_holder" to safeHolder,
+                            "bank_name" to bankName.trim(),
+                            "account_number" to accountNumber.trim(),
+                            "account_holder" to accountHolder.trim(),
 
                             "ajibqobul_hpp_pendek" to hppPendek,
                             "ajibqobul_hpp_panjang" to hppPanjang,
@@ -650,29 +653,21 @@ fun FinanceConfigModule(
                                     .document("finance_config")
                                     .set(firestoreData)
                                 
-                                // Update inventory summary safely with new active HPP prices
-                                try {
-                                    val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
-                                    val repo = com.yansproject.app.data.BusinessRepository(db)
-                                    db.varianWarnaDao().getAllVarianList().forEach { v ->
-                                        repo.updateInventorySummaryForVarian(v.id_varian)
-                                    }
-                                } catch (dbEx: Exception) {
-                                    dbEx.printStackTrace()
+                                // Update inventory summary with new active HPP prices
+                                val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
+                                val repo = com.yansproject.app.data.BusinessRepository(db)
+                                db.varianWarnaDao().getAllVarianList().forEach { v ->
+                                    repo.updateInventorySummaryForVarian(v.id_varian)
                                 }
                             }
                             com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Seluruh Konfigurasi ERP berhasil disimpan ke Lokal & Cloud!")
                             onSaveSuccess()
                         } catch (e: Exception) {
                             withContext(Dispatchers.IO) {
-                                try {
-                                    val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
-                                    val repo = com.yansproject.app.data.BusinessRepository(db)
-                                    db.varianWarnaDao().getAllVarianList().forEach { v ->
-                                        repo.updateInventorySummaryForVarian(v.id_varian)
-                                    }
-                                } catch (dbEx: Exception) {
-                                    dbEx.printStackTrace()
+                                val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
+                                val repo = com.yansproject.app.data.BusinessRepository(db)
+                                db.varianWarnaDao().getAllVarianList().forEach { v ->
+                                    repo.updateInventorySummaryForVarian(v.id_varian)
                                 }
                             }
                             com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Disimpan Lokal. Sinkronisasi Cloud tertunda (Offline)")

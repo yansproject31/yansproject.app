@@ -28,7 +28,7 @@ object AppSettings {
         getPrefs(context).edit().putString(KEY_LAST_SYNC, value).apply()
 
     fun getStoreName(context: Context): String =
-        getPrefs(context).getString("store_name", "YANSPROJECT.ID") ?: "YANSPROJECT.ID"
+        getPrefs(context).getString("store_name", "") ?: ""
 
     fun setStoreName(context: Context, value: String) =
         getPrefs(context).edit().putString("store_name", value).apply()
@@ -40,19 +40,19 @@ object AppSettings {
         getPrefs(context).edit().putString("store_logo", value).apply()
 
     fun getAddress(context: Context): String =
-        getPrefs(context).getString("store_address", "Tangerang, Banten") ?: "Tangerang, Banten"
+        getPrefs(context).getString("store_address", "") ?: ""
 
     fun setAddress(context: Context, value: String) =
         getPrefs(context).edit().putString("store_address", value).apply()
 
     fun getWhatsApp(context: Context): String =
-        getPrefs(context).getString("store_whatsapp", "+62 877-7739-8813") ?: "+62 877-7739-8813"
+        getPrefs(context).getString("store_whatsapp", "") ?: ""
 
     fun setWhatsApp(context: Context, value: String) =
         getPrefs(context).edit().putString("store_whatsapp", value).apply()
 
     fun getEmail(context: Context): String =
-        getPrefs(context).getString("store_email", "yansart31@gmail.com") ?: "yansart31@gmail.com"
+        getPrefs(context).getString("store_email", "") ?: ""
 
     fun setEmail(context: Context, value: String) =
         getPrefs(context).edit().putString("store_email", value).apply()
@@ -192,18 +192,18 @@ object AppSettings {
         getPrefs(context).edit().putFloat("custom_base_price", value.toFloat()).apply()
 
     fun getCustomSleeveLongPrice(context: Context): Double =
-        getPrefs(context).getFloat("custom_sleeve_long_price", 10000f).toDouble()
+        getPrefs(context).getFloat("custom_sleeve_long_price", 15000f).toDouble()
     fun setCustomSleeveLongPrice(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_sleeve_long_price", value.toFloat()).apply()
 
     // --- CUSTOM PROJECT HPP ERP CONFIG ---
     fun getCustomHppRegulerPendek(context: Context): Double =
-        getPrefs(context).getFloat("custom_hpp_reguler_pendek", 67000f).toDouble()
+        getPrefs(context).getFloat("custom_hpp_reguler_pendek", 55000f).toDouble()
     fun setCustomHppRegulerPendek(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_hpp_reguler_pendek", value.toFloat()).apply()
 
     fun getCustomHppRegulerPanjang(context: Context): Double =
-        getPrefs(context).getFloat("custom_hpp_reguler_panjang", 77000f).toDouble()
+        getPrefs(context).getFloat("custom_hpp_reguler_panjang", 65000f).toDouble()
     fun setCustomHppRegulerPanjang(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_hpp_reguler_panjang", value.toFloat()).apply()
 
@@ -227,10 +227,10 @@ object AppSettings {
     fun setDefaultTax(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("default_tax", value.toFloat()).apply()
 
-    // Member customer management (Diamankan dengan ?: "" dan pengecekan elemen null)
+    // Member customer management
     fun getMembers(context: Context): Set<String> {
         val raw = getPrefs(context).getStringSet(KEY_MEMBERS, emptySet()) ?: emptySet()
-        return raw.filterNotNull().filter { name ->
+        return raw.filter { name ->
             val clean = name.trim()
             !clean.equals("Owner", ignoreCase = true) &&
             !clean.contains("Owner", ignoreCase = true) &&
@@ -244,29 +244,24 @@ object AppSettings {
     fun getDeletedMembers(context: Context): Set<String> =
         getPrefs(context).getStringSet(KEY_DELETED_MEMBERS, emptySet()) ?: emptySet()
 
-    fun addMember(context: Context, clientName: String?) {
-        val safeName = (clientName ?: "").trim()
-        if (safeName.isEmpty()) return
+    fun addMember(context: Context, clientName: String) {
         val current = getMembers(context).toMutableSet()
-        if (current.add(safeName)) {
+        if (current.add(clientName.trim())) {
             getPrefs(context).edit().putStringSet(KEY_MEMBERS, current).apply()
         }
     }
 
-    fun removeMember(context: Context, clientName: String?) {
-        val safeName = (clientName ?: "").trim()
-        if (safeName.isEmpty()) return
+    fun removeMember(context: Context, clientName: String) {
         val current = getMembers(context).toMutableSet()
-        if (current.remove(safeName)) {
+        if (current.remove(clientName.trim())) {
             getPrefs(context).edit().putStringSet(KEY_MEMBERS, current).apply()
         }
     }
 
-    fun softDeleteMember(context: Context, clientName: String?) {
-        val trimmed = (clientName ?: "").trim()
-        if (trimmed.isEmpty()) return
+    fun softDeleteMember(context: Context, clientName: String) {
         val members = getMembers(context).toMutableSet()
         val deleted = getDeletedMembers(context).toMutableSet()
+        val trimmed = clientName.trim()
         if (members.remove(trimmed)) {
             deleted.add(trimmed)
             getPrefs(context).edit()
@@ -276,11 +271,10 @@ object AppSettings {
         }
     }
 
-    fun restoreMember(context: Context, clientName: String?) {
-        val trimmed = (clientName ?: "").trim()
-        if (trimmed.isEmpty()) return
+    fun restoreMember(context: Context, clientName: String) {
         val members = getMembers(context).toMutableSet()
         val deleted = getDeletedMembers(context).toMutableSet()
+        val trimmed = clientName.trim()
         if (deleted.remove(trimmed)) {
             members.add(trimmed)
             getPrefs(context).edit()
@@ -290,10 +284,9 @@ object AppSettings {
         }
     }
 
-    fun deleteMemberPermanently(context: Context, clientName: String?) {
-        val trimmed = (clientName ?: "").trim()
-        if (trimmed.isEmpty()) return
+    fun deleteMemberPermanently(context: Context, clientName: String) {
         val deleted = getDeletedMembers(context).toMutableSet()
+        val trimmed = clientName.trim()
         if (deleted.remove(trimmed)) {
             getPrefs(context).edit()
                 .putStringSet(KEY_DELETED_MEMBERS, deleted)
@@ -301,22 +294,19 @@ object AppSettings {
         }
     }
 
-    fun saveLocalUserCredential(context: Context, email: String?, passwordOrPin: String?, displayName: String?, role: String?, priceCategory: String?) {
-        val safeEmail = (email ?: "").trim().lowercase()
-        if (safeEmail.isEmpty()) return
+    fun saveLocalUserCredential(context: Context, email: String, passwordOrPin: String, displayName: String, role: String, priceCategory: String) {
         val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
         prefs.edit()
-            .putString("pass_$safeEmail", passwordOrPin ?: "")
-            .putString("name_$safeEmail", displayName ?: "")
-            .putString("role_$safeEmail", role ?: "MEMBER")
-            .putString("price_$safeEmail", priceCategory ?: "Member")
+            .putString("pass_${email.trim().lowercase()}", passwordOrPin)
+            .putString("name_${email.trim().lowercase()}", displayName)
+            .putString("role_${email.trim().lowercase()}", role)
+            .putString("price_${email.trim().lowercase()}", priceCategory)
             .apply()
     }
 
-    fun getLocalUserCredential(context: Context, email: String?): LocalUserCredential? {
-        val cleanEmail = (email ?: "").trim().lowercase()
-        if (cleanEmail.isEmpty()) return null
+    fun getLocalUserCredential(context: Context, email: String): LocalUserCredential? {
         val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+        val cleanEmail = email.trim().lowercase()
         val password = prefs.getString("pass_$cleanEmail", null) ?: return null
         val name = prefs.getString("name_$cleanEmail", "") ?: ""
         val role = prefs.getString("role_$cleanEmail", "MEMBER") ?: "MEMBER"
@@ -325,13 +315,11 @@ object AppSettings {
         return LocalUserCredential(password, name, role, price)
     }
 
-    fun getMemberPriceCategory(context: Context, displayName: String?): String {
-        val cleanName = (displayName ?: "").trim()
-        if (cleanName.isEmpty()) return "Retail"
+    fun getMemberPriceCategory(context: Context, displayName: String): String {
         val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
         val allEntries = prefs.all
         for ((key, value) in allEntries) {
-            if (key.startsWith("name_") && value is String && value.equals(cleanName, ignoreCase = true)) {
+            if (key.startsWith("name_") && value is String && value.equals(displayName.trim(), ignoreCase = true)) {
                 val emailSuffix = key.substring("name_".length)
                 return prefs.getString("price_$emailSuffix", "Retail") ?: "Retail"
             }
@@ -339,15 +327,13 @@ object AppSettings {
         return "Retail"
     }
 
-    fun saveMemberPriceCategory(context: Context, displayName: String?, newCategory: String?) {
-        val cleanName = (displayName ?: "").trim()
-        if (cleanName.isEmpty()) return
+    fun saveMemberPriceCategory(context: Context, displayName: String, newCategory: String) {
         val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
         val allEntries = prefs.all
         for ((key, value) in allEntries) {
-            if (key.startsWith("name_") && value is String && value.equals(cleanName, ignoreCase = true)) {
+            if (key.startsWith("name_") && value is String && value.equals(displayName.trim(), ignoreCase = true)) {
                 val emailSuffix = key.substring("name_".length)
-                prefs.edit().putString("price_$emailSuffix", newCategory ?: "Retail").apply()
+                prefs.edit().putString("price_$emailSuffix", newCategory).apply()
                 return
             }
         }
@@ -389,7 +375,7 @@ object AppSettings {
         try {
             val array = org.json.JSONArray(jsonStr)
             for (i in 0 until array.length()) {
-                val obj = array.optJSONObject(i) ?: continue
+                val obj = array.getJSONObject(i)
                 val isDel = obj.optBoolean("isDeleted", false) || obj.optBoolean("is_deleted", false)
                 if (!isDel) {
                     list.add(
@@ -508,24 +494,12 @@ object DatabaseBackupHelper {
         val walFile = context.getDatabasePath("${AppDatabase.DATABASE_NAME}-wal")
 
         try {
-            // 1. Close current AppDatabase safely
+            // 1. Close current database safely
             try {
                 val db = AppDatabase.getDatabase(context)
                 db.close()
             } catch (e: Exception) {
-                android.util.Log.w(TAG, "Failed to close open AppDatabase instance: ${e.message}")
-            }
-
-            // 1b. Close secondary YansRoomDatabase safely to prevent SQLiteDatabaseLockedException
-            try {
-                val yansDbClass = com.yansproject.app.data.YansRoomDatabase::class.java
-                val yansInstanceField = yansDbClass.getDeclaredField("INSTANCE")
-                yansInstanceField.isAccessible = true
-                val yansDb = yansInstanceField.get(null) as? com.yansproject.app.data.YansRoomDatabase
-                yansDb?.close()
-                yansInstanceField.set(null, null)
-            } catch (e: Exception) {
-                android.util.Log.w(TAG, "Secondary database reset skipped/handled: ${e.message}")
+                android.util.Log.w(TAG, "Failed to close open DB instance: ${e.message}")
             }
 
             // 2. Clear static Room instance using reflection

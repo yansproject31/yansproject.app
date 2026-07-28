@@ -113,6 +113,7 @@ fun StockScreen(
     }
 
     if (selectedVarianId != null) {
+        // LEVEL 3: MATRIX STOCK / DETAIL VIEW
         val varianId = selectedVarianId!!
         val varian = variants.find { it.id_varian == varianId }
         val catalog = catalogs.find { it.id_catalog == varian?.id_catalog }
@@ -150,6 +151,7 @@ fun StockScreen(
             selectedVarianId = null
         }
     } else if (selectedCatalogId != null) {
+        // LEVEL 2: VARIAN WARNA LIST VIEW
         val catalogId = selectedCatalogId!!
         val catalog = catalogs.find { it.id_catalog == catalogId }
         val catalogVariants = variants.filter { it.id_catalog == catalogId }
@@ -206,6 +208,7 @@ fun StockScreen(
             selectedCatalogId = null
         }
     } else {
+        // LEVEL 1: CATALOG LIST VIEW
         val currentUser by FirebaseSyncManager.currentUser.collectAsState()
         val isOwner = currentUser?.role == UserRole.OWNER
         var currentSubTab by remember { mutableStateOf("Katalog") }
@@ -283,6 +286,7 @@ fun StockScreen(
                     ) {
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        // Header Row with Segmented Toggle and Multi-Select Bar
                         if (isMultiSelectModeCatalog) {
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = CardDarkCard),
@@ -391,6 +395,7 @@ fun StockScreen(
                                         }
                                     }
 
+                                    // Segmented Toggle (Khusus Owner / Admin)
                                     if (isOwner) {
                                         Row(
                                             modifier = Modifier
@@ -421,6 +426,7 @@ fun StockScreen(
                             }
                         }
 
+                        // Search Bar (Shared)
                         OutlinedTextField(
                             value = catalogSearchQuery,
                             onValueChange = { viewModel.stockSearchQuery.value = it },
@@ -439,6 +445,7 @@ fun StockScreen(
                         )
 
                         if (currentSubTab == "Katalog" || !isOwner) {
+                            // --- Stock Status Filters (Horizontal Scrollable) ---
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
@@ -464,7 +471,7 @@ fun StockScreen(
                             }
 
                             val filteredCatalogs = catalogs.filter { catalog ->
-                                val matchesSearch = (catalog.nama_catalog ?: "").contains(catalogSearchQuery, ignoreCase = true)
+                                val matchesSearch = catalog.nama_catalog.contains(catalogSearchQuery, ignoreCase = true)
                                 val catalogVariants = variants.filter { it.id_catalog == catalog.id_catalog }
                                 val catalogStocks = catalogVariants.map { v -> stocks.find { it.id_varian == v.id_varian } }
                                 
@@ -500,13 +507,14 @@ fun StockScreen(
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     item {
+                                        // Realtime Dashboard Inventory Calculations from read-optimized Inventory Summary
                                         val totalProduksi = remember(inventorySummaries) {
                                             inventorySummaries.sumOf { it.totalProduksi }
                                         }
                                         val totalTerjual = remember(inventorySummaries, invoices, orders) {
                                             val converters = com.yansproject.app.data.AppTypeConverters()
                                             val validInvoices = invoices.filter { 
-                                                !it.isDeleted && (it.status ?: "").uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
+                                                !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
                                             }
                                             val invoiceSoldUnits = validInvoices.sumOf { inv ->
                                                 try {
@@ -519,7 +527,7 @@ fun StockScreen(
                                             }
                                             val validStandaloneOrders = orders.filter { ord ->
                                                 !ord.isDeleted && 
-                                                (ord.status ?: "").uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT", "REJECTED") &&
+                                                ord.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT", "REJECTED") &&
                                                 invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id }
                                             }
                                             val orderSoldUnits = validStandaloneOrders.sumOf { ord ->
@@ -575,7 +583,7 @@ fun StockScreen(
                                                     summary?.reservedStock ?: 0
                                                 }
                                                 com.yansproject.app.ui.components.SeriesStockData(
-                                                    seriesName = catalog.nama_catalog ?: "",
+                                                    seriesName = catalog.nama_catalog,
                                                     stockCount = available,
                                                     readyStock = ready,
                                                     reservedStock = reserved
@@ -593,6 +601,7 @@ fun StockScreen(
                                     }
 
                                     items(filteredCatalogs) { catalog ->
+                                        // Calculate total stock and varian counts for this catalog from Inventory Summary
                                         val catalogVariants = variants.filter { it.id_catalog == catalog.id_catalog }
                                         val totalStock = catalogVariants.sumOf { varian ->
                                             val summary = inventorySummaries.find { it.id_varian == varian.id_varian }
@@ -622,11 +631,12 @@ fun StockScreen(
                                         )
                                     }
                                     item {
-                                        Spacer(modifier = Modifier.height(80.dp))
+                                        Spacer(modifier = Modifier.height(80.dp)) // space for FAB
                                     }
                                 }
                             }
                         } else {
+                            // --- RIWAYAT & LEDGER WORKSPACE ---
                             val modes = listOf("Ledger AJIBQOBUL", "Batch Produksi", "Histori Umum")
 
                             LazyRow(
@@ -655,6 +665,8 @@ fun StockScreen(
 
                             when (riwayatTabMode) {
                                 "Ledger AJIBQOBUL" -> {
+                                    // --- 1. LEDGER TRANSAKSI VIEW ---
+                                    // Multi-Filter Panel
                                     Card(
                                         colors = CardDefaults.cardColors(containerColor = CardGrey),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey),
@@ -662,6 +674,7 @@ fun StockScreen(
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                            // Title & Export
                                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                                 Text(text = "FILTER LEDGER KEUANGAN", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                                                 
@@ -670,7 +683,7 @@ fun StockScreen(
                                                         val csvHeader = "ID,Tanggal,Jenis Transaksi,Katalog,Varian,Ukuran,Lengan,Quantity,User,Catatan\n"
                                                         val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.US)
                                                         val csvRows = ledgers.joinToString("\n") { ledger ->
-                                                            "${ledger.id},${dateFormat.format(java.util.Date(ledger.timestamp))},${ledger.transactionType},${ledger.catalogName},${ledger.varianName},${ledger.size},${ledger.sleeve},${ledger.quantity},${ledger.user},${(ledger.notes ?: "").replace(",", " ")}"
+                                                            "${ledger.id},${dateFormat.format(java.util.Date(ledger.timestamp))},${ledger.transactionType},${ledger.catalogName},${ledger.varianName},${ledger.size},${ledger.sleeve},${ledger.quantity},${ledger.user},${ledger.notes.replace(",", " ")}"
                                                         }
                                                         val csvContent = csvHeader + csvRows
 
@@ -689,6 +702,7 @@ fun StockScreen(
                                                 }
                                             }
 
+                                            // Type Filter
                                             Column {
                                                 Text(text = "Tipe Transaksi", fontSize = 10.sp, color = TextMuted, fontWeight = FontWeight.Bold)
                                                 Spacer(modifier = Modifier.height(4.dp))
@@ -709,6 +723,7 @@ fun StockScreen(
                                                 }
                                             }
 
+                                            // Size Filter
                                             Column {
                                                 Text(text = "Ukuran", fontSize = 10.sp, color = TextMuted, fontWeight = FontWeight.Bold)
                                                 Spacer(modifier = Modifier.height(4.dp))
@@ -729,6 +744,7 @@ fun StockScreen(
                                                 }
                                             }
 
+                                            // Sleeve Filter
                                             Column {
                                                 Text(text = "Lengan", fontSize = 10.sp, color = TextMuted, fontWeight = FontWeight.Bold)
                                                 Spacer(modifier = Modifier.height(4.dp))
@@ -751,12 +767,13 @@ fun StockScreen(
                                         }
                                     }
 
+                                    // Filtered Ledger List
                                     val filteredLedger = ledgers.filter { ledger ->
-                                        val matchesSearch = (ledger.catalogName ?: "").contains(catalogSearchQuery, ignoreCase = true) ||
-                                                            (ledger.varianName ?: "").contains(catalogSearchQuery, ignoreCase = true) ||
-                                                            (ledger.transactionType ?: "").contains(catalogSearchQuery, ignoreCase = true) ||
-                                                            (ledger.batchNumber ?: "").contains(catalogSearchQuery, ignoreCase = true) ||
-                                                            (ledger.notes ?: "").contains(catalogSearchQuery, ignoreCase = true)
+                                        val matchesSearch = ledger.catalogName.contains(catalogSearchQuery, ignoreCase = true) ||
+                                                            ledger.varianName.contains(catalogSearchQuery, ignoreCase = true) ||
+                                                            ledger.transactionType.contains(catalogSearchQuery, ignoreCase = true) ||
+                                                            ledger.batchNumber.contains(catalogSearchQuery, ignoreCase = true) ||
+                                                            ledger.notes.contains(catalogSearchQuery, ignoreCase = true)
                                         val matchesType = selectedLedgerTypeFilter == "Semua" || ledger.transactionType == selectedLedgerTypeFilter
                                         val matchesSize = selectedLedgerSizeFilter == "Semua" || ledger.size == selectedLedgerSizeFilter
                                         val matchesSleeve = selectedLedgerSleeveFilter == "Semua" || ledger.sleeve == selectedLedgerSleeveFilter
@@ -790,13 +807,13 @@ fun StockScreen(
                                                         )
                                                         Spacer(modifier = Modifier.width(12.dp))
                                                         Column(modifier = Modifier.weight(1f)) {
-                                                            Text(text = (ledger.transactionType ?: "").uppercase(java.util.Locale.US), fontSize = 10.sp, color = AgedGold, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-                                                            Text(text = "${ledger.catalogName ?: ""} (${ledger.varianName ?: ""})", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                                            Text(text = ledger.transactionType.uppercase(java.util.Locale.US), fontSize = 10.sp, color = AgedGold, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                                                            Text(text = "${ledger.catalogName} (${ledger.varianName})", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
                                                             Text(text = "Spesifikasi: ${ledger.size} - Lengan ${ledger.sleeve}", fontSize = 11.sp, color = TextMuted)
-                                                            if (!ledger.batchNumber.isNullOrEmpty()) {
+                                                            if (ledger.batchNumber.isNotEmpty()) {
                                                                 Text(text = "Batch: ${ledger.batchNumber}", fontSize = 11.sp, color = HighlightSoftCyan, fontWeight = FontWeight.Medium)
                                                             }
-                                                            if (!ledger.notes.isNullOrEmpty()) {
+                                                            if (ledger.notes.isNotEmpty()) {
                                                                 Text(text = ledger.notes, fontSize = 11.sp, color = TextLight, modifier = Modifier.padding(top = 4.dp))
                                                             }
                                                             Spacer(modifier = Modifier.height(4.dp))
@@ -816,11 +833,12 @@ fun StockScreen(
                                     }
                                 }
                                 "Batch Produksi" -> {
+                                    // --- 2. BATCH PRODUKSI VIEW ---
                                     val filteredBatches = batches.filter { batch ->
-                                        (batch.batchNumber ?: "").contains(catalogSearchQuery, ignoreCase = true) ||
-                                        (batch.seriesName ?: "").contains(catalogSearchQuery, ignoreCase = true) ||
-                                        (batch.varianName ?: "").contains(catalogSearchQuery, ignoreCase = true) ||
-                                        (batch.notes ?: "").contains(catalogSearchQuery, ignoreCase = true)
+                                        batch.batchNumber.contains(catalogSearchQuery, ignoreCase = true) ||
+                                        batch.seriesName.contains(catalogSearchQuery, ignoreCase = true) ||
+                                        batch.varianName.contains(catalogSearchQuery, ignoreCase = true) ||
+                                        batch.notes.contains(catalogSearchQuery, ignoreCase = true)
                                     }
 
                                     if (filteredBatches.isEmpty()) {
@@ -846,8 +864,8 @@ fun StockScreen(
                                                         Icon(imageVector = Icons.Outlined.Factory, contentDescription = null, tint = AgedGold, modifier = Modifier.size(24.dp))
                                                         Spacer(modifier = Modifier.width(12.dp))
                                                         Column(modifier = Modifier.weight(1f)) {
-                                                            Text(text = "BATCH NUMBER: ${batch.batchNumber ?: ""}", fontSize = 12.sp, color = HighlightSoftCyan, fontWeight = FontWeight.Bold)
-                                                            Text(text = "${batch.seriesName ?: ""} (${batch.varianName ?: ""})", fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                                            Text(text = "BATCH NUMBER: ${batch.batchNumber}", fontSize = 12.sp, color = HighlightSoftCyan, fontWeight = FontWeight.Bold)
+                                                            Text(text = "${batch.seriesName} (${batch.varianName})", fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold)
                                                             Text(text = "Tanggal Selesai: ${dateFormat.format(java.util.Date(batch.date))}", fontSize = 11.sp, color = TextMuted)
                                                             Text(text = "Operator: ${batch.user}", fontSize = 11.sp, color = TextMuted)
                                                             if (isOwner && batch.totalProductionCost > 0.0) {
@@ -869,7 +887,7 @@ fun StockScreen(
                                                                     }
                                                                 }
                                                             }
-                                                            if (!batch.notes.isNullOrEmpty()) {
+                                                            if (batch.notes.isNotEmpty()) {
                                                                 Text(text = batch.notes, fontSize = 11.sp, color = TextLight, modifier = Modifier.padding(top = 4.dp))
                                                             }
                                                         }
@@ -882,10 +900,11 @@ fun StockScreen(
                                     }
                                 }
                                 "Histori Umum" -> {
+                                    // --- 3. LEGACY STOCK HISTORY VIEW ---
                                     val filteredHistory = stockHistory.filter { history ->
-                                        (history.series ?: "").contains(catalogSearchQuery, ignoreCase = true) ||
-                                        (history.notes ?: "").contains(catalogSearchQuery, ignoreCase = true) ||
-                                        (history.type ?: "").contains(catalogSearchQuery, ignoreCase = true)
+                                        history.series.contains(catalogSearchQuery, ignoreCase = true) ||
+                                        history.notes.contains(catalogSearchQuery, ignoreCase = true) ||
+                                        history.type.contains(catalogSearchQuery, ignoreCase = true)
                                     }
 
                                     if (filteredHistory.isEmpty()) {
@@ -1028,7 +1047,7 @@ fun BatchDetailDialog(
                 Column {
                     Text(text = "DETAIL BATCH PRODUKSI", fontSize = 10.sp, color = AgedGold, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = batch.batchNumber ?: "", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
+                    Text(text = batch.batchNumber, fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
                 }
                 IconButton(onClick = onDismiss) {
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = "Tutup", tint = TextMuted)
@@ -1044,14 +1063,15 @@ fun BatchDetailDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Info Section
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(text = "Katalog Series", color = TextMuted, fontSize = 11.sp)
-                        Text(text = batch.seriesName ?: "", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(text = batch.seriesName, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(text = "Varian Warna", color = TextMuted, fontSize = 11.sp)
-                        Text(text = batch.varianName ?: "", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(text = batch.varianName, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(text = "Tanggal Selesai", color = TextMuted, fontSize = 11.sp)
@@ -1061,7 +1081,7 @@ fun BatchDetailDialog(
                         Text(text = "Operator", color = TextMuted, fontSize = 11.sp)
                         Text(text = batch.user, color = Color.White, fontSize = 11.sp)
                     }
-                    if (!batch.notes.isNullOrEmpty()) {
+                    if (batch.notes.isNotEmpty()) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(text = "Catatan", color = TextMuted, fontSize = 11.sp)
                             Text(text = batch.notes, color = Color.White, fontSize = 11.sp)
@@ -1073,6 +1093,7 @@ fun BatchDetailDialog(
 
                 Text(text = "Sizing Matrix Terproduksi", fontSize = 12.sp, color = AgedGold, fontWeight = FontWeight.Bold)
 
+                // Matrix Grid Representation
                 val sizes = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
 
                 Column(
@@ -1081,6 +1102,7 @@ fun BatchDetailDialog(
                         .border(1.dp, BorderGrey, RoundedCornerShape(8.dp))
                         .clip(RoundedCornerShape(8.dp))
                 ) {
+                    // Header Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1190,7 +1212,7 @@ fun BatchDetailDialog(
                     onClick = {
                         val dateFormatExport = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.US)
                         val title = "LAPORAN PRODUKSI BATCH\n"
-                        val info = "Nomor Batch,${batch.batchNumber ?: ""}\nKatalog,${batch.seriesName ?: ""}\nVarian,${batch.varianName ?: ""}\nTanggal,${dateFormatExport.format(java.util.Date(batch.date))}\nOperator,${batch.user}\nCatatan,${batch.notes ?: ""}\n\n"
+                        val info = "Nomor Batch,${batch.batchNumber}\nKatalog,${batch.seriesName}\nVarian,${batch.varianName}\nTanggal,${dateFormatExport.format(java.util.Date(batch.date))}\nOperator,${batch.user}\nCatatan,${batch.notes}\n\n"
                         val header = "Ukuran,Lengan,Jumlah\n"
                         
                         val rows = batchLedgers.joinToString("\n") { "${it.size},${it.sleeve},${it.quantity}" }
@@ -1200,7 +1222,7 @@ fun BatchDetailDialog(
 
                         val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                             type = "text/csv"
-                            putExtra(android.content.Intent.EXTRA_SUBJECT, "Laporan Produksi Batch ${batch.batchNumber ?: ""}")
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, "Laporan Produksi Batch ${batch.batchNumber}")
                             putExtra(android.content.Intent.EXTRA_TEXT, csvContent)
                         }
                         context.startActivity(android.content.Intent.createChooser(intent, "Cetak / Ekspor Laporan Batch"))
@@ -1280,7 +1302,7 @@ fun CatalogCard(
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = (catalog.nama_catalog ?: "").uppercase(),
+                            text = catalog.nama_catalog.uppercase(),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
@@ -1297,7 +1319,7 @@ fun CatalogCard(
                 }
             }
 
-            if (!catalog.deskripsi.isNullOrEmpty()) {
+            if (catalog.deskripsi.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = catalog.deskripsi,
@@ -1355,7 +1377,7 @@ fun StockHistoryItemCard(history: StockHistory) {
             ) {
                 Column {
                     Text(
-                        text = (history.series ?: "").uppercase(),
+                        text = history.series.uppercase(),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
@@ -1368,6 +1390,7 @@ fun StockHistoryItemCard(history: StockHistory) {
                     )
                 }
 
+                // Show action type / badge
                 val badgeColor = when (history.type) {
                     "RESTOK" -> HighlightSoftCyan
                     "TERJUAL" -> AgedGold
@@ -1381,7 +1404,7 @@ fun StockHistoryItemCard(history: StockHistory) {
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = history.type ?: "",
+                        text = history.type,
                         color = badgeColor,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold
@@ -1410,7 +1433,7 @@ fun StockHistoryItemCard(history: StockHistory) {
                 }
             }
 
-            if (!history.notes.isNullOrEmpty()) {
+            if (history.notes.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
                     modifier = Modifier
@@ -1465,7 +1488,7 @@ fun VarianWarnaListView(
     var showBatchUpdateVariantModal by remember { mutableStateOf(false) }
 
     val filteredVariants = variants.filter { varian ->
-        val matchesSearch = (varian.nama_warna ?: "").contains(searchQuery, ignoreCase = true)
+        val matchesSearch = varian.nama_warna.contains(searchQuery, ignoreCase = true)
         val summary = inventorySummaries.find { it.id_varian == varian.id_varian }
         val totalStockCount = summary?.availableStock ?: (stocks.find { it.id_varian == varian.id_varian }?.total_stock ?: 0)
         
@@ -1507,6 +1530,7 @@ fun VarianWarnaListView(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Back Nav & Title or Multi-Select Header
             if (isMultiSelectModeVariant) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = CardDarkCard),
@@ -1601,7 +1625,7 @@ fun VarianWarnaListView(
                             letterSpacing = 1.5.sp
                         )
                         Text(
-                            text = (catalog.nama_catalog ?: "").uppercase(),
+                            text = catalog.nama_catalog.uppercase(),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
@@ -1645,6 +1669,7 @@ fun VarianWarnaListView(
                 }
             }
 
+            // Search Bar for Variants
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -1662,6 +1687,7 @@ fun VarianWarnaListView(
                 )
             )
 
+            // --- Stock Status Filters (Horizontal Scrollable) ---
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -1813,7 +1839,7 @@ fun VarianWarnaCard(
     val statusColor = when {
         totalStock > 5 -> HighlightSoftCyan
         totalStock in 1..5 -> AgedGold
-        else -> Color(0xFFB71C1C)
+        else -> Color(0xFFB71C1C) // StatusDangerRed
     }
 
     val borderColor = if (isSelected) AgedGold else BorderGrey
@@ -1858,7 +1884,7 @@ fun VarianWarnaCard(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = (varian.nama_warna ?: "").uppercase(),
+                    text = varian.nama_warna.uppercase(),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White
@@ -2105,7 +2131,7 @@ fun MatrixStockView(
     val sleeves = listOf("Pendek", "Panjang")
 
     var isTambahProduksiMode by remember { mutableStateOf(false) }
-    var stockUpdateMode by remember { mutableStateOf("Update Manual") }
+    var stockUpdateMode by remember { mutableStateOf("Update Manual") } // "Update Manual", "Tambah Produksi", "Stock Opname"
     var isSaving by remember { mutableStateOf(false) }
     var isFormDirty by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
@@ -2191,6 +2217,7 @@ fun MatrixStockView(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Breadcrumbs & Nav
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -2219,7 +2246,7 @@ fun MatrixStockView(
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "${catalog.nama_catalog ?: ""} - ${varian.nama_warna ?: ""}",
+                    text = "${catalog.nama_catalog} - ${varian.nama_warna}",
                     fontSize = 11.sp,
                     color = AgedGold,
                     fontWeight = FontWeight.Bold,
@@ -2234,6 +2261,7 @@ fun MatrixStockView(
             }
         }
 
+        // DRAF RESTORE BANNER
         if (showDraftRestoreBanner) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
@@ -2301,6 +2329,7 @@ fun MatrixStockView(
             }
         }
 
+        // Stats summary card
         Card(
             colors = CardDefaults.cardColors(containerColor = CardGrey),
             border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey),
@@ -2333,6 +2362,7 @@ fun MatrixStockView(
             }
         }
 
+        // MODE SELECTOR CARD
         Card(
             colors = CardDefaults.cardColors(containerColor = CardGrey),
             border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey),
@@ -2389,6 +2419,7 @@ fun MatrixStockView(
             }
         }
 
+        // MATRIX GRID CARD
         SharedPremiumCard(
             modifier = Modifier.fillMaxWidth(),
             borderGlowColor = CyanPulse.copy(alpha = 0.15f)
@@ -2412,6 +2443,7 @@ fun MatrixStockView(
                     )
                 }
 
+                // Grid Chips container
                 val itemsList = mutableListOf<Pair<String, String>>()
                 sizes.forEach { size ->
                     sleeves.forEach { sleeve ->
@@ -2484,6 +2516,7 @@ fun MatrixStockView(
             }
         }
 
+        // --- CELL QUANTITY BOTTOM SHEET EDITOR ---
         if (showCellEditBottomSheet && selectedCellToEdit != null) {
             val (size, sleeve) = selectedCellToEdit!!
             PremiumBottomSheet(
@@ -2596,6 +2629,7 @@ fun MatrixStockView(
             }
         }
 
+        // PRICE CONFIGURATION CARD
         Card(
             colors = CardDefaults.cardColors(containerColor = CardGrey),
             border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey),
@@ -2678,6 +2712,7 @@ fun MatrixStockView(
             }
         }
 
+        // SAVE ACTION BUTTON
         Button(
             onClick = {
                 if (isSaving) return@Button
@@ -3070,6 +3105,7 @@ fun MemberDetailStockView(
     val memberCartList by viewModel.memberCart.collectAsState()
     val invoices by viewModel.allInvoices.collectAsState(initial = emptyList())
     
+    // State map to store the selected quantities for each combinations
     val qtyStates = remember { mutableStateMapOf<String, Int>() }
 
     fun calculateAjibqobulItemPrice(size: String, sleeve: String): Double {
@@ -3080,13 +3116,13 @@ fun MemberDetailStockView(
         var reserved = 0
         val converters = AppTypeConverters()
         invoices.forEach { invoice ->
-            if ((invoice.status ?: "").equals("MENUNGGU PERSETUJUAN", ignoreCase = true) || 
-                (invoice.status ?: "").equals("MENUNGGU PERSETUJUAN OWNER", ignoreCase = true)) {
+            if (invoice.status.equals("MENUNGGU PERSETUJUAN", ignoreCase = true) || 
+                invoice.status.equals("MENUNGGU PERSETUJUAN OWNER", ignoreCase = true)) {
                 val items = try { converters.toInvoiceItemList(invoice.itemsJson) } catch (e: Exception) { emptyList() }
                 items.forEach { item ->
-                    val desc = item.description ?: ""
-                    if (desc.contains(catalog.nama_catalog ?: "", ignoreCase = true) &&
-                        desc.contains(varian.nama_warna ?: "", ignoreCase = true) &&
+                    val desc = item.description
+                    if (desc.contains(catalog.nama_catalog, ignoreCase = true) &&
+                        desc.contains(varian.nama_warna, ignoreCase = true) &&
                         desc.contains(size, ignoreCase = true) &&
                         desc.contains(sleeve, ignoreCase = true)) {
                         reserved += item.quantity
@@ -3097,10 +3133,12 @@ fun MemberDetailStockView(
         return reserved
     }
 
+    // Initialize/sync qtyStates from matching cart items
     LaunchedEffect(memberCartList, catalog.id_catalog, varian.id_varian) {
         val matchingCartItems = memberCartList.filter { 
             it.catalogId == catalog.id_catalog && it.varianId == varian.id_varian 
         }
+        // Clear old states to avoid leaks
         qtyStates.clear()
         matchingCartItems.forEach { item ->
             qtyStates["${item.size}-${item.sleeve}"] = item.qty
@@ -3117,6 +3155,7 @@ fun MemberDetailStockView(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Breadcrumbs & Nav
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -3146,7 +3185,7 @@ fun MemberDetailStockView(
                     letterSpacing = 1.5.sp
                 )
                 Text(
-                    text = (catalog.nama_catalog ?: "").uppercase(),
+                    text = catalog.nama_catalog.uppercase(),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White
@@ -3154,6 +3193,7 @@ fun MemberDetailStockView(
             }
         }
 
+        // Product Identity & Variant Info
         Card(
             colors = CardDefaults.cardColors(containerColor = CardGrey),
             shape = RoundedCornerShape(16.dp),
@@ -3169,12 +3209,12 @@ fun MemberDetailStockView(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Varian Warna: ${(varian.nama_warna ?: "").uppercase()}",
+                    text = "Varian Warna: ${varian.nama_warna.uppercase()}",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White
                 )
-                if (!catalog.deskripsi.isNullOrEmpty()) {
+                if (catalog.deskripsi.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = catalog.deskripsi,
@@ -3185,6 +3225,7 @@ fun MemberDetailStockView(
             }
         }
 
+        // Price Category Board
         Card(
             colors = CardDefaults.cardColors(containerColor = CardGrey),
             shape = RoundedCornerShape(16.dp),
@@ -3226,6 +3267,7 @@ fun MemberDetailStockView(
             }
         }
 
+        // Dynamic Interactive Ordering Matrix Board
         Card(
             colors = CardDefaults.cardColors(containerColor = CardGrey),
             shape = RoundedCornerShape(16.dp),
@@ -3292,6 +3334,7 @@ fun MemberDetailStockView(
                                 .fillMaxWidth()
                                 .padding(12.dp)
                         ) {
+                            // Header Ukuran
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -3335,10 +3378,12 @@ fun MemberDetailStockView(
                             HorizontalDivider(color = BorderGrey.copy(alpha = 0.3f), thickness = 1.dp)
                             Spacer(modifier = Modifier.height(12.dp))
 
+                            // Dua panel besar: Pendek dan Panjang
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
+                                // --- PANEL PENDEK ---
                                 Column(
                                     modifier = Modifier
                                         .weight(1f)
@@ -3416,6 +3461,7 @@ fun MemberDetailStockView(
                                         val currentQty = qtyStates["$size-Pendek"] ?: 0
                                         var textValue by remember(size, currentQty) { mutableStateOf(currentQty.toString()) }
 
+                                        // Stepper
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.Center,
@@ -3437,7 +3483,7 @@ fun MemberDetailStockView(
                                                         textValue = nextQty.toString()
                                                     }
                                                 },
-                                                modifier = Modifier.size(38.dp)
+                                                modifier = Modifier.size(38.dp) // Touch Area diperbesar
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Outlined.Remove,
@@ -3473,7 +3519,7 @@ fun MemberDetailStockView(
                                                 ),
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                                 modifier = Modifier
-                                                    .widthIn(min = 32.dp, max = 80.dp)
+                                                    .widthIn(min = 32.dp, max = 80.dp) // Dynamic width
                                                     .height(28.dp)
                                                     .wrapContentHeight(Alignment.CenterVertically),
                                                 singleLine = true
@@ -3489,7 +3535,7 @@ fun MemberDetailStockView(
                                                         Toast.makeText(context, "Mencapai batas stok ($pendekCount Pcs)!", Toast.LENGTH_SHORT).show()
                                                     }
                                                 },
-                                                modifier = Modifier.size(38.dp)
+                                                modifier = Modifier.size(38.dp) // Touch Area diperbesar
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Outlined.Add,
@@ -3502,6 +3548,7 @@ fun MemberDetailStockView(
 
                                         Spacer(modifier = Modifier.height(6.dp))
 
+                                        // Badge Status Premium
                                         val reservedQty = calculateReservedQty(size, "Pendek")
                                         val indicatorColor = if (pendekCount <= 5) AmberWarning else AlertGreen
                                         val indicatorLabel = if (pendekCount <= 5) "MENIPIS" else "READY"
@@ -3631,6 +3678,7 @@ fun MemberDetailStockView(
                                         val currentQty = qtyStates["$size-Panjang"] ?: 0
                                         var textValue by remember(size, currentQty) { mutableStateOf(currentQty.toString()) }
 
+                                        // Stepper
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.Center,
@@ -3652,7 +3700,7 @@ fun MemberDetailStockView(
                                                         textValue = nextQty.toString()
                                                     }
                                                 },
-                                                modifier = Modifier.size(38.dp)
+                                                modifier = Modifier.size(38.dp) // Touch Area diperbesar
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Outlined.Remove,
@@ -3688,7 +3736,7 @@ fun MemberDetailStockView(
                                                 ),
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                                 modifier = Modifier
-                                                    .widthIn(min = 32.dp, max = 80.dp)
+                                                    .widthIn(min = 32.dp, max = 80.dp) // Dynamic width
                                                     .height(28.dp)
                                                     .wrapContentHeight(Alignment.CenterVertically),
                                                 singleLine = true
@@ -3704,7 +3752,7 @@ fun MemberDetailStockView(
                                                         Toast.makeText(context, "Mencapai batas stok ($panjangCount Pcs)!", Toast.LENGTH_SHORT).show()
                                                     }
                                                 },
-                                                modifier = Modifier.size(38.dp)
+                                                modifier = Modifier.size(38.dp) // Touch Area diperbesar
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Outlined.Add,
@@ -3717,6 +3765,7 @@ fun MemberDetailStockView(
 
                                         Spacer(modifier = Modifier.height(6.dp))
 
+                                        // Badge Status Premium
                                         val reservedQty = calculateReservedQty(size, "Panjang")
                                         val indicatorColor = if (panjangCount <= 5) AmberWarning else AlertGreen
                                         val indicatorLabel = if (panjangCount <= 5) "MENIPIS" else "READY"
@@ -3774,7 +3823,9 @@ fun MemberDetailStockView(
             }
         }
 
+        // Summary and Navigation
         val qtyStatesList = qtyStates.toList()
+        
         val totalQtyPendek = qtyStatesList.filter { it.first.endsWith("-Pendek") }.sumOf { it.second }
         val totalHargaPendek = qtyStatesList.filter { it.first.endsWith("-Pendek") && it.second > 0 }.map { (key, qty) ->
             val size = key.split("-")[0]
@@ -3810,6 +3861,7 @@ fun MemberDetailStockView(
                 
                 HorizontalDivider(color = BorderGrey.copy(alpha = 0.4f), thickness = 1.dp)
 
+                // Pendek info
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Total Qty Pendek", fontSize = 11.sp, color = TextMuted)
                     Text("$totalQtyPendek Pcs", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -3821,6 +3873,7 @@ fun MemberDetailStockView(
 
                 HorizontalDivider(color = BorderGrey.copy(alpha = 0.2f), thickness = 1.dp)
 
+                // Panjang info
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Total Qty Panjang", fontSize = 11.sp, color = TextMuted)
                     Text("$totalQtyPanjang Pcs", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -3832,6 +3885,7 @@ fun MemberDetailStockView(
 
                 HorizontalDivider(color = BorderGrey.copy(alpha = 0.4f), thickness = 1.dp)
 
+                // Total Qty & Grand Total
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("TOTAL QTY", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     Text("$totalQtyOrdered Pcs", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
@@ -3848,7 +3902,7 @@ fun MemberDetailStockView(
                         if (isSaving) return@Button
                         isSaving = true
                         coroutineScope.launch {
-                            delay(600)
+                            delay(600) // brief loading animation
                             val updatedList = qtyStates.filter { it.value > 0 }.map { (k, v) ->
                                 val parts = k.split("-")
                                 val finalPrice = calculateAjibqobulItemPrice(parts[0], parts[1])
@@ -3954,6 +4008,7 @@ fun InventoryDashboardHeader(
                 )
             }
             
+            // Grid of 6 metrics (3 rows of 2 columns)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MiniMetricCard(
@@ -4077,16 +4132,15 @@ fun TotalProduksiDetailDialog(
 
     val totalPembayaranProduksi = remember(expenses) {
         expenses.filter { exp ->
-            !exp.isDeleted && 
-            (exp.category ?: "").let { cat ->
-                cat.contains("Produksi", ignoreCase = true) ||
-                cat.contains("Production", ignoreCase = true) ||
-                cat.contains("Bahan", ignoreCase = true) ||
-                cat.contains("Sablon", ignoreCase = true) ||
-                cat.contains("Aksesories", ignoreCase = true) ||
-                cat.contains("Aksesoris", ignoreCase = true) ||
-                cat.contains("Packing", ignoreCase = true)
-            }
+            !exp.isDeleted && (
+                exp.category.contains("Produksi", ignoreCase = true) ||
+                exp.category.contains("Production", ignoreCase = true) ||
+                exp.category.contains("Bahan", ignoreCase = true) ||
+                exp.category.contains("Sablon", ignoreCase = true) ||
+                exp.category.contains("Aksesories", ignoreCase = true) ||
+                exp.category.contains("Aksesoris", ignoreCase = true) ||
+                exp.category.contains("Packing", ignoreCase = true)
+            )
         }.sumOf { it.amount }
     }
 
@@ -4109,6 +4163,7 @@ fun TotalProduksiDetailDialog(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
+                // Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -4163,6 +4218,7 @@ fun TotalProduksiDetailDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Summary Header Banner (5 Metric Columns)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
                     border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f)),
@@ -4175,6 +4231,7 @@ fun TotalProduksiDetailDialog(
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        // ROW 1: 3 COLUMNS (TOTAL BATCH | TOTAL UNIT PRODUKSI | TOTAL MODAL HPP)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -4213,11 +4270,13 @@ fun TotalProduksiDetailDialog(
                         if (isOwner) {
                             HorizontalDivider(color = AgedGold.copy(alpha = 0.25f), thickness = 1.dp)
 
+                            // ROW 2: 2 COLUMNS (PEMBAYARAN PRODUKSI | SISA TAGIHAN PRODUKSI)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // PEMBAYARAN PRODUKSI
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
@@ -4264,6 +4323,7 @@ fun TotalProduksiDetailDialog(
 
                                 Spacer(modifier = Modifier.width(8.dp))
 
+                                // SISA TAGIHAN PRODUKSI
                                 val isLunas = sisaTagihanProduksi <= 0
                                 val tagihanBorderColor = if (isLunas) AlertGreen.copy(alpha = 0.5f) else Color(0xFFFF5252).copy(alpha = 0.5f)
                                 val tagihanHeaderColor = if (isLunas) AlertGreen else Color(0xFFFF5252)
@@ -4318,6 +4378,7 @@ fun TotalProduksiDetailDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                // Search Bar
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -4463,6 +4524,7 @@ fun BatchProductionCardItem(
 
             HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
 
+            // Size & Sleeve Breakdown Grid
             Text(text = "RINCIAN UKURAN PRODUKSI", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = AgedGold)
 
             val sizes = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
@@ -4478,6 +4540,7 @@ fun BatchProductionCardItem(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Lengan Pendek Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -4501,6 +4564,7 @@ fun BatchProductionCardItem(
                     }
                 }
 
+                // Lengan Panjang Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -4625,8 +4689,9 @@ fun TotalTerjualDetailDialog(
     val validTransactions = remember(invoices, orders) {
         val list = mutableListOf<UnifiedSoldTxItem>()
 
+        // 1. Invoices (Owner Invoices + Invoices linked to Member Orders)
         val validInvoices = invoices.filter { 
-            !it.isDeleted && (it.status ?: "").uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
+            !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
         }
         validInvoices.forEach { inv ->
             val items = try {
@@ -4636,7 +4701,7 @@ fun TotalTerjualDetailDialog(
             }
             val effectivePaid = if (inv.paidAmount > 0.0) {
                 inv.paidAmount
-            } else if ((inv.status ?: "").uppercase().trim() in listOf("LUNAS", "PAID", "SELESAI")) {
+            } else if (inv.status.uppercase().trim() in listOf("LUNAS", "PAID", "SELESAI")) {
                 inv.totalAmount
             } else {
                 inv.dpAmount
@@ -4644,9 +4709,10 @@ fun TotalTerjualDetailDialog(
             list.add(UnifiedSoldTxItem.InvoiceItem(inv, items, effectivePaid))
         }
 
+        // 2. Member Standalone Orders (Orders not yet converted/linked to Invoices)
         val validStandaloneOrders = orders.filter { ord ->
             !ord.isDeleted && 
-            (ord.status ?: "").uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT", "REJECTED") &&
+            ord.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT", "REJECTED") &&
             invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id }
         }
         validStandaloneOrders.forEach { ord ->
@@ -4657,7 +4723,7 @@ fun TotalTerjualDetailDialog(
             }
             val effectivePaid = if (ord.paidAmount > 0.0) {
                 ord.paidAmount
-            } else if (ord.isPaid || (ord.status ?: "").uppercase().trim() in listOf("LUNAS", "PAID", "SELESAI")) {
+            } else if (ord.isPaid || ord.status.uppercase().trim() in listOf("LUNAS", "PAID", "SELESAI")) {
                 ord.totalAmount
             } else {
                 0.0
@@ -4707,6 +4773,7 @@ fun TotalTerjualDetailDialog(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
+                // Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -4761,6 +4828,7 @@ fun TotalTerjualDetailDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Summary Header Banner
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
                     border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f)),
@@ -4814,6 +4882,7 @@ fun TotalTerjualDetailDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                // Search Bar
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -4902,6 +4971,7 @@ fun SoldTransactionCardItem(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Header Row: Transaction No, Status Badge & Issue Date
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -4935,6 +5005,7 @@ fun SoldTransactionCardItem(
                 )
             }
 
+            // Buyer / Customer Info & Order Source Badge
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -5002,6 +5073,7 @@ fun SoldTransactionCardItem(
                 }
             }
 
+            // Itemized Details
             Text(text = "RINCIAN ITEM TRANSAKSI", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = AgedGold)
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -5052,6 +5124,7 @@ fun SoldTransactionCardItem(
 
             HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
 
+            // Payment Totals
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -5180,7 +5253,7 @@ fun NilaiPersediaanDetailDialog(
             val totalValuation = breakdowns.sumOf { it.totalValue }
 
             CatalogValuation(
-                catalogName = catalog.nama_catalog ?: "",
+                catalogName = catalog.nama_catalog,
                 variantCount = catalogVariants.size,
                 breakdowns = breakdowns,
                 totalQty = totalQty,
@@ -5214,6 +5287,7 @@ fun NilaiPersediaanDetailDialog(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
+                // Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -5271,6 +5345,7 @@ fun NilaiPersediaanDetailDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Overall Totals Card
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
                     border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.4f)),
@@ -5317,6 +5392,7 @@ fun NilaiPersediaanDetailDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Active Config Rules Info Banner
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SecondaryShadowBlackTeal),
                     border = BorderStroke(0.5.dp, BorderGrey),
@@ -5350,6 +5426,7 @@ fun NilaiPersediaanDetailDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                // Search Bar
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -5377,6 +5454,7 @@ fun NilaiPersediaanDetailDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                // List of Catalogs
                 if (filteredValuations.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -5447,6 +5525,7 @@ fun NilaiPersediaanDetailDialog(
 
                                     HorizontalDivider(color = BorderGrey.copy(alpha = 0.5f), thickness = 0.5.dp)
 
+                                    // Breakdown Rows
                                     cat.breakdowns.forEach { bd ->
                                         if (bd.totalQty > 0) {
                                             Row(
@@ -5496,6 +5575,7 @@ fun NilaiPersediaanDetailDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                // Bottom Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)

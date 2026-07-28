@@ -76,11 +76,12 @@ import androidx.compose.animation.core.CubicBezierEasing
 
 private val LuxuryMotionEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
+// Data class representasi aktivitas log di Dashboard
 data class DashboardActivity(
     val title: String,
     val description: String,
     val date: Long,
-    val type: String,
+    val type: String, // "Invoice", "Project", "Pemesanan", "StockMasuk", "StockKeluar", "Pemasukan", "Pengeluaran"
     val amount: Double? = null,
     val category: String? = null
 )
@@ -132,6 +133,7 @@ fun HeroCardSaldoKasUtama(
                 )
         ) {
             Column {
+                // Top section of Hero Card
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -177,6 +179,7 @@ fun HeroCardSaldoKasUtama(
                         )
                     }
                     
+                    // Wallet Shortcut Button: rounded-square (digital wallet style)
                     Card(
                         modifier = Modifier
                             .size(44.dp)
@@ -209,6 +212,7 @@ fun HeroCardSaldoKasUtama(
                     }
                 }
                 
+                // Balance Text with Shimmer Loading & Empty Data Differentiation
                 Spacer(modifier = Modifier.height(18.dp))
                 if (isLoading) {
                     Box(
@@ -252,15 +256,18 @@ fun HeroCardSaldoKasUtama(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
                 
+                // Full horizontal divider separating top & bottom parts
                 HorizontalDivider(
                     color = DividerDarkCyanGray.copy(alpha = 0.35f), 
                     thickness = 1.dp,
                     modifier = Modifier.fillMaxWidth()
                 )
                 
+                // Bottom Interactive Areas
                 Row(
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    // Total Pemasukan area (Indikator Cyan)
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -317,6 +324,7 @@ fun HeroCardSaldoKasUtama(
                         }
                     }
                     
+                    // Vertical dividing line
                     Box(
                         modifier = Modifier
                             .width(1.dp)
@@ -325,6 +333,7 @@ fun HeroCardSaldoKasUtama(
                             .align(Alignment.CenterVertically)
                     )
                     
+                    // Total Pengeluaran area (Indikator Deep Red)
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -686,9 +695,6 @@ fun GridOperasionalOwner(
     saldoKas: Double,
     totalProfit: Double,
     totalPenjualan: Double,
-    totalSalesQuantity: Int = 0,
-    totalSalesTxCount: Int = 0,
-    totalGrossProfit: Double = 0.0,
     totalPengeluaran: Double,
     nilaiTotalStock: Double,
     totalStockPieces: Int,
@@ -713,6 +719,7 @@ fun GridOperasionalOwner(
             modifier = Modifier.padding(top = 8.dp)
         )
 
+        // 12 Cards arranged in 6 Rows of 2 Cards each
         val rowData = listOf(
             listOf(
                 GridCardData("MODAL AWAL", FormatUtils.formatRupiah(modalAwal), if (modalAwal == 0.0) "Belum ada modal awal" else "Investasi kas awal", Icons.Outlined.AccountBalanceWallet, primaryAccent, isEmpty = (modalAwal == 0.0)),
@@ -723,14 +730,7 @@ fun GridOperasionalOwner(
                 GridCardData("PROFIT BERSIH", FormatUtils.formatRupiah(totalProfit), if (totalProfit == 0.0) "Laba nihil periode ini" else "Laba bersih setelah HPP", Icons.Outlined.MonetizationOn, HighlightSoftCyan, isEmpty = (totalProfit == 0.0))
             ),
             listOf(
-                GridCardData(
-                    "TOTAL PENJUALAN",
-                    FormatUtils.formatRupiah(totalPenjualan),
-                    if (totalPenjualan == 0.0) "Belum ada penjualan" else "$totalSalesQuantity Pcs • $totalSalesTxCount Tx • Profit ${FormatUtils.formatRupiah(totalGrossProfit)}",
-                    Icons.Outlined.Leaderboard,
-                    HighlightSoftCyan,
-                    isEmpty = (totalPenjualan == 0.0)
-                ),
+                GridCardData("TOTAL PENJUALAN", FormatUtils.formatRupiah(totalPenjualan), if (totalPenjualan == 0.0) "Belum ada penjualan" else "Omset bruto terkumpul", Icons.Outlined.Leaderboard, HighlightSoftCyan, isEmpty = (totalPenjualan == 0.0)),
                 GridCardData("TOTAL PENGELUARAN", FormatUtils.formatRupiah(totalPengeluaran), if (totalPengeluaran == 0.0) "Belum ada pengeluaran" else "Biaya operasional & HPP", Icons.Outlined.TrendingDown, ErrorRed, isEmpty = (totalPengeluaran == 0.0))
             ),
             listOf(
@@ -850,9 +850,10 @@ fun DashboardScreen(
 
     val allAuditLogs by viewModel.allAuditLogs.collectAsState()
 
-    var activeLedgerPage by remember { mutableStateOf<String?>(null) }
+    var activeLedgerPage by remember { mutableStateOf<String?>(null) } // "pemasukan", "pengeluaran", "kas", "profit", "piutang", "produksi", "laporan"
     var selectedInvoiceForDetail by remember { mutableStateOf<Invoice?>(null) }
 
+    // CSV Import Launchers
     val importStockLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
         onResult = { uri ->
@@ -901,6 +902,7 @@ fun DashboardScreen(
         }
     )
 
+    // DB Restore Launcher
     val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
@@ -942,9 +944,6 @@ fun DashboardScreen(
     } else if (activeLedgerPage == "profit") {
         DetailProfitScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
         return
-    } else if (activeLedgerPage == "penjualan") {
-        RiwayatPenjualanUnifiedScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
-        return
     } else if (activeLedgerPage == "piutang") {
         RiwayatPiutangScreen(
             viewModel = viewModel,
@@ -973,6 +972,9 @@ fun DashboardScreen(
         return
     }
 
+
+
+    // Koleksi aliran data secara reaktif dari ViewModel
     val invoices by viewModel.allInvoices.collectAsState()
     val projects by viewModel.allProjects.collectAsState()
     val stockItems by viewModel.allStock.collectAsState()
@@ -982,12 +984,17 @@ fun DashboardScreen(
     val inventorySummaries by viewModel.allInventorySummary.collectAsState()
     val allPayments by viewModel.allInvoicePayments.collectAsState()
 
+    // Status Filter Aktif: "Hari Ini", "7 Hari", "30 Hari", "Bulan Ini", "Semua"
     var selectedFilter by remember { mutableStateOf("Semua") }
 
+    // Dialog state untuk pencatatan Pengeluaran Baru
     var showAddExpenseDialog by remember { mutableStateOf(false) }
     var showAddInflowDialog by remember { mutableStateOf(false) }
     var showLowStockDialog by remember { mutableStateOf(false) }
 
+
+
+    // Jam & Tanggal Real-Time Ticking Clock (Berdetik setiap detik)
     var currentTimeMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -996,6 +1003,7 @@ fun DashboardScreen(
         }
     }
 
+    // Format Jam dan Tanggal Bahasa Indonesia (Menggunakan Locale.forLanguageTag agar tidak deprecated)
     val clockString = remember(currentTimeMillis) {
         val sdf = SimpleDateFormat("HH:mm:ss", Locale.forLanguageTag("id-ID"))
         sdf.format(Date(currentTimeMillis))
@@ -1005,6 +1013,7 @@ fun DashboardScreen(
         sdf.format(Date(currentTimeMillis))
     }
 
+    // Fungsi utilitas lokal untuk menyaring rentang tanggal transaksi
     fun isTimestampInFilter(timestamp: Long, filter: String): Boolean {
         val now = System.currentTimeMillis()
         val calendarNow = Calendar.getInstance().apply { timeInMillis = now }
@@ -1027,25 +1036,24 @@ fun DashboardScreen(
                 calendarNow.get(Calendar.YEAR) == calendarTarget.get(Calendar.YEAR) &&
                         calendarNow.get(Calendar.MONTH) == calendarTarget.get(Calendar.MONTH)
             }
-            else -> true
+            else -> true // "Semua"
         }
     }
 
-    // =========================================================================
-    // 🛡️ ZONA KALKULASI AMAN DARI NULL (NULL-SAFETY PROTECTED) 🛡️
-    // Semua string di-fallback dengan ?: "" sebelum di-contains/equals/trim
-    // =========================================================================
+    // --- KALKULASI REAL-TIME (Sesuai Filter & Flow Database Rill) ---
 
+    // 1. Modal Awal (All-time Inflows kategori "Modal")
     val modalAwal = remember(inflows) {
-        inflows.filter { !it.isDeleted && (it.category ?: "").contains("Modal", ignoreCase = true) }.sumOf { it.amount ?: 0.0 }
+        inflows.filter { !it.isDeleted && it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
     }
 
+    // 2. Transaksi Terfilter Sesuai Rentang Waktu (Abaikan invoice & data dibatalkan/dihapus)
     val filteredInvoices = remember(invoices, selectedFilter) {
         invoices.filter {
             !it.isDeleted &&
             isTimestampInFilter(it.issueDate, selectedFilter) &&
-            !(it.status ?: "").equals("Dibatalkan", ignoreCase = true) &&
-            !(it.status ?: "").equals("Cancelled", ignoreCase = true)
+            !it.status.equals("Dibatalkan", ignoreCase = true) &&
+            !it.status.equals("Cancelled", ignoreCase = true)
         }
     }
     val filteredInflows = remember(inflows, selectedFilter) {
@@ -1058,40 +1066,52 @@ fun DashboardScreen(
         orders.filter { !it.isDeleted && isTimestampInFilter(it.orderDate, selectedFilter) }
     }
 
+    // Order POS yang belum/tidak memiliki Invoice
     val filteredStandaloneOrders = remember(filteredOrders, invoices) {
         filteredOrders.filter { ord ->
             invoices.none { inv -> inv.orderId == ord.id }
         }
     }
 
-    val salesSummary = remember(filteredInvoices, filteredStandaloneOrders, filteredInflows, allPayments) {
-        calculateUnifiedSalesSummary(filteredInvoices, filteredStandaloneOrders, filteredInflows, allPayments)
+    // 3. Total Penjualan Terfilter (Omset Operasional Bruto: Paid Invoices + Standalone Orders + Non-Invoice Sales Inflows)
+    val totalPenjualan = remember(filteredInvoices, filteredInflows, filteredStandaloneOrders, allPayments) {
+        val invoicePaid = filteredInvoices.sumOf { calculateInvoicePaid(it, allPayments) }
+        val orderPaid = filteredStandaloneOrders.sumOf { getEffectiveOrderPaid(it) }
+        val salesInflows = filteredInflows.filter { 
+            !it.category.contains("Modal", ignoreCase = true) &&
+            !it.notes.contains("[PAY_") &&
+            !it.notes.contains("Pembayaran Invoice")
+        }.sumOf { it.amount }
+        invoicePaid + orderPaid + salesInflows
     }
-    val totalPenjualan = salesSummary.totalRevenue
 
+    // Total Pemasukan Terfilter (Seluruh Uang Masuk Kas: Paid Invoices + Standalone Orders + Direct Inflows)
     val totalPemasukan = remember(filteredInvoices, filteredInflows, filteredStandaloneOrders, allPayments) {
         val invoicePaid = filteredInvoices.sumOf { calculateInvoicePaid(it, allPayments) }
         val orderPaid = filteredStandaloneOrders.sumOf { getEffectiveOrderPaid(it) }
         val nonInvoiceInflows = filteredInflows.filter { 
-            !(it.category ?: "").contains("Pembayaran Customer", ignoreCase = true) &&
-            !(it.notes ?: "").contains("[PAY_") &&
-            !(it.notes ?: "").contains("Pembayaran Invoice")
-        }.sumOf { it.amount ?: 0.0 }
+            !it.category.contains("Pembayaran Customer", ignoreCase = true) &&
+            !it.notes.contains("[PAY_") &&
+            !it.notes.contains("Pembayaran Invoice")
+        }.sumOf { it.amount }
         invoicePaid + orderPaid + nonInvoiceInflows
     }
 
+    // 4. Total Pengeluaran Terfilter (Pengeluaran Operasional)
     val totalPengeluaran = remember(filteredExpenses) {
-        filteredExpenses.sumOf { it.amount ?: 0.0 }
+        filteredExpenses.sumOf { it.amount }
     }
 
+    // 5. Total Profit Terfilter (Net Operational Profit = Total Penjualan - Total Pengeluaran)
     val totalProfit = totalPenjualan - totalPengeluaran
 
+    // 6. Kas Aktif & Modal Berjalan All-Time
     val allTimeInvoicesPaid = remember(invoices, allPayments) {
         invoices.filter {
             !it.isDeleted &&
-            !(it.status ?: "").equals("Dibatalkan", ignoreCase = true) &&
-            !(it.status ?: "").equals("BATAL", ignoreCase = true) &&
-            !(it.status ?: "").equals("Cancelled", ignoreCase = true)
+            !it.status.equals("Dibatalkan", ignoreCase = true) &&
+            !it.status.equals("BATAL", ignoreCase = true) &&
+            !it.status.equals("Cancelled", ignoreCase = true)
         }.sumOf { calculateInvoicePaid(it, allPayments) }
     }
     val allTimeStandaloneOrdersPaid = remember(orders, invoices) {
@@ -1102,27 +1122,30 @@ fun DashboardScreen(
     val allTimeInflowsAmount = remember(inflows) { 
         inflows.filter { 
             !it.isDeleted && 
-            !(it.category ?: "").contains("Pembayaran Customer", ignoreCase = true) &&
-            !(it.notes ?: "").contains("[PAY_") &&
-            !(it.notes ?: "").contains("Pembayaran Invoice")
-        }.sumOf { it.amount ?: 0.0 } 
+            !it.category.contains("Pembayaran Customer", ignoreCase = true) &&
+            !it.notes.contains("[PAY_") &&
+            !it.notes.contains("Pembayaran Invoice")
+        }.sumOf { it.amount } 
     }
-    val allTimeExpensesAmount = remember(expenses) { expenses.filter { !it.isDeleted }.sumOf { it.amount ?: 0.0 } }
+    val allTimeExpensesAmount = remember(expenses) { expenses.filter { !it.isDeleted }.sumOf { it.amount } }
 
+    // Saldo Kas Aktif = Total Uang Masuk All-Time - Total Pengeluaran All-Time
     val saldoKas = (allTimeInvoicesPaid + allTimeStandaloneOrdersPaid + allTimeInflowsAmount - allTimeExpensesAmount).coerceAtLeast(0.0)
 
+    // Modal Berjalan = Modal Awal + Laba Bersih Operasional Akumulatif
     val allTimeNonModalInflows = remember(inflows) {
         inflows.filter { 
             !it.isDeleted && 
-            !(it.category ?: "").contains("Modal", ignoreCase = true) &&
-            !(it.category ?: "").contains("Pembayaran Customer", ignoreCase = true) &&
-            !(it.notes ?: "").contains("[PAY_") &&
-            !(it.notes ?: "").contains("Pembayaran Invoice")
-        }.sumOf { it.amount ?: 0.0 }
+            !it.category.contains("Modal", ignoreCase = true) &&
+            !it.category.contains("Pembayaran Customer", ignoreCase = true) &&
+            !it.notes.contains("[PAY_") &&
+            !it.notes.contains("Pembayaran Invoice")
+        }.sumOf { it.amount }
     }
     val allTimeNetProfit = (allTimeInvoicesPaid + allTimeStandaloneOrdersPaid + allTimeNonModalInflows) - allTimeExpensesAmount
     val modalBerjalan = modalAwal + allTimeNetProfit
 
+    // 7. Stok AJIBQOBUL & Nilai Persediaan Gudang (Data Rill Inventory Summary / Stock Items)
     val totalStockPieces = remember(inventorySummaries, stockItems) {
         val summarySum = inventorySummaries.sumOf { it.availableStock }
         if (summarySum > 0 || inventorySummaries.isNotEmpty()) {
@@ -1140,6 +1163,7 @@ fun DashboardScreen(
         }
     }
 
+    // 8. Piutang Dagang & Invoice Unpaid (Hanya invoice aktif yang belum lunas)
     val unpaidInvoices = remember(invoices, allPayments) {
         invoices.filter { inv ->
             calculateInvoiceSisaPiutang(inv, allPayments) > 0.01
@@ -1150,13 +1174,15 @@ fun DashboardScreen(
         unpaidInvoices.sumOf { inv -> calculateInvoiceSisaPiutang(inv, allPayments) }
     }
 
+    // 9. Project Aktif (Jumlah proyek berjalan)
     val projectAktifCount = remember(projects) {
         projects.count { proj ->
-            val st = (proj.status ?: "").trim().lowercase()
-            !proj.isDeleted && st != "completed" && st != "selesai" && st != "dibatalkan" && st != "cancelled"
+            val st = proj.status.trim().lowercase()
+            st != "completed" && st != "selesai" && st != "dibatalkan" && st != "cancelled"
         }
     }
 
+    // 10. Total Member Mitra (Real-time & Sync Tanpa Owner)
     val memberViewModel: MemberViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     LaunchedEffect(Unit) {
         memberViewModel.loadMembers(context)
@@ -1166,16 +1192,17 @@ fun DashboardScreen(
         membersList.size
     }
 
-    // --- TIMELINE AKTIVITAS TERBARU DUA ARAH (DILINDUNGI ?: "") ---
+    // --- TIMELINE AKTIVITAS TERBARU DUA ARAH ---
     val activities = remember(invoices, projects, stockItems, orders, expenses, selectedFilter) {
         val list = mutableListOf<DashboardActivity>()
 
+        // A. Project Baru
         projects.forEach { proj ->
             if (isTimestampInFilter(proj.startDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
                         title = "Project Baru",
-                        description = "${proj.projectName ?: ""} - Klien: ${proj.clientName ?: ""}",
+                        description = "${proj.projectName} - Klien: ${proj.clientName}",
                         date = proj.startDate,
                         type = "Project",
                         amount = proj.totalCost
@@ -1184,12 +1211,13 @@ fun DashboardScreen(
             }
         }
 
+        // B. Invoice Baru
         invoices.forEach { inv ->
             if (isTimestampInFilter(inv.issueDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
                         title = "Invoice Baru",
-                        description = "No: ${inv.invoiceNumber ?: ""} - Klien: ${inv.clientName ?: ""}",
+                        description = "No: ${inv.invoiceNumber} - Klien: ${inv.clientName}",
                         date = inv.issueDate,
                         type = "Invoice",
                         amount = inv.totalAmount
@@ -1198,12 +1226,13 @@ fun DashboardScreen(
             }
         }
 
+        // C. Penjualan AJIBQOBUL
         orders.forEach { ord ->
             if (isTimestampInFilter(ord.orderDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
                         title = "Penjualan AJIBQOBUL",
-                        description = "Transaksi penjualan ke ${ord.clientName ?: ""}",
+                        description = "Transaksi penjualan ke ${ord.clientName}",
                         date = ord.orderDate,
                         type = "Pemesanan",
                         amount = ord.totalAmount
@@ -1212,13 +1241,14 @@ fun DashboardScreen(
             }
         }
 
-        stockItems.filter { !it.isDeleted && it.stockCount > 0 }.take(5).forEach { item ->
+        // D. Stock Masuk Rill
+        stockItems.filter { it.stockCount > 0 }.take(5).forEach { item ->
             val updateDate = if (item.lastUpdated > 0) item.lastUpdated else System.currentTimeMillis()
             if (isTimestampInFilter(updateDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
                         title = "Stock Gudang",
-                        description = "Item: ${item.name ?: ""}",
+                        description = "Item: ${item.name}",
                         date = updateDate,
                         type = "StockMasuk",
                         amount = item.stockCount.toDouble()
@@ -1227,13 +1257,14 @@ fun DashboardScreen(
             }
         }
 
+        // E. Stock Keluar (Diambil dari transaksi pemesanan / penjualan real-time)
         orders.forEach { ord ->
             if (isTimestampInFilter(ord.orderDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
                         title = "Stock Keluar",
-                        description = "Pengiriman barang ke ${ord.clientName ?: ""}",
-                        date = ord.orderDate + 1000,
+                        description = "Pengiriman barang ke ${ord.clientName}",
+                        date = ord.orderDate + 1000, // sedikit di-offset
                         type = "StockKeluar",
                         amount = ord.totalAmount
                     )
@@ -1241,13 +1272,14 @@ fun DashboardScreen(
             }
         }
 
+        // F. Pemasukan (Diambil dari invoice yang sudah di-bayar / LUNAS / DP)
         invoices.forEach { inv ->
             val paid = calculateInvoicePaid(inv, allPayments)
             if (paid > 0 && isTimestampInFilter(inv.issueDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
                         title = "Pemasukan",
-                        description = "Pembayaran Invoice No: ${inv.invoiceNumber ?: ""}",
+                        description = "Pembayaran Invoice No: ${inv.invoiceNumber}",
                         date = inv.issueDate + 2000,
                         type = "Pemasukan",
                         amount = paid
@@ -1256,6 +1288,7 @@ fun DashboardScreen(
             }
         }
 
+        // Pemasukan POS / Order Standalone
         orders.forEach { ord ->
             val paid = getEffectiveOrderPaid(ord)
             val isNotCoveredByInvoice = invoices.none { inv -> inv.orderId == ord.id }
@@ -1263,7 +1296,7 @@ fun DashboardScreen(
                 list.add(
                     DashboardActivity(
                         title = "Pemasukan POS",
-                        description = "Penjualan Order #${ord.id} - Klien: ${ord.clientName ?: ""}",
+                        description = "Penjualan Order #${ord.id} - Klien: ${ord.clientName}",
                         date = ord.orderDate + 1500,
                         type = "Pemasukan",
                         amount = paid
@@ -1272,12 +1305,13 @@ fun DashboardScreen(
             }
         }
 
+        // G. Pengeluaran (Diambil dari database pengeluaran riil)
         expenses.forEach { exp ->
             if (isTimestampInFilter(exp.date, selectedFilter)) {
                 list.add(
                     DashboardActivity(
                         title = "Pengeluaran",
-                        description = "[${exp.category ?: "Lainnya"}] ${exp.notes ?: ""}",
+                        description = "[${exp.category}] ${exp.notes}",
                         date = exp.date,
                         type = "Pengeluaran",
                         amount = exp.amount,
@@ -1287,12 +1321,13 @@ fun DashboardScreen(
             }
         }
 
+        // H. Pemasukan Manual
         inflows.forEach { inf ->
             if (isTimestampInFilter(inf.date, selectedFilter)) {
                 list.add(
                     DashboardActivity(
                         title = "Pemasukan",
-                        description = "[${inf.category ?: "Lainnya"}] ${inf.notes ?: ""}",
+                        description = "[${inf.category}] ${inf.notes}",
                         date = inf.date,
                         type = "Pemasukan",
                         amount = inf.amount,
@@ -1302,11 +1337,12 @@ fun DashboardScreen(
             }
         }
 
+        // Urutkan berdasarkan waktu terbaru di atas
         list.sortByDescending { it.date }
         list.distinctBy { it.description + it.title + it.date }.take(15)
     }
 
-    val lowStockItems = stockItems.filter { !it.isDeleted && it.stockCount <= 5 }
+    val lowStockItems = stockItems.filter { it.stockCount <= 5 }
     val criticalItems = remember(lowStockItems) {
         lowStockItems.sortedBy { it.stockCount }.take(3)
     }
@@ -1371,6 +1407,10 @@ fun DashboardScreen(
 
                     val alertItems = remember(stockItems, invoices, allAuditLogs) {
                         val alerts = mutableListOf<AlertData>()
+                        
+                        // 1. Invoice Jatuh Tempo Alert (STRICTLY REMOVED from main dashboard view to eliminate cognitive overload)
+
+                        // 2. Backup Belum Dilakukan Alert (> 3 Hari)
                         val lastBackupLog = allAuditLogs.find { it.activity == "Pencadangan Database" }
                         val backupNeeded = lastBackupLog == null || (System.currentTimeMillis() - lastBackupLog.timestamp > 3L * 24 * 60 * 60 * 1000)
                         if (backupNeeded) {
@@ -1406,6 +1446,13 @@ fun DashboardScreen(
                         alerts
                     }
 
+                    // Pre-compute today's metrics for Sprint 7C
+                    val orderHariIni = remember(invoices, startOfToday, endOfToday) { invoices.count { !it.isDeleted && it.issueDate in startOfToday..endOfToday } }
+                    val invoiceBelumBayar = remember(invoices) { invoices.count { !it.isDeleted && it.status == "BELUM LUNAS" } }
+                    val invoiceSebagian = remember(invoices) { invoices.count { !it.isDeleted && it.status == "DP" } }
+                    val invoiceLunas = remember(invoices) { invoices.count { !it.isDeleted && it.status == "LUNAS" } }
+                    val totalPenjualanHariIni = remember(invoices, startOfToday, endOfToday) { invoices.filter { !it.isDeleted && it.issueDate in startOfToday..endOfToday }.sumOf { it.totalAmount } }
+
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
@@ -1437,6 +1484,7 @@ fun DashboardScreen(
                         )
                     }
                     
+                    // Cloud Sync Status Indicator
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1587,9 +1635,6 @@ fun DashboardScreen(
                         saldoKas = saldoKas,
                         totalProfit = totalProfit,
                         totalPenjualan = totalPenjualan,
-                        totalSalesQuantity = salesSummary.totalQuantityPcs,
-                        totalSalesTxCount = salesSummary.totalTransactionCount,
-                        totalGrossProfit = salesSummary.totalGrossProfit,
                         totalPengeluaran = totalPengeluaran,
                         nilaiTotalStock = nilaiTotalStock,
                         totalStockPieces = totalStockPieces,
@@ -1604,7 +1649,7 @@ fun DashboardScreen(
                                 "MODAL BERJALAN" -> activeLedgerPage = "modal_berjalan"
                                 "KAS AKTIF" -> activeLedgerPage = "kas"
                                 "PROFIT BERSIH" -> activeLedgerPage = "profit"
-                                "TOTAL PENJUALAN" -> activeLedgerPage = "penjualan"
+                                "TOTAL PENJUALAN" -> viewModel.setTab(AppTab.INVOICE)
                                 "TOTAL PENGELUARAN" -> activeLedgerPage = "pengeluaran"
                                 "NILAI PERSEDIAAN" -> viewModel.setTab(AppTab.STOCK)
                                 "STOK AJIBQOBUL" -> viewModel.setTab(AppTab.STOCK)
@@ -1644,6 +1689,7 @@ fun DashboardScreen(
                 }
             }
 
+            // Export PDF Premium Card under the 12 Grid Cards (OWNER ONLY)
             if (userRole == com.yansproject.app.data.UserRole.OWNER) {
                 item {
                     Spacer(modifier = Modifier.height(10.dp))
@@ -1659,7 +1705,7 @@ fun DashboardScreen(
                                 totalReceivables = invoiceBelumLunasAmount,
                                 activeProjectsCount = projectAktifCount,
                                 lowStockCount = stockItems.count { !it.isDeleted && it.stockCount <= 5 },
-                                totalOrdersCount = orders.count { (it.status ?: "") == "Completed" },
+                                totalOrdersCount = orders.count { it.status == "Completed" },
                                 unpaidInvoices = unpaidInvoices,
                                 activeProjects = projects,
                                 viewModel = viewModel
@@ -1716,6 +1762,7 @@ fun DashboardScreen(
                     }
                 }
 
+                // --- 8. RINGKASAN PERSENTASE KEUANGAN (OWNER ONLY) ---
                 item {
                     DashboardRingkasanKeuanganCard(
                         totalPemasukan = totalPemasukan,
@@ -1729,6 +1776,7 @@ fun DashboardScreen(
                 }
             }
 
+            // --- 9. AKTIVITAS TERBARU ---
             item {
                 Text(
                     text = "Aktivitas Terbaru (${selectedFilter})",
@@ -1792,6 +1840,7 @@ fun DashboardScreen(
         )
     }
 
+    // --- FORM DIALOG TAMBAH PENGELUARAN (ALERT DIALOG MODEREN) ---
     if (showAddExpenseDialog) {
         var selectedCategory by remember { mutableStateOf("Operasional") }
         var nominalStr by remember { mutableStateOf("") }
@@ -1832,6 +1881,7 @@ fun DashboardScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    // Pilihan Kategori (Chips)
                     Column {
                         Text(
                             text = "Kategori Pengeluaran",
@@ -1842,6 +1892,7 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         val categories = listOf("Produksi", "Aksesories", "Transport", "Operasional", "Lainnya")
                         
+                        // Menampilkan chips dalam dua baris horizontal agar pas dan responsif
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -1893,9 +1944,11 @@ fun DashboardScreen(
                         }
                     }
 
+                    // Input Nominal
                     OutlinedTextField(
                         value = nominalStr,
                         onValueChange = { input ->
+                            // Hanya perbolehkan angka
                             if (input.all { it.isDigit() }) {
                                 nominalStr = input
                             }
@@ -1915,6 +1968,7 @@ fun DashboardScreen(
                             .testTag("input_nominal_expense")
                     )
 
+                    // Pilihan Tanggal
                     Column {
                         Text(
                             text = "Tanggal Transaksi",
@@ -1958,6 +2012,7 @@ fun DashboardScreen(
                         }
                     }
 
+                    // Input Catatan
                     OutlinedTextField(
                         value = notesStr,
                         onValueChange = { notesStr = it },
@@ -1975,6 +2030,7 @@ fun DashboardScreen(
                             .testTag("input_notes_expense")
                     )
 
+                    // Error Message
                     errorMessage?.let { error ->
                         Text(
                             text = error,
@@ -1994,6 +2050,7 @@ fun DashboardScreen(
                         } else if (notesStr.trim().isEmpty()) {
                             errorMessage = "Catatan tidak boleh kosong!"
                         } else {
+                            // Masukkan ke ViewModel reaktif
                             viewModel.addExpense(
                                 category = selectedCategory,
                                 amount = amountVal,
@@ -2019,6 +2076,7 @@ fun DashboardScreen(
             }
         )
 
+        // Date Picker Dialog M3
         if (showDatePickerDialog) {
             val datePickerState = rememberDatePickerState(initialSelectedDateMillis = dateSelected)
             DatePickerDialog(
@@ -2259,7 +2317,7 @@ fun StaffDashboardView(
 ) {
     val stockItems by viewModel.allStock.collectAsState()
     val projects by viewModel.allProjects.collectAsState()
-    val activeProjectsCount = remember(projects) { projects.count { (it.status ?: "") == "In Progress" || (it.status ?: "") == "Produksi" || (it.status ?: "") == "Desain" } }
+    val activeProjectsCount = remember(projects) { projects.count { it.status == "In Progress" || it.status == "Produksi" || it.status == "Desain" } }
 
     LazyColumn(
         modifier = Modifier
@@ -2324,8 +2382,10 @@ fun StaffDashboardView(
             }
         }
 
+        // Operational stats summary cards
         item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Active Projects card
                 Card(
                     modifier = Modifier
                         .weight(1f)
@@ -2342,6 +2402,7 @@ fun StaffDashboardView(
                     }
                 }
 
+                // Low Stock Alerts count card
                 Card(
                     modifier = Modifier
                         .weight(1f)
@@ -2360,6 +2421,7 @@ fun StaffDashboardView(
             }
         }
 
+        // Warning Section for Low Stock (Critical Items)
         if (criticalItems.isNotEmpty()) {
             item {
                 Card(
@@ -2380,7 +2442,7 @@ fun StaffDashboardView(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(item.name ?: "", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(item.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                 Text("${item.stockCount} pcs tersisa", fontSize = 11.sp, color = AlertRed, fontWeight = FontWeight.Bold)
                             }
                         }
@@ -2389,6 +2451,7 @@ fun StaffDashboardView(
             }
         }
 
+        // Task List / Info Card
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
@@ -2475,8 +2538,8 @@ fun LowStockDetailsDialog(
                     modifier = Modifier.weight(1f)
                 ) {
                     items(lowStockItems) { item ->
-                        val parts = (item.name ?: "").split("-").map { it.trim() }
-                        val series = parts.getOrNull(0) ?: (item.name ?: "")
+                        val parts = item.name.split("-").map { it.trim() }
+                        val series = parts.getOrNull(0) ?: item.name
                         val warna = parts.getOrNull(1) ?: "-"
                         val ukuran = parts.getOrNull(2) ?: "-"
                         val sleeve = parts.getOrNull(3) ?: "-"
@@ -2596,6 +2659,7 @@ fun AddInflowDialog(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
+                // Pilihan Kategori (Chips)
                 Column {
                     Text(
                         text = "Kategori Pemasukan",
@@ -2628,6 +2692,7 @@ fun AddInflowDialog(
                     }
                 }
 
+                // Input Nominal
                 OutlinedTextField(
                     value = nominalStr,
                     onValueChange = { input ->
@@ -2650,6 +2715,7 @@ fun AddInflowDialog(
                         .testTag("input_nominal_inflow")
                 )
 
+                // Pilihan Tanggal
                 Column {
                     Text(
                         text = "Tanggal Transaksi",
@@ -2693,6 +2759,7 @@ fun AddInflowDialog(
                     }
                 }
 
+                // Input Catatan
                 OutlinedTextField(
                     value = notesStr,
                     onValueChange = { notesStr = it },
@@ -2710,6 +2777,7 @@ fun AddInflowDialog(
                         .testTag("input_notes_inflow")
                 )
 
+                // Error Message
                 errorMessage?.let { error ->
                     Text(
                         text = error,
@@ -2748,6 +2816,7 @@ fun AddInflowDialog(
         }
     )
 
+    // Date Picker Dialog M3
     if (showDatePickerDialog) {
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = dateSelected)
         DatePickerDialog(
@@ -2773,6 +2842,7 @@ fun AddInflowDialog(
     }
 }
 
+// --- NEW DONUT CHART AND INTEGRATED SUMMARY CARD ---
 data class DonutSlice(
     val label: String,
     val amount: Double,
@@ -2812,6 +2882,7 @@ fun InteractiveDonutChart(
             
             val total = slices.sumOf { it.amount }
             
+            // Background thin track circle
             drawArc(
                 color = Color.White.copy(alpha = 0.05f),
                 startAngle = -90f,
@@ -2823,6 +2894,7 @@ fun InteractiveDonutChart(
             )
             
             if (slices.isEmpty() || total == 0.0) {
+                // If empty, percentage 0% and display gray donut ring as requested
                 drawArc(
                     color = Color.Gray.copy(alpha = 0.2f),
                     startAngle = -90f,
@@ -2853,6 +2925,7 @@ fun InteractiveDonutChart(
             }
         }
         
+        // Centered info inside the donut hole
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -2875,9 +2948,10 @@ fun InteractiveDonutChart(
     }
 }
 
+// Helper untuk kalkulasi nominal terbayar invoice yang akurat
 fun getEffectiveInvoicePaid(inv: Invoice): Double {
     if (inv.isDeleted) return 0.0
-    val st = (inv.status ?: "").trim().uppercase()
+    val st = inv.status.trim().uppercase()
     if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT")) return 0.0
     if (inv.paidAmount > 0.0) return inv.paidAmount
     if (st in listOf("LUNAS", "PAID", "SELESAI", "LUNAS (PAID)")) {
@@ -2889,7 +2963,7 @@ fun getEffectiveInvoicePaid(inv: Invoice): Double {
 
 fun calculateInvoicePaid(inv: Invoice, allPayments: List<InvoicePayment> = emptyList()): Double {
     if (inv.isDeleted) return 0.0
-    val st = (inv.status ?: "").trim().uppercase()
+    val st = inv.status.trim().uppercase()
     if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT")) return 0.0
     if (st in listOf("LUNAS", "PAID", "SELESAI", "LUNAS (PAID)")) {
         return if (inv.totalAmount > 0.0) inv.totalAmount else 0.0
@@ -2907,17 +2981,18 @@ fun calculateInvoicePaid(inv: Invoice, allPayments: List<InvoicePayment> = empty
 
 fun calculateInvoiceSisaPiutang(inv: Invoice, allPayments: List<InvoicePayment> = emptyList()): Double {
     if (inv.isDeleted) return 0.0
-    val st = (inv.status ?: "").trim().uppercase()
+    val st = inv.status.trim().uppercase()
     if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "LUNAS", "PAID", "SELESAI", "LUNAS (PAID)")) return 0.0
     
     val paid = calculateInvoicePaid(inv, allPayments)
     return maxOf(0.0, inv.totalAmount - paid)
 }
 
+// Helper untuk kalkulasi nominal terbayar order direct/POS
 fun getEffectiveOrderPaid(ord: OrderHistory): Double {
     if (ord.isDeleted) return 0.0
     if (ord.paidAmount > 0.0) return ord.paidAmount
-    val st = (ord.status ?: "").trim().uppercase()
+    val st = ord.status.trim().uppercase()
     if (st in listOf("COMPLETED", "SELESAI", "LUNAS", "PAID", "DISETUJUI", "TERBAYAR")) {
         return if (ord.totalAmount > 0.0) ord.totalAmount else 0.0
     }
@@ -2936,50 +3011,53 @@ fun DashboardRingkasanKeuanganCard(
 ) {
     var activeTab by remember { mutableStateOf("SEMUA") }
 
+    // Computations for Inflows
     val modalAmt = remember(filteredInflows) {
-        filteredInflows.filter { !it.isDeleted && (it.category ?: "").contains("Modal", ignoreCase = true) }.sumOf { it.amount }
+        filteredInflows.filter { !it.isDeleted && it.category.contains("Modal", ignoreCase = true) }.sumOf { it.amount }
     }
     val lainnyaInAmt = remember(filteredInflows) {
-        filteredInflows.filter { !it.isDeleted && (it.category ?: "").contains("Lainnya", ignoreCase = true) }.sumOf { it.amount }
+        filteredInflows.filter { !it.isDeleted && it.category.contains("Lainnya", ignoreCase = true) }.sumOf { it.amount }
     }
     val penjualanAmt = remember(filteredInvoices, filteredInflows, filteredStandaloneOrders, allPayments) {
         val invoicePaid = filteredInvoices.sumOf { calculateInvoicePaid(it, allPayments) }
         val orderPaid = filteredStandaloneOrders.sumOf { getEffectiveOrderPaid(it) }
         val manualSalesInflows = filteredInflows.filter { 
             !it.isDeleted && 
-            !(it.category ?: "").contains("Modal", ignoreCase = true) &&
-            !(it.category ?: "").contains("Lainnya", ignoreCase = true) &&
-            !(it.category ?: "").contains("Pembayaran Customer", ignoreCase = true) &&
-            !(it.notes ?: "").contains("[PAY_") &&
-            !(it.notes ?: "").contains("Pembayaran Invoice")
+            !it.category.contains("Modal", ignoreCase = true) &&
+            !it.category.contains("Lainnya", ignoreCase = true) &&
+            !it.category.contains("Pembayaran Customer", ignoreCase = true) &&
+            !it.notes.contains("[PAY_") &&
+            !it.notes.contains("Pembayaran Invoice")
         }.sumOf { it.amount }
         invoicePaid + orderPaid + manualSalesInflows
     }
 
+    // Computations for Expenses
     val produksiAmt = remember(filteredExpenses) {
-        filteredExpenses.filter { (it.category ?: "").contains("Produksi", ignoreCase = true) || (it.category ?: "").contains("Sablon", ignoreCase = true) }.sumOf { it.amount }
+        filteredExpenses.filter { it.category.contains("Produksi", ignoreCase = true) || it.category.contains("Sablon", ignoreCase = true) }.sumOf { it.amount }
     }
     val aksesoriesAmt = remember(filteredExpenses) {
-        filteredExpenses.filter { (it.category ?: "").contains("Aksesories", ignoreCase = true) || (it.category ?: "").contains("Aksesoris", ignoreCase = true) || (it.category ?: "").contains("Packing", ignoreCase = true) }.sumOf { it.amount }
+        filteredExpenses.filter { it.category.contains("Aksesories", ignoreCase = true) || it.category.contains("Aksesoris", ignoreCase = true) || it.category.contains("Packing", ignoreCase = true) }.sumOf { it.amount }
     }
     val transportAmt = remember(filteredExpenses) {
-        filteredExpenses.filter { (it.category ?: "").contains("Transport", ignoreCase = true) }.sumOf { it.amount }
+        filteredExpenses.filter { it.category.contains("Transport", ignoreCase = true) }.sumOf { it.amount }
     }
     val operasionalAmt = remember(filteredExpenses) {
-        filteredExpenses.filter { (it.category ?: "").contains("Operasional", ignoreCase = true) }.sumOf { it.amount }
+        filteredExpenses.filter { it.category.contains("Operasional", ignoreCase = true) }.sumOf { it.amount }
     }
     val lainnyaOutAmt = remember(filteredExpenses) {
         filteredExpenses.filter { exp ->
-            !(exp.category ?: "").contains("Produksi", ignoreCase = true) &&
-            !(exp.category ?: "").contains("Sablon", ignoreCase = true) &&
-            !(exp.category ?: "").contains("Aksesories", ignoreCase = true) &&
-            !(exp.category ?: "").contains("Aksesoris", ignoreCase = true) &&
-            !(exp.category ?: "").contains("Packing", ignoreCase = true) &&
-            !(exp.category ?: "").contains("Transport", ignoreCase = true) &&
-            !(exp.category ?: "").contains("Operasional", ignoreCase = true)
+            !exp.category.contains("Produksi", ignoreCase = true) &&
+            !exp.category.contains("Sablon", ignoreCase = true) &&
+            !exp.category.contains("Aksesories", ignoreCase = true) &&
+            !exp.category.contains("Aksesoris", ignoreCase = true) &&
+            !exp.category.contains("Packing", ignoreCase = true) &&
+            !exp.category.contains("Transport", ignoreCase = true) &&
+            !exp.category.contains("Operasional", ignoreCase = true)
         }.sumOf { it.amount }
     }
 
+    // Determine current slices based on activeTab
     val slices = remember(activeTab, totalPemasukan, totalPengeluaran, modalAmt, penjualanAmt, lainnyaInAmt, produksiAmt, aksesoriesAmt, transportAmt, operasionalAmt, lainnyaOutAmt) {
         when (activeTab) {
             "SEMUA" -> {
@@ -3051,6 +3129,7 @@ fun DashboardRingkasanKeuanganCard(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Title
                 Text(
                     text = "RINGKASAN KEUANGAN",
                     fontSize = 11.sp,
@@ -3060,6 +3139,7 @@ fun DashboardRingkasanKeuanganCard(
                     modifier = Modifier.align(Alignment.Start)
                 )
 
+                // 1. Donut Chart (Animated)
                 Box(
                     modifier = Modifier
                         .size(170.dp)
@@ -3071,6 +3151,7 @@ fun DashboardRingkasanKeuanganCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                // 2. Nominal Details (Rincian)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -3148,6 +3229,7 @@ fun DashboardRingkasanKeuanganCard(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
+                // 3. Tab Selector
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3223,6 +3305,10 @@ fun RincianItemRow(
         )
     }
 }
+
+// ==========================================
+// ENTERPRISE ERP COMMAND CENTER CUSTOM UI
+// ==========================================
 
 @Composable
 fun SearchBarOwner(
@@ -3430,6 +3516,7 @@ fun RiwayatProduksiScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // App Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
