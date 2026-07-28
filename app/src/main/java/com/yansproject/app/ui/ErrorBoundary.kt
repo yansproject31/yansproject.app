@@ -30,14 +30,14 @@ fun ErrorBoundaryWrapper(
     CompositionLocalProvider(
         LocalErrorReporter provides { errorState = it }
     ) {
-        if (errorState != null) {
+        errorState?.let { err ->
             RecoveryModeScreen(
-                error = errorState!!,
+                error = err,
                 onRetry = {
                     errorState = null
                 }
             )
-        } else {
+        } ?: run {
             content()
         }
     }

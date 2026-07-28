@@ -1,0 +1,11 @@
+--- app/src/main/java/com/yansproject/app/ui/InvoiceScreen.kt
++++ app/src/main/java/com/yansproject/app/ui/InvoiceScreen.kt
+@@ -359,7 +359,7 @@
+ 
+         // --- Payment Dialog ---
+-        if (selectedInvoiceForPayment != null) {
++        selectedInvoiceForPayment?.let { invoice ->
+             PaymentInputDialog(
+                 invoice = invoice,
+                 isDP = isRecordingDP,
+                 onDismiss = { selectedInvoiceForPayment = null },

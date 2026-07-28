@@ -1370,8 +1370,7 @@ fun NotificationCenterDialog(
   }
 
   // System Detail Info Dialog
-  if (selectedSystemNotif != null) {
-    val notif = selectedSystemNotif!!
+  selectedSystemNotif?.let { notif ->
     val sdf = remember { java.text.SimpleDateFormat("dd MMM yyyy, HH:mm", java.util.Locale.forLanguageTag("id-ID")) }
     val timeStr = remember(notif.timestamp) { sdf.format(java.util.Date(notif.timestamp)) }
 

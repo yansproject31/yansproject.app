@@ -71,6 +71,8 @@ fun StockScreen(
     val orders by viewModel.allOrders.collectAsState()
     val inventorySummaries by viewModel.allInventorySummary.collectAsState()
     val expenses by viewModel.allExpenses.collectAsState()
+    val currentUser by FirebaseSyncManager.currentUser.collectAsState()
+    val isOwner = currentUser?.role == UserRole.OWNER
 
     var selectedCatalogId by remember { mutableStateOf<Int?>(null) }
     var selectedVarianId by remember { mutableStateOf<Int?>(null) }
@@ -112,14 +114,12 @@ fun StockScreen(
         }
     }
 
-    if (selectedVarianId != null) {
+    val varianId = selectedVarianId
+    if (varianId != null) {
         // LEVEL 3: MATRIX STOCK / DETAIL VIEW
-        val varianId = selectedVarianId!!
         val varian = variants.find { it.id_varian == varianId }
         val catalog = catalogs.find { it.id_catalog == varian?.id_catalog }
         val stockMaster = stocks.find { it.id_varian == varianId } ?: MasterStock(id_varian = varianId)
-        val currentUser by FirebaseSyncManager.currentUser.collectAsState()
-        val isOwner = currentUser?.role == UserRole.OWNER
 
         if (varian != null && catalog != null) {
             if (isOwner) {
@@ -151,12 +151,10 @@ fun StockScreen(
             selectedVarianId = null
         }
     } else if (selectedCatalogId != null) {
+        val catalogId = selectedCatalogId ?: return
         // LEVEL 2: VARIAN WARNA LIST VIEW
-        val catalogId = selectedCatalogId!!
         val catalog = catalogs.find { it.id_catalog == catalogId }
         val catalogVariants = variants.filter { it.id_catalog == catalogId }
-        val currentUser by FirebaseSyncManager.currentUser.collectAsState()
-        val isOwner = currentUser?.role == UserRole.OWNER
 
         if (catalog != null) {
             VarianWarnaListView(
@@ -209,8 +207,6 @@ fun StockScreen(
         }
     } else {
         // LEVEL 1: CATALOG LIST VIEW
-        val currentUser by FirebaseSyncManager.currentUser.collectAsState()
-        val isOwner = currentUser?.role == UserRole.OWNER
         var currentSubTab by remember { mutableStateOf("Katalog") }
 
         LaunchedEffect(isOwner) {
@@ -2517,8 +2513,7 @@ fun MatrixStockView(
         }
 
         // --- CELL QUANTITY BOTTOM SHEET EDITOR ---
-        if (showCellEditBottomSheet && selectedCellToEdit != null) {
-            val (size, sleeve) = selectedCellToEdit!!
+        if (showCellEditBottomSheet) { selectedCellToEdit?.let { (size, sleeve) ->
             PremiumBottomSheet(
                 onDismissRequest = { showCellEditBottomSheet = false }
             ) {
@@ -2627,7 +2622,7 @@ fun MatrixStockView(
                     }
                 }
             }
-        }
+        } }
 
         // PRICE CONFIGURATION CARD
         Card(
@@ -3095,10 +3090,10 @@ fun MemberDetailStockView(
     onNavigateToCart: () -> Unit
 ) {
     val context = LocalContext.current
+    val currentUser by FirebaseSyncManager.currentUser.collectAsState()
     val sizes = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
     val sleeves = listOf("Pendek", "Panjang")
 
-    val currentUser by FirebaseSyncManager.currentUser.collectAsState()
     val priceCategory = currentUser?.priceCategory ?: "Retail"
     val tierPrice = PriceResolverEngine.calculateAjibqobulItemPrice(context, priceCategory, stockMaster, "S", "Pendek")
 

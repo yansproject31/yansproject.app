@@ -2750,20 +2750,24 @@ fun RiwayatTransaksiScreen(
                             if (currentModeTab == 0) { // Active Mode
                                 when (item.type) {
                                     "INFLOW" -> {
-                                        LedgerInflowItemCard(
-                                            item = item.originalInflow!!,
-                                            onEdit = { inflowToEdit = item.originalInflow },
-                                            onDelete = { inflowToDelete = item.originalInflow },
-                                            onClick = { selectedInflowDetail = item.originalInflow }
-                                        )
+                                        item.originalInflow?.let { inflow ->
+                                            LedgerInflowItemCard(
+                                                item = inflow,
+                                                onEdit = { inflowToEdit = inflow },
+                                                onDelete = { inflowToDelete = inflow },
+                                                onClick = { selectedInflowDetail = inflow }
+                                            )
+                                        }
                                     }
                                     "EXPENSE" -> {
-                                        LedgerExpenseItemCard(
-                                            item = item.originalExpense!!,
-                                            onEdit = { expenseToEdit = item.originalExpense },
-                                            onDelete = { expenseToDelete = item.originalExpense },
-                                            onClick = { selectedExpenseDetail = item.originalExpense }
-                                        )
+                                        item.originalExpense?.let { expense ->
+                                            LedgerExpenseItemCard(
+                                                item = expense,
+                                                onEdit = { expenseToEdit = expense },
+                                                onDelete = { expenseToDelete = expense },
+                                                onClick = { selectedExpenseDetail = expense }
+                                            )
+                                        }
                                     }
                                     "INVOICE" -> {
                                         InvoicePaymentCard(

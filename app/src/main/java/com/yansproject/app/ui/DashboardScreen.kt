@@ -1819,9 +1819,9 @@ fun DashboardScreen(
 }
 }
 
-    if (selectedInvoiceForDetail != null) {
+    selectedInvoiceForDetail?.let { invDetail ->
         DetailRiwayatBottomSheet(
-            invoice = selectedInvoiceForDetail!!,
+            invoice = invDetail,
             onDismiss = { selectedInvoiceForDetail = null },
             onNavigateToInvoice = {
                 viewModel.setTab(AppTab.INVOICE)

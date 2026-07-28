@@ -1828,8 +1828,7 @@ fun KitabDigitalScreen(
         // ==========================================
         // INTERACTIVE PARAGRAPH EDITORIAL DIALOG
         // ==========================================
-        if (selectedParagraphKeyForAction != null) {
-            val key = selectedParagraphKeyForAction!!
+        selectedParagraphKeyForAction?.let { key ->
             var noteVal by remember(key) { mutableStateOf(paragraphNotes[key] ?: "") }
             val isFav = paragraphFavorites.contains(key)
             val isHil = paragraphHighlights.contains(key)

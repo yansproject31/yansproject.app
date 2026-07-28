@@ -1,0 +1,11 @@
+--- app/src/main/java/com/yansproject/app/ui/StockScreen.kt
++++ app/src/main/java/com/yansproject/app/ui/StockScreen.kt
+@@ -107,7 +107,7 @@
+     BackHandler(enabled = selectedCatalogId != null || selectedVarianId != null) {
+         if (selectedVarianId != null) {
+             selectedVarianId = null
+-        } else { if (selectedCatalogId != null) {
++        } else if (selectedCatalogId != null) {
+             selectedCatalogId = null
+         }
+     }

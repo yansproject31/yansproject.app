@@ -1,0 +1,8 @@
+--- app/src/main/java/com/yansproject/app/ui/StockScreen.kt
++++ app/src/main/java/com/yansproject/app/ui/StockScreen.kt
+@@ -73,2 +73,5 @@
+     val expenses by viewModel.allExpenses.collectAsState()
++
++    val currentUser by FirebaseSyncManager.currentUser.collectAsState()
++    val isOwner = currentUser?.role == UserRole.OWNER
+     
