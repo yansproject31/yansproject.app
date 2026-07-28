@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [OfflineActionEntity::class],
-    version = 3,
+    version = 2,
     exportSchema = false
 )
 abstract class YansRoomDatabase : RoomDatabase() {

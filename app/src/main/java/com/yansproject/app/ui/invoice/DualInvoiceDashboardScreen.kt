@@ -430,7 +430,8 @@ fun DualInvoiceDashboardScreen(
     }
 
     // Action Hub Trigger Menu
-    showActionHubByInvoiceId?.let { currentId ->
+    if (showActionHubByInvoiceId != null) {
+        val currentId = showActionHubByInvoiceId!!
         ActionHubBottomSheet(
             invoiceNumber = currentId,
             isCustomProject = isActionHubCustom,
@@ -440,7 +441,8 @@ fun DualInvoiceDashboardScreen(
     }
 
     // Record Payment Bottom Sheet Trigger
-    showPaymentRecordByInvoiceId?.let { currentId ->
+    if (showPaymentRecordByInvoiceId != null) {
+        val currentId = showPaymentRecordByInvoiceId!!
         val outstandingAmount = if (isPaymentCustom) {
             val proj = state.customProjectInvoices.find { it.id == currentId }
             proj?.remainingBalance ?: 0.0

@@ -495,11 +495,11 @@ fun DashboardMemberScreen(
     }
 
     // Modal Rincian Pesanan Member Detail
-    selectedInvoiceForDetail?.let { invDetail ->
+    if (selectedInvoiceForDetail != null) {
         val activeInvoice = myInvoices.find { 
-            (invDetail.id != 0 && it.id == invDetail.id) || 
-            (invDetail.invoiceNumber.isNotBlank() && it.invoiceNumber == invDetail.invoiceNumber) 
-        } ?: invDetail
+            (selectedInvoiceForDetail!!.id != 0 && it.id == selectedInvoiceForDetail!!.id) || 
+            (selectedInvoiceForDetail!!.invoiceNumber.isNotBlank() && it.invoiceNumber == selectedInvoiceForDetail!!.invoiceNumber) 
+        } ?: selectedInvoiceForDetail!!
 
         RincianPesananMemberDialog(
             invoice = activeInvoice,

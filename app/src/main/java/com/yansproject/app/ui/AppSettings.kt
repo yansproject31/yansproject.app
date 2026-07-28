@@ -28,7 +28,7 @@ object AppSettings {
         getPrefs(context).edit().putString(KEY_LAST_SYNC, value).apply()
 
     fun getStoreName(context: Context): String =
-        getPrefs(context).getString("store_name", "YANSPROJECT.ID") ?: "YANSPROJECT.ID"
+        getPrefs(context).getString("store_name", "") ?: ""
 
     fun setStoreName(context: Context, value: String) =
         getPrefs(context).edit().putString("store_name", value).apply()
@@ -40,19 +40,19 @@ object AppSettings {
         getPrefs(context).edit().putString("store_logo", value).apply()
 
     fun getAddress(context: Context): String =
-        getPrefs(context).getString("store_address", "Tangerang, Banten") ?: "Tangerang, Banten"
+        getPrefs(context).getString("store_address", "") ?: ""
 
     fun setAddress(context: Context, value: String) =
         getPrefs(context).edit().putString("store_address", value).apply()
 
     fun getWhatsApp(context: Context): String =
-        getPrefs(context).getString("store_whatsapp", "+62 877-7739-8813") ?: "+62 877-7739-8813"
+        getPrefs(context).getString("store_whatsapp", "") ?: ""
 
     fun setWhatsApp(context: Context, value: String) =
         getPrefs(context).edit().putString("store_whatsapp", value).apply()
 
     fun getEmail(context: Context): String =
-        getPrefs(context).getString("store_email", "yansart31@gmail.com") ?: "yansart31@gmail.com"
+        getPrefs(context).getString("store_email", "") ?: ""
 
     fun setEmail(context: Context, value: String) =
         getPrefs(context).edit().putString("store_email", value).apply()
@@ -192,18 +192,18 @@ object AppSettings {
         getPrefs(context).edit().putFloat("custom_base_price", value.toFloat()).apply()
 
     fun getCustomSleeveLongPrice(context: Context): Double =
-        getPrefs(context).getFloat("custom_sleeve_long_price", 10000f).toDouble()
+        getPrefs(context).getFloat("custom_sleeve_long_price", 15000f).toDouble()
     fun setCustomSleeveLongPrice(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_sleeve_long_price", value.toFloat()).apply()
 
     // --- CUSTOM PROJECT HPP ERP CONFIG ---
     fun getCustomHppRegulerPendek(context: Context): Double =
-        getPrefs(context).getFloat("custom_hpp_reguler_pendek", 67000f).toDouble()
+        getPrefs(context).getFloat("custom_hpp_reguler_pendek", 55000f).toDouble()
     fun setCustomHppRegulerPendek(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_hpp_reguler_pendek", value.toFloat()).apply()
 
     fun getCustomHppRegulerPanjang(context: Context): Double =
-        getPrefs(context).getFloat("custom_hpp_reguler_panjang", 77000f).toDouble()
+        getPrefs(context).getFloat("custom_hpp_reguler_panjang", 65000f).toDouble()
     fun setCustomHppRegulerPanjang(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_hpp_reguler_panjang", value.toFloat()).apply()
 

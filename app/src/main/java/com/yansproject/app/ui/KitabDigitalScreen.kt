@@ -1321,8 +1321,8 @@ fun KitabDigitalScreen(
                                                 modifier = Modifier.fillMaxWidth()
                                             )
                                         } else if (index == firstNarrativeIndex) {
-                                            val firstChar = trimmed.firstOrNull()?.toString() ?: ""
-                                            val remainingText = if (trimmed.isNotEmpty()) trimmed.substring(1) else ""
+                                            val firstChar = trimmed.first().toString()
+                                            val remainingText = trimmed.substring(1)
                                             ManuscriptDropCap(
                                                 letter = firstChar,
                                                 text = remainingText,
@@ -1828,7 +1828,8 @@ fun KitabDigitalScreen(
         // ==========================================
         // INTERACTIVE PARAGRAPH EDITORIAL DIALOG
         // ==========================================
-        selectedParagraphKeyForAction?.let { key ->
+        if (selectedParagraphKeyForAction != null) {
+            val key = selectedParagraphKeyForAction!!
             var noteVal by remember(key) { mutableStateOf(paragraphNotes[key] ?: "") }
             val isFav = paragraphFavorites.contains(key)
             val isHil = paragraphHighlights.contains(key)
@@ -2121,8 +2122,8 @@ fun DropCapParagraph(
     val trimmed = text.trim()
     if (trimmed.isEmpty()) return
 
-    val firstChar = trimmed.firstOrNull()?.toString() ?: ""
-    val remainingText = if (trimmed.isNotEmpty()) trimmed.substring(1) else ""
+    val firstChar = trimmed.first().toString()
+    val remainingText = trimmed.substring(1)
 
     ManuscriptDropCap(letter = firstChar, text = remainingText, modifier = modifier)
 }

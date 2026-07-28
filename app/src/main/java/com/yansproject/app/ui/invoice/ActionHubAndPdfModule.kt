@@ -326,7 +326,8 @@ fun InvoiceHistoryScreen(
     }
 
     // 3. SECURE ACTION HUB DIALOG / SHEET INTERFACE WITH WEBHOOK SYNC
-    selectedInvoiceForHub?.let { activeInvoice ->
+    if (selectedInvoiceForHub != null) {
+        val activeInvoice = selectedInvoiceForHub!!
         val isSyncing by invoiceViewModel.state.collectAsState()
 
         AlertDialog(
@@ -397,7 +398,8 @@ fun InvoiceHistoryScreen(
     }
 
     // Payment collection entry form dialog
-    if (showPaymentDialog) { selectedInvoiceForHub?.let { activeInvoice ->
+    if (showPaymentDialog && selectedInvoiceForHub != null) {
+        val activeInvoice = selectedInvoiceForHub!!
         AlertDialog(
             onDismissRequest = { showPaymentDialog = false },
             title = {
@@ -451,7 +453,7 @@ fun InvoiceHistoryScreen(
             containerColor = SurfaceDarkTealSurface,
             shape = RoundedCornerShape(16.dp)
         )
-    } }
+    }
 }
 
 @Composable

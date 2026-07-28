@@ -846,9 +846,9 @@ fun MemberManagementModule(
     }
 
     // --- MODAL 1: MEMBER DETAIL & AJIBQOBUL SERIES ANALYTICS SHEET ---
-    selectedMemberForDetail?.let { memberDetail ->
+    if (selectedMemberForDetail != null) {
         MemberDetailAnalyticsSheet(
-            member = memberDetail,
+            member = selectedMemberForDetail!!,
             invoices = invoices,
             onDismiss = { selectedMemberForDetail = null },
             onEditTierClick = {
@@ -865,14 +865,14 @@ fun MemberManagementModule(
     }
 
     // --- MODAL 2: EDIT MEMBER PROFILE & TIER DIALOG ---
-    selectedMemberForEdit?.let { memberEdit ->
+    if (selectedMemberForEdit != null) {
         EditMemberProfileDialog(
-            member = memberEdit,
+            member = selectedMemberForEdit!!,
             onDismiss = { selectedMemberForEdit = null },
             onSave = { newName, newWa, newAddr, newTier ->
                 viewModel.updateMemberProfile(
                     context = context,
-                    email = memberEdit.email,
+                    email = selectedMemberForEdit!!.email,
                     newDisplayName = newName,
                     newWhatsapp = newWa,
                     newAddress = newAddr,
@@ -891,15 +891,15 @@ fun MemberManagementModule(
     }
 
     // --- MODAL 3: RESET PASSWORD / PIN DIALOG ---
-    selectedMemberForResetPin?.let { memberPin ->
+    if (selectedMemberForResetPin != null) {
         ResetPasswordPinDialog(
-            member = memberPin,
+            member = selectedMemberForResetPin!!,
             onDismiss = { selectedMemberForResetPin = null },
             onReset = { newPin ->
                 viewModel.resetPasswordOrPin(
                     context = context,
-                    email = memberPin.email,
-                    displayName = memberPin.displayName,
+                    email = selectedMemberForResetPin!!.email,
+                    displayName = selectedMemberForResetPin!!.displayName,
                     newPassOrPin = newPin
                 ) { success, msg ->
                     if (success) {

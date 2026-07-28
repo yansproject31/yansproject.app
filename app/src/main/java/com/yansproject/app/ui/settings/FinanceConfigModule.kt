@@ -109,7 +109,7 @@ fun FinanceConfigModule(
         mutableStateOf(valStr)
     }
     var customSleeveLongPrice by remember {
-        val valStr = try { AppSettings.getCustomSleeveLongPrice(context).toInt().toString() } catch (e: Exception) { "10000" }
+        val valStr = try { AppSettings.getCustomSleeveLongPrice(context).toInt().toString() } catch (e: Exception) { "15000" }
         mutableStateOf(valStr)
     }
     var customXXL by remember {
@@ -125,11 +125,11 @@ fun FinanceConfigModule(
         mutableStateOf(amt)
     }
     var customHppRegulerPendek by remember {
-        val amt = try { AppSettings.getCustomHppRegulerPendek(context).toInt().toString() } catch (e: Exception) { "67000" }
+        val amt = try { AppSettings.getCustomHppRegulerPendek(context).toInt().toString() } catch (e: Exception) { "55000" }
         mutableStateOf(amt)
     }
     var customHppRegulerPanjang by remember {
-        val amt = try { AppSettings.getCustomHppRegulerPanjang(context).toInt().toString() } catch (e: Exception) { "77000" }
+        val amt = try { AppSettings.getCustomHppRegulerPanjang(context).toInt().toString() } catch (e: Exception) { "65000" }
         mutableStateOf(amt)
     }
     var customHppKidsPendek by remember {
@@ -279,15 +279,26 @@ fun FinanceConfigModule(
                     color = AccentAgedGold
                 )
 
-                OutlinedTextField(
-                    value = ajibqobulHppPanjang,
-                    onValueChange = { ajibqobulHppPanjang = it },
-                    label = { Text("HPP Lengan Panjang (Rp)", fontSize = 11.sp, color = TextNonActive) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = ajibqobulHppPendek,
+                        onValueChange = { ajibqobulHppPendek = it },
+                        label = { Text("HPP Lengan Pendek", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = ajibqobulHppPanjang,
+                        onValueChange = { ajibqobulHppPanjang = it },
+                        label = { Text("HPP Lengan Panjang", fontSize = 10.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                }
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
@@ -429,15 +440,26 @@ fun FinanceConfigModule(
                     color = AccentAgedGold
                 )
 
-                OutlinedTextField(
-                    value = customSleeveLongPrice,
-                    onValueChange = { customSleeveLongPrice = it },
-                    label = { Text("Tambahan Harga Lengan Panjang (Rp)", fontSize = 11.sp, color = TextNonActive) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = customBasePrice,
+                        onValueChange = { customBasePrice = it },
+                        label = { Text("Harga Dasar Pendek (Rp)", fontSize = 11.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = customSleeveLongPrice,
+                        onValueChange = { customSleeveLongPrice = it },
+                        label = { Text("Tambahan Harga Panjang (Rp)", fontSize = 11.sp, color = TextNonActive) },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = TextIsiSoftGray, focusedBorderColor = AccentAgedGold, unfocusedBorderColor = DividerDarkCyanGray),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                }
 
                 Text(
                     text = "Konfigurasi HPP Custom Project (Reguler & Kids)",

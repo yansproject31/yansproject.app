@@ -472,10 +472,9 @@ fun ProjectScreen(
         }
 
         // --- Dialog Detail & Alur Kerja Project ---
-        val pDetail = selectedProjectForDetail
-        if (pDetail != null) {
+        if (selectedProjectForDetail != null) {
             ProjectDetailDialog(
-                project = pDetail,
+                project = selectedProjectForDetail!!,
                 viewModel = viewModel,
                 onDismiss = { selectedProjectForDetail = null }
             )

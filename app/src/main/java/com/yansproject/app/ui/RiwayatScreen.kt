@@ -369,9 +369,9 @@ fun RiwayatScreen(
     }
 
         // --- Bottom Sheet Detail Riwayat ---
-        selectedInvoiceForDetail?.let { invDetail ->
+        if (selectedInvoiceForDetail != null) {
             DetailRiwayatBottomSheet(
-                invoice = invDetail,
+                invoice = selectedInvoiceForDetail!!,
                 onDismiss = { selectedInvoiceForDetail = null },
                 onNavigateToInvoice = {
                     selectedInvoiceForDetail = null

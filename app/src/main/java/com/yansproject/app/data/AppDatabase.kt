@@ -31,7 +31,7 @@ import java.security.SecureRandom
         DraftSalesOrder::class,
         ReportCache::class
     ],
-    version = 19,
+    version = 18,
     exportSchema = false
 )
 @TypeConverters(AppTypeConverters::class)

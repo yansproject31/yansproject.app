@@ -598,7 +598,7 @@ fun SettingsAndKitabDigitalScreen(
 
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
-                                    text = if (currentUser?.displayName.isNullOrBlank()) "PENGGUNA YANSPROJECT" else (currentUser?.displayName ?: "PENGGUNA YANSPROJECT"),
+                                    text = if (currentUser?.displayName.isNullOrBlank()) "PENGGUNA YANSPROJECT" else currentUser!!.displayName,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
@@ -858,7 +858,7 @@ fun SettingsAndKitabDigitalScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                AboutInfoRow(label = "Versi Aplikasi", value = "1.2.0 Stable")
+                                AboutInfoRow(label = "Versi Aplikasi", value = "1.1.0 Stable")
                                 AboutInfoRow(label = "Versi Database", value = "SQLite / Room v8")
                                 AboutInfoRow(label = "Versi Firebase", value = "BoM v32.8.0")
                                 AboutInfoRow(label = "Minimum Android", value = "Android 8.0 - API 26")

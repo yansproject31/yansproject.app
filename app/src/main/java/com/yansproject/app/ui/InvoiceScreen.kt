@@ -325,8 +325,8 @@ fun InvoiceScreen(
         }
 
         // --- Detail Invoice Dialog ---
-        selectedInvoiceForDetail?.let { invDetail ->
-            val invoice = invoices.find { it.id == invDetail.id } ?: invDetail
+        if (selectedInvoiceForDetail != null) {
+            val invoice = invoices.find { it.id == selectedInvoiceForDetail!!.id } ?: selectedInvoiceForDetail!!
             val linkedProject = if (invoice.projectId != null) {
                 projects.find { it.id == invoice.projectId }
             } else null
@@ -358,8 +358,8 @@ fun InvoiceScreen(
         }
 
         // --- Payment Dialog ---
-        val invoice = selectedInvoiceForPayment
-        if (invoice != null) {
+        if (selectedInvoiceForPayment != null) {
+            val invoice = selectedInvoiceForPayment!!
             PaymentInputDialog(
                 invoice = invoice,
                 isDP = isRecordingDP,
@@ -2066,8 +2066,8 @@ fun InvoiceDetailDialog(
         )
     }
 
-    if (showEditPaymentDialog) { val payment = selectedPaymentForEdit
-    if (payment != null) {
+    if (showEditPaymentDialog && selectedPaymentForEdit != null) {
+        val payment = selectedPaymentForEdit!!
         var payAmountStr by remember(payment) { mutableStateOf(payment.amount.toInt().toString()) }
         var selectedMethod by remember(payment) { mutableStateOf(payment.paymentMethod) }
         var methodDetail by remember(payment) { mutableStateOf(payment.methodDetail) }
@@ -2286,11 +2286,11 @@ fun InvoiceDetailDialog(
                 }
             },
             containerColor = CardGrey
-        ) }
+        )
     }
 
-    if (showDeletePaymentConfirm) { val payment = selectedPaymentForDelete
-    if (payment != null) {
+    if (showDeletePaymentConfirm && selectedPaymentForDelete != null) {
+        val payment = selectedPaymentForDelete!!
         AlertDialog(
             onDismissRequest = { showDeletePaymentConfirm = false },
             title = { Text("Konfirmasi Hapus Pembayaran", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
@@ -2313,7 +2313,7 @@ fun InvoiceDetailDialog(
                 }
             },
             containerColor = CardGrey
-        ) }
+        )
     }
 }
 
@@ -3158,10 +3158,10 @@ fun AddSaleDialog(
                                                         name = itemName,
                                                         sku = "AQ-${selectedCatalog.nama_catalog.take(3).uppercase()}-${selectedVarian.nama_warna.take(3).uppercase()}-$sz-${slv.take(3).uppercase()}",
                                                         stockCount = availStock,
-                                                        price = if (currentMasterStock?.harga_retail ?: 0.0 > 0) (currentMasterStock?.harga_retail ?: 0.0) else AppSettings.getAjibqobulHargaRetail(context).let { if (it > 0) it else 125000.0 },
-                                                        priceMember = if (currentMasterStock?.harga_member ?: 0.0 > 0) (currentMasterStock?.harga_member ?: 0.0) else AppSettings.getAjibqobulHargaMember(context).let { if (it > 0) it else 99000.0 },
-                                                        priceReseller = if (currentMasterStock?.harga_reseller ?: 0.0 > 0) (currentMasterStock?.harga_reseller ?: 0.0) else AppSettings.getAjibqobulHargaReseller(context).let { if (it > 0) it else 105000.0 },
-                                                        priceCustom = if (currentMasterStock?.harga_custom ?: 0.0 > 0) (currentMasterStock?.harga_custom ?: 0.0) else AppSettings.getAjibqobulHargaCustom(context).let { if (it > 0) it else 115000.0 },
+                                                        price = if (currentMasterStock?.harga_retail ?: 0.0 > 0) currentMasterStock!!.harga_retail else AppSettings.getAjibqobulHargaRetail(context).let { if (it > 0) it else 125000.0 },
+                                                        priceMember = if (currentMasterStock?.harga_member ?: 0.0 > 0) currentMasterStock!!.harga_member else AppSettings.getAjibqobulHargaMember(context).let { if (it > 0) it else 99000.0 },
+                                                        priceReseller = if (currentMasterStock?.harga_reseller ?: 0.0 > 0) currentMasterStock!!.harga_reseller else AppSettings.getAjibqobulHargaReseller(context).let { if (it > 0) it else 105000.0 },
+                                                        priceCustom = if (currentMasterStock?.harga_custom ?: 0.0 > 0) currentMasterStock!!.harga_custom else AppSettings.getAjibqobulHargaCustom(context).let { if (it > 0) it else 115000.0 },
                                                         description = "Catalog: ${selectedCatalog.nama_catalog}, Varian: ${selectedVarian.nama_warna}, Size: $sz, Sleeve: $slv"
                                                     )
 

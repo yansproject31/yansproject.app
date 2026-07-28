@@ -1533,10 +1533,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val orderDate = System.currentTimeMillis()
                 val prefix = AppSettings.getInvoicePrefix(getApplication())
                 
-                // Generate unique invoice number with collision-prevention suffix for Member Checkouts
-                val rawInvoiceNum = repository.generateInvoiceNumber(prefix, orderDate)
-                val randomSuffix = java.util.UUID.randomUUID().toString().substring(0, 4).uppercase()
-                val invoiceNum = "${rawInvoiceNum}-${randomSuffix}" 
+                // Generate unique invoice number
+                val invoiceNum = repository.generateInvoiceNumber(prefix, orderDate)
                 val total = cartItems.sumOf { it.price * it.qty }
 
                 // Call AtomicCheckoutEngine to perform transaction on Firestore
