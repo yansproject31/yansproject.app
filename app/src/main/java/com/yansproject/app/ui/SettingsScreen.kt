@@ -2209,11 +2209,17 @@ fun renderNestedSubScreen(
         "akun" -> {
             val userPrefs = remember { context.getSharedPreferences("yans_user_prefs_${currentUser?.email ?: "guest"}", android.content.Context.MODE_PRIVATE) }
             
-            var nameInput by remember { mutableStateOf(currentUser?.displayName ?: "") }
-            var usernameInput by remember { mutableStateOf(userPrefs.getString("user_username", "") ?: "") }
-            var emailInput by remember { mutableStateOf(currentUser?.email ?: "") }
-            var whatsappInput by remember { mutableStateOf(userPrefs.getString("user_whatsapp", "") ?: "") }
-            var addressInput by remember { mutableStateOf(userPrefs.getString("user_address", "") ?: "") }
+            val defaultName = if (isOwner) "YANSPROJECT.ID OWNER" else (currentUser?.displayName ?: "")
+            val defaultUsername = if (isOwner) "admin" else ""
+            val defaultEmail = if (isOwner) "admin@yansproject.id" else (currentUser?.email ?: "")
+            val defaultWhatsapp = if (isOwner) "+62 877-7739-8813" else ""
+            val defaultAddress = if (isOwner) "Tangerang, Banten" else ""
+
+            var nameInput by remember { mutableStateOf(userPrefs.getString("user_full_name", defaultName)?.ifBlank { defaultName } ?: defaultName) }
+            var usernameInput by remember { mutableStateOf(userPrefs.getString("user_username", defaultUsername)?.ifBlank { defaultUsername } ?: defaultUsername) }
+            var emailInput by remember { mutableStateOf(userPrefs.getString("user_email", defaultEmail)?.ifBlank { defaultEmail } ?: defaultEmail) }
+            var whatsappInput by remember { mutableStateOf(userPrefs.getString("user_whatsapp", defaultWhatsapp)?.ifBlank { defaultWhatsapp } ?: defaultWhatsapp) }
+            var addressInput by remember { mutableStateOf(userPrefs.getString("user_address", defaultAddress)?.ifBlank { defaultAddress } ?: defaultAddress) }
             var recoveryAccountInput by remember { mutableStateOf(userPrefs.getString("user_recovery_email", "") ?: "") }
             
             var passwordInput by remember { mutableStateOf("") }
@@ -3172,14 +3178,6 @@ fun renderNestedSubScreen(
                         HorizontalDivider(color = AgedGold.copy(alpha = 0.15f), thickness = 1.dp)
                         
                         OutlinedTextField(
-                            value = ajibBase,
-                            onValueChange = { ajibBase = it },
-                            label = { Text("Harga Dasar Lengan Pendek (Rp)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
-                        )
-
-                        OutlinedTextField(
                             value = ajibLong,
                             onValueChange = { ajibLong = it },
                             label = { Text("Tambahan Harga Lengan Panjang (Rp)") },
@@ -3240,14 +3238,6 @@ fun renderNestedSubScreen(
                         }
                         
                         HorizontalDivider(color = HighlightSoftCyan.copy(alpha = 0.15f), thickness = 1.dp)
-
-                        OutlinedTextField(
-                            value = custBase,
-                            onValueChange = { custBase = it },
-                            label = { Text("Harga Dasar Lengan Pendek (Rp)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
-                        )
 
                         OutlinedTextField(
                             value = custLong,

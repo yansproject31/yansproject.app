@@ -695,6 +695,9 @@ fun GridOperasionalOwner(
     saldoKas: Double,
     totalProfit: Double,
     totalPenjualan: Double,
+    totalSalesQuantity: Int = 0,
+    totalSalesTxCount: Int = 0,
+    totalGrossProfit: Double = 0.0,
     totalPengeluaran: Double,
     nilaiTotalStock: Double,
     totalStockPieces: Int,
@@ -730,7 +733,14 @@ fun GridOperasionalOwner(
                 GridCardData("PROFIT BERSIH", FormatUtils.formatRupiah(totalProfit), if (totalProfit == 0.0) "Laba nihil periode ini" else "Laba bersih setelah HPP", Icons.Outlined.MonetizationOn, HighlightSoftCyan, isEmpty = (totalProfit == 0.0))
             ),
             listOf(
-                GridCardData("TOTAL PENJUALAN", FormatUtils.formatRupiah(totalPenjualan), if (totalPenjualan == 0.0) "Belum ada penjualan" else "Omset bruto terkumpul", Icons.Outlined.Leaderboard, HighlightSoftCyan, isEmpty = (totalPenjualan == 0.0)),
+                GridCardData(
+                    "TOTAL PENJUALAN",
+                    FormatUtils.formatRupiah(totalPenjualan),
+                    if (totalPenjualan == 0.0) "Belum ada penjualan" else "$totalSalesQuantity Pcs • $totalSalesTxCount Tx • Profit ${FormatUtils.formatRupiah(totalGrossProfit)}",
+                    Icons.Outlined.Leaderboard,
+                    HighlightSoftCyan,
+                    isEmpty = (totalPenjualan == 0.0)
+                ),
                 GridCardData("TOTAL PENGELUARAN", FormatUtils.formatRupiah(totalPengeluaran), if (totalPengeluaran == 0.0) "Belum ada pengeluaran" else "Biaya operasional & HPP", Icons.Outlined.TrendingDown, ErrorRed, isEmpty = (totalPengeluaran == 0.0))
             ),
             listOf(
@@ -944,6 +954,9 @@ fun DashboardScreen(
     } else if (activeLedgerPage == "profit") {
         DetailProfitScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
         return
+    } else if (activeLedgerPage == "penjualan") {
+        RiwayatPenjualanUnifiedScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+        return
     } else if (activeLedgerPage == "piutang") {
         RiwayatPiutangScreen(
             viewModel = viewModel,
@@ -1074,16 +1087,10 @@ fun DashboardScreen(
     }
 
     // 3. Total Penjualan Terfilter (Omset Operasional Bruto: Paid Invoices + Standalone Orders + Non-Invoice Sales Inflows)
-    val totalPenjualan = remember(filteredInvoices, filteredInflows, filteredStandaloneOrders, allPayments) {
-        val invoicePaid = filteredInvoices.sumOf { calculateInvoicePaid(it, allPayments) }
-        val orderPaid = filteredStandaloneOrders.sumOf { getEffectiveOrderPaid(it) }
-        val salesInflows = filteredInflows.filter { 
-            !it.category.contains("Modal", ignoreCase = true) &&
-            !it.notes.contains("[PAY_") &&
-            !it.notes.contains("Pembayaran Invoice")
-        }.sumOf { it.amount }
-        invoicePaid + orderPaid + salesInflows
+    val salesSummary = remember(filteredInvoices, filteredStandaloneOrders, filteredInflows, allPayments) {
+        calculateUnifiedSalesSummary(filteredInvoices, filteredStandaloneOrders, filteredInflows, allPayments)
     }
+    val totalPenjualan = salesSummary.totalRevenue
 
     // Total Pemasukan Terfilter (Seluruh Uang Masuk Kas: Paid Invoices + Standalone Orders + Direct Inflows)
     val totalPemasukan = remember(filteredInvoices, filteredInflows, filteredStandaloneOrders, allPayments) {
@@ -1635,6 +1642,9 @@ fun DashboardScreen(
                         saldoKas = saldoKas,
                         totalProfit = totalProfit,
                         totalPenjualan = totalPenjualan,
+                        totalSalesQuantity = salesSummary.totalQuantityPcs,
+                        totalSalesTxCount = salesSummary.totalTransactionCount,
+                        totalGrossProfit = salesSummary.totalGrossProfit,
                         totalPengeluaran = totalPengeluaran,
                         nilaiTotalStock = nilaiTotalStock,
                         totalStockPieces = totalStockPieces,
@@ -1649,7 +1659,7 @@ fun DashboardScreen(
                                 "MODAL BERJALAN" -> activeLedgerPage = "modal_berjalan"
                                 "KAS AKTIF" -> activeLedgerPage = "kas"
                                 "PROFIT BERSIH" -> activeLedgerPage = "profit"
-                                "TOTAL PENJUALAN" -> viewModel.setTab(AppTab.INVOICE)
+                                "TOTAL PENJUALAN" -> activeLedgerPage = "penjualan"
                                 "TOTAL PENGELUARAN" -> activeLedgerPage = "pengeluaran"
                                 "NILAI PERSEDIAAN" -> viewModel.setTab(AppTab.STOCK)
                                 "STOK AJIBQOBUL" -> viewModel.setTab(AppTab.STOCK)
