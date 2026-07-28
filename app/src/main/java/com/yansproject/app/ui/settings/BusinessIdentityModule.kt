@@ -42,7 +42,7 @@ fun BusinessIdentityModule(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // 1. Initialize states with Offline-First defaults if local storage is empty
+    // 1. Initialize states with Offline-First defaults and 100% Null-Safety protection
     val dataStoreName = try { AppSettings.getStoreName(context).ifBlank { null } } catch (e: Exception) { null }
     val storeNameDefaultValue = "YANSPROJECT.ID"
     var storeName by remember { mutableStateOf(dataStoreName ?: storeNameDefaultValue) }
@@ -52,7 +52,7 @@ fun BusinessIdentityModule(
     var address by remember { mutableStateOf(dataAddress ?: addressDefaultValue) }
 
     val dataWhatsApp = try { AppSettings.getWhatsApp(context).ifBlank { null } } catch (e: Exception) { null }
-    val whatsappDefaultValue = "087777 3988 13"
+    val whatsappDefaultValue = "+62 877-7739-8813"
     var whatsapp by remember { mutableStateOf(dataWhatsApp ?: whatsappDefaultValue) }
 
     val dataEmail = try { AppSettings.getEmail(context).ifBlank { null } } catch (e: Exception) { null }
@@ -63,19 +63,19 @@ fun BusinessIdentityModule(
     val websiteDefaultValue = ""
     var website by remember { mutableStateOf(dataWebsite ?: websiteDefaultValue) }
 
-    // Persist defaults back to AppSettings if they weren't already stored
+    // Persist defaults back to AppSettings safely if they weren't already stored
     LaunchedEffect(Unit) {
         try {
-            if (AppSettings.getStoreName(context).isBlank()) {
+            if ((try { AppSettings.getStoreName(context) } catch (e: Exception) { "" } ?: "").isBlank()) {
                 AppSettings.setStoreName(context, "YANSPROJECT.ID")
             }
-            if (AppSettings.getAddress(context).isBlank()) {
+            if ((try { AppSettings.getAddress(context) } catch (e: Exception) { "" } ?: "").isBlank()) {
                 AppSettings.setAddress(context, "Tangerang, Banten")
             }
-            if (AppSettings.getWhatsApp(context).isBlank()) {
+            if ((try { AppSettings.getWhatsApp(context) } catch (e: Exception) { "" } ?: "").isBlank()) {
                 AppSettings.setWhatsApp(context, "087777 3988 13")
             }
-            if (AppSettings.getEmail(context).isBlank()) {
+            if ((try { AppSettings.getEmail(context) } catch (e: Exception) { "" } ?: "").isBlank()) {
                 AppSettings.setEmail(context, "yansart31@gmail.com")
             }
         } catch (e: Exception) {
@@ -132,7 +132,7 @@ fun BusinessIdentityModule(
             ) {
                 OutlinedTextField(
                     value = storeName,
-                    onValueChange = { storeName = it },
+                    onValueChange = { storeName = it ?: "" },
                     label = { Text("Nama Toko / Instansi", color = TextNonActive) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -147,7 +147,7 @@ fun BusinessIdentityModule(
 
                 OutlinedTextField(
                     value = address,
-                    onValueChange = { address = it },
+                    onValueChange = { address = it ?: "" },
                     label = { Text("Alamat Lengkap", color = TextNonActive) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -161,7 +161,7 @@ fun BusinessIdentityModule(
 
                 OutlinedTextField(
                     value = whatsapp,
-                    onValueChange = { whatsapp = it },
+                    onValueChange = { whatsapp = it ?: "" },
                     label = { Text("Nomor WhatsApp Aktif", color = TextNonActive) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -177,7 +177,7 @@ fun BusinessIdentityModule(
 
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = { email = it ?: "" },
                     label = { Text("Email Resmi", color = TextNonActive) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -193,7 +193,7 @@ fun BusinessIdentityModule(
 
                 OutlinedTextField(
                     value = website,
-                    onValueChange = { website = it },
+                    onValueChange = { website = it ?: "" },
                     label = { Text("Website Resmi (Opsional)", color = TextNonActive) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -265,12 +265,18 @@ fun BusinessIdentityModule(
         // Save Button
         Button(
             onClick = {
-                if (storeName.isBlank() || address.isBlank() || whatsapp.isBlank() || email.isBlank()) {
+                val safeStoreName = (storeName ?: "").trim()
+                val safeAddress = (address ?: "").trim()
+                val safeWhatsapp = (whatsapp ?: "").trim()
+                val safeEmail = (email ?: "").trim()
+                val safeWebsite = (website ?: "").trim()
+
+                if (safeStoreName.isBlank() || safeAddress.isBlank() || safeWhatsapp.isBlank() || safeEmail.isBlank()) {
                     com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Harap isi seluruh field wajib!")
                     return@Button
                 }
 
-                val cleanWA = whatsapp.replace(" ", "").replace("-", "")
+                val cleanWA = safeWhatsapp.replace(" ", "").replace("-", "")
                 val isValidWA = (cleanWA.startsWith("08") || cleanWA.startsWith("+62") || cleanWA.startsWith("62")) && cleanWA.all { it.isDigit() || it == '+' } && cleanWA.length in 10..15
                 if (!isValidWA) {
                     com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Format nomor WhatsApp tidak valid! Gunakan format Indonesia (contoh: 0812xxxxxxxx atau +62812xxxxxxxx).")
@@ -281,29 +287,33 @@ fun BusinessIdentityModule(
                 coroutineScope.launch {
                     try {
                         // 1. Save locally to AppSettings
-                        AppSettings.setStoreName(context, storeName.trim())
-                        AppSettings.setAddress(context, address.trim())
-                        AppSettings.setWhatsApp(context, whatsapp.trim())
-                        AppSettings.setEmail(context, email.trim())
-                        AppSettings.setWebsite(context, website.trim())
+                        AppSettings.setStoreName(context, safeStoreName)
+                        AppSettings.setAddress(context, safeAddress)
+                        AppSettings.setWhatsApp(context, safeWhatsapp)
+                        AppSettings.setEmail(context, safeEmail)
+                        AppSettings.setWebsite(context, safeWebsite)
 
-                        // 2. Add local SQLite Audit Log entry
+                        // 2. Add local SQLite Audit Log entry safely in background
                         withContext(Dispatchers.IO) {
-                            val auditLog = com.yansproject.app.data.AuditLog(
-                                activity = "Update Identitas Bisnis",
-                                details = "Mengubah nama toko ke '${storeName.trim()}', WA: '${whatsapp.trim()}'.",
-                                adminName = "Owner"
-                            )
-                            com.yansproject.app.data.AppDatabase.getDatabase(context).auditLogDao().insertLog(auditLog)
+                            try {
+                                val auditLog = com.yansproject.app.data.AuditLog(
+                                    activity = "Update Identitas Bisnis",
+                                    details = "Mengubah nama toko ke '${safeStoreName}', WA: '${safeWhatsapp}'.",
+                                    adminName = "Owner"
+                                )
+                                com.yansproject.app.data.AppDatabase.getDatabase(context).auditLogDao().insertLog(auditLog)
+                            } catch (dbEx: Exception) {
+                                dbEx.printStackTrace()
+                            }
                         }
 
                         // 3. Async save to Firebase Cloud (Firestore)
                         val firestoreData = mapOf(
-                            "store_name" to storeName.trim(),
-                            "store_address" to address.trim(),
-                            "store_whatsapp" to whatsapp.trim(),
-                            "store_email" to email.trim(),
-                            "store_website" to website.trim(),
+                            "store_name" to safeStoreName,
+                            "store_address" to safeAddress,
+                            "store_whatsapp" to safeWhatsapp,
+                            "store_email" to safeEmail,
+                            "store_website" to safeWebsite,
                             "updated_at" to System.currentTimeMillis()
                         )
 
