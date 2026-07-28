@@ -311,36 +311,63 @@ fun SholawatMarqueeBanner(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val sholawatLafadzUnit = "   ۞   اَللّٰهُمَّ صَلِّ وَسَلِّمْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ   "
 
-    val premiumArabicFontFamily = remember(context) {
-        FontUtils.getPremiumArabicFontFamily(context)
+    val ruqaaArabicFontFamily = remember(context) {
+        FontUtils.getArabicRuqaaCalligraphyFontFamily(context)
+    }
+    val amiriArabicFontFamily = remember(context) {
+        FontUtils.getArabicAmiriQuranFontFamily(context)
     }
 
     var showDetailDialog by remember { mutableStateOf(false) }
+    var sholawatCount by remember { mutableIntStateOf(0) }
+
+    // Shimmering border infinite transition
+    val infiniteTransition = rememberInfiniteTransition(label = "SholawatBorderTransition")
+    val shimmerAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "BorderShimmer"
+    )
+
+    val haloScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "HaloScale"
+    )
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .border(
-                width = 1.dp,
+                width = 1.2.dp,
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        AgedGold.copy(alpha = 0.7f),
-                        HighlightSoftCyan.copy(alpha = 0.4f),
+                        AgedGold.copy(alpha = shimmerAlpha),
+                        HighlightSoftCyan.copy(alpha = 0.5f),
                         AgedGold,
-                        HighlightSoftCyan.copy(alpha = 0.4f),
-                        AgedGold.copy(alpha = 0.7f)
+                        HighlightSoftCyan.copy(alpha = 0.5f),
+                        AgedGold.copy(alpha = shimmerAlpha)
                     )
                 ),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(16.dp)
             )
             .clickable {
                 showDetailDialog = true
             },
         color = CardDarkCard,
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -351,7 +378,7 @@ fun SholawatMarqueeBanner(
             // Left Sholawat Badge (Luxury DNA)
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(10.dp))
                     .background(
                         Brush.linearGradient(
                             colors = listOf(
@@ -360,27 +387,27 @@ fun SholawatMarqueeBanner(
                             )
                         )
                     )
-                    .border(0.8.dp, AgedGold.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                    .border(1.dp, AgedGold.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 9.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     Text(
                         text = "ﷺ",
                         color = AgedGold,
-                        fontSize = 15.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = premiumArabicFontFamily
+                        fontFamily = ruqaaArabicFontFamily
                     )
                     Text(
                         text = "SHOLAWAT",
                         color = HighlightSoftCyan,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Black,
-                        letterSpacing = 0.8.sp
+                        letterSpacing = 1.sp
                     )
                 }
             }
@@ -399,15 +426,15 @@ fun SholawatMarqueeBanner(
                         text = sholawatLafadzUnit,
                         textStyle = androidx.compose.ui.text.TextStyle(
                             color = AgedGold,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = premiumArabicFontFamily,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = ruqaaArabicFontFamily,
                             shadow = androidx.compose.ui.graphics.Shadow(
-                                color = AgedGold.copy(alpha = 0.5f),
-                                blurRadius = 8f
+                                color = AgedGold.copy(alpha = 0.8f),
+                                blurRadius = 16f
                             )
                         ),
-                        speedDpPerSecond = 40.dp
+                        speedDpPerSecond = 38.dp
                     )
                 }
             }
@@ -417,96 +444,164 @@ fun SholawatMarqueeBanner(
     if (showDetailDialog) {
         androidx.compose.ui.window.Dialog(onDismissRequest = { showDetailDialog = false }) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = CardDarkCard,
-                border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(24.dp),
+                color = SurfaceDarkTeal,
+                border = BorderStroke(
+                    width = 1.5.dp,
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            AgedGold,
+                            HighlightSoftCyan.copy(alpha = shimmerAlpha),
+                            AgedGold,
+                            HighlightSoftCyan.copy(alpha = shimmerAlpha)
+                        )
+                    )
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(12.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .verticalScroll(rememberScrollState())
-                        .padding(24.dp),
+                        .padding(22.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Pulsating Header Emblem
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(20.dp))
                             .background(
-                                Brush.linearGradient(
+                                Brush.radialGradient(
                                     colors = listOf(PrimaryDarkTeal, SecondaryShadowBlackTeal)
                                 )
                             )
-                            .border(1.dp, AgedGold, RoundedCornerShape(16.dp)),
+                            .border(1.5.dp, AgedGold, RoundedCornerShape(20.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "ﷺ",
                             color = AgedGold,
-                            fontSize = 28.sp,
+                            fontSize = 32.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = premiumArabicFontFamily
+                            fontFamily = ruqaaArabicFontFamily,
+                            modifier = Modifier.border(0.dp, Color.Transparent)
                         )
                     }
 
-                    Text(
-                        text = "RAHASIA BERSHOLAWAT",
-                        color = HighlightSoftCyan,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.5.sp
-                    )
-
-                    Text(
-                        text = "اَللّٰهُمَّ صَلِّ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ",
-                        color = AgedGold,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = premiumArabicFontFamily,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 36.sp,
-                        style = androidx.compose.ui.text.TextStyle(
-                            shadow = androidx.compose.ui.graphics.Shadow(
-                                color = AgedGold.copy(alpha = 0.4f),
-                                blurRadius = 10f
-                            )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "RAHASIA BERSHOLAWAT & WADHIFAH",
+                            color = HighlightSoftCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.8.sp
                         )
-                    )
+                        Text(
+                            text = "YANSPROJECT.ID • ASHAB AJIBQOBUL",
+                            color = TextMuted,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp
+                        )
+                    }
+
+                    // Luxury Calligraphy Display Card (Interactive Tasbih)
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = CardDarkCard,
+                        border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                sholawatCount++
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
+                                Text(
+                                    text = "اَللّٰهُمَّ صَلِّ وَسَلِّمْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ",
+                                    color = AgedGold,
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontFamily = ruqaaArabicFontFamily,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 52.sp,
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        shadow = androidx.compose.ui.graphics.Shadow(
+                                            color = AgedGold.copy(alpha = 0.85f),
+                                            blurRadius = 18f
+                                        )
+                                    )
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(AgedGold.copy(alpha = 0.15f))
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = "📿 Ketuk Teks untuk Tasbih:",
+                                    fontSize = 10.sp,
+                                    color = TextMuted
+                                )
+                                Text(
+                                    text = "$sholawatCount x",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AgedGold
+                                )
+                            }
+                        }
+                    }
 
                     Text(
-                        text = "\"Siapapun yang suka memuji, menyanjung, dan membesarkan Rosulullah, setiap detik Maqomnya naik. Kedudukan dan Martabatnya di sisi Allah itu bertambah mulia setiap detiknya.\"\nAbah Guru Sekumpul",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 13.sp,
+                        text = "\"Siapapun yang suka memuji, menyanjung, dan membesarkan Rosulullah, setiap detik Maqomnya naik. Kedudukan dan Martabatnya di sisi Allah itu bertambah mulia setiap detiknya.\"\n— Abah Guru Sekumpul",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 12.sp,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
                     )
 
                     HorizontalDivider(color = CardGrey, thickness = 1.dp)
 
                     Text(
                         text = "Semoga Keberkahan, Kejayaan, dan Keselamatan Senantiasa Menyertai YANSPROJECT.ID & Ashab AJIBQOBUL.",
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 12.sp,
+                        color = TextMuted,
+                        fontSize = 11.sp,
                         textAlign = TextAlign.Center,
-                        lineHeight = 18.sp
+                        lineHeight = 17.sp
                     )
 
                     Button(
                         onClick = { showDetailDialog = false },
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryDarkTeal),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .height(46.dp)
+                            .border(1.dp, AgedGold.copy(alpha = 0.7f), RoundedCornerShape(14.dp))
                     ) {
                         Text(
                             text = "DIDO'AKEUN KU ABAH",
                             color = AgedGold,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            letterSpacing = 1.sp
                         )
                     }
                 }

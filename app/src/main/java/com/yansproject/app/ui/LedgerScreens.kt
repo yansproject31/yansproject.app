@@ -33,9 +33,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.yansproject.app.data.Expense
-import com.yansproject.app.data.Inflow
-import com.yansproject.app.data.FirebaseSyncManager
+import com.yansproject.app.data.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import com.yansproject.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -3889,4 +3889,704 @@ fun InvoiceDetailDialog(
         }
     }
 }
+
+// =========================================================================
+// UNIFIED REAL-TIME TOTAL TERJUAL / SALES SUMMARY DATA & SCREEN
+// =========================================================================
+data class SalesSummaryData(
+    val totalRevenue: Double = 0.0,
+    val totalQuantityPcs: Int = 0,
+    val totalTransactionCount: Int = 0,
+    val totalGrossProfit: Double = 0.0,
+    val memberOrdersCount: Int = 0,
+    val memberOrdersRevenue: Double = 0.0,
+    val memberOrdersPcs: Int = 0,
+    val memberOrdersGrossProfit: Double = 0.0,
+    val ownerInvoicesCount: Int = 0,
+    val ownerInvoicesRevenue: Double = 0.0,
+    val ownerInvoicesPcs: Int = 0,
+    val ownerInvoicesGrossProfit: Double = 0.0,
+    val directInflowsCount: Int = 0,
+    val directInflowsRevenue: Double = 0.0,
+    val directInflowsPcs: Int = 0,
+    val directInflowsGrossProfit: Double = 0.0
+)
+
+data class UnifiedSalesTxItem(
+    val id: String,
+    val title: String,
+    val clientName: String,
+    val date: Long,
+    val channelType: String, // "MEMBER ORDERS", "INVOICE OWNER", "DIRECT POS"
+    val itemsSummary: String,
+    val quantityPcs: Int,
+    val totalRevenue: Double,
+    val totalGrossProfit: Double,
+    val statusText: String,
+    val rawInvoice: Invoice? = null,
+    val rawOrder: OrderHistory? = null,
+    val rawInflow: Inflow? = null
+)
+
+fun calculateUnifiedSalesSummary(
+    filteredInvoices: List<Invoice>,
+    filteredStandaloneOrders: List<OrderHistory>,
+    filteredInflows: List<Inflow>,
+    allPayments: List<InvoicePayment>
+): SalesSummaryData {
+    val converters = AppTypeConverters()
+    var totalRev = 0.0
+    var totalPcs = 0
+    var totalTx = 0
+    var totalProfit = 0.0
+
+    // 1. Owner Invoices & POS Invoices
+    var invCount = 0
+    var invRev = 0.0
+    var invPcs = 0
+    var invProfit = 0.0
+
+    filteredInvoices.forEach { inv ->
+        val paid = calculateInvoicePaid(inv, allPayments)
+        val rev = if (paid > 0.0) paid else {
+            val st = (inv.status ?: "").trim().uppercase()
+            if (st == "LUNAS" || st == "PAID" || st == "SELESAI") inv.totalAmount else inv.dpAmount
+        }
+        val items = converters.toInvoiceItemList(inv.itemsJson).filter { !it.description.startsWith("__") }
+        var pcs = items.sumOf { it.quantity }
+        if (pcs == 0 && rev > 0.0) {
+            pcs = (inv.totalAmount / 149000.0).toInt().coerceAtLeast(1)
+        }
+
+        var hpp = 0.0
+        if (items.isNotEmpty()) {
+            items.forEach { item ->
+                val desc = item.description.lowercase()
+                val isPanjang = desc.contains("panjang")
+                val baseHpp = if (isPanjang) 77000.0 else 67000.0
+                val upsize = when {
+                    desc.contains("4xl") -> 15000.0
+                    desc.contains("3xl") -> 10000.0
+                    desc.contains("xxl") -> 5000.0
+                    else -> 0.0
+                }
+                hpp += item.quantity * (baseHpp + upsize)
+            }
+        } else {
+            hpp = rev * 0.65
+        }
+        val grossMargin = (rev - hpp).coerceAtLeast(0.0)
+
+        invCount++
+        invRev += rev
+        invPcs += pcs
+        invProfit += grossMargin
+
+        totalRev += rev
+        totalPcs += pcs
+        totalTx++
+        totalProfit += grossMargin
+    }
+
+    // 2. Member Standalone Orders
+    var ordCount = 0
+    var ordRev = 0.0
+    var ordPcs = 0
+    var ordProfit = 0.0
+
+    filteredStandaloneOrders.forEach { ord ->
+        val rev = getEffectiveOrderPaid(ord)
+        val items = converters.toOrderItemList(ord.itemsJson)
+        var pcs = items.sumOf { it.quantity }
+        if (pcs == 0 && rev > 0.0) {
+            pcs = (ord.totalAmount / 149000.0).toInt().coerceAtLeast(1)
+        }
+
+        var hpp = 0.0
+        if (items.isNotEmpty()) {
+            items.forEach { item ->
+                val name = item.name.lowercase()
+                val isPanjang = name.contains("panjang")
+                val baseHpp = if (isPanjang) 77000.0 else 67000.0
+                val upsize = when {
+                    name.contains("4xl") -> 15000.0
+                    name.contains("3xl") -> 10000.0
+                    name.contains("xxl") -> 5000.0
+                    else -> 0.0
+                }
+                hpp += item.quantity * (baseHpp + upsize)
+            }
+        } else {
+            hpp = rev * 0.65
+        }
+        val grossMargin = (rev - hpp).coerceAtLeast(0.0)
+
+        ordCount++
+        ordRev += rev
+        ordPcs += pcs
+        ordProfit += grossMargin
+
+        totalRev += rev
+        totalPcs += pcs
+        totalTx++
+        totalProfit += grossMargin
+    }
+
+    // 3. Direct Sales Inflows
+    var dirCount = 0
+    var dirRev = 0.0
+    var dirPcs = 0
+    var dirProfit = 0.0
+
+    val salesInflows = filteredInflows.filter {
+        !it.category.contains("Modal", ignoreCase = true) &&
+        !it.notes.contains("[PAY_") &&
+        !it.notes.contains("Pembayaran Invoice")
+    }
+
+    salesInflows.forEach { inflow ->
+        val rev = inflow.amount
+        val pcs = (rev / 149000.0).toInt().coerceAtLeast(1)
+        val grossMargin = rev * 0.35
+
+        dirCount++
+        dirRev += rev
+        dirPcs += pcs
+        dirProfit += grossMargin
+
+        totalRev += rev
+        totalPcs += pcs
+        totalTx++
+        totalProfit += grossMargin
+    }
+
+    return SalesSummaryData(
+        totalRevenue = totalRev,
+        totalQuantityPcs = totalPcs,
+        totalTransactionCount = totalTx,
+        totalGrossProfit = totalProfit,
+        memberOrdersCount = ordCount,
+        memberOrdersRevenue = ordRev,
+        memberOrdersPcs = ordPcs,
+        memberOrdersGrossProfit = ordProfit,
+        ownerInvoicesCount = invCount,
+        ownerInvoicesRevenue = invRev,
+        ownerInvoicesPcs = invPcs,
+        ownerInvoicesGrossProfit = invProfit,
+        directInflowsCount = dirCount,
+        directInflowsRevenue = dirRev,
+        directInflowsPcs = dirPcs,
+        directInflowsGrossProfit = dirProfit
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RiwayatPenjualanUnifiedScreen(
+    viewModel: MainViewModel,
+    onBack: () -> Unit
+) {
+    BackHandler { onBack() }
+    val context = LocalContext.current
+
+    val invoices by viewModel.allInvoices.collectAsState()
+    val orders by viewModel.allOrders.collectAsState()
+    val inflows by viewModel.allInflows.collectAsState()
+    val payments by viewModel.allInvoicePayments.collectAsState()
+
+    var selectedTimeFilter by remember { mutableStateOf("Semua") }
+    var selectedChannelTab by remember { mutableStateOf("SEMUA CHANNEL") }
+    var searchQuery by remember { mutableStateOf("") }
+
+    fun isTimestampInFilter(timestamp: Long, filter: String): Boolean {
+        val now = System.currentTimeMillis()
+        val calendarNow = Calendar.getInstance().apply { timeInMillis = now }
+        val calendarTarget = Calendar.getInstance().apply { timeInMillis = timestamp }
+
+        return when (filter) {
+            "Hari Ini" -> {
+                calendarNow.get(Calendar.YEAR) == calendarTarget.get(Calendar.YEAR) &&
+                        calendarNow.get(Calendar.DAY_OF_YEAR) == calendarTarget.get(Calendar.DAY_OF_YEAR)
+            }
+            "7 Hari" -> {
+                val diffMs = now - timestamp
+                diffMs in 0..(7L * 24 * 60 * 60 * 1000)
+            }
+            "30 Hari" -> {
+                val diffMs = now - timestamp
+                diffMs in 0..(30L * 24 * 60 * 60 * 1000)
+            }
+            "Bulan Ini" -> {
+                calendarNow.get(Calendar.YEAR) == calendarTarget.get(Calendar.YEAR) &&
+                        calendarNow.get(Calendar.MONTH) == calendarTarget.get(Calendar.MONTH)
+            }
+            else -> true
+        }
+    }
+
+    val filteredInvoices = remember(invoices, selectedTimeFilter) {
+        invoices.filter {
+            !it.isDeleted &&
+                    isTimestampInFilter(it.issueDate, selectedTimeFilter) &&
+                    !it.status.equals("Dibatalkan", ignoreCase = true) &&
+                    !it.status.equals("Cancelled", ignoreCase = true)
+        }
+    }
+
+    val filteredOrders = remember(orders, selectedTimeFilter) {
+        orders.filter { !it.isDeleted && isTimestampInFilter(it.orderDate, selectedTimeFilter) }
+    }
+
+    val filteredStandaloneOrders = remember(filteredOrders, invoices) {
+        filteredOrders.filter { ord ->
+            invoices.none { inv -> inv.orderId == ord.id }
+        }
+    }
+
+    val filteredInflows = remember(inflows, selectedTimeFilter) {
+        inflows.filter { !it.isDeleted && isTimestampInFilter(it.date, selectedTimeFilter) }
+    }
+
+    val salesSummary = remember(filteredInvoices, filteredStandaloneOrders, filteredInflows, payments) {
+        calculateUnifiedSalesSummary(filteredInvoices, filteredStandaloneOrders, filteredInflows, payments)
+    }
+
+    val converters = remember { AppTypeConverters() }
+
+    val allSalesTransactions = remember(filteredInvoices, filteredStandaloneOrders, filteredInflows, payments) {
+        val list = mutableListOf<UnifiedSalesTxItem>()
+
+        // 1. Owner & POS Invoices
+        filteredInvoices.forEach { inv ->
+            val paid = calculateInvoicePaid(inv, payments)
+            val rev = if (paid > 0.0) paid else {
+                val st = (inv.status ?: "").trim().uppercase()
+                if (st == "LUNAS" || st == "PAID" || st == "SELESAI") inv.totalAmount else inv.dpAmount
+            }
+            val items = converters.toInvoiceItemList(inv.itemsJson).filter { !it.description.startsWith("__") }
+            var pcs = items.sumOf { it.quantity }
+            if (pcs == 0 && rev > 0.0) {
+                pcs = (inv.totalAmount / 149000.0).toInt().coerceAtLeast(1)
+            }
+
+            var hpp = 0.0
+            val summaryText = if (items.isNotEmpty()) items.joinToString(", ") { "${it.description} (${it.quantity}x)" } else "Invoice #${inv.invoiceNumber}"
+            if (items.isNotEmpty()) {
+                items.forEach { item ->
+                    val desc = item.description.lowercase()
+                    val isPanjang = desc.contains("panjang")
+                    val baseHpp = if (isPanjang) 77000.0 else 67000.0
+                    val upsize = when {
+                        desc.contains("4xl") -> 15000.0
+                        desc.contains("3xl") -> 10000.0
+                        desc.contains("xxl") -> 5000.0
+                        else -> 0.0
+                    }
+                    hpp += item.quantity * (baseHpp + upsize)
+                }
+            } else {
+                hpp = rev * 0.65
+            }
+            val grossProfit = (rev - hpp).coerceAtLeast(0.0)
+
+            list.add(
+                UnifiedSalesTxItem(
+                    id = "INV-${inv.id}",
+                    title = "Invoice ${inv.invoiceNumber}",
+                    clientName = if (inv.clientName.isNotBlank()) inv.clientName else "Pelanggan Umum",
+                    date = inv.issueDate,
+                    channelType = "INVOICE OWNER",
+                    itemsSummary = summaryText,
+                    quantityPcs = pcs,
+                    totalRevenue = rev,
+                    totalGrossProfit = grossProfit,
+                    statusText = if (inv.remainingPayment <= 0) "LUNAS" else "BELUM LUNAS",
+                    rawInvoice = inv
+                )
+            )
+        }
+
+        // 2. Member Standalone Orders
+        filteredStandaloneOrders.forEach { ord ->
+            val rev = getEffectiveOrderPaid(ord)
+            val items = converters.toOrderItemList(ord.itemsJson)
+            var pcs = items.sumOf { it.quantity }
+            if (pcs == 0 && rev > 0.0) {
+                pcs = (ord.totalAmount / 149000.0).toInt().coerceAtLeast(1)
+            }
+
+            var hpp = 0.0
+            val summaryText = if (items.isNotEmpty()) items.joinToString(", ") { "${it.name} (${it.quantity}x)" } else "Order #${ord.id}"
+            if (items.isNotEmpty()) {
+                items.forEach { item ->
+                    val name = item.name.lowercase()
+                    val isPanjang = name.contains("panjang")
+                    val baseHpp = if (isPanjang) 77000.0 else 67000.0
+                    val upsize = when {
+                        name.contains("4xl") -> 15000.0
+                        name.contains("3xl") -> 10000.0
+                        name.contains("xxl") -> 5000.0
+                        else -> 0.0
+                    }
+                    hpp += item.quantity * (baseHpp + upsize)
+                }
+            } else {
+                hpp = rev * 0.65
+            }
+            val grossProfit = (rev - hpp).coerceAtLeast(0.0)
+
+            list.add(
+                UnifiedSalesTxItem(
+                    id = "ORD-${ord.id}",
+                    title = "Order Member #${ord.id}",
+                    clientName = if (ord.clientName.isNotBlank()) ord.clientName else "Mitra App",
+                    date = ord.orderDate,
+                    channelType = "MEMBER ORDERS",
+                    itemsSummary = summaryText,
+                    quantityPcs = pcs,
+                    totalRevenue = rev,
+                    totalGrossProfit = grossProfit,
+                    statusText = if (ord.isPaid) "LUNAS" else "PROSES",
+                    rawOrder = ord
+                )
+            )
+        }
+
+        // 3. Direct Sales Inflows
+        val salesInflows = filteredInflows.filter {
+            !it.category.contains("Modal", ignoreCase = true) &&
+                    !it.notes.contains("[PAY_") &&
+                    !it.notes.contains("Pembayaran Invoice")
+        }
+
+        salesInflows.forEach { inflow ->
+            val rev = inflow.amount
+            val pcs = (rev / 149000.0).toInt().coerceAtLeast(1)
+            val grossProfit = rev * 0.35
+
+            list.add(
+                UnifiedSalesTxItem(
+                    id = "INF-${inflow.id}",
+                    title = if (inflow.notes.isNotBlank()) inflow.notes else "Penjualan Direct Kas",
+                    clientName = if (inflow.notes.isNotBlank()) inflow.notes else "Direct POS",
+                    date = inflow.date,
+                    channelType = "DIRECT POS",
+                    itemsSummary = inflow.category,
+                    quantityPcs = pcs,
+                    totalRevenue = rev,
+                    totalGrossProfit = grossProfit,
+                    statusText = "LUNAS",
+                    rawInflow = inflow
+                )
+            )
+        }
+
+        list.sortedByDescending { it.date }
+    }
+
+    val displayTransactions = remember(allSalesTransactions, selectedChannelTab, searchQuery) {
+        allSalesTransactions.filter { item ->
+            val matchChannel = when (selectedChannelTab) {
+                "MEMBER ORDERS" -> item.channelType == "MEMBER ORDERS"
+                "INVOICE OWNER" -> item.channelType == "INVOICE OWNER"
+                "DIRECT POS" -> item.channelType == "DIRECT POS"
+                else -> true
+            }
+
+            val query = searchQuery.trim().lowercase()
+            val matchQuery = query.isEmpty() ||
+                    item.title.lowercase().contains(query) ||
+                    item.clientName.lowercase().contains(query) ||
+                    item.itemsSummary.lowercase().contains(query)
+
+            matchChannel && matchQuery
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text("Laporan Real-Time Total Terjual", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Konsolidasi Order Member & Invoice Owner", fontSize = 11.sp, color = AgedGold)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceDarkTeal)
+            )
+        },
+        containerColor = ShadowBlack
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Filter Waktu Bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("Semua", "Hari Ini", "7 Hari", "30 Hari", "Bulan Ini").forEach { filterOpt ->
+                    val isSelected = selectedTimeFilter == filterOpt
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { selectedTimeFilter = filterOpt },
+                        label = { Text(filterOpt, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AgedGold,
+                            selectedLabelColor = ShadowBlack,
+                            containerColor = CardDarkCard,
+                            labelColor = TextMuted
+                        )
+                    )
+                }
+            }
+
+            // 4 Key Metric Cards
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                GlassCardMetric(
+                    modifier = Modifier.weight(1f),
+                    title = "TOTAL OMSET",
+                    value = FormatUtils.formatRupiah(salesSummary.totalRevenue),
+                    sub = "Gross Sales",
+                    color = AgedGold
+                )
+                GlassCardMetric(
+                    modifier = Modifier.weight(1f),
+                    title = "TOTAL UNIT",
+                    value = "${salesSummary.totalQuantityPcs} Pcs",
+                    sub = "Kuantitas Kaos",
+                    color = HighlightSoftCyan
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                GlassCardMetric(
+                    modifier = Modifier.weight(1f),
+                    title = "TRANSAKSI",
+                    value = "${salesSummary.totalTransactionCount} Tx",
+                    sub = "Penjualan Sah",
+                    color = Color.White
+                )
+                GlassCardMetric(
+                    modifier = Modifier.weight(1f),
+                    title = "GROSS PROFIT",
+                    value = FormatUtils.formatRupiah(salesSummary.totalGrossProfit),
+                    sub = "Estimasi Laba Kotor",
+                    color = YansSuccess
+                )
+            }
+
+            // Channel Performance Breakdown Row
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CardDarkCard),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("BREAKDOWN SALURAN PENJUALAN", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AgedGold, letterSpacing = 1.sp)
+                    HorizontalDivider(color = BorderGrey, thickness = 1.dp)
+
+                    ChannelRowItem("Order Member (App)", "${salesSummary.memberOrdersCount} Tx", "${salesSummary.memberOrdersPcs} Pcs", FormatUtils.formatRupiah(salesSummary.memberOrdersRevenue), HighlightSoftCyan)
+                    ChannelRowItem("Invoice Owner (POS)", "${salesSummary.ownerInvoicesCount} Tx", "${salesSummary.ownerInvoicesPcs} Pcs", FormatUtils.formatRupiah(salesSummary.ownerInvoicesRevenue), AgedGold)
+                    ChannelRowItem("Sales Direct (Kas)", "${salesSummary.directInflowsCount} Tx", "${salesSummary.directInflowsPcs} Pcs", FormatUtils.formatRupiah(salesSummary.directInflowsRevenue), Color.White)
+                }
+            }
+
+            // Channel Filter Tabs
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                listOf("SEMUA CHANNEL", "MEMBER ORDERS", "INVOICE OWNER", "DIRECT POS").forEach { tab ->
+                    val isSel = selectedChannelTab == tab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSel) AgedGold else CardDarkCard)
+                            .clickable { selectedChannelTab = tab }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = tab,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSel) ShadowBlack else TextMuted
+                        )
+                    }
+                }
+            }
+
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Cari nama pelanggan / produk...", fontSize = 12.sp, color = TextMuted) },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = "Search", tint = TextMuted) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AgedGold,
+                    unfocusedBorderColor = BorderGrey,
+                    focusedContainerColor = CardDarkCard,
+                    unfocusedContainerColor = CardDarkCard,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                shape = RoundedCornerShape(10.dp)
+            )
+
+            // Transactions List
+            if (displayTransactions.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Belum ada data penjualan pada filter ini", fontSize = 13.sp, color = TextMuted)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(displayTransactions, key = { it.id }) { item ->
+                        UnifiedSalesTxCard(item = item)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GlassCardMetric(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    sub: String,
+    color: Color
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = CardDarkCard),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(title, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = color, letterSpacing = 0.5.sp)
+            Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(vertical = 2.dp))
+            Text(sub, fontSize = 9.sp, color = TextMuted)
+        }
+    }
+}
+
+@Composable
+private fun ChannelRowItem(
+    channelName: String,
+    txText: String,
+    pcsText: String,
+    revText: String,
+    color: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Text(channelName, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("$txText • $pcsText", fontSize = 10.sp, color = TextMuted)
+            Text(revText, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+        }
+    }
+}
+
+@Composable
+private fun UnifiedSalesTxCard(item: UnifiedSalesTxItem) {
+    val channelColor = when (item.channelType) {
+        "MEMBER ORDERS" -> HighlightSoftCyan
+        "INVOICE OWNER" -> AgedGold
+        else -> Color.White
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardDarkCard),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Surface(
+                        color = channelColor.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = item.channelType,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = channelColor,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Text(item.title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+                Text(FormatUtils.formatDate(item.date), fontSize = 10.sp, color = TextMuted)
+            }
+
+            Text(text = "Klien / Member: ${item.clientName}", fontSize = 11.sp, color = TextMuted)
+            Text(text = "Produk: ${item.itemsSummary}", fontSize = 11.sp, color = Color.White, maxLines = 2)
+
+            HorizontalDivider(color = BorderGrey, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 2.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        color = AgedGold.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("${item.quantityPcs} Pcs", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AgedGold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                    }
+                    Text("Gross Profit: ${FormatUtils.formatRupiah(item.totalGrossProfit)}", fontSize = 10.sp, color = YansSuccess, fontWeight = FontWeight.Bold)
+                }
+                Text(FormatUtils.formatRupiah(item.totalRevenue), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+            }
+        }
+    }
+}
+
 
