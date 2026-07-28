@@ -1100,7 +1100,7 @@ fun ReaderPage(
                     val isFirstBody = idx == firstBodyParagraphIdx
                     if (isFirstBody && paragraph.isNotEmpty()) {
                         // Drop Cap Style for the First Body Paragraph
-                        val firstChar = paragraph.first().toString()
+                        val firstChar = paragraph.firstOrNull()?.toString() ?: ""
                         val remainingText = paragraph.substring(1)
                         Row(
                             modifier = Modifier

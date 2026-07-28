@@ -1628,59 +1628,35 @@ fun DetailProfitScreen(
         expenses.filter { !it.isDeleted && isTimestampInFilter(it.date, selectedFilter) }
     }
 
-    val sumInvoiceRevenue = filteredInvs.sumOf { inv ->
-        val paid = inv.paidAmount
-        if (paid > 0.0) paid
-        else {
-            val st = (inv.status ?: "").trim().uppercase()
-            if (st == "LUNAS" || st == "PAID" || st == "SELESAI" || st == "LUNAS (PAID)") inv.totalAmount
-            else inv.dpAmount
-        }
-    }
     val sumModalInflow = filteredInflows.filter { 
-        it.category.contains("Modal", ignoreCase = true)
+        it.category.equals("Modal", ignoreCase = true)
     }.sumOf { it.amount }
     val sumLainnyaInflow = filteredInflows.filter { 
-        it.category.contains("Lainnya", ignoreCase = true)
+        it.category.equals("Lainnya", ignoreCase = true)
     }.sumOf { it.amount }
-    val sumManualSalesInflow = filteredInflows.filter { 
-        !it.category.contains("Modal", ignoreCase = true) &&
-        !it.category.contains("Lainnya", ignoreCase = true) &&
-        !it.category.contains("Pembayaran Customer", ignoreCase = true) &&
-        !it.notes.contains("[PAY_") &&
-        !it.notes.contains("Pembayaran Invoice")
+    val sumPenjualan = filteredInflows.filter { 
+        it.category.equals("Penjualan", ignoreCase = true)
     }.sumOf { it.amount }
 
-    val sumPenjualan = sumInvoiceRevenue + sumManualSalesInflow
     val sumPemasukanManual = sumModalInflow + sumLainnyaInflow
     val totalRevenue = sumPenjualan + sumPemasukanManual
 
     val produksiDanAksesoriesAmt = filteredExps.filter { exp ->
-        exp.category.contains("Produksi", ignoreCase = true) ||
-        exp.category.contains("Sablon", ignoreCase = true) ||
-        exp.category.contains("Aksesories", ignoreCase = true) ||
-        exp.category.contains("Aksesoris", ignoreCase = true) ||
-        exp.category.contains("Packing", ignoreCase = true)
+        exp.category.equals("Produksi", ignoreCase = true) ||
+        exp.category.equals("Aksesories", ignoreCase = true)
     }.sumOf { it.amount }
 
     val transportAmt = filteredExps.filter { exp ->
-        exp.category.contains("Transport", ignoreCase = true)
+        exp.category.equals("Transport", ignoreCase = true)
     }.sumOf { it.amount }
 
     val operasionalAmt = filteredExps.filter { exp ->
-        exp.category.contains("Operasional", ignoreCase = true)
+        exp.category.equals("Operasional", ignoreCase = true)
     }.sumOf { it.amount }
 
     val lainnyaExpAmt = filteredExps.filter { exp ->
-        !exp.category.contains("Produksi", ignoreCase = true) &&
-        !exp.category.contains("Sablon", ignoreCase = true) &&
-        !exp.category.contains("Aksesories", ignoreCase = true) &&
-        !exp.category.contains("Aksesoris", ignoreCase = true) &&
-        !exp.category.contains("Packing", ignoreCase = true) &&
-        !exp.category.contains("Transport", ignoreCase = true) &&
-        !exp.category.contains("Operasional", ignoreCase = true)
+        exp.category.equals("Lainnya", ignoreCase = true)
     }.sumOf { it.amount }
-
     val sumExpense = filteredExps.sumOf { it.amount }
     val netProfit = totalRevenue - sumExpense
 
@@ -2290,21 +2266,7 @@ fun RiwayatTransaksiScreen(
                             )
                         )
                     }
-                    invoices.filter { !it.isDeleted && it.paidAmount > 0 }.forEach {
-                        list.add(
-                            UnifiedTxItem(
-                                id = "INV-${it.id}",
-                                type = "INVOICE",
-                                docNumber = it.invoiceNumber,
-                                date = it.issueDate,
-                                amount = it.paidAmount,
-                                category = "Penjualan",
-                                notes = "Pembayaran Invoice dari ${it.clientName}",
-                                user = "System (Invoice)",
-                                originalInvoice = it
-                            )
-                        )
-                    }
+
                 }
             }
         } else { // Trash Mode
@@ -2411,16 +2373,7 @@ fun RiwayatTransaksiScreen(
             val matchesCategory = if (selectedCategoryFilter == "Semua") {
                 true
             } else {
-                when (selectedCategoryFilter.uppercase().trim()) {
-                    "PRODUKSI" -> item.category.contains("Produksi", ignoreCase = true) || item.category.contains("Sablon", ignoreCase = true)
-                    "AKSESORIES", "AKSESORIS" -> item.category.contains("Aksesories", ignoreCase = true) || item.category.contains("Aksesoris", ignoreCase = true) || item.category.contains("Packing", ignoreCase = true)
-                    "TRANSPORT" -> item.category.contains("Transport", ignoreCase = true)
-                    "OPERASIONAL" -> item.category.contains("Operasional", ignoreCase = true)
-                    "LAINNYA" -> !item.category.contains("Produksi", ignoreCase = true) && !item.category.contains("Sablon", ignoreCase = true) && !item.category.contains("Aksesories", ignoreCase = true) && !item.category.contains("Aksesoris", ignoreCase = true) && !item.category.contains("Packing", ignoreCase = true) && !item.category.contains("Transport", ignoreCase = true) && !item.category.contains("Operasional", ignoreCase = true) && !item.category.contains("Modal", ignoreCase = true) && !item.category.contains("Penjualan", ignoreCase = true)
-                    "PENJUALAN" -> item.category.contains("Penjualan", ignoreCase = true) || item.category.contains("Pembayaran Customer", ignoreCase = true)
-                    "MODAL" -> item.category.contains("Modal", ignoreCase = true)
-                    else -> item.category.equals(selectedCategoryFilter, ignoreCase = true)
-                }
+                item.category.equals(selectedCategoryFilter, ignoreCase = true)
             }
 
             // Search filter

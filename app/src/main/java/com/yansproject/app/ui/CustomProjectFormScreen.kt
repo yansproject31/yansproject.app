@@ -645,7 +645,7 @@ fun CustomProjectFormScreen(
                             (totalKidsLongCount * hppKidsPanjang)
 
                     val estimatedProfit = totalPembayaran - calculatedTotalHpp
-                    val estimatedMargin = if (totalPembayaran > 0) (estimatedProfit / totalPembayaran) * 100.0 else 0.0
+                    val estimatedMargin = if (totalPembayaran > 0.0) (estimatedProfit / totalPembayaran) * 100.0 else 0.0
 
                     Box(
                         modifier = Modifier

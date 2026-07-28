@@ -1321,8 +1321,8 @@ fun KitabDigitalScreen(
                                                 modifier = Modifier.fillMaxWidth()
                                             )
                                         } else if (index == firstNarrativeIndex) {
-                                            val firstChar = trimmed.first().toString()
-                                            val remainingText = trimmed.substring(1)
+                                            val firstChar = trimmed.firstOrNull()?.toString() ?: ""
+                                            val remainingText = if (trimmed.isNotEmpty()) trimmed.substring(1) else ""
                                             ManuscriptDropCap(
                                                 letter = firstChar,
                                                 text = remainingText,
@@ -2122,8 +2122,8 @@ fun DropCapParagraph(
     val trimmed = text.trim()
     if (trimmed.isEmpty()) return
 
-    val firstChar = trimmed.first().toString()
-    val remainingText = trimmed.substring(1)
+    val firstChar = trimmed.firstOrNull()?.toString() ?: ""
+    val remainingText = if (trimmed.isNotEmpty()) trimmed.substring(1) else ""
 
     ManuscriptDropCap(letter = firstChar, text = remainingText, modifier = modifier)
 }
