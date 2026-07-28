@@ -1,7 +1,6 @@
 package com.yansproject.app
 
 import android.app.Application
-import android.os.Looper
 import android.util.Log
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -28,17 +27,17 @@ class YansApplication : Application() {
 
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            Log.e("YansApplication", "FATAL_EXCEPTION on thread ${thread.name}: ${throwable.message}", throwable)
-            
-            val isMainThread = thread == Looper.getMainLooper().thread
-            if (isMainThread) {
-                // PERBAIKAN FATAL: Jika crash di Main Thread, JANGAN DITAHAN!
-                // Menahan error di Main Thread akan membuat Looper mati dan memicu ANR (Layar Freeze Putih).
-                // Biarkan OS menutup/merestart aplikasi dengan bersih.
-                defaultHandler?.uncaughtException(thread, throwable)
-            } else {
-                // Jika error terjadi di Background Thread (IO/Worker), aman ditahan agar app tidak Force Close.
-                Log.w("YansApplication", "Background thread exception suppressed to prevent Force Close.")
+            Log.e("YansApplication", "FATAL_PREVENTED: Uncaught exception on thread ${thread.name}: ${throwable.message}", throwable)
+            try {
+                if (defaultHandler != null && 
+                    !throwable.javaClass.name.contains("Security") && 
+                    !throwable.javaClass.name.contains("NullPointer") &&
+                    !throwable.javaClass.name.contains("SQLite") &&
+                    !throwable.javaClass.name.contains("UnsatisfiedLink")) {
+                    defaultHandler.uncaughtException(thread, throwable)
+                }
+            } catch (t: Throwable) {
+                Log.e("YansApplication", "Error in uncaught exception handler: ${t.message}")
             }
         }
 
@@ -48,16 +47,19 @@ class YansApplication : Application() {
             } catch (e: Exception) {
                 Log.e("YansApplication", "LaunchGuardian setup encountered an exception: ${e.message}")
             }
+
             try {
                 AppFeedbackManager.initialize(this@YansApplication)
             } catch (e: Exception) {
                 Log.e("YansApplication", "Failed to initialize AppFeedbackManager: ${e.message}")
             }
+
             try {
                 FirebaseSyncManager.initialize(this@YansApplication)
             } catch (e: Exception) {
                 Log.e("YansApplication", "Failed to initialize Firebase: ${e.message}")
             }
+
             try {
                 schedulePeriodicBackups()
             } catch (e: Exception) {

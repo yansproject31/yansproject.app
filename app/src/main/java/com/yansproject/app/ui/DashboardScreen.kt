@@ -987,15 +987,39 @@ fun DashboardScreen(
 
 
 
-    // Koleksi aliran data secara reaktif dari ViewModel
-    val invoices by viewModel.allInvoices.collectAsState()
-    val projects by viewModel.allProjects.collectAsState()
-    val stockItems by viewModel.allStock.collectAsState()
-    val orders by viewModel.allOrders.collectAsState()
-    val expenses by viewModel.allExpenses.collectAsState()
-    val inflows by viewModel.allInflows.collectAsState()
-    val inventorySummaries by viewModel.allInventorySummary.collectAsState()
-    val allPayments by viewModel.allInvoicePayments.collectAsState()
+    val dashboardViewModel: DashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val dashboardUiState by dashboardViewModel.dashboardUiState.collectAsState()
+
+    if (dashboardUiState is Resource.Loading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = HighlightSoftCyan)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Menyiapkan Dashboard...", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        return
+    }
+    if (dashboardUiState is Resource.Error) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(imageVector = Icons.Outlined.Warning, contentDescription = "Error", tint = ErrorRed, modifier = Modifier.size(48.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Gagal memuat data: ${(dashboardUiState as Resource.Error).message}", color = ErrorRed, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        return
+    }
+
+    val dashboardData = (dashboardUiState as Resource.Success).data!!
+    val invoices = dashboardData.invoices
+    val projects = dashboardData.projects
+    val stockItems = dashboardData.stockItems
+    val orders = dashboardData.orders
+    val expenses = dashboardData.expenses
+    val inflows = dashboardData.inflows
+    val inventorySummaries = dashboardData.inventorySummaries
+    val allPayments = dashboardData.allPayments
 
     // Status Filter Aktif: "Hari Ini", "7 Hari", "30 Hari", "Bulan Ini", "Semua"
     var selectedFilter by remember { mutableStateOf("Semua") }
@@ -2880,7 +2904,9 @@ fun InteractiveDonutChart(
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = 22.dp.toPx()
+            if (size.minDimension <= 0f) return@Canvas
             val diameter = size.minDimension - strokeWidth
+            if (diameter <= 0f) return@Canvas
             val rect = Rect(
                 left = (size.width - diameter) / 2f,
                 top = (size.height - diameter) / 2f,
@@ -3171,8 +3197,8 @@ fun DashboardRingkasanKeuanganCard(
                     when (activeTab) {
                         "SEMUA" -> {
                             val selisih = totalPemasukan - totalPengeluaran
-                            val persenPemasukan = if (totalAmount > 0) (totalPemasukan / totalAmount * 100).toInt() else 0
-                            val persenPengeluaran = if (totalAmount > 0) (totalPengeluaran / totalAmount * 100).toInt() else 0
+                            val persenPemasukan = if (totalAmount > 0.0) (totalPemasukan / totalAmount * 100).toInt() else 0
+                            val persenPengeluaran = if (totalAmount > 0.0) (totalPengeluaran / totalAmount * 100).toInt() else 0
 
                             RincianItemRow(
                                 label = "Total Pemasukan",
@@ -3213,20 +3239,20 @@ fun DashboardRingkasanKeuanganCard(
                             }
                         }
                         "PEMASUKAN" -> {
-                            val pModal = if (totalAmount > 0) (modalAmt / totalAmount * 100).toInt() else 0
-                            val pPenjualan = if (totalAmount > 0) (penjualanAmt / totalAmount * 100).toInt() else 0
-                            val pLainnya = if (totalAmount > 0) (lainnyaInAmt / totalAmount * 100).toInt() else 0
+                            val pModal = if (totalAmount > 0.0) (modalAmt / totalAmount * 100).toInt() else 0
+                            val pPenjualan = if (totalAmount > 0.0) (penjualanAmt / totalAmount * 100).toInt() else 0
+                            val pLainnya = if (totalAmount > 0.0) (lainnyaInAmt / totalAmount * 100).toInt() else 0
 
                             RincianItemRow("Modal", pModal, modalAmt, HighlightSoftCyan)
                             RincianItemRow("Penjualan", pPenjualan, penjualanAmt, AgedGold)
                             RincianItemRow("Lainnya", pLainnya, lainnyaInAmt, Color(0xFF319795))
                         }
                         "PENGELUARAN" -> {
-                            val pProduksi = if (totalAmount > 0) (produksiAmt / totalAmount * 100).toInt() else 0
-                            val pAksesories = if (totalAmount > 0) (aksesoriesAmt / totalAmount * 100).toInt() else 0
-                            val pTransport = if (totalAmount > 0) (transportAmt / totalAmount * 100).toInt() else 0
-                            val pOperasional = if (totalAmount > 0) (operasionalAmt / totalAmount * 100).toInt() else 0
-                            val pLainnya = if (totalAmount > 0) (lainnyaOutAmt / totalAmount * 100).toInt() else 0
+                            val pProduksi = if (totalAmount > 0.0) (produksiAmt / totalAmount * 100).toInt() else 0
+                            val pAksesories = if (totalAmount > 0.0) (aksesoriesAmt / totalAmount * 100).toInt() else 0
+                            val pTransport = if (totalAmount > 0.0) (transportAmt / totalAmount * 100).toInt() else 0
+                            val pOperasional = if (totalAmount > 0.0) (operasionalAmt / totalAmount * 100).toInt() else 0
+                            val pLainnya = if (totalAmount > 0.0) (lainnyaOutAmt / totalAmount * 100).toInt() else 0
 
                             RincianItemRow("Produksi", pProduksi, produksiAmt, AgedGold)
                             RincianItemRow("Aksesories", pAksesories, aksesoriesAmt, Color(0xFF3182CE))
