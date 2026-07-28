@@ -68,9 +68,7 @@ fun StockScreen(
     val ledgers by viewModel.allInventoryLedger.collectAsState()
     val batches by viewModel.allProductionBatch.collectAsState()
     val invoices by viewModel.allInvoices.collectAsState()
-    val orders by viewModel.allOrders.collectAsState()
     val inventorySummaries by viewModel.allInventorySummary.collectAsState()
-    val expenses by viewModel.allExpenses.collectAsState()
 
     var selectedCatalogId by remember { mutableStateOf<Int?>(null) }
     var selectedVarianId by remember { mutableStateOf<Int?>(null) }
@@ -511,12 +509,11 @@ fun StockScreen(
                                         val totalProduksi = remember(inventorySummaries) {
                                             inventorySummaries.sumOf { it.totalProduksi }
                                         }
-                                        val totalTerjual = remember(inventorySummaries, invoices, orders) {
+                                        val totalTerjual = remember(inventorySummaries, invoices) {
                                             val converters = com.yansproject.app.data.AppTypeConverters()
-                                            val validInvoices = invoices.filter { 
+                                            val invoiceSoldUnits = invoices.filter { 
                                                 !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
-                                            }
-                                            val invoiceSoldUnits = validInvoices.sumOf { inv ->
+                                            }.sumOf { inv ->
                                                 try {
                                                     converters.toInvoiceItemList(inv.itemsJson)
                                                         .filter { !it.description.startsWith("__") }
@@ -525,21 +522,8 @@ fun StockScreen(
                                                     0
                                                 }
                                             }
-                                            val validStandaloneOrders = orders.filter { ord ->
-                                                !ord.isDeleted && 
-                                                ord.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT", "REJECTED") &&
-                                                invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id }
-                                            }
-                                            val orderSoldUnits = validStandaloneOrders.sumOf { ord ->
-                                                try {
-                                                    converters.toOrderItemList(ord.itemsJson).sumOf { it.quantity }
-                                                } catch (e: Exception) {
-                                                    0
-                                                }
-                                            }
-                                            val totalGlobalSoldUnits = invoiceSoldUnits + orderSoldUnits
                                             val summarySoldUnits = inventorySummaries.sumOf { it.totalTerjual }
-                                            maxOf(totalGlobalSoldUnits, summarySoldUnits)
+                                            maxOf(invoiceSoldUnits, summarySoldUnits)
                                         }
                                         val readyStock = remember(inventorySummaries) {
                                             inventorySummaries.sumOf { it.readyStock }
@@ -990,7 +974,6 @@ fun StockScreen(
             TotalProduksiDetailDialog(
                 batches = batches,
                 ledgers = ledgers,
-                expenses = expenses,
                 isOwner = isOwner,
                 onDismiss = { showTotalProduksiDialog = false }
             )
@@ -999,7 +982,6 @@ fun StockScreen(
         if (showTotalTerjualDialog && isOwner) {
             TotalTerjualDetailDialog(
                 invoices = invoices,
-                orders = orders,
                 isOwner = isOwner,
                 onDismiss = { showTotalTerjualDialog = false }
             )
@@ -4104,7 +4086,6 @@ fun MiniMetricCard(
 fun TotalProduksiDetailDialog(
     batches: List<com.yansproject.app.data.ProductionBatch>,
     ledgers: List<com.yansproject.app.data.InventoryLedger>,
-    expenses: List<com.yansproject.app.data.Expense> = emptyList(),
     isOwner: Boolean,
     onDismiss: () -> Unit
 ) {
@@ -4129,22 +4110,6 @@ fun TotalProduksiDetailDialog(
     val totalBatchCount = filteredBatches.size
     val totalQtyProduced = remember(filteredBatches) { filteredBatches.sumOf { it.totalQuantity } }
     val totalHppCost = remember(filteredBatches) { filteredBatches.sumOf { it.totalProductionCost } }
-
-    val totalPembayaranProduksi = remember(expenses) {
-        expenses.filter { exp ->
-            !exp.isDeleted && (
-                exp.category.contains("Produksi", ignoreCase = true) ||
-                exp.category.contains("Production", ignoreCase = true) ||
-                exp.category.contains("Bahan", ignoreCase = true) ||
-                exp.category.contains("Sablon", ignoreCase = true) ||
-                exp.category.contains("Aksesories", ignoreCase = true) ||
-                exp.category.contains("Aksesoris", ignoreCase = true) ||
-                exp.category.contains("Packing", ignoreCase = true)
-            )
-        }.sumOf { it.amount }
-    }
-
-    val sisaTagihanProduksi = totalHppCost - totalPembayaranProduksi
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -4218,159 +4183,34 @@ fun TotalProduksiDetailDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Summary Header Banner (5 Metric Columns)
+                // Summary Header Banner
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
-                    border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f)),
-                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, BorderGrey),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // ROW 1: 3 COLUMNS (TOTAL BATCH | TOTAL UNIT PRODUKSI | TOTAL MODAL HPP)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text("TOTAL BATCH", fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("$totalBatchCount Batch", fontSize = 13.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
-                            }
-                            Box(modifier = Modifier.width(1.dp).height(24.dp).background(BorderGrey))
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text("TOTAL UNIT PRODUKSI", fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("$totalQtyProduced Pcs", fontSize = 13.sp, color = HighlightSoftCyan, fontWeight = FontWeight.ExtraBold)
-                            }
-                            if (isOwner) {
-                                Box(modifier = Modifier.width(1.dp).height(24.dp).background(BorderGrey))
-                                Column(
-                                    modifier = Modifier.weight(1.2f),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text("TOTAL MODAL HPP", fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(FormatUtils.formatRupiah(totalHppCost), fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
-                                }
-                            }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("TOTAL BATCH", fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                            Text("$totalBatchCount Batch", fontSize = 14.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
                         }
-
-                        if (isOwner) {
-                            HorizontalDivider(color = AgedGold.copy(alpha = 0.25f), thickness = 1.dp)
-
-                            // ROW 2: 2 COLUMNS (PEMBAYARAN PRODUKSI | SISA TAGIHAN PRODUKSI)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // PEMBAYARAN PRODUKSI
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .background(ShadowBlack.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                        .border(1.dp, AlertGreen.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 8.dp, vertical = 6.dp)
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.AccountBalanceWallet,
-                                                contentDescription = null,
-                                                tint = AlertGreen,
-                                                modifier = Modifier.size(11.dp)
-                                            )
-                                            Text(
-                                                text = "PEMBAYARAN PRODUKSI",
-                                                fontSize = 8.5.sp,
-                                                color = AlertGreen,
-                                                fontWeight = FontWeight.Bold,
-                                                letterSpacing = 0.3.sp
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = FormatUtils.formatRupiah(totalPembayaranProduksi),
-                                            fontSize = 12.5.sp,
-                                            color = Color.White,
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                        Text(
-                                            text = "Ledger Pengeluaran Produksi",
-                                            fontSize = 8.sp,
-                                            color = TextMuted
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                // SISA TAGIHAN PRODUKSI
-                                val isLunas = sisaTagihanProduksi <= 0
-                                val tagihanBorderColor = if (isLunas) AlertGreen.copy(alpha = 0.5f) else Color(0xFFFF5252).copy(alpha = 0.5f)
-                                val tagihanHeaderColor = if (isLunas) AlertGreen else Color(0xFFFF5252)
-
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .background(ShadowBlack.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                        .border(1.dp, tagihanBorderColor, RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 8.dp, vertical = 6.dp)
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isLunas) Icons.Outlined.CheckCircle else Icons.Outlined.ReceiptLong,
-                                                contentDescription = null,
-                                                tint = tagihanHeaderColor,
-                                                modifier = Modifier.size(11.dp)
-                                            )
-                                            Text(
-                                                text = "SISA TAGIHAN PRODUKSI",
-                                                fontSize = 8.5.sp,
-                                                color = tagihanHeaderColor,
-                                                fontWeight = FontWeight.Bold,
-                                                letterSpacing = 0.3.sp
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = if (isLunas) "Rp 0 (LUNAS)" else FormatUtils.formatRupiah(sisaTagihanProduksi),
-                                            fontSize = 12.5.sp,
-                                            color = if (isLunas) AlertGreen else Color(0xFFFF8282),
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                        Text(
-                                            text = if (isLunas) "Lunas Terbayar" else "Total HPP - Pembayaran",
-                                            fontSize = 8.sp,
-                                            color = TextMuted
-                                        )
-                                    }
-                                }
+                        Box(modifier = Modifier.width(1.dp).height(24.dp).background(BorderGrey))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("TOTAL UNIT PRODUKSI", fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                            Text("$totalQtyProduced Pcs", fontSize = 14.sp, color = HighlightSoftCyan, fontWeight = FontWeight.ExtraBold)
+                        }
+                        if (isOwner && totalHppCost > 0.0) {
+                            Box(modifier = Modifier.width(1.dp).height(24.dp).background(BorderGrey))
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("TOTAL MODAL HPP", fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                Text(FormatUtils.formatRupiah(totalHppCost), fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
                             }
                         }
                     }
@@ -4616,69 +4456,10 @@ fun BatchProductionCardItem(
     }
 }
 
-sealed class UnifiedSoldTxItem {
-    abstract val keyId: String
-    abstract val numberOrTitle: String
-    abstract val clientName: String
-    abstract val clientPhone: String
-    abstract val timestamp: Long
-    abstract val statusStr: String
-    abstract val totalAmount: Double
-    abstract val effectivePaid: Double
-    abstract val effectiveRemaining: Double
-    abstract val isMemberOrder: Boolean
-    abstract val channelTag: String
-    abstract val totalQuantityPcs: Int
-    abstract val itemsList: List<Pair<String, Pair<Int, Double>>>
-
-    data class InvoiceItem(
-        val invoice: com.yansproject.app.data.Invoice,
-        val items: List<com.yansproject.app.data.InvoiceItemDetail>,
-        override val effectivePaid: Double
-    ) : UnifiedSoldTxItem() {
-        override val keyId: String = "INV-${invoice.id}"
-        override val numberOrTitle: String = invoice.invoiceNumber
-        override val clientName: String = invoice.clientName.ifBlank { "Pelanggan Umum" }
-        override val clientPhone: String = invoice.clientPhone
-        override val timestamp: Long = invoice.issueDate
-        override val statusStr: String = invoice.status
-        override val totalAmount: Double = invoice.totalAmount
-        override val effectiveRemaining: Double = (totalAmount - effectivePaid).coerceAtLeast(0.0)
-        override val isMemberOrder: Boolean = invoice.orderId != null || 
-            invoice.projectId != null || 
-            invoice.invoiceNumber.contains("SO", ignoreCase = true) || 
-            invoice.clientName.contains("Member", ignoreCase = true) || 
-            (invoice.clientPhone.isNotBlank() && !invoice.clientName.contains("Non-Member", ignoreCase = true) && !invoice.clientName.contains("Umum", ignoreCase = true))
-        override val channelTag: String = if (isMemberOrder) "PESANAN MEMBER" else "PESANAN NON-MEMBER (OWNER)"
-        override val totalQuantityPcs: Int = items.sumOf { it.quantity }
-        override val itemsList: List<Pair<String, Pair<Int, Double>>> = items.map { it.description to (it.quantity to it.price) }
-    }
-
-    data class OrderItem(
-        val order: com.yansproject.app.data.OrderHistory,
-        val items: List<com.yansproject.app.data.OrderItemDetail>,
-        override val effectivePaid: Double
-    ) : UnifiedSoldTxItem() {
-        override val keyId: String = "ORD-${order.id}"
-        override val numberOrTitle: String = "SO-${order.id}"
-        override val clientName: String = order.clientName.ifBlank { "Member App" }
-        override val clientPhone: String = order.clientPhone
-        override val timestamp: Long = order.orderDate
-        override val statusStr: String = order.status
-        override val totalAmount: Double = order.totalAmount
-        override val effectiveRemaining: Double = (totalAmount - effectivePaid).coerceAtLeast(0.0)
-        override val isMemberOrder: Boolean = true
-        override val channelTag: String = "PESANAN MEMBER (DIRECT)"
-        override val totalQuantityPcs: Int = items.sumOf { it.quantity }
-        override val itemsList: List<Pair<String, Pair<Int, Double>>> = items.map { it.name to (it.quantity to it.price) }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TotalTerjualDetailDialog(
     invoices: List<com.yansproject.app.data.Invoice>,
-    orders: List<com.yansproject.app.data.OrderHistory> = emptyList(),
     isOwner: Boolean,
     onDismiss: () -> Unit
 ) {
@@ -4686,75 +4467,54 @@ fun TotalTerjualDetailDialog(
     val dateFormat = remember { java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.US) }
     val converters = remember { com.yansproject.app.data.AppTypeConverters() }
 
-    val validTransactions = remember(invoices, orders) {
-        val list = mutableListOf<UnifiedSoldTxItem>()
-
-        // 1. Invoices (Owner Invoices + Invoices linked to Member Orders)
-        val validInvoices = invoices.filter { 
-            !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
-        }
-        validInvoices.forEach { inv ->
-            val items = try {
-                converters.toInvoiceItemList(inv.itemsJson).filter { !it.description.startsWith("__") }
-            } catch (e: Exception) {
-                emptyList()
-            }
-            val effectivePaid = if (inv.paidAmount > 0.0) {
-                inv.paidAmount
-            } else if (inv.status.uppercase().trim() in listOf("LUNAS", "PAID", "SELESAI")) {
-                inv.totalAmount
-            } else {
-                inv.dpAmount
-            }
-            list.add(UnifiedSoldTxItem.InvoiceItem(inv, items, effectivePaid))
-        }
-
-        // 2. Member Standalone Orders (Orders not yet converted/linked to Invoices)
-        val validStandaloneOrders = orders.filter { ord ->
-            !ord.isDeleted && 
-            ord.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT", "REJECTED") &&
-            invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id }
-        }
-        validStandaloneOrders.forEach { ord ->
-            val items = try {
-                converters.toOrderItemList(ord.itemsJson)
-            } catch (e: Exception) {
-                emptyList()
-            }
-            val effectivePaid = if (ord.paidAmount > 0.0) {
-                ord.paidAmount
-            } else if (ord.isPaid || ord.status.uppercase().trim() in listOf("LUNAS", "PAID", "SELESAI")) {
-                ord.totalAmount
-            } else {
-                0.0
-            }
-            list.add(UnifiedSoldTxItem.OrderItem(ord, items, effectivePaid))
-        }
-
-        list.sortedByDescending { it.timestamp }
+    val validInvoices = remember(invoices) {
+        invoices.filter { !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") }
+            .sortedByDescending { it.issueDate }
     }
 
-    val filteredTransactions = remember(validTransactions, searchQuery) {
+    val filteredInvoices = remember(validInvoices, searchQuery) {
         if (searchQuery.isBlank()) {
-            validTransactions
+            validInvoices
         } else {
             val q = searchQuery.trim().lowercase()
-            validTransactions.filter { tx ->
-                tx.clientName.lowercase().contains(q) ||
-                tx.numberOrTitle.lowercase().contains(q) ||
-                tx.clientPhone.lowercase().contains(q) ||
-                tx.statusStr.lowercase().contains(q) ||
-                tx.channelTag.lowercase().contains(q) ||
-                tx.itemsList.any { it.first.lowercase().contains(q) }
+            validInvoices.filter { inv ->
+                inv.clientName.lowercase().contains(q) ||
+                inv.invoiceNumber.lowercase().contains(q) ||
+                inv.clientPhone.lowercase().contains(q) ||
+                inv.status.lowercase().contains(q) ||
+                inv.itemsJson.lowercase().contains(q)
             }
         }
     }
 
-    val totalSoldOrdersCount = filteredTransactions.size
-    val totalSoldUnits = remember(filteredTransactions) { filteredTransactions.sumOf { it.totalQuantityPcs } }
-    val totalRevenue = remember(filteredTransactions) { filteredTransactions.sumOf { it.totalAmount } }
-    val totalPaid = remember(filteredTransactions) { filteredTransactions.sumOf { it.effectivePaid } }
-    val totalRemaining = remember(filteredTransactions) { filteredTransactions.sumOf { it.effectiveRemaining } }
+    val totalSoldOrdersCount = filteredInvoices.size
+    val totalSoldUnits = remember(filteredInvoices) {
+        filteredInvoices.sumOf { inv ->
+            try {
+                converters.toInvoiceItemList(inv.itemsJson)
+                    .filter { !it.description.startsWith("__") }
+                    .sumOf { it.quantity }
+            } catch (e: Exception) {
+                0
+            }
+        }
+    }
+    val totalRevenue = remember(filteredInvoices) { filteredInvoices.sumOf { it.totalAmount } }
+    val totalPaid = remember(filteredInvoices) {
+        filteredInvoices.sumOf { inv ->
+            if (inv.paidAmount > 0.0) inv.paidAmount
+            else if (inv.status.uppercase().trim() in listOf("LUNAS", "PAID", "SELESAI")) inv.totalAmount
+            else inv.dpAmount
+        }
+    }
+    val totalRemaining = remember(filteredInvoices) {
+        filteredInvoices.sumOf { inv ->
+            val paid = if (inv.paidAmount > 0.0) inv.paidAmount
+            else if (inv.status.uppercase().trim() in listOf("LUNAS", "PAID", "SELESAI")) inv.totalAmount
+            else inv.dpAmount
+            (inv.totalAmount - paid).coerceAtLeast(0.0)
+        }
+    }
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -4805,7 +4565,7 @@ fun TotalTerjualDetailDialog(
                                 color = Color.White
                             )
                             Text(
-                                text = "Agregasi Penjualan Global (Member Orders & Manual Owner Invoices)",
+                                text = "Pencatatan Penjualan Terhubung Member & Invoice Non-Member",
                                 fontSize = 11.sp,
                                 color = TextMuted
                             )
@@ -4831,7 +4591,7 @@ fun TotalTerjualDetailDialog(
                 // Summary Header Banner
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
-                    border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f)),
+                    border = BorderStroke(1.dp, BorderGrey),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -4861,7 +4621,7 @@ fun TotalTerjualDetailDialog(
                                 Text(FormatUtils.formatRupiah(totalRevenue), fontSize = 13.sp, color = AlertGreen, fontWeight = FontWeight.ExtraBold)
                             }
                         }
-                        HorizontalDivider(color = AgedGold.copy(alpha = 0.25f), thickness = 0.5.dp)
+                        HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -4886,7 +4646,7 @@ fun TotalTerjualDetailDialog(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Cari Member, Customer, No. Invoice/Order, Item...", fontSize = 12.sp, color = TextMuted) },
+                    placeholder = { Text("Cari Member, Customer, No. Invoice, Katalog, Varian...", fontSize = 12.sp, color = TextMuted) },
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, tint = HighlightSoftCyan, modifier = Modifier.size(18.dp)) },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
@@ -4912,7 +4672,7 @@ fun TotalTerjualDetailDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                if (filteredTransactions.isEmpty()) {
+                if (filteredInvoices.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -4932,9 +4692,10 @@ fun TotalTerjualDetailDialog(
                             .weight(1f),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(filteredTransactions, key = { it.keyId }) { tx ->
-                            SoldTransactionCardItem(
-                                tx = tx,
+                        items(filteredInvoices, key = { it.id }) { invoice ->
+                            SoldInvoiceCardItem(
+                                invoice = invoice,
+                                converters = converters,
                                 dateFormat = dateFormat,
                                 isOwner = isOwner
                             )
@@ -4947,17 +4708,43 @@ fun TotalTerjualDetailDialog(
 }
 
 @Composable
-fun SoldTransactionCardItem(
-    tx: UnifiedSoldTxItem,
+fun SoldInvoiceCardItem(
+    invoice: com.yansproject.app.data.Invoice,
+    converters: com.yansproject.app.data.AppTypeConverters,
     dateFormat: java.text.SimpleDateFormat,
     isOwner: Boolean
 ) {
-    val statusColor = when (tx.statusStr.uppercase().trim()) {
-        "LUNAS", "PAID", "SELESAI", "COMPLETED" -> AlertGreen
-        "DP", "SEBAGIAN", "DP PRODUKSI", "DP AWAL", "BELUM LUNAS", "PROSES", "APPROVED" -> AlertOrange
+    val items = remember(invoice.itemsJson) {
+        try {
+            converters.toInvoiceItemList(invoice.itemsJson).filter { !it.description.startsWith("__") }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    val totalQty = remember(items) { items.sumOf { it.quantity } }
+
+    val statusColor = when (invoice.status.uppercase().trim()) {
+        "LUNAS", "PAID", "SELESAI" -> AlertGreen
+        "DP", "SEBAGIAN", "DP PRODUKSI", "DP AWAL", "BELUM LUNAS" -> AlertOrange
         "MENUNGGU PERSETUJUAN", "MENUNGGU APPROVAL", "PENDING" -> HighlightSoftCyan
         else -> HighlightSoftCyan
     }
+
+    val isMemberOrder = invoice.orderId != null || 
+        invoice.projectId != null || 
+        invoice.invoiceNumber.contains("SO", ignoreCase = true) || 
+        invoice.clientName.contains("Member", ignoreCase = true) || 
+        (invoice.clientPhone.isNotBlank() && !invoice.clientName.contains("Non-Member", ignoreCase = true) && !invoice.clientName.contains("Umum", ignoreCase = true))
+
+    val effectivePaid = if (invoice.paidAmount > 0.0) {
+        invoice.paidAmount
+    } else if (invoice.status.uppercase().trim() in listOf("LUNAS", "PAID", "SELESAI")) {
+        invoice.totalAmount
+    } else {
+        invoice.dpAmount
+    }
+    val effectiveRemaining = (invoice.totalAmount - effectivePaid).coerceAtLeast(0.0)
 
     Card(
         colors = CardDefaults.cardColors(containerColor = CardDarkCard),
@@ -4971,7 +4758,7 @@ fun SoldTransactionCardItem(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Header Row: Transaction No, Status Badge & Issue Date
+            // Header Row: Invoice No, Status Badge & Issue Date
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -4979,7 +4766,7 @@ fun SoldTransactionCardItem(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = tx.numberOrTitle,
+                        text = invoice.invoiceNumber,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = AgedGold
@@ -4991,7 +4778,7 @@ fun SoldTransactionCardItem(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = tx.statusStr.uppercase(),
+                            text = invoice.status.uppercase(),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             color = statusColor
@@ -4999,13 +4786,13 @@ fun SoldTransactionCardItem(
                     }
                 }
                 Text(
-                    text = dateFormat.format(java.util.Date(tx.timestamp)),
+                    text = dateFormat.format(java.util.Date(invoice.issueDate)),
                     fontSize = 10.sp,
                     color = TextMuted
                 )
             }
 
-            // Buyer / Customer Info & Order Source Badge
+            // Buyer / Customer Info & Order Source Badge (Member vs Non-Member / Owner)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -5016,15 +4803,15 @@ fun SoldTransactionCardItem(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(
-                        imageVector = if (tx.isMemberOrder) Icons.Outlined.Person else Icons.Outlined.EditNote,
+                        imageVector = if (isMemberOrder) Icons.Outlined.Person else Icons.Outlined.EditNote,
                         contentDescription = null,
-                        tint = if (tx.isMemberOrder) HighlightSoftCyan else AgedGold,
+                        tint = if (isMemberOrder) HighlightSoftCyan else AgedGold,
                         modifier = Modifier.size(18.dp)
                     )
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = tx.clientName,
+                                text = invoice.clientName.ifEmpty { if (isMemberOrder) "Member" else "Pelanggan Umum (Non-Member)" },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -5032,27 +4819,27 @@ fun SoldTransactionCardItem(
                             Box(
                                 modifier = Modifier
                                     .background(
-                                        if (tx.isMemberOrder) HighlightSoftCyan.copy(alpha = 0.15f) else AgedGold.copy(alpha = 0.15f),
+                                        if (isMemberOrder) HighlightSoftCyan.copy(alpha = 0.15f) else AgedGold.copy(alpha = 0.15f),
                                         RoundedCornerShape(4.dp)
                                     )
                                     .border(
                                         0.5.dp,
-                                        if (tx.isMemberOrder) HighlightSoftCyan else AgedGold,
+                                        if (isMemberOrder) HighlightSoftCyan else AgedGold,
                                         RoundedCornerShape(4.dp)
                                     )
                                     .padding(horizontal = 5.dp, vertical = 1.dp)
                             ) {
                                 Text(
-                                    text = tx.channelTag,
+                                    text = if (isMemberOrder) "PESANAN MEMBER" else "PESANAN NON-MEMBER (OWNER)",
                                     fontSize = 7.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (tx.isMemberOrder) HighlightSoftCyan else AgedGold
+                                    color = if (isMemberOrder) HighlightSoftCyan else AgedGold
                                 )
                             }
                         }
-                        if (tx.clientPhone.isNotEmpty()) {
+                        if (invoice.clientPhone.isNotEmpty()) {
                             Text(
-                                text = "Telp/WA: ${tx.clientPhone}",
+                                text = "Telp/WA: ${invoice.clientPhone}",
                                 fontSize = 10.sp,
                                 color = TextMuted
                             )
@@ -5065,7 +4852,7 @@ fun SoldTransactionCardItem(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "${tx.totalQuantityPcs} Pcs",
+                        text = "$totalQty Pcs",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = HighlightSoftCyan
@@ -5073,12 +4860,11 @@ fun SoldTransactionCardItem(
                 }
             }
 
-            // Itemized Details
-            Text(text = "RINCIAN ITEM TRANSAKSI", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+            // Itemized Order Details
+            Text(text = "RINCIAN ITEM PESANAN INVOICE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = AgedGold)
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                tx.itemsList.forEach { (itemDesc, qtyAndPrice) ->
-                    val (qty, price) = qtyAndPrice
+                items.forEach { item ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -5089,34 +4875,30 @@ fun SoldTransactionCardItem(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = itemDesc,
+                                text = item.description,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color.White
                             )
-                            if (price > 0.0) {
-                                Text(
-                                    text = "@ ${FormatUtils.formatRupiah(price)}",
-                                    fontSize = 9.sp,
-                                    color = TextMuted
-                                )
-                            }
+                            Text(
+                                text = "@ ${FormatUtils.formatRupiah(item.price)}",
+                                fontSize = 9.sp,
+                                color = TextMuted
+                            )
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = "x $qty Pcs",
+                                text = "x ${item.quantity} Pcs",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = HighlightSoftCyan
                             )
-                            if (price > 0.0) {
-                                Text(
-                                    text = FormatUtils.formatRupiah(price * qty),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
+                            Text(
+                                text = FormatUtils.formatRupiah(item.price * item.quantity),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
                         }
                     }
                 }
@@ -5124,7 +4906,7 @@ fun SoldTransactionCardItem(
 
             HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
 
-            // Payment Totals
+            // Invoice Payment Totals
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -5132,18 +4914,18 @@ fun SoldTransactionCardItem(
             ) {
                 Column {
                     Text(
-                        text = "Total Nominal: ${FormatUtils.formatRupiah(tx.totalAmount)}",
+                        text = "Total Nominal: ${FormatUtils.formatRupiah(invoice.totalAmount)}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Text(
-                        text = "Terbayar: ${FormatUtils.formatRupiah(tx.effectivePaid)}",
+                        text = "Terbayar: ${FormatUtils.formatRupiah(effectivePaid)}",
                         fontSize = 10.sp,
                         color = AlertGreen
                     )
                 }
-                if (tx.effectiveRemaining > 0.0) {
+                if (effectiveRemaining > 0.0) {
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
                             text = "Sisa Piutang",
@@ -5152,7 +4934,7 @@ fun SoldTransactionCardItem(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = FormatUtils.formatRupiah(tx.effectiveRemaining),
+                            text = FormatUtils.formatRupiah(effectiveRemaining),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = AlertOrange

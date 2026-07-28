@@ -20,87 +20,45 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 import android.graphics.Typeface
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 
 object FontUtils {
     @Volatile
     private var cachedArabicFontFamily: FontFamily? = null
-    @Volatile
-    private var cachedRuqaaFontFamily: FontFamily? = null
-    @Volatile
-    private var cachedScheherazadeFontFamily: FontFamily? = null
-    @Volatile
-    private var cachedAmiriFontFamily: FontFamily? = null
-
-    private fun buildComposeFontFamily(context: Context, assetPath: String): FontFamily? {
-        return try {
-            context.assets.open(assetPath).close()
-            FontFamily(
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.Normal),
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.Medium),
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.SemiBold),
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.Bold),
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.ExtraBold),
-                Font(assetManager = context.assets, path = assetPath, weight = FontWeight.Black)
-            )
-        } catch (_: Exception) {
-            null
-        }
-    }
 
     fun getPremiumArabicFontFamily(context: Context): FontFamily {
         cachedArabicFontFamily?.let { return it }
 
         val assetFontNames = listOf(
-            "fonts/aref_ruqaa_bold.ttf",
+            "fonts/amiri_quran.ttf",
             "fonts/scheherazade_bold.ttf",
-            "fonts/amiri_quran.ttf"
+            "fonts/aref_ruqaa_bold.ttf"
         )
-        for (assetPath in assetFontNames) {
-            val family = buildComposeFontFamily(context, assetPath)
-            if (family != null) {
-                cachedArabicFontFamily = family
-                return family
-            }
-        }
-
         var selectedTf: Typeface? = null
-        val typefaces = listOf("serif-arabic", "sans-serif-arabic", "arabic", "amiri", "scheherazade", "cairo")
-        for (fontName in typefaces) {
+        for (assetPath in assetFontNames) {
             try {
-                val tf = Typeface.create(fontName, Typeface.BOLD)
-                if (tf != Typeface.DEFAULT) {
+                val tf = Typeface.createFromAsset(context.assets, assetPath)
+                if (tf != null) {
                     selectedTf = tf
                     break
                 }
             } catch (_: Exception) {}
         }
+        if (selectedTf == null) {
+            val typefaces = listOf("serif-arabic", "sans-serif-arabic", "arabic", "amiri", "scheherazade", "cairo")
+            for (fontName in typefaces) {
+                try {
+                    val tf = Typeface.create(fontName, Typeface.BOLD)
+                    if (tf != Typeface.DEFAULT) {
+                        selectedTf = tf
+                        break
+                    }
+                } catch (_: Exception) {}
+            }
+        }
         val fontFamily = selectedTf?.let { FontFamily(it) } ?: FontFamily.Serif
         cachedArabicFontFamily = fontFamily
         return fontFamily
-    }
-
-    fun getArabicRuqaaCalligraphyFontFamily(context: Context): FontFamily {
-        cachedRuqaaFontFamily?.let { return it }
-        val family = buildComposeFontFamily(context, "fonts/aref_ruqaa_bold.ttf") ?: getPremiumArabicFontFamily(context)
-        cachedRuqaaFontFamily = family
-        return family
-    }
-
-    fun getArabicScheherazadeFontFamily(context: Context): FontFamily {
-        cachedScheherazadeFontFamily?.let { return it }
-        val family = buildComposeFontFamily(context, "fonts/scheherazade_bold.ttf") ?: getPremiumArabicFontFamily(context)
-        cachedScheherazadeFontFamily = family
-        return family
-    }
-
-    fun getArabicAmiriQuranFontFamily(context: Context): FontFamily {
-        cachedAmiriFontFamily?.let { return it }
-        val family = buildComposeFontFamily(context, "fonts/amiri_quran.ttf") ?: getPremiumArabicFontFamily(context)
-        cachedAmiriFontFamily = family
-        return family
     }
 }
 
