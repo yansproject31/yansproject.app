@@ -39,11 +39,18 @@ import com.yansproject.app.data.UserSession
 import com.yansproject.app.ui.AppSettings
 import com.yansproject.app.ui.theme.*
 import com.yansproject.app.ui.theme.glassCard
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
+
+private const val OWNER_DEFAULT_NAME = "YANSPROJECT.ID"
+private const val OWNER_DEFAULT_EMAIL = "yansart31@gmail.com"
+private const val OWNER_DEFAULT_WA = "+62 877-7739-8813"
+private const val OWNER_DEFAULT_ADDR = "Tangerang, Banten"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,12 +66,143 @@ fun ProfileDetailModule(
     val currentUserState by FirebaseSyncManager.currentUser.collectAsState()
     val userResolve = user ?: currentUserState
     
-    val name = userResolve?.displayName ?: "YANSPROJECT MEMBER"
-    val email = userResolve?.email ?: "member@yansproject.id"
     val role = userResolve?.role ?: UserRole.MEMBER
     val isOwner = role == UserRole.OWNER
-    val activeTier = userResolve?.priceCategory ?: "Member"
     val isOwnerOrAdminUser = role == UserRole.OWNER || role == UserRole.ADMIN
+
+    val prefs = remember { context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE) }
+    val cleanEmail = remember(userResolve) { (userResolve?.email ?: "").lowercase().trim() }
+
+    // 1. Initial Defaults Calculation (Single Source of Truth)
+    val initialName = remember(userResolve, isOwnerOrAdminUser) {
+        if (isOwnerOrAdminUser) {
+            AppSettings.getStoreName(context).ifBlank { userResolve?.displayName ?: OWNER_DEFAULT_NAME }
+        } else {
+            prefs.getString("name_$cleanEmail", null)?.ifBlank { null } ?: userResolve?.displayName ?: "Mitra Yans"
+        }
+    }
+
+    val initialEmail = remember(userResolve, isOwnerOrAdminUser) {
+        if (isOwnerOrAdminUser) {
+            AppSettings.getEmail(context).ifBlank { userResolve?.email ?: OWNER_DEFAULT_EMAIL }
+        } else {
+            cleanEmail.ifBlank { "member@yansproject.id" }
+        }
+    }
+
+    val initialWA = remember(userResolve, isOwnerOrAdminUser) {
+        if (isOwnerOrAdminUser) {
+            AppSettings.getWhatsApp(context).ifBlank { OWNER_DEFAULT_WA }
+        } else {
+            prefs.getString("wa_$cleanEmail", null) ?: ""
+        }
+    }
+
+    val initialAddress = remember(userResolve, isOwnerOrAdminUser) {
+        if (isOwnerOrAdminUser) {
+            AppSettings.getAddress(context).ifBlank { OWNER_DEFAULT_ADDR }
+        } else {
+            prefs.getString("address_$cleanEmail", null) ?: ""
+        }
+    }
+
+    val initialTier = remember(userResolve, isOwnerOrAdminUser) {
+        if (isOwnerOrAdminUser) "Owner"
+        else prefs.getString("price_$cleanEmail", null) ?: userResolve?.priceCategory ?: "Member"
+    }
+
+    // Editable form state variables
+    var isEditMode by remember { mutableStateOf(false) }
+    var editName by remember(initialName) { mutableStateOf(initialName) }
+    var editEmail by remember(initialEmail) { mutableStateOf(initialEmail) }
+    var editWhatsApp by remember(initialWA) { mutableStateOf(initialWA) }
+    var editAddress by remember(initialAddress) { mutableStateOf(initialAddress) }
+    var activeTierState by remember(initialTier) { mutableStateOf(initialTier) }
+    var isSaving by remember { mutableStateOf(false) }
+
+    // First-install auto population & persistence
+    LaunchedEffect(Unit) {
+        try {
+            if (AppSettings.getStoreName(context).isBlank()) AppSettings.setStoreName(context, OWNER_DEFAULT_NAME)
+            if (AppSettings.getEmail(context).isBlank()) AppSettings.setEmail(context, OWNER_DEFAULT_EMAIL)
+            if (AppSettings.getWhatsApp(context).isBlank()) AppSettings.setWhatsApp(context, OWNER_DEFAULT_WA)
+            if (AppSettings.getAddress(context).isBlank()) AppSettings.setAddress(context, OWNER_DEFAULT_ADDR)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // Real-Time Listener for OWNER: Sync with Business Identity (settings/business_identity)
+    LaunchedEffect(isOwnerOrAdminUser) {
+        if (isOwnerOrAdminUser && FirebaseSyncManager.isFirebaseActive) {
+            try {
+                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                firestore.collection("settings").document("business_identity")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error == null && snapshot != null && snapshot.exists()) {
+                            val sName = snapshot.getString("store_name") ?: ""
+                            val sEmail = snapshot.getString("store_email") ?: ""
+                            val sWA = snapshot.getString("store_whatsapp") ?: ""
+                            val sAddress = snapshot.getString("store_address") ?: ""
+
+                            if (sName.isNotBlank()) {
+                                editName = sName
+                                AppSettings.setStoreName(context, sName)
+                            }
+                            if (sEmail.isNotBlank()) {
+                                editEmail = sEmail
+                                AppSettings.setEmail(context, sEmail)
+                            }
+                            if (sWA.isNotBlank()) {
+                                editWhatsApp = sWA
+                                AppSettings.setWhatsApp(context, sWA)
+                            }
+                            if (sAddress.isNotBlank()) {
+                                editAddress = sAddress
+                                AppSettings.setAddress(context, sAddress)
+                            }
+                        }
+                    }
+            } catch (e: Exception) {
+                Log.e("ProfileDetail", "Error observing owner business identity: ${e.message}")
+            }
+        }
+    }
+
+    // Real-Time Listener for MEMBER: Sync with Member Management (users/{cleanEmail})
+    LaunchedEffect(cleanEmail, isOwnerOrAdminUser) {
+        if (!isOwnerOrAdminUser && cleanEmail.isNotBlank() && FirebaseSyncManager.isFirebaseActive) {
+            try {
+                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                firestore.collection("users").document(cleanEmail)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error == null && snapshot != null && snapshot.exists()) {
+                            val liveName = snapshot.getString("displayName") ?: ""
+                            val liveWA = snapshot.getString("whatsapp") ?: snapshot.getString("phone") ?: snapshot.getString("phoneNumber") ?: ""
+                            val liveAddress = snapshot.getString("address") ?: ""
+                            val liveTier = snapshot.getString("priceCategory") ?: ""
+
+                            if (liveName.isNotBlank()) editName = liveName
+                            if (liveWA.isNotBlank()) editWhatsApp = liveWA
+                            if (liveAddress.isNotBlank()) editAddress = liveAddress
+                            if (liveTier.isNotBlank()) activeTierState = liveTier
+
+                            prefs.edit()
+                                .putString("name_$cleanEmail", liveName.ifBlank { editName })
+                                .putString("wa_$cleanEmail", liveWA)
+                                .putString("address_$cleanEmail", liveAddress)
+                                .putString("price_$cleanEmail", liveTier.ifBlank { activeTierState })
+                                .apply()
+
+                            if (liveName.isNotBlank()) AppSettings.addMember(context, liveName)
+                            if (liveTier.isNotBlank()) AppSettings.saveMemberPriceCategory(context, liveName, liveTier)
+                        }
+                    }
+            } catch (e: Exception) {
+                Log.e("ProfileDetail", "Error observing member doc: ${e.message}")
+            }
+        }
+    }
 
     // 100% Room Database integration for transactions statistics
     val db = remember { AppDatabase.getDatabase(context) }
@@ -72,11 +210,11 @@ fun ProfileDetailModule(
     val invoices by invoicesFlow.collectAsState(initial = emptyList())
 
     // Filter invoices belonging to this specific user (if not owner)
-    val myInvoices = remember(invoices, userResolve) {
+    val myInvoices = remember(invoices, userResolve, editName) {
         if (isOwner) {
             invoices.filter { !it.isDeleted }
         } else {
-            invoices.filter { !it.isDeleted && it.clientName.equals(name, ignoreCase = true) }
+            invoices.filter { !it.isDeleted && (it.clientName.equals(editName, ignoreCase = true) || it.clientName.equals(initialName, ignoreCase = true)) }
         }
     }
 
@@ -193,28 +331,6 @@ fun ProfileDetailModule(
         }
     }
 
-    // Editable form state variables
-    var isEditMode by remember { mutableStateOf(false) }
-    var editName by remember { mutableStateOf(name) }
-    var editEmail by remember { mutableStateOf(email) }
-    
-    // Save local WhatsApp number and Address for this user
-    val prefs = remember { context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE) }
-    val waKey = remember(email) { "wa_${email.trim().lowercase()}" }
-    var editWhatsApp by remember(email) { mutableStateOf(prefs.getString(waKey, "") ?: "") }
-    
-    val addressKey = remember(email) { "address_${email.trim().lowercase()}" }
-    var editAddress by remember(email) { mutableStateOf(prefs.getString(addressKey, "") ?: "") }
-    
-    var isSaving by remember { mutableStateOf(false) }
-
-    LaunchedEffect(userResolve) {
-        editName = name
-        editEmail = email
-        editWhatsApp = prefs.getString(waKey, "") ?: ""
-        editAddress = prefs.getString(addressKey, "") ?: ""
-    }
-
     Scaffold(
         modifier = modifier.fillMaxSize().background(BackgroundShadowBlack),
         containerColor = Color.Transparent,
@@ -244,67 +360,86 @@ fun ProfileDetailModule(
                                 // Save changes
                                 isSaving = true
                                 coroutineScope.launch {
-                                    val cleanEmail = editEmail.trim().lowercase()
-                                    // 1. Update SharedPreferences credentials
-                                    val localCred = AppSettings.getLocalUserCredential(context, email)
-                                    val pin = localCred?.passwordOrPin ?: "2026"
-                                    
-                                    AppSettings.saveLocalUserCredential(
-                                        context, cleanEmail, pin, editName, role.name, activeTier
-                                    )
-                                    prefs.edit()
-                                        .putString(waKey, editWhatsApp)
-                                        .putString(addressKey, editAddress)
-                                        .apply()
-                                    
-                                    // 2. Batched write/update to Firestore if online
-                                    if (FirebaseSyncManager.isFirebaseActive) {
-                                        try {
-                                            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                                            val userRef = firestore.collection("users").document(cleanEmail)
-                                            val updates = hashMapOf<String, Any>(
-                                                "displayName" to editName,
-                                                "email" to cleanEmail,
-                                                "whatsapp" to editWhatsApp,
-                                                "address" to editAddress
-                                            )
-                                            userRef.update(updates).await()
-                                            
-                                            // Trigger session update
-                                            FirebaseSyncManager.saveSession(
-                                                context, cleanEmail, role, editName, activeTier
-                                            )
-                                        } catch (e: Exception) {
-                                            Log.e("ProfileDetail", "Failed to update user profile on Firestore: ${e.message}")
-                                            // Try set if document update fails
-                                            try {
-                                                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                                                val userRef = firestore.collection("users").document(cleanEmail)
-                                                val userData = hashMapOf(
-                                                    "email" to cleanEmail,
-                                                    "role" to role.name,
-                                                    "displayName" to editName,
-                                                    "priceCategory" to activeTier,
-                                                    "passwordOrPin" to pin,
-                                                    "whatsapp" to editWhatsApp,
-                                                    "address" to editAddress,
-                                                    "created_at" to System.currentTimeMillis()
-                                                )
-                                                userRef.set(userData).await()
-                                            } catch (se: Exception) {
-                                                Log.e("ProfileDetail", "Set failed too: ${se.message}")
+                                    try {
+                                        val cleanSaveEmail = editEmail.trim().lowercase()
+                                        
+                                        if (isOwnerOrAdminUser) {
+                                            // Owner update: Sync with Business Identity
+                                            AppSettings.setStoreName(context, editName.trim())
+                                            AppSettings.setEmail(context, cleanSaveEmail)
+                                            AppSettings.setWhatsApp(context, editWhatsApp.trim())
+                                            AppSettings.setAddress(context, editAddress.trim())
+
+                                            if (FirebaseSyncManager.isFirebaseActive) {
+                                                try {
+                                                    val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                                    val bizData = hashMapOf(
+                                                        "store_name" to editName.trim(),
+                                                        "store_email" to cleanSaveEmail,
+                                                        "store_whatsapp" to editWhatsApp.trim(),
+                                                        "store_address" to editAddress.trim(),
+                                                        "updated_at" to System.currentTimeMillis()
+                                                    )
+                                                    firestore.collection("settings").document("business_identity").set(bizData).await()
+
+                                                    val userData = hashMapOf<String, Any>(
+                                                        "displayName" to editName.trim(),
+                                                        "email" to cleanSaveEmail,
+                                                        "whatsapp" to editWhatsApp.trim(),
+                                                        "address" to editAddress.trim()
+                                                    )
+                                                    firestore.collection("users").document(cleanSaveEmail).update(userData).await()
+                                                } catch (fe: Exception) {
+                                                    Log.e("ProfileDetail", "Failed Cloud sync for owner profile: ${fe.message}")
+                                                }
                                             }
+                                            FirebaseSyncManager.saveSession(context, cleanSaveEmail, role, editName.trim(), "Owner")
+                                        } else {
+                                            // Member update: Sync with Member Management
+                                            val localCred = AppSettings.getLocalUserCredential(context, cleanSaveEmail)
+                                            val pin = localCred?.passwordOrPin ?: "2026"
+                                            
+                                            AppSettings.saveLocalUserCredential(
+                                                context, cleanSaveEmail, pin, editName.trim(), "MEMBER", activeTierState
+                                            )
+                                            prefs.edit()
+                                                .putString("name_$cleanSaveEmail", editName.trim())
+                                                .putString("wa_$cleanSaveEmail", editWhatsApp.trim())
+                                                .putString("address_$cleanSaveEmail", editAddress.trim())
+                                                .putString("price_$cleanSaveEmail", activeTierState)
+                                                .apply()
+
+                                            AppSettings.addMember(context, editName.trim())
+                                            AppSettings.saveMemberPriceCategory(context, editName.trim(), activeTierState)
+
+                                            if (FirebaseSyncManager.isFirebaseActive) {
+                                                try {
+                                                    val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                                    val userData = hashMapOf<String, Any>(
+                                                        "displayName" to editName.trim(),
+                                                        "email" to cleanSaveEmail,
+                                                        "whatsapp" to editWhatsApp.trim(),
+                                                        "address" to editAddress.trim(),
+                                                        "priceCategory" to activeTierState
+                                                    )
+                                                    firestore.collection("users").document(cleanSaveEmail).set(userData, com.google.firebase.firestore.SetOptions.merge()).await()
+                                                } catch (fe: Exception) {
+                                                    Log.e("ProfileDetail", "Failed Cloud sync for member profile: ${fe.message}")
+                                                }
+                                            }
+                                            FirebaseSyncManager.saveSession(context, cleanSaveEmail, role, editName.trim(), activeTierState)
                                         }
+
+                                        Toast.makeText(context, "Profil berhasil diperbarui & disinkronkan!", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Log.e("ProfileDetail", "Error saving profile: ${e.message}")
+                                        Toast.makeText(context, "Profil tersimpan lokal", Toast.LENGTH_SHORT).show()
+                                    } finally {
+                                        isSaving = false
+                                        isEditMode = false
                                     }
-                                    
-                                    isSaving = false
-                                    isEditMode = false
-                                    Toast.makeText(context, "Profil berhasil diperbarui!", Toast.LENGTH_SHORT).show()
                                 }
                             } else {
-                                // Enable edit mode
-                                editName = name
-                                editEmail = email
                                 isEditMode = true
                             }
                         },
@@ -379,7 +514,7 @@ fun ProfileDetailModule(
                             .padding(horizontal = 14.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = activeTier.uppercase(),
+                            text = activeTierState.uppercase(),
                             color = HighlightSoftCyan,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
@@ -417,7 +552,7 @@ fun ProfileDetailModule(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "INFORMASI AKUN MEMBER",
+                        text = if (isOwnerOrAdminUser) "INFORMASI IDENTITAS BISNIS & AKUN OWNER" else "INFORMASI AKUN MEMBER",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = AccentAgedGold,
@@ -429,7 +564,7 @@ fun ProfileDetailModule(
                         OutlinedTextField(
                             value = editName,
                             onValueChange = { editName = it },
-                            label = { Text("Nama Lengkap") },
+                            label = { Text(if (isOwnerOrAdminUser) "Nama Toko / Owner" else "Nama Lengkap") },
                             modifier = Modifier.fillMaxWidth().testTag("edit_profile_name"),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.White,
@@ -481,14 +616,14 @@ fun ProfileDetailModule(
                         // Read-Only Display rows
                         ProfileInfoRow(
                             icon = Icons.Outlined.Badge,
-                            label = "Nama Lengkap",
-                            value = name
+                            label = if (isOwnerOrAdminUser) "Nama Toko / Owner" else "Nama Lengkap",
+                            value = editName
                         )
 
                         ProfileInfoRow(
                             icon = Icons.Outlined.Email,
                             label = "Username / Email",
-                            value = email
+                            value = editEmail
                         )
 
                         ProfileInfoRow(
@@ -515,7 +650,7 @@ fun ProfileDetailModule(
                         ProfileInfoRow(
                             icon = Icons.Outlined.Loyalty,
                             label = "Price Tier Otorisasi",
-                            value = activeTier
+                            value = activeTierState
                         )
                     }
 

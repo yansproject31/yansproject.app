@@ -37,6 +37,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yansproject.app.data.*
@@ -238,13 +240,15 @@ fun SettingsScreen(
         return
     }
 
-    // Secure Action interceptor
+    // Secure Action interceptor (Default verification OFF, configurable by Owner)
+    val securityPrefs = remember { context.getSharedPreferences("yans_security_prefs", android.content.Context.MODE_PRIVATE) }
     var isSystemUnlocked by remember { mutableStateOf(false) }
     var showPinDialog by remember { mutableStateOf(false) }
     var pendingMaintenanceActionAfterPin by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val secureAction: (() -> Unit) -> Unit = { action ->
-        if (isSystemUnlocked) {
+        val isRequired = securityPrefs.getBoolean("maintenance_password_required", false)
+        if (!isRequired || isSystemUnlocked) {
             action()
         } else {
             pendingMaintenanceActionAfterPin = action
@@ -280,31 +284,65 @@ fun SettingsScreen(
         contentWindowInsets = WindowInsets(0.dp)
     ) { innerPadding ->
         if (subScreen == null) {
-            LazyColumn(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item { Spacer(modifier = Modifier.height(8.dp)) }
-                renderMainSettingsDashboard(
-                    context = context,
-                    currentUser = currentUser,
-                    isOwner = isOwner,
-                    syncStatus = syncStatus,
-                    isOnline = isOnline,
-                    navController = navController,
-                    hapticFeedback = hapticFeedback,
-                    secureAction = secureAction,
-                    onShowFirebaseDiag = { showFirebaseDiagSheet = true },
-                    onShowSmartMaintenance = {
-                        pendingMaintenanceAction = "smart_maintenance"
-                        pendingMaintenanceLabel = "Smart Maintenance (Auto Clean Cache, Temp, Draft, & SQLite VACUUM)"
-                        showMaintenanceConfirmDialog = true
-                    },
-                    onLogoutClick = { showLogoutConfirmDialog = true }
-                )
+                // TopBar for main settings page
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.setTab(AppTab.DASHBOARD)
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ArrowBack,
+                            contentDescription = "Kembali ke Dashboard",
+                            tint = AgedGold
+                        )
+                    }
+                    Text(
+                        text = "PENGATURAN SISTEM ERP",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item { Spacer(modifier = Modifier.height(4.dp)) }
+                    renderMainSettingsDashboard(
+                        context = context,
+                        currentUser = currentUser,
+                        isOwner = isOwner,
+                        syncStatus = syncStatus,
+                        isOnline = isOnline,
+                        navController = navController,
+                        hapticFeedback = hapticFeedback,
+                        secureAction = secureAction,
+                        onShowFirebaseDiag = { showFirebaseDiagSheet = true },
+                        onShowSmartMaintenance = {
+                            pendingMaintenanceAction = "smart_maintenance"
+                            pendingMaintenanceLabel = "Smart Maintenance (Auto Clean Cache, Temp, Draft, & SQLite VACUUM)"
+                            showMaintenanceConfirmDialog = true
+                        },
+                        onLogoutClick = { showLogoutConfirmDialog = true }
+                    )
+                }
             }
         } else {
             Column(
@@ -316,6 +354,7 @@ fun SettingsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .statusBarsPadding()
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -2375,8 +2414,9 @@ fun renderNestedSubScreen(
 
                         OutlinedTextField(
                             value = transactionPinInput,
-                            onValueChange = { transactionPinInput = it },
-                            label = { Text("PIN Transaksi Khusus (Min 4 Angka)") },
+                            onValueChange = { transactionPinInput = it.filter { c -> c.isDigit() }.take(6) },
+                            label = { Text("PIN Transaksi Khusus (4 - 6 Angka)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                             visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
                             trailingIcon = {
                                 IconButton(onClick = { showPin = !showPin }) {
@@ -2398,15 +2438,23 @@ fun renderNestedSubScreen(
                             )
                         )
 
+                        Text(
+                            text = "PIN Transaksi berupa 4-6 angka khusus untuk otorisasi transaksi penting, pembatalan invoice, dan tindakan sensitif.",
+                            fontSize = 11.sp,
+                            color = TextMuted,
+                            lineHeight = 15.sp
+                        )
+
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Button(
                             onClick = {
                                 var hasChanges = false
+                                val secPrefs = context.getSharedPreferences("yans_security_prefs", android.content.Context.MODE_PRIVATE)
+
                                 if (passwordInput.isNotEmpty()) {
                                     if (passwordInput.length >= 6) {
-                                        val prefs = context.getSharedPreferences("yans_security_prefs", android.content.Context.MODE_PRIVATE)
-                                        prefs.edit().putString("app_pin", passwordInput).apply()
+                                        secPrefs.edit().putString("app_pin", passwordInput).apply()
                                         viewModel.addAuditLog("Ganti PIN Sandi", "Sandi login utama berhasil diperbarui.")
                                         hasChanges = true
                                     } else {
@@ -2415,17 +2463,21 @@ fun renderNestedSubScreen(
                                     }
                                 }
                                 if (transactionPinInput.isNotEmpty()) {
-                                    if (transactionPinInput.length >= 4) {
+                                    if (transactionPinInput.length in 4..6 && transactionPinInput.all { it.isDigit() }) {
                                         userPrefs.edit().putString("transaction_pin", transactionPinInput).apply()
-                                        viewModel.addAuditLog("Ganti PIN Transaksi", "PIN Transaksi berhasil diperbarui.")
+                                        secPrefs.edit()
+                                            .putString("transaction_pin_${currentUser?.email ?: "default"}", transactionPinInput)
+                                            .putString("transaction_pin", transactionPinInput)
+                                            .apply()
+                                        viewModel.addAuditLog("Ganti PIN Transaksi", "PIN Transaksi khusus 4-6 angka berhasil diperbarui.")
                                         hasChanges = true
                                     } else {
-                                        Toast.makeText(context, "PIN Transaksi harus minimal 4 karakter!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "PIN Transaksi harus berupa 4 hingga 6 angka!", Toast.LENGTH_SHORT).show()
                                         return@Button
                                     }
                                 }
                                 if (hasChanges) {
-                                    Toast.makeText(context, "Kredensial keamanan berhasil diperbarui!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Kredensial keamanan & PIN Transaksi berhasil diperbarui!", Toast.LENGTH_SHORT).show()
                                     passwordInput = ""
                                 } else {
                                     Toast.makeText(context, "Tidak ada perubahan sandi/PIN yang dimasukkan.", Toast.LENGTH_SHORT).show()
@@ -2921,6 +2973,7 @@ fun renderNestedSubScreen(
         "security" -> {
             val prefs = remember { context.getSharedPreferences("yans_security_prefs", android.content.Context.MODE_PRIVATE) }
             var pinLockEnabled by remember { mutableStateOf(prefs.getBoolean("app_lock_enabled", false) || prefs.getBoolean("pin_lock_enabled", false)) }
+            var maintPassRequired by remember { mutableStateOf(prefs.getBoolean("maintenance_password_required", false)) }
             var sessionTimeout by remember { mutableStateOf(prefs.getInt("session_timeout", 15)) }
 
             Column(
@@ -2950,6 +3003,32 @@ fun renderNestedSubScreen(
                                     prefs.edit().putBoolean("app_lock_enabled", isChecked).putBoolean("pin_lock_enabled", isChecked).apply()
                                     pinLockEnabled = isChecked
                                     viewModel.addAuditLog("Update PIN Lock State", "Mengubah PIN Lock aktif: $isChecked")
+                                },
+                                colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
+                            )
+                        }
+
+                        HorizontalDivider(color = BorderGrey.copy(alpha = 0.2f), thickness = 0.5.dp)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Verifikasi Password Backup & Maintenance", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(
+                                    text = if (maintPassRequired) "Aktif: Minta password admin saat membuka Backup & Maintenance" else "Non-Aktif (Default): Buka Backup & Maintenance tanpa verifikasi password",
+                                    fontSize = 11.sp,
+                                    color = TextMuted
+                                )
+                            }
+                            Switch(
+                                checked = maintPassRequired,
+                                onCheckedChange = { isChecked ->
+                                    prefs.edit().putBoolean("maintenance_password_required", isChecked).apply()
+                                    maintPassRequired = isChecked
+                                    viewModel.addAuditLog("Update Maintenance Password Check", "Mengubah verifikasi password maintenance & backup aktif: $isChecked")
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -3117,14 +3196,6 @@ fun renderNestedSubScreen(
                         }
                         
                         HorizontalDivider(color = AgedGold.copy(alpha = 0.15f), thickness = 1.dp)
-                        
-                        OutlinedTextField(
-                            value = ajibBase,
-                            onValueChange = { ajibBase = it },
-                            label = { Text("Harga Dasar Lengan Pendek (Rp)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
-                        )
 
                         OutlinedTextField(
                             value = ajibLong,
@@ -3187,14 +3258,6 @@ fun renderNestedSubScreen(
                         }
                         
                         HorizontalDivider(color = HighlightSoftCyan.copy(alpha = 0.15f), thickness = 1.dp)
-
-                        OutlinedTextField(
-                            value = custBase,
-                            onValueChange = { custBase = it },
-                            label = { Text("Harga Dasar Lengan Pendek (Rp)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
-                        )
 
                         OutlinedTextField(
                             value = custLong,

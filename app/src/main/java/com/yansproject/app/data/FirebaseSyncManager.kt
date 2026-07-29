@@ -461,7 +461,9 @@ object FirebaseSyncManager {
         passwordOrPin: String,
         displayName: String,
         priceCategory: String,
-        role: String = "MEMBER"
+        role: String = "MEMBER",
+        whatsapp: String = "",
+        address: String = ""
     ): String {
         if (passwordOrPin.length < 4) {
             return "PIN kurang dari 4 digit"
@@ -473,6 +475,11 @@ object FirebaseSyncManager {
             // Local fallback
             AppSettings.addMember(context, displayName)
             AppSettings.saveLocalUserCredential(context, cleanEmail, passwordOrPin, displayName, role, priceCategory)
+            val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+            prefs.edit()
+                .putString("wa_$cleanEmail", whatsapp)
+                .putString("address_$cleanEmail", address)
+                .apply()
             return "SUCCESS"
         }
 
@@ -514,6 +521,8 @@ object FirebaseSyncManager {
                 "displayName" to displayName,
                 "priceCategory" to priceCategory,
                 "passwordOrPin" to passwordOrPin,
+                "whatsapp" to whatsapp,
+                "address" to address,
                 "created_at" to System.currentTimeMillis()
             )
             
@@ -536,6 +545,11 @@ object FirebaseSyncManager {
                 AppSettings.addMember(context, displayName)
             }
             AppSettings.saveLocalUserCredential(context, cleanEmail, passwordOrPin, displayName, role, priceCategory)
+            val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+            prefs.edit()
+                .putString("wa_$cleanEmail", whatsapp)
+                .putString("address_$cleanEmail", address)
+                .apply()
             "SUCCESS"
         } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
             Log.d(TAG, "Auth user collision for $cleanEmail. Attempting to ensure Firestore document exists anyway.")
@@ -564,6 +578,8 @@ object FirebaseSyncManager {
                 "displayName" to displayName,
                 "priceCategory" to priceCategory,
                 "passwordOrPin" to passwordOrPin,
+                "whatsapp" to whatsapp,
+                "address" to address,
                 "created_at" to System.currentTimeMillis()
             )
             

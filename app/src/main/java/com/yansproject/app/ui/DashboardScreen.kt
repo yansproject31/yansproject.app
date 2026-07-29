@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yansproject.app.data.*
 import com.yansproject.app.ui.theme.*
+import com.yansproject.app.ui.analytics.AnalisisKeuanganGlobalScreen
+import com.yansproject.app.ui.analytics.AnalisisPenjualanAjibqobulScreen
 import com.yansproject.app.ui.navigation.Routes
 import com.yansproject.app.ui.settings.MemberViewModel
 import java.text.SimpleDateFormat
@@ -926,12 +928,18 @@ fun DashboardScreen(
         }
     )
 
-    if (userRole != com.yansproject.app.data.UserRole.OWNER && activeLedgerPage in listOf("pemasukan", "modal_awal", "modal_berjalan", "pengeluaran", "kas", "profit", "piutang")) {
+    if (userRole != com.yansproject.app.data.UserRole.OWNER && activeLedgerPage in listOf("pemasukan", "modal_awal", "modal_berjalan", "pengeluaran", "kas", "profit", "piutang", "penjualan", "global_keuangan")) {
         activeLedgerPage = null
         Toast.makeText(context, "AKSES DITOLAK: Halaman rincian keuangan kas hanya untuk OWNER", Toast.LENGTH_SHORT).show()
     }
 
-    if (activeLedgerPage == "pemasukan") {
+    if (activeLedgerPage == "global_keuangan") {
+        AnalisisKeuanganGlobalScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+        return
+    } else if (activeLedgerPage == "penjualan") {
+        AnalisisPenjualanAjibqobulScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+        return
+    } else if (activeLedgerPage == "pemasukan") {
         RiwayatPemasukanScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
         return
     } else if (activeLedgerPage == "modal_awal") {
@@ -1568,6 +1576,8 @@ fun DashboardScreen(
                             onWalletClick = {
                                 if (navController != null) {
                                     navController.navigate(Routes.GlobalLedger)
+                                } else {
+                                    activeLedgerPage = "global_keuangan"
                                 }
                             },
                             onMainBalanceClick = { activeLedgerPage = "kas" },
@@ -1655,7 +1665,7 @@ fun DashboardScreen(
                                 "MODAL BERJALAN" -> activeLedgerPage = "modal_berjalan"
                                 "KAS AKTIF" -> activeLedgerPage = "kas"
                                 "PROFIT BERSIH" -> activeLedgerPage = "profit"
-                                "TOTAL PENJUALAN" -> activeLedgerPage = "pemasukan"
+                                "TOTAL PENJUALAN" -> activeLedgerPage = "penjualan"
                                 "TOTAL PENGELUARAN" -> activeLedgerPage = "pengeluaran"
                                 "NILAI PERSEDIAAN" -> viewModel.setTab(AppTab.STOCK)
                                 "STOK AJIBQOBUL" -> viewModel.setTab(AppTab.STOCK)

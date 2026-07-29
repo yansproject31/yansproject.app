@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.yansproject.app.ui.*
+import com.yansproject.app.ui.analytics.AnalisisKeuanganGlobalScreen
 import com.yansproject.app.ui.navigation.Routes
 import com.yansproject.app.ui.invoice.DualInvoiceEditorScreen as ActionHubAndPdfModule
 import com.yansproject.app.ui.inventory.MatrixScreen as OmniverseMatrixModule
@@ -334,9 +335,8 @@ fun YansNavHost(
                 userRole = userRole,
                 onNavigateBack = { navController.popBackStack() }
             ) {
-                RiwayatTransaksiScreen(
+                AnalisisKeuanganGlobalScreen(
                     viewModel = viewModel,
-                    type = "ALL",
                     onBack = { navController.popBackStack() }
                 )
             }

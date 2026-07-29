@@ -115,6 +115,8 @@ class MemberViewModel : ViewModel() {
         displayName: String,
         priceCategory: String,
         role: String,
+        whatsapp: String = "",
+        address: String = "",
         onComplete: (Boolean, String) -> Unit
     ) {
         viewModelScope.launch {
@@ -126,7 +128,9 @@ class MemberViewModel : ViewModel() {
                     passwordOrPin,
                     displayName,
                     priceCategory,
-                    role
+                    role,
+                    whatsapp,
+                    address
                 )
                 if (result == "SUCCESS") {
                     loadMembers(context)

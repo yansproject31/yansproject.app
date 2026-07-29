@@ -133,7 +133,7 @@ fun BusinessIdentityModule(
                 OutlinedTextField(
                     value = storeName,
                     onValueChange = { storeName = it },
-                    label = { Text("Nama Toko / Instansi", color = TextNonActive) },
+                    label = { Text("Nama Perusahaan", color = TextNonActive) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
@@ -217,24 +217,27 @@ fun BusinessIdentityModule(
             border = BorderStroke(1.dp, DividerDarkCyanGray.copy(alpha = 0.3f))
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "LOGO RESMI INSTANSI",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = "LOGO RESMI PERUSAHAAN",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = AccentAgedGold,
-                    modifier = Modifier.align(Alignment.Start)
+                    textAlign = TextAlign.Center,
+                    letterSpacing = 1.sp
                 )
 
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(84.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(SecondaryShadowBlackTeal)
-                        .border(1.dp, DividerDarkCyanGray, RoundedCornerShape(12.dp)),
+                        .border(1.2.dp, AccentAgedGold.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -247,17 +250,18 @@ fun BusinessIdentityModule(
 
                 Text(
                     text = "Logo YANSPROJECT.ID Aktif",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
                 )
 
                 Text(
-                    text = "Logo digunakan secara konsisten pada seluruh dokumen invoice, slip proyek, cetak thermal, dan berkas branding resmi.",
-                    fontSize = 10.sp,
+                    text = "Logo digunakan secara konsisten pada seluruh dokumen invoice, slip proyek, cetak thermal, dan berkas branding resmi perusahaan.",
+                    fontSize = 11.sp,
                     color = TextNonActive,
                     textAlign = TextAlign.Center,
-                    lineHeight = 14.sp
+                    lineHeight = 15.sp
                 )
             }
         }

@@ -161,6 +161,8 @@ fun MemberManagementModule(
     var regName by remember { mutableStateOf("") }
     var regEmail by remember { mutableStateOf("") }
     var regPassword by remember { mutableStateOf("") }
+    var regWhatsapp by remember { mutableStateOf("") }
+    var regAddress by remember { mutableStateOf("") }
     var regPriceCategory by remember { mutableStateOf("Member") }
     var regLoading by remember { mutableStateOf(false) }
     var isPinVisible by remember { mutableStateOf(false) }
@@ -440,6 +442,50 @@ fun MemberManagementModule(
                             )
                         )
 
+                        OutlinedTextField(
+                            value = regWhatsapp,
+                            onValueChange = { regWhatsapp = it },
+                            label = { Text("Nomor WhatsApp Member") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Phone,
+                                    contentDescription = null,
+                                    tint = AccentAgedGold
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth().testTag("member_reg_whatsapp"),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = AccentAgedGold,
+                                unfocusedBorderColor = DividerDarkCyanGray.copy(alpha = 0.5f),
+                                focusedLabelColor = AccentAgedGold,
+                                unfocusedLabelColor = TextNonActive
+                            )
+                        )
+
+                        OutlinedTextField(
+                            value = regAddress,
+                            onValueChange = { regAddress = it },
+                            label = { Text("Alamat Lengkap Member") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Home,
+                                    contentDescription = null,
+                                    tint = AccentAgedGold
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth().testTag("member_reg_address"),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = AccentAgedGold,
+                                unfocusedBorderColor = DividerDarkCyanGray.copy(alpha = 0.5f),
+                                focusedLabelColor = AccentAgedGold,
+                                unfocusedLabelColor = TextNonActive
+                            )
+                        )
+
                         // Role Section: Read-Only MEMBER
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
@@ -564,7 +610,9 @@ fun MemberManagementModule(
                                     passwordOrPin = regPassword,
                                     displayName = regName.trim(),
                                     priceCategory = regPriceCategory,
-                                    role = "MEMBER"
+                                    role = "MEMBER",
+                                    whatsapp = regWhatsapp.trim(),
+                                    address = regAddress.trim()
                                 ) { success, msg ->
                                     regLoading = false
                                     if (success) {
@@ -572,6 +620,8 @@ fun MemberManagementModule(
                                         regName = ""
                                         regEmail = ""
                                         regPassword = ""
+                                        regWhatsapp = ""
+                                        regAddress = ""
                                         selectedTab = 1 // Switch to Directory Tab after success
                                         onSaveSuccess()
                                     } else {

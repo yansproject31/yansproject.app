@@ -68,8 +68,10 @@ class MemberRepository(private val context: Context) {
                             )
                             com.yansproject.app.ui.AppSettings.saveMemberPriceCategory(context, displayName, priceCategory)
 
-                            edit.putString("wa_$normalizedEmail", whatsapp)
+                            edit.putString("name_$normalizedEmail", displayName)
+                                .putString("wa_$normalizedEmail", whatsapp)
                                 .putString("address_$normalizedEmail", address)
+                                .putString("price_$normalizedEmail", priceCategory)
                                 .putLong("created_at_$normalizedEmail", createdAt)
                                 .putLong("last_login_$normalizedEmail", lastLogin)
                                 .putString("status_akun_$normalizedEmail", statusAkun)

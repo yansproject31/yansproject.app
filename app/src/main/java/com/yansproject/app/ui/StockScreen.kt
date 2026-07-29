@@ -239,11 +239,13 @@ fun StockScreen(
                     ) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = "Tambah Catalog")
                     }
-                } else if (memberCart.isNotEmpty()) {
+                } else if (!isOwner) {
                     BadgedBox(
                         badge = {
-                            Badge(containerColor = HighlightSoftCyan) {
-                                Text(text = memberCart.sumOf { it.qty }.toString(), color = ShadowBlack, fontWeight = FontWeight.Bold)
+                            if (memberCart.isNotEmpty()) {
+                                Badge(containerColor = HighlightSoftCyan) {
+                                    Text(text = memberCart.sumOf { it.qty }.toString(), color = ShadowBlack, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     ) {
