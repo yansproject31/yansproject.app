@@ -28,7 +28,7 @@ object AppSettings {
         getPrefs(context).edit().putString(KEY_LAST_SYNC, value).apply()
 
     fun getStoreName(context: Context): String =
-        getPrefs(context).getString("store_name", "") ?: ""
+        getPrefs(context).getString("store_name", "YANSPROJECT.ID") ?: "YANSPROJECT.ID"
 
     fun setStoreName(context: Context, value: String) =
         getPrefs(context).edit().putString("store_name", value).apply()
@@ -40,19 +40,19 @@ object AppSettings {
         getPrefs(context).edit().putString("store_logo", value).apply()
 
     fun getAddress(context: Context): String =
-        getPrefs(context).getString("store_address", "") ?: ""
+        getPrefs(context).getString("store_address", "TANGERANG, BANTEN") ?: "TANGERANG, BANTEN"
 
     fun setAddress(context: Context, value: String) =
         getPrefs(context).edit().putString("store_address", value).apply()
 
     fun getWhatsApp(context: Context): String =
-        getPrefs(context).getString("store_whatsapp", "") ?: ""
+        getPrefs(context).getString("store_whatsapp", "+62 877-7739-8813") ?: "+62 877-7739-8813"
 
     fun setWhatsApp(context: Context, value: String) =
         getPrefs(context).edit().putString("store_whatsapp", value).apply()
 
     fun getEmail(context: Context): String =
-        getPrefs(context).getString("store_email", "") ?: ""
+        getPrefs(context).getString("store_email", "yansart31@gmail.com") ?: "yansart31@gmail.com"
 
     fun setEmail(context: Context, value: String) =
         getPrefs(context).edit().putString("store_email", value).apply()
@@ -192,18 +192,18 @@ object AppSettings {
         getPrefs(context).edit().putFloat("custom_base_price", value.toFloat()).apply()
 
     fun getCustomSleeveLongPrice(context: Context): Double =
-        getPrefs(context).getFloat("custom_sleeve_long_price", 15000f).toDouble()
+        getPrefs(context).getFloat("custom_sleeve_long_price", 10000f).toDouble()
     fun setCustomSleeveLongPrice(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_sleeve_long_price", value.toFloat()).apply()
 
     // --- CUSTOM PROJECT HPP ERP CONFIG ---
     fun getCustomHppRegulerPendek(context: Context): Double =
-        getPrefs(context).getFloat("custom_hpp_reguler_pendek", 55000f).toDouble()
+        getPrefs(context).getFloat("custom_hpp_reguler_pendek", 67000f).toDouble()
     fun setCustomHppRegulerPendek(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_hpp_reguler_pendek", value.toFloat()).apply()
 
     fun getCustomHppRegulerPanjang(context: Context): Double =
-        getPrefs(context).getFloat("custom_hpp_reguler_panjang", 65000f).toDouble()
+        getPrefs(context).getFloat("custom_hpp_reguler_panjang", 77000f).toDouble()
     fun setCustomHppRegulerPanjang(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_hpp_reguler_panjang", value.toFloat()).apply()
 
@@ -369,18 +369,34 @@ object AppSettings {
         val createdBy: String = "SYSTEM"
     )
 
+    fun getDeletedNotificationIds(context: Context): Set<String> {
+        return getPrefs(context).getStringSet("deleted_notification_ids", emptySet()) ?: emptySet()
+    }
+
+    fun addDeletedNotificationId(context: Context, id: String) {
+        val current = getDeletedNotificationIds(context).toMutableSet()
+        current.add(id)
+        getPrefs(context).edit().putStringSet("deleted_notification_ids", current).apply()
+    }
+
+    fun clearDeletedNotificationIds(context: Context) {
+        getPrefs(context).edit().remove("deleted_notification_ids").apply()
+    }
+
     fun getNotifications(context: Context): List<AppNotification> {
         val jsonStr = getPrefs(context).getString("app_notifications", "[]") ?: "[]"
+        val deletedIds = getDeletedNotificationIds(context)
         val list = mutableListOf<AppNotification>()
         try {
             val array = org.json.JSONArray(jsonStr)
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
-                val isDel = obj.optBoolean("isDeleted", false) || obj.optBoolean("is_deleted", false)
-                if (!isDel) {
+                val id = obj.optString("id", "")
+                val isDel = obj.optBoolean("isDeleted", false) || obj.optBoolean("is_deleted", false) || deletedIds.contains(id)
+                if (!isDel && id.isNotEmpty()) {
                     list.add(
                         AppNotification(
-                            id = obj.optString("id", java.util.UUID.randomUUID().toString()),
+                            id = id,
                             title = obj.optString("title", ""),
                             message = obj.optString("message", ""),
                             timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
@@ -404,10 +420,11 @@ object AppSettings {
     }
 
     fun saveNotifications(context: Context, notifications: List<AppNotification>) {
+        val deletedIds = getDeletedNotificationIds(context)
         try {
             val array = org.json.JSONArray()
             for (n in notifications) {
-                if (n.isDeleted) continue
+                if (n.isDeleted || deletedIds.contains(n.id)) continue
                 val obj = org.json.JSONObject().apply {
                     put("id", n.id)
                     put("title", n.title)
@@ -433,6 +450,24 @@ object AppSettings {
 
     fun addNotification(
         context: Context,
+        notification: AppNotification
+    ) {
+        val deletedIds = getDeletedNotificationIds(context)
+        if (deletedIds.contains(notification.id)) return
+
+        val list = getNotifications(context).toMutableList()
+        val exists = list.any { 
+            it.id == notification.id || 
+            (it.title == notification.title && it.message == notification.message && Math.abs(it.timestamp - notification.timestamp) < 5000) 
+        }
+        if (!exists) {
+            list.add(notification)
+            saveNotifications(context, list)
+        }
+    }
+
+    fun addNotification(
+        context: Context,
         title: String,
         message: String,
         category: String,
@@ -440,25 +475,21 @@ object AppSettings {
         roleTarget: String = "ALL",
         userId: String = "ALL",
         priority: String = "MEDIUM",
-        createdBy: String = "SYSTEM"
+        createdBy: String = "SYSTEM",
+        id: String = java.util.UUID.randomUUID().toString()
     ) {
-        val list = getNotifications(context).toMutableList()
-        val exists = list.any { it.title == title && it.message == message && Math.abs(it.timestamp - System.currentTimeMillis()) < 5000 }
-        if (!exists) {
-            list.add(
-                AppNotification(
-                    title = title,
-                    message = message,
-                    category = category,
-                    targetTab = targetTab,
-                    roleTarget = roleTarget,
-                    userId = userId,
-                    priority = priority,
-                    createdBy = createdBy
-                )
-            )
-            saveNotifications(context, list)
-        }
+        val notif = AppNotification(
+            id = id,
+            title = title,
+            message = message,
+            category = category,
+            targetTab = targetTab,
+            roleTarget = roleTarget,
+            userId = userId,
+            priority = priority,
+            createdBy = createdBy
+        )
+        addNotification(context, notif)
     }
 }
 

@@ -53,6 +53,7 @@ fun CashFlowScreen(
     val currentBalance = totalInflow - totalExpense
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             com.yansproject.app.ui.components.YansTopAppBar(
                 title = "BUKU KAS & MUTASI",

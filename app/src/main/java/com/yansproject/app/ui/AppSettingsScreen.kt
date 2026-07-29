@@ -47,33 +47,39 @@ fun AppSettingsScreen(
     Scaffold(
         modifier = modifier.fillMaxSize().background(shadowBlack),
         containerColor = Color.Transparent,
-        topBar = {
-            com.yansproject.app.ui.components.YansTopAppBar(
-                title = "Pengaturan Umum & Sistem",
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (!navController.popBackStack()) {
-                            viewModel.setTab(AppTab.DASHBOARD)
-                        }
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = agedGold
-                        )
-                    }
-                }
-            )
-        }
+        contentWindowInsets = WindowInsets(0.dp)
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+            ) {
+                IconButton(onClick = {
+                    if (!navController.popBackStack()) {
+                        viewModel.setTab(AppTab.DASHBOARD)
+                    }
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Kembali",
+                        tint = agedGold
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Pengaturan Umum & Sistem",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
             Text(
                 text = "PENGATURAN UMUM",
                 fontSize = 11.sp,

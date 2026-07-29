@@ -3,16 +3,14 @@ package com.yansproject.app.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.yansproject.app.data.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class CashFlowViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,13 +36,57 @@ class CashFlowViewModel(application: Application) : AndroidViewModel(application
 
     private fun observeDatabaseCashFlow() {
         viewModelScope.launch {
-            appDb.inflowDao().getAllInflows().collect { dbInflows ->
-                _inflows.value = dbInflows.map { it.toOperationalPemasukan() }
+            combine(
+                appDb.inflowDao().getAllInflows(),
+                appDb.invoiceDao().getAllInvoices(),
+                appDb.invoicePaymentDao().getAllPayments()
+            ) { dbInflows, dbInvoices, dbPayments ->
+                val activeInflows = dbInflows.filter { !it.isDeleted }
+                val mappedInflows = activeInflows.map { it.toOperationalPemasukan() }.toMutableList()
+                val existingInflowNotes = activeInflows.map { (it.notes ?: "").uppercase() }
+
+                // Defensively include any legacy or imported invoice payments that do not have an Inflow record yet
+                dbInvoices.filter { inv ->
+                    !inv.isDeleted &&
+                    !(inv.status ?: "").equals("BATAL", ignoreCase = true) &&
+                    !(inv.status ?: "").equals("CANCELLED", ignoreCase = true)
+                }.forEach { inv ->
+                    val paymentsForInv = dbPayments.filter { p ->
+                        (p.invoiceId == inv.invoiceNumber && inv.invoiceNumber.isNotBlank()) ||
+                        p.invoiceId == inv.id.toString()
+                    }
+                    val paidSum = paymentsForInv
+                        .distinctBy { p -> p.id.ifEmpty { "${p.date}_${p.amount}_${p.paymentMethod}" } }
+                        .sumOf { p -> p.amount }
+                    val effectivePaid = maxOf(inv.paidAmount, paidSum)
+
+                    if (effectivePaid > 0.0) {
+                        val invKey = inv.invoiceNumber.uppercase().ifEmpty { "INV-${inv.id}" }
+                        val alreadyRecordedInInflows = existingInflowNotes.any { note -> note.contains(invKey) }
+                        if (!alreadyRecordedInInflows) {
+                            mappedInflows.add(
+                                OperationalPemasukan(
+                                    id = "INV-${inv.id}",
+                                    transactionNumber = inv.invoiceNumber.ifEmpty { "INV-${inv.id}" },
+                                    category = "Penjualan",
+                                    amount = effectivePaid,
+                                    date = inv.issueDate,
+                                    notes = "Pembayaran Invoice dari ${(inv.clientName ?: "").ifEmpty { "Pelanggan" }}",
+                                    paymentMethod = "Transfer / Cash"
+                                )
+                            )
+                        }
+                    }
+                }
+                mappedInflows.sortByDescending { it.date }
+                mappedInflows
+            }.collect { combinedInflows ->
+                _inflows.value = combinedInflows
             }
         }
         viewModelScope.launch {
             appDb.expenseDao().getAllExpenses().collect { dbExpenses ->
-                _expenses.value = dbExpenses.map { it.toOperationalPengeluaran() }
+                _expenses.value = dbExpenses.filter { !it.isDeleted }.map { it.toOperationalPengeluaran() }
             }
         }
     }
@@ -52,24 +94,24 @@ class CashFlowViewModel(application: Application) : AndroidViewModel(application
     private fun Inflow.toOperationalPemasukan(): OperationalPemasukan {
         return OperationalPemasukan(
             id = id.toString(),
-            transactionNumber = transactionNumber.ifEmpty { "INC-${id}" },
-            category = category,
-            amount = amount,
+            transactionNumber = (transactionNumber ?: "").ifEmpty { "INC-${id}" },
+            category = category ?: "Penjualan",
+            amount = if (amount > 0.0) amount else 0.0,
             date = date,
-            notes = notes,
-            paymentMethod = paymentMethod
+            notes = notes ?: "",
+            paymentMethod = paymentMethod ?: "Cash"
         )
     }
 
     private fun Expense.toOperationalPengeluaran(): OperationalPengeluaran {
         return OperationalPengeluaran(
             id = id.toString(),
-            transactionNumber = transactionNumber.ifEmpty { "EXP-${id}" },
-            category = category,
-            amount = amount,
+            transactionNumber = (transactionNumber ?: "").ifEmpty { "EXP-${id}" },
+            category = category ?: "Operasional",
+            amount = if (amount > 0.0) amount else 0.0,
             date = date,
-            notes = notes,
-            paymentMethod = paymentMethod
+            notes = notes ?: "",
+            paymentMethod = paymentMethod ?: "Cash"
         )
     }
 
@@ -80,14 +122,13 @@ class CashFlowViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Save to SQLite Room first (SSOT) via Repository, which automatically triggers asynchronous Cloud Sync
                 val inflowEntity = Inflow(
-                    category = inflow.category,
-                    amount = inflow.amount,
-                    date = inflow.date,
+                    category = inflow.category.ifBlank { "Penjualan" },
+                    amount = if (inflow.amount > 0.0) inflow.amount else 0.0,
+                    date = if (inflow.date > 0L) inflow.date else System.currentTimeMillis(),
                     notes = inflow.notes,
                     transactionNumber = inflow.transactionNumber,
-                    paymentMethod = inflow.paymentMethod,
+                    paymentMethod = inflow.paymentMethod.ifBlank { "Cash" },
                     createdBy = "Owner",
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis()
@@ -113,24 +154,23 @@ class CashFlowViewModel(application: Application) : AndroidViewModel(application
     fun recordExpense(expense: OperationalPengeluaran, onComplete: (Boolean, String) -> Unit) {
         val totalIn = _inflows.value.sumOf { it.amount }
         val totalOut = _expenses.value.sumOf { it.amount }
-        val currentBalance = totalIn - totalOut
+        val currentBalance = maxOf(0.0, totalIn - totalOut)
 
         if (currentBalance < expense.amount) {
-            onComplete(false, "Saldo Kas tidak mencukupi! Sisa Kas: Rp ${String.format("%,.0f", currentBalance)}")
+            onComplete(false, "Saldo Kas tidak mencukupi! Sisa Kas: ${FormatUtils.formatRupiah(currentBalance)}")
             return
         }
 
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Save to SQLite Room first (SSOT) via Repository, which automatically triggers asynchronous Cloud Sync
                 val expenseEntity = Expense(
-                    category = expense.category,
-                    amount = expense.amount,
-                    date = expense.date,
+                    category = expense.category.ifBlank { "Operasional" },
+                    amount = if (expense.amount > 0.0) expense.amount else 0.0,
+                    date = if (expense.date > 0L) expense.date else System.currentTimeMillis(),
                     notes = expense.notes,
                     transactionNumber = expense.transactionNumber,
-                    paymentMethod = expense.paymentMethod,
+                    paymentMethod = expense.paymentMethod.ifBlank { "Cash" },
                     createdBy = "Owner",
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis()

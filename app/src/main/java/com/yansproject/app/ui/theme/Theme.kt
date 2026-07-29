@@ -74,7 +74,7 @@ fun MyApplicationTheme(
     val canvasBackground = when(canvasStyleName) {
         "Pure Obsidian Black (#000000)" -> Color(0xFF000000)
         "Dark Slate Teal (#081F20)" -> Color(0xFF081F20)
-        else -> Color(0xFF0A0A0A)
+        else -> Color(0xFF071516)
     }
 
     val surfaceBg = when(themeVariant) {

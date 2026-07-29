@@ -10,23 +10,33 @@ import kotlin.jvm.JvmName
 // OFFICIAL YANSPROJECT.ID COLOR SYSTEM (VERSI 1.2.0)
 // ==========================================
 // Static base defaults for non-composable initializations
-val StaticDarkTealBase = Color(0xFF0A0A0A)
-val StaticDarkTealSurface = Color(0xFF112B2C)
-val StaticDarkTealSurfaceVariant = Color(0xFF163536)
+val StaticDarkTealBase = Color(0xFF071516)
+val StaticDarkTealSurface = Color(0xFF0F2E2F)
+val StaticDarkTealSurfaceVariant = Color(0xFF143B3C)
 val StaticAgedGold = Color(0xFFC6A15B)
 val StaticHighlightSoftCyan = Color(0xFF4FD1C5)
-val StaticPrimaryDarkTeal = Color(0xFF0F3D3E)
-val StaticSecondaryShadowBlackTeal = Color(0xFF081F20)
+val StaticPrimaryDarkTeal = Color(0xFF0D3738)
+val StaticSecondaryShadowBlackTeal = Color(0xFF082021)
 
 // Dynamic Compose Snapshot State holders for Theme Colors
-var dynamicShadowBlack by mutableStateOf(Color(0xFF0A0A0A))
-var dynamicDarkTealSurface by mutableStateOf(Color(0xFF112B2C))
-var dynamicCardDarkCard by mutableStateOf(Color(0xFF163536))
-var dynamicPrimaryDarkTeal by mutableStateOf(Color(0xFF0F3D3E))
-var dynamicSecondaryShadowBlackTeal by mutableStateOf(Color(0xFF081F20))
+var dynamicShadowBlack by mutableStateOf(Color(0xFF071516))
+var dynamicDarkTealSurface by mutableStateOf(Color(0xFF0F2E2F))
+var dynamicCardDarkCard by mutableStateOf(Color(0xFF143B3C))
+var dynamicPrimaryDarkTeal by mutableStateOf(Color(0xFF0D3738))
+var dynamicSecondaryShadowBlackTeal by mutableStateOf(Color(0xFF082021))
 var dynamicAgedGold by mutableStateOf(Color(0xFFC6A15B))
 var dynamicHighlightSoftCyan by mutableStateOf(Color(0xFF4FD1C5))
-var dynamicBorderGrey by mutableStateOf(Color(0xFF0F3D3E))
+var dynamicBorderGrey by mutableStateOf(Color(0xFF0D3738))
+
+// Public Brush for YANSPROJECT Luxury Gradient Canvas
+val YansCanvasGradient: androidx.compose.ui.graphics.Brush
+    get() = androidx.compose.ui.graphics.Brush.verticalGradient(
+        colors = listOf(
+            dynamicShadowBlack,
+            Color(0xFF051112),
+            Color(0xFF030A0B)
+        )
+    )
 
 // Public aliases forwarding to dynamic snapshot states
 val DarkTealBase: Color get() = dynamicShadowBlack

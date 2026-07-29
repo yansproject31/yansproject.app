@@ -68,48 +68,52 @@ fun AuditLogModuleScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "AUDIT LOG SISTEM",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = AgedGold,
-                        letterSpacing = 1.5.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = AgedGold
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { 
-                        viewModel.clearAuditLogs()
-                        Toast.makeText(context, "Seluruh log berhasil dibersihkan dari database lokal.", Toast.LENGTH_SHORT).show()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteOutline,
-                            contentDescription = "Bersihkan Log",
-                            tint = AlertRed
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = ShadowBlack)
-            )
-        }
+        contentWindowInsets = WindowInsets(0.dp)
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = modifier
                 .fillMaxSize()
                 .background(ShadowBlack)
                 .padding(paddingValues)
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Kembali",
+                        tint = AgedGold
+                    )
+                }
+                Text(
+                    text = "AUDIT LOG SISTEM",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = AgedGold,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { 
+                    viewModel.clearAuditLogs()
+                    Toast.makeText(context, "Seluruh log berhasil dibersihkan dari database lokal.", Toast.LENGTH_SHORT).show()
+                }) {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = "Bersihkan Log",
+                        tint = AlertRed
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
             if (auditLogs.isEmpty()) {
                 Column(
                     modifier = Modifier
@@ -252,4 +256,5 @@ fun AuditLogModuleScreen(
             }
         }
     }
+}
 }

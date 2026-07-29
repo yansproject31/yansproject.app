@@ -277,7 +277,7 @@ fun AboutScreen(
                     SystemInfoRow(label = "Nama Aplikasi", value = "YANSPROJECT.ID ERP")
                     SystemInfoRow(label = "Platform", value = "Android (Native OS)")
                     SystemInfoRow(label = "Database", value = "Firebase Cloud & SQLite Room v8")
-                    SystemInfoRow(label = "Versi Aplikasi", value = "1.1.0")
+                    SystemInfoRow(label = "Versi Aplikasi", value = "${com.yansproject.app.BuildConfig.VERSION_NAME} Stable")
                     
                     HorizontalDivider(color = DividerDarkCyanGray.copy(alpha = 0.4f))
                     

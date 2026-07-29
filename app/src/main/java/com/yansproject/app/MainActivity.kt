@@ -129,8 +129,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                     )
                   } else {
                     SessionTimeoutWrapper(
-                      isLoggedIn = true,
-                      onTimeout = { viewModel.logout() }
+                      isLoggedIn = true
                     ) {
                       MainAppContainer(
                         viewModel = viewModel,
@@ -161,7 +160,7 @@ fun SplashScreen() {
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(ShadowBlack),
+      .background(com.yansproject.app.ui.theme.YansCanvasGradient),
     contentAlignment = androidx.compose.ui.Alignment.Center
   ) {
     Column(
@@ -329,7 +328,7 @@ fun MainAppContainer(
     Box(
       modifier = Modifier
         .fillMaxSize()
-        .background(ShadowBlack)
+        .background(com.yansproject.app.ui.theme.YansCanvasGradient)
         .padding(if (currentTab == AppTab.KITAB || currentTab == AppTab.SETTINGS) PaddingValues(0.dp) else paddingValues)
     ) {
       com.yansproject.app.ui.navigation.YansNavHost(

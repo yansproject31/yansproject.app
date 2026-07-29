@@ -52,7 +52,7 @@ fun BusinessIdentityModule(
     var address by remember { mutableStateOf(dataAddress ?: addressDefaultValue) }
 
     val dataWhatsApp = try { AppSettings.getWhatsApp(context).ifBlank { null } } catch (e: Exception) { null }
-    val whatsappDefaultValue = "087777 3988 13"
+    val whatsappDefaultValue = "+62 877-7739-8813"
     var whatsapp by remember { mutableStateOf(dataWhatsApp ?: whatsappDefaultValue) }
 
     val dataEmail = try { AppSettings.getEmail(context).ifBlank { null } } catch (e: Exception) { null }
@@ -73,7 +73,7 @@ fun BusinessIdentityModule(
                 AppSettings.setAddress(context, "Tangerang, Banten")
             }
             if (AppSettings.getWhatsApp(context).isBlank()) {
-                AppSettings.setWhatsApp(context, "087777 3988 13")
+                AppSettings.setWhatsApp(context, "+62 877-7739-8813")
             }
             if (AppSettings.getEmail(context).isBlank()) {
                 AppSettings.setEmail(context, "yansart31@gmail.com")

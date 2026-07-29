@@ -59,7 +59,18 @@ fun MainScaffold(
 ) {
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    val savedFileEvent by viewModel.savedFileEvent.collectAsStateWithLifecycle()
     val hideHeaderAndBottomBar = currentTab == AppTab.KITAB || currentTab == AppTab.SETTINGS
+
+    if (savedFileEvent != null) {
+        val event = savedFileEvent!!
+        com.yansproject.app.ui.components.FileSavedSuccessDialog(
+            file = event.file,
+            folder = event.folder,
+            title = event.title,
+            onDismiss = { viewModel.dismissSavedFileDialog() }
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(

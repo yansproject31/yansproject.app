@@ -57,6 +57,7 @@ fun CustomProjectScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
                 title = {
@@ -68,6 +69,7 @@ fun CustomProjectScreen(
                         letterSpacing = 1.sp
                     )
                 },
+                windowInsets = WindowInsets(0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = DeepCarbonBlack
                 )

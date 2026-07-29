@@ -163,7 +163,8 @@ fun RiwayatScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0.dp)
     ) { innerPadding ->
         val isSyncing by viewModel.isSyncing.collectAsState()
         PullToRefreshBox(
@@ -186,7 +187,7 @@ fun RiwayatScreen(
                     .fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
             
             // --- Header ---
             Row(
@@ -224,9 +225,7 @@ fun RiwayatScreen(
                             } else {
                                 val csvFile = DataImportExportHelper.exportAjibqobulOrderHistoryToCsv(context, filteredInvoices)
                                 if (csvFile != null) {
-                                    viewModel.showGlobalSnackbar("Data riwayat (${filteredInvoices.size} transaksi) berhasil diekspor ke CSV.", "Bagikan") {
-                                        shareManager.shareLocalFile(csvFile, "Bagikan Cadangan CSV Riwayat AJIBQOBUL")
-                                    }
+                                    viewModel.showSavedFileDialog(csvFile, csvFile.parentFile ?: csvFile, "EKSPOR RIWAYAT ORDER TERSIMPAN")
                                     viewModel.addAuditLog("Ekspor CSV", "Membuat cadangan CSV ${filteredInvoices.size} riwayat transaksi AJIBQOBUL.")
                                 } else {
                                     Toast.makeText(context, "Gagal meng-ekspor data ke CSV", Toast.LENGTH_SHORT).show()

@@ -21,6 +21,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import java.io.File
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -274,111 +277,7 @@ fun SettingsScreen(
     Scaffold(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            if (subScreen != "info") {
-                TopAppBar(
-                    modifier = Modifier.statusBarsPadding(),
-                    title = {
-                        Column {
-                            Text(
-                                text = if (subScreen != null) {
-                                    when (subScreen) {
-                                        "identitas" -> "Identitas Bisnis & Brand"
-                                        "keuangan" -> "Keuangan & Rekening Bank"
-                                        "dokumen" -> "Invoice & Format Dokumen"
-                                        "member" -> "Manajemen Member & Pengguna"
-                                        "backup" -> "Pencadangan & Pemulihan Data"
-                                        "akun" -> "Pusat Akun & Profil"
-                                        "owner_center" -> "Pusat Kendali Owner"
-                                        "member_center" -> "Pusat Kendali Member"
-                                        "role_management" -> "Manajemen Role & Izin Akses"
-                                        "security" -> "Pusat Keamanan & Sandi"
-                                        "biometric" -> "Autentikasi Biometrik"
-                                        "erp_config" -> "Konfigurasi ERP & Penentuan Harga"
-                                        "notifications" -> "Pengaturan Notifikasi"
-                                        "db_sync" -> "Database & Sinkronisasi Cloud"
-                                        "storage" -> "Penyimpanan & Memori Cache"
-                                        "appearance" -> "Tampilan & Tema Visual"
-                                        "maintenance" -> "Pemeliharaan Sistem"
-                                        "dev_diag" -> "Diagnostik Pengembang"
-                                        else -> "Pusat Kontrol Sistem"
-                                    }
-                                } else {
-                                    if (isOwner) "Control Center (Owner)" else "System Settings (Member)"
-                                },
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = if (subScreen != null) "YANSPROJECT.ID • Konfigurasi" else "Operasional dan pemeliharaan sistem",
-                                fontSize = 10.sp,
-                                color = TextMuted
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = {
-                                val haptic = hapticFeedback
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                if (showAboutYansScreen) {
-                                    showAboutYansScreen = false
-                                } else if (showTrashScreen) {
-                                    showTrashScreen = false
-                                } else if (selectedInvoiceForDetail != null) {
-                                    selectedInvoiceForDetail = null
-                                } else if (selectedInvoiceForPayment != null) {
-                                    selectedInvoiceForPayment = null
-                                } else if (subScreen != null) {
-                                    if (navController != null && !navController.popBackStack()) {
-                                        viewModel.setTab(AppTab.DASHBOARD)
-                                    }
-                                } else {
-                                    viewModel.setTab(AppTab.DASHBOARD)
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ArrowBack,
-                                contentDescription = "Kembali",
-                                tint = AgedGold
-                            )
-                        }
-                    },
-                    actions = {
-                        if (isOwner && subScreen == null) {
-                            IconButton(
-                                onClick = {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    showSyncConfirmDialog = true
-                                },
-                                enabled = !isSyncing
-                            ) {
-                                if (isSyncing) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        color = HighlightSoftCyan,
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Sync,
-                                        contentDescription = "Sync Cloud",
-                                        tint = HighlightSoftCyan
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = ShadowBlack,
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = AgedGold
-                    )
-                )
-            }
-        }
+        contentWindowInsets = WindowInsets(0.dp)
     ) { innerPadding ->
         if (subScreen == null) {
             LazyColumn(
@@ -408,12 +307,59 @@ fun SettingsScreen(
                 )
             }
         } else {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                renderNestedSubScreen(
+                if (subScreen != "info") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = {
+                                val haptic = hapticFeedback
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                if (showAboutYansScreen) {
+                                    showAboutYansScreen = false
+                                } else if (showTrashScreen) {
+                                    showTrashScreen = false
+                                } else if (selectedInvoiceForDetail != null) {
+                                    selectedInvoiceForDetail = null
+                                } else if (selectedInvoiceForPayment != null) {
+                                    selectedInvoiceForPayment = null
+                                } else if (subScreen != null) {
+                                    if (navController != null && !navController.popBackStack()) {
+                                        viewModel.setTab(AppTab.DASHBOARD)
+                                    }
+                                } else {
+                                    viewModel.setTab(AppTab.DASHBOARD)
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ArrowBack,
+                                contentDescription = "Kembali",
+                                tint = AgedGold
+                            )
+                        }
+                        Text(
+                            text = "Kembali ke Pengaturan",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    renderNestedSubScreen(
                     subScreen = subScreen,
                     context = context,
                     coroutineScope = coroutineScope,
@@ -484,6 +430,7 @@ fun SettingsScreen(
                 )
             }
         }
+    }
     }
 
     // PIN Verification Dialog for maintenance locking
@@ -2054,7 +2001,7 @@ fun renderNestedSubScreen(
                                 onClick = {
                                     val file = DataImportExportHelper.exportStockToCsv(context, stocks, variants, catalogs, true)
                                     if (file != null) {
-                                        Toast.makeText(context, "Stok diekspor ke Excel: ${file.name}", Toast.LENGTH_LONG).show()
+                                        viewModel.showSavedFileDialog(file, file.parentFile ?: file, "EKSPOR STOK EXCEL BERHASIL")
                                         viewModel.addAuditLog("Ekspor Data", "Mengekspor stok quantity ke Excel: ${file.name}")
                                     } else {
                                         Toast.makeText(context, "Gagal ekspor stok!", Toast.LENGTH_SHORT).show()
@@ -2074,7 +2021,7 @@ fun renderNestedSubScreen(
                                 onClick = {
                                     val file = DataImportExportHelper.exportCatalogToCsv(context, catalogs, false)
                                     if (file != null) {
-                                        Toast.makeText(context, "Katalog diekspor ke CSV: ${file.name}", Toast.LENGTH_LONG).show()
+                                        viewModel.showSavedFileDialog(file, file.parentFile ?: file, "EKSPOR KATALOG CSV BERHASIL")
                                         viewModel.addAuditLog("Ekspor Data", "Mengekspor katalog ke CSV: ${file.name}")
                                     } else {
                                         Toast.makeText(context, "Gagal ekspor katalog!", Toast.LENGTH_SHORT).show()
@@ -2094,7 +2041,7 @@ fun renderNestedSubScreen(
                                 onClick = {
                                     val file = DataImportExportHelper.exportCustomersToCsv(context, projects, orders, false)
                                     if (file != null) {
-                                        Toast.makeText(context, "Customer diekspor: ${file.name}", Toast.LENGTH_LONG).show()
+                                        viewModel.showSavedFileDialog(file, file.parentFile ?: file, "EKSPOR PELANGGAN CSV BERHASIL")
                                         viewModel.addAuditLog("Ekspor Data", "Mengekspor customer ke CSV: ${file.name}")
                                     } else {
                                         Toast.makeText(context, "Gagal ekspor!", Toast.LENGTH_SHORT).show()
@@ -3442,6 +3389,7 @@ fun renderNestedSubScreen(
             var invoiceNotify by remember { mutableStateOf(prefs.getBoolean("invoice_notify", true)) }
             var memberNotify by remember { mutableStateOf(prefs.getBoolean("member_notify", true)) }
             var personalNotify by remember { mutableStateOf(prefs.getBoolean("personal_notify", true)) }
+            var broadcastNotify by remember { mutableStateOf(prefs.getBoolean("broadcast_notify", true)) }
 
             Column(
                 modifier = Modifier
@@ -3563,6 +3511,24 @@ fun renderNestedSubScreen(
 
                         HorizontalDivider(color = BorderGrey.copy(alpha = 0.2f), thickness = 0.5.dp)
 
+                        // Broadcast
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Broadcast & Pengumuman Owner", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("Pemberitahuan siaran langsung, promo, & pengumuman resmi Owner", fontSize = 11.sp, color = TextMuted)
+                            }
+                            Switch(
+                                checked = broadcastNotify,
+                                onCheckedChange = {
+                                    broadcastNotify = it
+                                    prefs.edit().putBoolean("broadcast_notify", it).apply()
+                                },
+                                colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
+                            )
+                        }
+
+                        HorizontalDivider(color = BorderGrey.copy(alpha = 0.2f), thickness = 0.5.dp)
+
                         // Personal
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -3649,7 +3615,30 @@ fun renderNestedSubScreen(
         }
 
         "storage" -> {
-            var cacheSizeStr by remember { mutableStateOf("1.42 MB") }
+            var refreshTrigger by remember { mutableStateOf(0) }
+            val rootDir: File = remember(refreshTrigger) { DocumentExporter.getRootDirectory(context) }
+            
+            val folders: List<File> = remember(refreshTrigger) {
+                listOf("Invoice", "Export", "Backup", "Catalog", "Project", "Report", "Log", "Import").map { sub ->
+                    val folder = File(rootDir, sub)
+                    if (!folder.exists()) folder.mkdirs()
+                    folder
+                }
+            }
+
+            var expandedFolderIndex by remember { mutableStateOf<Int?>(null) }
+
+            // Compute Total Stats
+            val totalFiles: Int = remember(refreshTrigger) {
+                folders.sumOf { f -> (f.listFiles() ?: emptyArray()).size }
+            }
+            val totalBytes: Long = remember(refreshTrigger) {
+                folders.sumOf { f -> (f.listFiles() ?: emptyArray()).sumOf { file -> file.length() } }
+            }
+            val formattedTotalSize: String = remember(totalBytes) {
+                if (totalBytes >= 1024L * 1024L) String.format(java.util.Locale.US, "%.2f MB", totalBytes.toDouble() / (1024.0 * 1024.0))
+                else String.format(java.util.Locale.US, "%.1f KB", totalBytes.toDouble() / 1024.0)
+            }
 
             Column(
                 modifier = Modifier
@@ -3658,39 +3647,203 @@ fun renderNestedSubScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Main Storage Overview Card
                 PremiumGlassCard(modifier = Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("PUSAT PENYIMPANAN SISTEM", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Database SQLite Room", fontSize = 12.sp, color = TextMuted)
-                            Text("512 KB", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("File PDF Hasil Ekspor", fontSize = 12.sp, color = TextMuted)
-                            Text("824 KB", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Penyimpanan Cache Aplikasi", fontSize = 12.sp, color = TextMuted)
-                            Text(cacheSizeStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = HighlightSoftCyan)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("AUDIT FOLDER PENYIMPANAN INTERNAL", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                                Text("Single Source of Truth • YANSPROJECT.ID", fontSize = 11.sp, color = HighlightSoftCyan)
+                            }
+                            Surface(
+                                color = AgedGold.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(20.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f))
+                            ) {
+                                Text(
+                                    text = "$totalFiles Berkas",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AgedGold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.1f), thickness = 0.8.dp)
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Root Directory:", fontSize = 11.sp, color = TextMuted)
+                            Text(rootDir.name, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                        Text(
+                            text = rootDir.absolutePath,
+                            fontSize = 10.sp,
+                            color = HighlightSoftCyan,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total Penggunaan Penyimpanan:", fontSize = 11.sp, color = TextMuted)
+                            Text(formattedTotalSize, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         Button(
                             onClick = {
-                                cacheSizeStr = "0.00 KB"
-                                Toast.makeText(context, "Penyimpanan cache ekspor PDF berhasil dibersihkan!", Toast.LENGTH_SHORT).show()
-                                viewModel.addAuditLog("Clear Cache Storage", "Membersihkan file cache ekspor sementara.")
+                                DocumentExporter.openFolder(context, rootDir)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = Color.Black),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth().height(45.dp)
                         ) {
-                            Text("BERSIHKAN CACHE & SAMPAH", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Icon(imageVector = Icons.Default.FolderOpen, contentDescription = "Folder", modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("LIHAT FOLDER DI FILE MANAGER HP", fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
                         }
                     }
+                }
+
+                Text("DAFTAR SUB-FOLDER TERVERIFIKASI", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+
+                // Subfolders list
+                folders.forEachIndexed { index, folder ->
+                    val filesList: List<File> = remember(refreshTrigger, folder) {
+                        (folder.listFiles() ?: emptyArray()).sortedByDescending { it.lastModified() }
+                    }
+                    val folderBytes: Long = remember(filesList) { filesList.sumOf { fileItem -> fileItem.length() } }
+                    val folderSizeStr: String = remember(folderBytes) {
+                        if (folderBytes >= 1024L * 1024L) String.format(java.util.Locale.US, "%.2f MB", folderBytes.toDouble() / (1024.0 * 1024.0))
+                        else String.format(java.util.Locale.US, "%.1f KB", folderBytes.toDouble() / 1024.0)
+                    }
+                    val isExpanded = expandedFolderIndex == index
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { expandedFolderIndex = if (isExpanded) null else index },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = DarkTealSurface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isExpanded) AgedGold else Color.White.copy(alpha = 0.1f))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Icon(
+                                        imageVector = Icons.Default.Folder,
+                                        contentDescription = "Folder",
+                                        tint = if (filesList.isNotEmpty()) AgedGold else TextMuted,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(folder.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                        Text("${filesList.size} file • $folderSizeStr", fontSize = 10.sp, color = TextMuted)
+                                    }
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = { DocumentExporter.openFolder(context, folder) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.OpenInNew, contentDescription = "Buka Folder", tint = HighlightSoftCyan, modifier = Modifier.size(18.dp))
+                                    }
+                                    Icon(
+                                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = "Expand",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            if (isExpanded) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.1f), thickness = 0.8.dp)
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                if (filesList.isEmpty()) {
+                                    Text("Belum ada file di folder ini.", fontSize = 11.sp, color = TextMuted, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                                } else {
+                                    filesList.forEach { fileItem ->
+                                        val fileDate = SimpleDateFormat("dd/MM/yy HH:mm", java.util.Locale.getDefault()).format(Date(fileItem.lastModified()))
+                                        val b = fileItem.length()
+                                        val fSize = if (b >= 1024L * 1024L) String.format(java.util.Locale.US, "%.1f MB", b.toDouble() / (1024.0 * 1024.0))
+                                        else String.format(java.util.Locale.US, "%.1f KB", b.toDouble() / 1024.0)
+
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.4f))
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(10.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(fileItem.name, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                    Text("$fSize • $fileDate", fontSize = 10.sp, color = AgedGold)
+                                                }
+
+                                                Row {
+                                                    IconButton(onClick = { DocumentExporter.openFile(context, fileItem) }, modifier = Modifier.size(28.dp)) {
+                                                        Icon(imageVector = Icons.Default.Visibility, contentDescription = "Lihat", tint = HighlightSoftCyan, modifier = Modifier.size(16.dp))
+                                                    }
+                                                    IconButton(onClick = { DocumentExporter.shareFile(context, fileItem) }, modifier = Modifier.size(28.dp)) {
+                                                        Icon(imageVector = Icons.Default.Share, contentDescription = "Bagikan", tint = AgedGold, modifier = Modifier.size(16.dp))
+                                                    }
+                                                    IconButton(
+                                                        onClick = {
+                                                            if (fileItem.delete()) {
+                                                                Toast.makeText(context, "File ${fileItem.name} berhasil dihapus.", Toast.LENGTH_SHORT).show()
+                                                                refreshTrigger++
+                                                            }
+                                                        },
+                                                        modifier = Modifier.size(28.dp)
+                                                    ) {
+                                                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Hapus", tint = Color.Red.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Refresh & Reset Structure Button
+                OutlinedButton(
+                    onClick = {
+                        DocumentExporter.initFolderStructure(context)
+                        refreshTrigger++
+                        Toast.makeText(context, "Struktur folder YANSPROJECT.ID berhasil diverifikasi & diperbarui!", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = HighlightSoftCyan),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, HighlightSoftCyan),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().height(45.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("VERIFIKASI STRUKTUR FOLDER INTERNAL", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                 }
             }
         }

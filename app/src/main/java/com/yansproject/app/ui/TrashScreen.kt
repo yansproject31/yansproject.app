@@ -69,7 +69,6 @@ fun TrashScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
                     .navigationBarsPadding()
             ) {
                 // Header

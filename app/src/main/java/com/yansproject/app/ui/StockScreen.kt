@@ -227,6 +227,7 @@ fun StockScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
             containerColor = MaterialTheme.colorScheme.background,
+            contentWindowInsets = WindowInsets(0.dp),
             floatingActionButton = {
                 if (isOwner) {
                     FloatingActionButton(
@@ -284,7 +285,7 @@ fun StockScreen(
                             .padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         // Header Row with Segmented Toggle and Multi-Select Bar
                         if (isMultiSelectModeCatalog) {
@@ -1506,6 +1507,7 @@ fun VarianWarnaListView(
         modifier = Modifier
             .fillMaxSize()
             .background(ShadowBlack),
+        contentWindowInsets = WindowInsets(0.dp),
         floatingActionButton = {
             if (isOwner && !isMultiSelectModeVariant) {
                 FloatingActionButton(
@@ -4828,7 +4830,7 @@ fun TotalTerjualDetailDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Summary Header Banner
+                // Summary Header Banner (5 Single Source of Truth Columns)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
                     border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f)),
@@ -4839,8 +4841,9 @@ fun TotalTerjualDetailDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        // Top Row: 3 Primary Volume Metrics
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -4852,7 +4855,7 @@ fun TotalTerjualDetailDialog(
                             }
                             Box(modifier = Modifier.width(1.dp).height(24.dp).background(BorderGrey))
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("TOTAL UNIT TERJUAL", fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                Text("TOTAL QUANTITY TERJUAL", fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold)
                                 Text("$totalSoldUnits Pcs", fontSize = 13.sp, color = HighlightSoftCyan, fontWeight = FontWeight.ExtraBold)
                             }
                             Box(modifier = Modifier.width(1.dp).height(24.dp).background(BorderGrey))
@@ -4862,19 +4865,20 @@ fun TotalTerjualDetailDialog(
                             }
                         }
                         HorizontalDivider(color = AgedGold.copy(alpha = 0.25f), thickness = 0.5.dp)
+                        // Bottom Row: 2 Settlement Metrics
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("TOTAL TERBAYAR:", fontSize = 10.sp, color = TextMuted, fontWeight = FontWeight.Bold)
-                                Text(FormatUtils.formatRupiah(totalPaid), fontSize = 11.sp, color = AlertGreen, fontWeight = FontWeight.Bold)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("TOTAL TERBAYAR", fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                Text(FormatUtils.formatRupiah(totalPaid), fontSize = 12.sp, color = AlertGreen, fontWeight = FontWeight.Bold)
                             }
-                            Box(modifier = Modifier.width(1.dp).height(16.dp).background(BorderGrey))
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("SISA PIUTANG:", fontSize = 10.sp, color = TextMuted, fontWeight = FontWeight.Bold)
-                                Text(FormatUtils.formatRupiah(totalRemaining), fontSize = 11.sp, color = AlertOrange, fontWeight = FontWeight.Bold)
+                            Box(modifier = Modifier.width(1.dp).height(20.dp).background(BorderGrey))
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("SISA TAGIHAN", fontSize = 9.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                Text(FormatUtils.formatRupiah(totalRemaining), fontSize = 12.sp, color = if (totalRemaining > 0) AlertOrange else AlertGreen, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -4952,7 +4956,9 @@ fun SoldTransactionCardItem(
     dateFormat: java.text.SimpleDateFormat,
     isOwner: Boolean
 ) {
-    val statusColor = when (tx.statusStr.uppercase().trim()) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    val statusColor = when ((tx.statusStr ?: "").uppercase().trim()) {
         "LUNAS", "PAID", "SELESAI", "COMPLETED" -> AlertGreen
         "DP", "SEBAGIAN", "DP PRODUKSI", "DP AWAL", "BELUM LUNAS", "PROSES", "APPROVED" -> AlertOrange
         "MENUNGGU PERSETUJUAN", "MENUNGGU APPROVAL", "PENDING" -> HighlightSoftCyan
@@ -4961,7 +4967,7 @@ fun SoldTransactionCardItem(
 
     Card(
         colors = CardDefaults.cardColors(containerColor = CardDarkCard),
-        border = BorderStroke(1.dp, BorderGrey),
+        border = BorderStroke(1.dp, if (isExpanded) HighlightSoftCyan.copy(alpha = 0.6f) else BorderGrey),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -4971,7 +4977,7 @@ fun SoldTransactionCardItem(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Header Row: Transaction No, Status Badge & Issue Date
+            // Header Row: Transaction No, Status Badge, Date & View Toggle Icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -4991,21 +4997,51 @@ fun SoldTransactionCardItem(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = tx.statusStr.uppercase(),
+                            text = (tx.statusStr ?: "PENDING").uppercase(),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             color = statusColor
                         )
                     }
                 }
-                Text(
-                    text = dateFormat.format(java.util.Date(tx.timestamp)),
-                    fontSize = 10.sp,
-                    color = TextMuted
-                )
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = dateFormat.format(java.util.Date(tx.timestamp)),
+                        fontSize = 10.sp,
+                        color = TextMuted
+                    )
+                    // View Invoice Items Toggle Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isExpanded) HighlightSoftCyan.copy(alpha = 0.2f) else SurfaceDarkTealSurface)
+                            .border(0.5.dp, if (isExpanded) HighlightSoftCyan else BorderGrey, RoundedCornerShape(6.dp))
+                            .clickable { isExpanded = !isExpanded }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isExpanded) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                contentDescription = if (isExpanded) "Sembunyikan Rincian" else "Lihat Rincian",
+                                tint = HighlightSoftCyan,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = if (isExpanded) "Tutup" else "Rincian",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = HighlightSoftCyan
+                            )
+                        }
+                    }
+                }
             }
 
-            // Buyer / Customer Info & Order Source Badge
+            // Global Buyer / Customer Info, WA & Order Category Badge
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -5014,7 +5050,7 @@ fun SoldTransactionCardItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(
                         imageVector = if (tx.isMemberOrder) Icons.Outlined.Person else Icons.Outlined.EditNote,
                         contentDescription = null,
@@ -5050,9 +5086,9 @@ fun SoldTransactionCardItem(
                                 )
                             }
                         }
-                        if (tx.clientPhone.isNotEmpty()) {
+                        if (tx.clientPhone.isNotBlank()) {
                             Text(
-                                text = "Telp/WA: ${tx.clientPhone}",
+                                text = "WA/Telp: ${tx.clientPhone}",
                                 fontSize = 10.sp,
                                 color = TextMuted
                             )
@@ -5065,66 +5101,15 @@ fun SoldTransactionCardItem(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "${tx.totalQuantityPcs} Pcs",
-                        fontSize = 11.sp,
+                        text = "Total Qty: ${tx.totalQuantityPcs} Pcs",
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = HighlightSoftCyan
                     )
                 }
             }
 
-            // Itemized Details
-            Text(text = "RINCIAN ITEM TRANSAKSI", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = AgedGold)
-
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                tx.itemsList.forEach { (itemDesc, qtyAndPrice) ->
-                    val (qty, price) = qtyAndPrice
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(CardGrey, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = itemDesc,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color.White
-                            )
-                            if (price > 0.0) {
-                                Text(
-                                    text = "@ ${FormatUtils.formatRupiah(price)}",
-                                    fontSize = 9.sp,
-                                    color = TextMuted
-                                )
-                            }
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "x $qty Pcs",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = HighlightSoftCyan
-                            )
-                            if (price > 0.0) {
-                                Text(
-                                    text = FormatUtils.formatRupiah(price * qty),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
-
-            // Payment Totals
+            // Global Payment Financial Summary
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -5146,7 +5131,7 @@ fun SoldTransactionCardItem(
                 if (tx.effectiveRemaining > 0.0) {
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "Sisa Piutang",
+                            text = "Sisa Tagihan",
                             fontSize = 9.sp,
                             color = TextMuted,
                             fontWeight = FontWeight.Bold
@@ -5171,6 +5156,80 @@ fun SoldTransactionCardItem(
                             fontWeight = FontWeight.Bold,
                             color = AlertGreen
                         )
+                    }
+                }
+            }
+
+            // Expandable Detailed Items View (Toggled on Demand via Eye/View Icon)
+            androidx.compose.animation.AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier.padding(top = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ReceiptLong,
+                            contentDescription = null,
+                            tint = AgedGold,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "RINCIAN ITEM TRANSAKSI (${tx.itemsList.size} Item)",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AgedGold
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        tx.itemsList.forEach { (itemDesc, qtyAndPrice) ->
+                            val (qty, price) = qtyAndPrice
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(CardGrey, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = itemDesc.ifBlank { "Item Produk" },
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.White
+                                    )
+                                    if (price > 0.0) {
+                                        Text(
+                                            text = "@ ${FormatUtils.formatRupiah(price)}",
+                                            fontSize = 9.sp,
+                                            color = TextMuted
+                                        )
+                                    }
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "x $qty Pcs",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = HighlightSoftCyan
+                                    )
+                                    if (price > 0.0) {
+                                        Text(
+                                            text = FormatUtils.formatRupiah(price * qty),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

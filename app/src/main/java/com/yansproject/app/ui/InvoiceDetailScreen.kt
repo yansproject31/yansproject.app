@@ -800,7 +800,7 @@ fun InvoiceDetailScreen(
                                 )
                                 val file = documentRenderer.generateInvoicePdf(operationalInvoice, invoiceItems)
                                 if (file != null) {
-                                    Toast.makeText(context, "Faktur PDF A4 berhasil diunduh ke Downloads!", Toast.LENGTH_LONG).show()
+                                    viewModel.showSavedFileDialog(file, file.parentFile ?: file, "FAKTUR INVOICE PDF TERSIMPAN")
                                     viewModel.addAuditLog("Unduh PDF", "Faktur Invoice ${invoice.invoiceNumber} berhasil dirender sebagai PDF.")
                                 } else {
                                     Toast.makeText(context, "Gagal merender PDF secara lokal!", Toast.LENGTH_SHORT).show()
@@ -841,7 +841,7 @@ fun InvoiceDetailScreen(
                                 )
                                 val file = documentRenderer.generateInvoicePng(operationalInvoice, invoiceItems)
                                 if (file != null) {
-                                    Toast.makeText(context, "Gambar Invoice PNG berhasil disimpan di Galeri / Pictures!", Toast.LENGTH_LONG).show()
+                                    viewModel.showSavedFileDialog(file, file.parentFile ?: file, "GAMBAR INVOICE PNG TERSIMPAN")
                                     viewModel.addAuditLog("Ekspor PNG", "Gambar Invoice ${invoice.invoiceNumber} disimpan ke Galeri.")
                                 } else {
                                     Toast.makeText(context, "Gagal merender PNG secara lokal!", Toast.LENGTH_SHORT).show()

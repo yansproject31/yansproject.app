@@ -116,8 +116,10 @@ fun RiwayatModalBerjalanScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().background(ShadowBlack),
         containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             CenterAlignedTopAppBar(
+                windowInsets = WindowInsets(0.dp),
                 title = {
                     Text(
                         text = "MODAL BERJALAN",
@@ -1224,8 +1226,15 @@ fun RiwayatKasScreen(
             )
         }
 
-        // Add general inflows
-        inflows.filter { !it.isDeleted }.forEach { inf ->
+        // Add general inflows (excluding invoice payment entries to avoid duplicate counting with invoice revenue)
+        inflows.filter { inf ->
+            !inf.isDeleted &&
+            !inf.category.contains("Pembayaran Invoice", ignoreCase = true) &&
+            !inf.category.contains("PENERIMAAN INVOICE", ignoreCase = true) &&
+            !inf.notes.contains("[PAY_", ignoreCase = true) &&
+            !inf.notes.contains("Pembayaran Invoice", ignoreCase = true) &&
+            !inf.transactionNumber.startsWith("PAY-", ignoreCase = true)
+        }.forEach { inf ->
             list.add(
                 CashTxItem(
                     id = "INF-${inf.id}",
@@ -1290,10 +1299,11 @@ fun RiwayatKasScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().background(ShadowBlack),
         containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 color = DarkGrey,
-                modifier = Modifier.fillMaxWidth().statusBarsPadding().height(64.dp)
+                modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -1643,42 +1653,74 @@ fun DetailProfitScreen(
     val sumLainnyaInflow = filteredInflows.filter { 
         it.category.contains("Lainnya", ignoreCase = true)
     }.sumOf { it.amount }
-    val sumManualSalesInflow = filteredInflows.filter { 
-        !it.category.contains("Modal", ignoreCase = true) &&
-        !it.category.contains("Lainnya", ignoreCase = true) &&
-        !it.category.contains("Pembayaran Customer", ignoreCase = true) &&
-        !it.notes.contains("[PAY_") &&
-        !it.notes.contains("Pembayaran Invoice")
+    val sumManualSalesInflow = filteredInflows.filter { inf ->
+        !inf.category.contains("Modal", ignoreCase = true) &&
+        !inf.category.contains("Lainnya", ignoreCase = true) &&
+        !inf.category.contains("Pembayaran Customer", ignoreCase = true) &&
+        !inf.category.contains("Pembayaran Invoice", ignoreCase = true) &&
+        !inf.category.contains("PENERIMAAN INVOICE", ignoreCase = true) &&
+        !inf.notes.contains("[PAY_", ignoreCase = true) &&
+        !inf.notes.contains("Pembayaran Invoice", ignoreCase = true) &&
+        !inf.transactionNumber.startsWith("PAY-", ignoreCase = true)
     }.sumOf { it.amount }
 
     val sumPenjualan = sumInvoiceRevenue + sumManualSalesInflow
     val sumPemasukanManual = sumModalInflow + sumLainnyaInflow
     val totalRevenue = sumPenjualan + sumPemasukanManual
 
-    val produksiDanAksesoriesAmt = filteredExps.filter { exp ->
+    val produksiAmt = filteredExps.filter { exp ->
         exp.category.contains("Produksi", ignoreCase = true) ||
         exp.category.contains("Sablon", ignoreCase = true) ||
-        exp.category.contains("Aksesories", ignoreCase = true) ||
-        exp.category.contains("Aksesoris", ignoreCase = true) ||
-        exp.category.contains("Packing", ignoreCase = true)
+        exp.category.contains("Bahan", ignoreCase = true) ||
+        exp.category.contains("Kaos", ignoreCase = true) ||
+        exp.category.contains("Kain", ignoreCase = true)
     }.sumOf { it.amount }
 
+    val aksesoriesAmt = filteredExps.filter { exp ->
+        exp.category.contains("Aksesories", ignoreCase = true) ||
+        exp.category.contains("Aksesoris", ignoreCase = true) ||
+        exp.category.contains("Packing", ignoreCase = true) ||
+        exp.category.contains("Sticker", ignoreCase = true) ||
+        exp.category.contains("Label", ignoreCase = true)
+    }.sumOf { it.amount }
+
+    val produksiDanAksesoriesAmt = produksiAmt + aksesoriesAmt
+
     val transportAmt = filteredExps.filter { exp ->
-        exp.category.contains("Transport", ignoreCase = true)
+        exp.category.contains("Transport", ignoreCase = true) ||
+        exp.category.contains("Bensin", ignoreCase = true) ||
+        exp.category.contains("Ongkir", ignoreCase = true) ||
+        exp.category.contains("Pengiriman", ignoreCase = true)
     }.sumOf { it.amount }
 
     val operasionalAmt = filteredExps.filter { exp ->
-        exp.category.contains("Operasional", ignoreCase = true)
+        exp.category.contains("Operasional", ignoreCase = true) ||
+        exp.category.contains("Listrik", ignoreCase = true) ||
+        exp.category.contains("Gaji", ignoreCase = true) ||
+        exp.category.contains("Sewa", ignoreCase = true) ||
+        exp.category.contains("Internet", ignoreCase = true)
     }.sumOf { it.amount }
 
     val lainnyaExpAmt = filteredExps.filter { exp ->
         !exp.category.contains("Produksi", ignoreCase = true) &&
         !exp.category.contains("Sablon", ignoreCase = true) &&
+        !exp.category.contains("Bahan", ignoreCase = true) &&
+        !exp.category.contains("Kaos", ignoreCase = true) &&
+        !exp.category.contains("Kain", ignoreCase = true) &&
         !exp.category.contains("Aksesories", ignoreCase = true) &&
         !exp.category.contains("Aksesoris", ignoreCase = true) &&
         !exp.category.contains("Packing", ignoreCase = true) &&
+        !exp.category.contains("Sticker", ignoreCase = true) &&
+        !exp.category.contains("Label", ignoreCase = true) &&
         !exp.category.contains("Transport", ignoreCase = true) &&
-        !exp.category.contains("Operasional", ignoreCase = true)
+        !exp.category.contains("Bensin", ignoreCase = true) &&
+        !exp.category.contains("Ongkir", ignoreCase = true) &&
+        !exp.category.contains("Pengiriman", ignoreCase = true) &&
+        !exp.category.contains("Operasional", ignoreCase = true) &&
+        !exp.category.contains("Listrik", ignoreCase = true) &&
+        !exp.category.contains("Gaji", ignoreCase = true) &&
+        !exp.category.contains("Sewa", ignoreCase = true) &&
+        !exp.category.contains("Internet", ignoreCase = true)
     }.sumOf { it.amount }
 
     val sumExpense = filteredExps.sumOf { it.amount }
@@ -1687,10 +1729,11 @@ fun DetailProfitScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().background(ShadowBlack),
         containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 color = DarkGrey,
-                modifier = Modifier.fillMaxWidth().statusBarsPadding().height(64.dp)
+                modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -1911,10 +1954,11 @@ fun RiwayatPiutangScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().background(ShadowBlack),
         containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 color = DarkGrey,
-                modifier = Modifier.fillMaxWidth().statusBarsPadding().height(64.dp)
+                modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -2198,110 +2242,139 @@ fun RiwayatTransaksiScreen(
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
 
-    // Unified List Assembly
+    // Unified List Assembly (Single Source of Truth without Duplication)
     val rawList = remember(type, currentModeTab, inflows, expenses, invoices, trashedInflows, trashedExpenses) {
         val list = mutableListOf<UnifiedTxItem>()
+        val existingInflowNotes = inflows.filter { !it.isDeleted }.map { (it.notes ?: "").uppercase() }
+
         if (currentModeTab == 0) { // Active Transaksi
             when (type) {
                 "INCOME" -> {
-                    inflows.forEach {
+                    inflows.filter { !it.isDeleted }.forEach {
                         val displayCat = when {
-                            it.category.contains("Modal", ignoreCase = true) -> "Modal"
-                            it.category.contains("Lainnya", ignoreCase = true) -> "Lainnya"
+                            (it.category ?: "").contains("Modal", ignoreCase = true) -> "Modal"
+                            (it.category ?: "").contains("Lainnya", ignoreCase = true) -> "Lainnya"
                             else -> "Penjualan"
                         }
                         list.add(
                             UnifiedTxItem(
                                 id = "INF-${it.id}",
                                 type = "INFLOW",
-                                docNumber = it.transactionNumber,
+                                docNumber = (it.transactionNumber ?: "").ifEmpty { "INC-${it.id}" },
                                 date = it.date,
-                                amount = it.amount,
+                                amount = if (it.amount > 0.0) it.amount else 0.0,
                                 category = displayCat,
-                                notes = it.notes,
-                                user = it.createdBy,
+                                notes = it.notes ?: "",
+                                user = (it.createdBy ?: "").ifEmpty { "Owner" },
                                 originalInflow = it
+                            )
+                        )
+                    }
+                    // Include legacy paid invoices only if not already recorded as Inflow entity
+                    invoices.filter { inv ->
+                        !inv.isDeleted && inv.paidAmount > 0.0 &&
+                        !(inv.status ?: "").equals("BATAL", ignoreCase = true) &&
+                        !(inv.status ?: "").equals("CANCELLED", ignoreCase = true) &&
+                        existingInflowNotes.none { note -> note.contains(inv.invoiceNumber.uppercase()) || (inv.id > 0 && note.contains("INV-${inv.id}")) }
+                    }.forEach { inv ->
+                        list.add(
+                            UnifiedTxItem(
+                                id = "INV-${inv.id}",
+                                type = "INFLOW",
+                                docNumber = inv.invoiceNumber.ifEmpty { "INV-${inv.id}" },
+                                date = inv.issueDate,
+                                amount = inv.paidAmount,
+                                category = "Penjualan",
+                                notes = "Pembayaran Invoice dari ${(inv.clientName ?: "").ifEmpty { "Pelanggan" }}",
+                                user = "System",
+                                originalInvoice = inv
                             )
                         )
                     }
                 }
                 "MODAL_AWAL" -> {
-                    inflows.filter { it.category.contains("Modal", ignoreCase = true) }.forEach {
+                    inflows.filter { !it.isDeleted && (it.category ?: "").contains("Modal", ignoreCase = true) }.forEach {
                         list.add(
                             UnifiedTxItem(
                                 id = "INF-${it.id}",
                                 type = "INFLOW",
-                                docNumber = it.transactionNumber,
+                                docNumber = (it.transactionNumber ?: "").ifEmpty { "INC-${it.id}" },
                                 date = it.date,
-                                amount = it.amount,
+                                amount = if (it.amount > 0.0) it.amount else 0.0,
                                 category = "Modal",
-                                notes = it.notes,
-                                user = it.createdBy,
+                                notes = it.notes ?: "",
+                                user = (it.createdBy ?: "").ifEmpty { "Owner" },
                                 originalInflow = it
                             )
                         )
                     }
                 }
                 "EXPENSE" -> {
-                    expenses.forEach {
+                    expenses.filter { !it.isDeleted }.forEach {
                         list.add(
                             UnifiedTxItem(
                                 id = "EXP-${it.id}",
                                 type = "EXPENSE",
-                                docNumber = it.transactionNumber,
+                                docNumber = (it.transactionNumber ?: "").ifEmpty { "EXP-${it.id}" },
                                 date = it.date,
-                                amount = it.amount,
-                                category = it.category,
-                                notes = it.notes,
-                                user = it.createdBy,
+                                amount = if (it.amount > 0.0) it.amount else 0.0,
+                                category = it.category ?: "Operasional",
+                                notes = it.notes ?: "",
+                                user = (it.createdBy ?: "").ifEmpty { "Owner" },
                                 originalExpense = it
                             )
                         )
                     }
                 }
                 "ALL" -> {
-                    inflows.forEach {
+                    inflows.filter { !it.isDeleted }.forEach {
                         list.add(
                             UnifiedTxItem(
                                 id = "INF-${it.id}",
                                 type = "INFLOW",
-                                docNumber = it.transactionNumber,
+                                docNumber = (it.transactionNumber ?: "").ifEmpty { "INC-${it.id}" },
                                 date = it.date,
-                                amount = it.amount,
-                                category = it.category,
-                                notes = it.notes,
-                                user = it.createdBy,
+                                amount = if (it.amount > 0.0) it.amount else 0.0,
+                                category = it.category ?: "Penjualan",
+                                notes = it.notes ?: "",
+                                user = (it.createdBy ?: "").ifEmpty { "Owner" },
                                 originalInflow = it
                             )
                         )
                     }
-                    expenses.forEach {
+                    expenses.filter { !it.isDeleted }.forEach {
                         list.add(
                             UnifiedTxItem(
                                 id = "EXP-${it.id}",
                                 type = "EXPENSE",
-                                docNumber = it.transactionNumber,
+                                docNumber = (it.transactionNumber ?: "").ifEmpty { "EXP-${it.id}" },
                                 date = it.date,
-                                amount = it.amount,
-                                category = it.category,
-                                notes = it.notes,
-                                user = it.createdBy,
+                                amount = if (it.amount > 0.0) it.amount else 0.0,
+                                category = it.category ?: "Operasional",
+                                notes = it.notes ?: "",
+                                user = (it.createdBy ?: "").ifEmpty { "Owner" },
                                 originalExpense = it
                             )
                         )
                     }
-                    invoices.filter { !it.isDeleted && it.paidAmount > 0 }.forEach {
+                    // Include legacy paid invoices ONLY if they don't already have a corresponding Inflow record
+                    invoices.filter { inv ->
+                        !inv.isDeleted && inv.paidAmount > 0.0 &&
+                        !(inv.status ?: "").equals("BATAL", ignoreCase = true) &&
+                        !(inv.status ?: "").equals("CANCELLED", ignoreCase = true) &&
+                        existingInflowNotes.none { note -> note.contains(inv.invoiceNumber.uppercase()) || (inv.id > 0 && note.contains("INV-${inv.id}")) }
+                    }.forEach { inv ->
                         list.add(
                             UnifiedTxItem(
-                                id = "INV-${it.id}",
-                                type = "INVOICE",
-                                docNumber = it.invoiceNumber,
-                                date = it.issueDate,
-                                amount = it.paidAmount,
+                                id = "INV-${inv.id}",
+                                type = "INFLOW",
+                                docNumber = inv.invoiceNumber.ifEmpty { "INV-${inv.id}" },
+                                date = inv.issueDate,
+                                amount = inv.paidAmount,
                                 category = "Penjualan",
-                                notes = "Pembayaran Invoice dari ${it.clientName}",
-                                user = "System (Invoice)",
-                                originalInvoice = it
+                                notes = "Pembayaran Invoice dari ${(inv.clientName ?: "").ifEmpty { "Pelanggan" }}",
+                                user = "System",
+                                originalInvoice = inv
                             )
                         )
                     }
@@ -2312,37 +2385,37 @@ fun RiwayatTransaksiScreen(
                 "INCOME" -> {
                     trashedInflows.forEach {
                         val displayCat = when {
-                            it.category.contains("Modal", ignoreCase = true) -> "Modal"
-                            it.category.contains("Lainnya", ignoreCase = true) -> "Lainnya"
+                            (it.category ?: "").contains("Modal", ignoreCase = true) -> "Modal"
+                            (it.category ?: "").contains("Lainnya", ignoreCase = true) -> "Lainnya"
                             else -> "Penjualan"
                         }
                         list.add(
                             UnifiedTxItem(
                                 id = "INF-${it.id}",
                                 type = "INFLOW",
-                                docNumber = it.transactionNumber,
+                                docNumber = (it.transactionNumber ?: "").ifEmpty { "INC-${it.id}" },
                                 date = it.date,
-                                amount = it.amount,
+                                amount = if (it.amount > 0.0) it.amount else 0.0,
                                 category = displayCat,
-                                notes = it.notes,
-                                user = it.createdBy,
+                                notes = it.notes ?: "",
+                                user = (it.createdBy ?: "").ifEmpty { "Owner" },
                                 originalInflow = it
                             )
                         )
                     }
                 }
                 "MODAL_AWAL" -> {
-                    trashedInflows.filter { it.category.contains("Modal", ignoreCase = true) }.forEach {
+                    trashedInflows.filter { (it.category ?: "").contains("Modal", ignoreCase = true) }.forEach {
                         list.add(
                             UnifiedTxItem(
                                 id = "INF-${it.id}",
                                 type = "INFLOW",
-                                docNumber = it.transactionNumber,
+                                docNumber = (it.transactionNumber ?: "").ifEmpty { "INC-${it.id}" },
                                 date = it.date,
-                                amount = it.amount,
+                                amount = if (it.amount > 0.0) it.amount else 0.0,
                                 category = "Modal",
-                                notes = it.notes,
-                                user = it.createdBy,
+                                notes = it.notes ?: "",
+                                user = (it.createdBy ?: "").ifEmpty { "Owner" },
                                 originalInflow = it
                             )
                         )
@@ -2354,12 +2427,12 @@ fun RiwayatTransaksiScreen(
                             UnifiedTxItem(
                                 id = "EXP-${it.id}",
                                 type = "EXPENSE",
-                                docNumber = it.transactionNumber,
+                                docNumber = (it.transactionNumber ?: "").ifEmpty { "EXP-${it.id}" },
                                 date = it.date,
-                                amount = it.amount,
-                                category = it.category,
-                                notes = it.notes,
-                                user = it.createdBy,
+                                amount = if (it.amount > 0.0) it.amount else 0.0,
+                                category = it.category ?: "Operasional",
+                                notes = it.notes ?: "",
+                                user = (it.createdBy ?: "").ifEmpty { "Owner" },
                                 originalExpense = it
                             )
                         )
@@ -2371,12 +2444,12 @@ fun RiwayatTransaksiScreen(
                             UnifiedTxItem(
                                 id = "INF-${it.id}",
                                 type = "INFLOW",
-                                docNumber = it.transactionNumber,
+                                docNumber = (it.transactionNumber ?: "").ifEmpty { "INC-${it.id}" },
                                 date = it.date,
-                                amount = it.amount,
-                                category = it.category,
-                                notes = it.notes,
-                                user = it.createdBy,
+                                amount = if (it.amount > 0.0) it.amount else 0.0,
+                                category = it.category ?: "Penjualan",
+                                notes = it.notes ?: "",
+                                user = (it.createdBy ?: "").ifEmpty { "Owner" },
                                 originalInflow = it
                             )
                         )
@@ -2386,12 +2459,12 @@ fun RiwayatTransaksiScreen(
                             UnifiedTxItem(
                                 id = "EXP-${it.id}",
                                 type = "EXPENSE",
-                                docNumber = it.transactionNumber,
+                                docNumber = (it.transactionNumber ?: "").ifEmpty { "EXP-${it.id}" },
                                 date = it.date,
-                                amount = it.amount,
-                                category = it.category,
-                                notes = it.notes,
-                                user = it.createdBy,
+                                amount = if (it.amount > 0.0) it.amount else 0.0,
+                                category = it.category ?: "Operasional",
+                                notes = it.notes ?: "",
+                                user = (it.createdBy ?: "").ifEmpty { "Owner" },
                                 originalExpense = it
                             )
                         )
@@ -2407,19 +2480,24 @@ fun RiwayatTransaksiScreen(
     // Advanced Filtering Logic
     val filteredList = remember(rawList, searchQuery, selectedDateRange, customStartDate, customEndDate, selectedCategoryFilter) {
         rawList.filter { item ->
+            val itemCat = item.category ?: ""
+            val itemDoc = item.docNumber ?: ""
+            val itemNotes = item.notes ?: ""
+            val itemUser = item.user ?: ""
+
             // Category filter
             val matchesCategory = if (selectedCategoryFilter == "Semua") {
                 true
             } else {
                 when (selectedCategoryFilter.uppercase().trim()) {
-                    "PRODUKSI" -> item.category.contains("Produksi", ignoreCase = true) || item.category.contains("Sablon", ignoreCase = true)
-                    "AKSESORIES", "AKSESORIS" -> item.category.contains("Aksesories", ignoreCase = true) || item.category.contains("Aksesoris", ignoreCase = true) || item.category.contains("Packing", ignoreCase = true)
-                    "TRANSPORT" -> item.category.contains("Transport", ignoreCase = true)
-                    "OPERASIONAL" -> item.category.contains("Operasional", ignoreCase = true)
-                    "LAINNYA" -> !item.category.contains("Produksi", ignoreCase = true) && !item.category.contains("Sablon", ignoreCase = true) && !item.category.contains("Aksesories", ignoreCase = true) && !item.category.contains("Aksesoris", ignoreCase = true) && !item.category.contains("Packing", ignoreCase = true) && !item.category.contains("Transport", ignoreCase = true) && !item.category.contains("Operasional", ignoreCase = true) && !item.category.contains("Modal", ignoreCase = true) && !item.category.contains("Penjualan", ignoreCase = true)
-                    "PENJUALAN" -> item.category.contains("Penjualan", ignoreCase = true) || item.category.contains("Pembayaran Customer", ignoreCase = true)
-                    "MODAL" -> item.category.contains("Modal", ignoreCase = true)
-                    else -> item.category.equals(selectedCategoryFilter, ignoreCase = true)
+                    "PRODUKSI" -> itemCat.contains("Produksi", ignoreCase = true) || itemCat.contains("Sablon", ignoreCase = true)
+                    "AKSESORIES", "AKSESORIS" -> itemCat.contains("Aksesories", ignoreCase = true) || itemCat.contains("Aksesoris", ignoreCase = true) || itemCat.contains("Packing", ignoreCase = true)
+                    "TRANSPORT" -> itemCat.contains("Transport", ignoreCase = true)
+                    "OPERASIONAL" -> itemCat.contains("Operasional", ignoreCase = true)
+                    "LAINNYA" -> !itemCat.contains("Produksi", ignoreCase = true) && !itemCat.contains("Sablon", ignoreCase = true) && !itemCat.contains("Aksesories", ignoreCase = true) && !itemCat.contains("Aksesoris", ignoreCase = true) && !itemCat.contains("Packing", ignoreCase = true) && !itemCat.contains("Transport", ignoreCase = true) && !itemCat.contains("Operasional", ignoreCase = true) && !itemCat.contains("Modal", ignoreCase = true) && !itemCat.contains("Penjualan", ignoreCase = true)
+                    "PENJUALAN" -> itemCat.contains("Penjualan", ignoreCase = true) || itemCat.contains("Pembayaran Customer", ignoreCase = true)
+                    "MODAL" -> itemCat.contains("Modal", ignoreCase = true)
+                    else -> itemCat.equals(selectedCategoryFilter, ignoreCase = true)
                 }
             }
 
@@ -2427,10 +2505,10 @@ fun RiwayatTransaksiScreen(
             val matchesSearch = if (searchQuery.trim().isEmpty()) {
                 true
             } else {
-                item.docNumber.contains(searchQuery, ignoreCase = true) ||
-                item.notes.contains(searchQuery, ignoreCase = true) ||
-                item.category.contains(searchQuery, ignoreCase = true) ||
-                item.user.contains(searchQuery, ignoreCase = true)
+                itemDoc.contains(searchQuery, ignoreCase = true) ||
+                itemNotes.contains(searchQuery, ignoreCase = true) ||
+                itemCat.contains(searchQuery, ignoreCase = true) ||
+                itemUser.contains(searchQuery, ignoreCase = true)
             }
 
             // Date period filter
@@ -2442,12 +2520,12 @@ fun RiwayatTransaksiScreen(
 
     // Dynamic Calculations
     val totalInflowVal = remember(filteredList) {
-        filteredList.filter { it.type == "INFLOW" || it.type == "INVOICE" }.sumOf { it.amount }
+        filteredList.filter { it.type == "INFLOW" || it.type == "INVOICE" }.sumOf { if (it.amount > 0.0) it.amount else 0.0 }
     }
     val totalExpenseVal = remember(filteredList) {
-        filteredList.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        filteredList.filter { it.type == "EXPENSE" }.sumOf { if (it.amount > 0.0) it.amount else 0.0 }
     }
-    val totalCashBalanceVal = totalInflowVal - totalExpenseVal
+    val totalCashBalanceVal = maxOf(0.0, totalInflowVal - totalExpenseVal)
 
     // Title selection
     val pageTitle = when (type) {
@@ -2463,6 +2541,7 @@ fun RiwayatTransaksiScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().background(ShadowBlack),
         containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0.dp),
         floatingActionButton = {
             if (currentModeTab == 0 && (type == "INCOME" || type == "EXPENSE" || type == "MODAL_AWAL")) {
                 FloatingActionButton(
@@ -2489,7 +2568,7 @@ fun RiwayatTransaksiScreen(
         topBar = {
             Surface(
                 color = DarkGrey,
-                modifier = Modifier.fillMaxWidth().statusBarsPadding().height(64.dp)
+                modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -2523,7 +2602,7 @@ fun RiwayatTransaksiScreen(
                                 }
                             }
                             if (file != null) {
-                                Toast.makeText(context, "Buku kas berhasil diekspor ke Documents:\n${file.name}", Toast.LENGTH_LONG).show()
+                                viewModel.showSavedFileDialog(file, file.parentFile ?: file, "EKSPOR BUKU KAS CSV TERSIMPAN")
                             } else {
                                 Toast.makeText(context, "Gagal mengekspor data.", Toast.LENGTH_SHORT).show()
                             }

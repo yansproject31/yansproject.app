@@ -638,6 +638,7 @@ fun YansTopAppBar(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    applyStatusBarsPadding: Boolean = false,
     navigationIcon: @Composable (() -> Unit)? = null,
     actions: @Composable (RowScope.() -> Unit)? = null
 ) {
@@ -656,7 +657,7 @@ fun YansTopAppBar(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding(),
+                .then(if (applyStatusBarsPadding) Modifier.statusBarsPadding() else Modifier),
             color = Color.Transparent,
             tonalElevation = 0.dp
         ) {

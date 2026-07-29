@@ -82,6 +82,7 @@ fun ActivityLogScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             com.yansproject.app.ui.components.YansTopAppBar(
                 title = "SECURITY AUDIT LOG",

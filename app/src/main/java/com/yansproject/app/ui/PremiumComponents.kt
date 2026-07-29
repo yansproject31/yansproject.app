@@ -371,8 +371,7 @@ fun SholawatMarqueeBanner(
                     Text(
                         text = "ﷺ",
                         color = AgedGold,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
                         fontFamily = premiumArabicFontFamily
                     )
                     Text(
@@ -399,15 +398,14 @@ fun SholawatMarqueeBanner(
                         text = sholawatLafadzUnit,
                         textStyle = androidx.compose.ui.text.TextStyle(
                             color = AgedGold,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
                             fontFamily = premiumArabicFontFamily,
                             shadow = androidx.compose.ui.graphics.Shadow(
-                                color = AgedGold.copy(alpha = 0.5f),
-                                blurRadius = 8f
+                                color = AgedGold.copy(alpha = 0.6f),
+                                blurRadius = 10f
                             )
                         ),
-                        speedDpPerSecond = 40.dp
+                        speedDpPerSecond = 35.dp
                     )
                 }
             }
@@ -446,8 +444,7 @@ fun SholawatMarqueeBanner(
                         Text(
                             text = "ﷺ",
                             color = AgedGold,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 32.sp,
                             fontFamily = premiumArabicFontFamily
                         )
                     }
@@ -463,15 +460,14 @@ fun SholawatMarqueeBanner(
                     Text(
                         text = "اَللّٰهُمَّ صَلِّ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ",
                         color = AgedGold,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 25.sp,
                         fontFamily = premiumArabicFontFamily,
                         textAlign = TextAlign.Center,
-                        lineHeight = 36.sp,
+                        lineHeight = 44.sp,
                         style = androidx.compose.ui.text.TextStyle(
                             shadow = androidx.compose.ui.graphics.Shadow(
-                                color = AgedGold.copy(alpha = 0.4f),
-                                blurRadius = 10f
+                                color = AgedGold.copy(alpha = 0.6f),
+                                blurRadius = 12f
                             )
                         )
                     )

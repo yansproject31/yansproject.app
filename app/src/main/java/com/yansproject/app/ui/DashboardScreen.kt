@@ -93,6 +93,7 @@ fun HeroCardSaldoKasUtama(
     totalPengeluaran: Double,
     isLoading: Boolean = false,
     onWalletClick: () -> Unit,
+    onMainBalanceClick: () -> Unit = {},
     onPemasukanClick: () -> Unit,
     onPengeluaranClick: () -> Unit
 ) {
@@ -141,7 +142,9 @@ fun HeroCardSaldoKasUtama(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
                 ) {
-                    Column {
+                    Column(
+                        modifier = Modifier.clickable(onClick = onMainBalanceClick)
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -227,7 +230,9 @@ fun HeroCardSaldoKasUtama(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.padding(horizontal = 24.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .clickable(onClick = onMainBalanceClick)
                     ) {
                         Text(
                             text = FormatUtils.formatRupiah(saldoKas),
@@ -1565,6 +1570,7 @@ fun DashboardScreen(
                                     navController.navigate(Routes.GlobalLedger)
                                 }
                             },
+                            onMainBalanceClick = { activeLedgerPage = "kas" },
                             onPemasukanClick = { activeLedgerPage = "pemasukan" },
                             onPengeluaranClick = { activeLedgerPage = "pengeluaran" }
                         )
@@ -1649,7 +1655,7 @@ fun DashboardScreen(
                                 "MODAL BERJALAN" -> activeLedgerPage = "modal_berjalan"
                                 "KAS AKTIF" -> activeLedgerPage = "kas"
                                 "PROFIT BERSIH" -> activeLedgerPage = "profit"
-                                "TOTAL PENJUALAN" -> viewModel.setTab(AppTab.INVOICE)
+                                "TOTAL PENJUALAN" -> activeLedgerPage = "pemasukan"
                                 "TOTAL PENGELUARAN" -> activeLedgerPage = "pengeluaran"
                                 "NILAI PERSEDIAAN" -> viewModel.setTab(AppTab.STOCK)
                                 "STOK AJIBQOBUL" -> viewModel.setTab(AppTab.STOCK)

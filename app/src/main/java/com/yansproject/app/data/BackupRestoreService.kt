@@ -150,16 +150,9 @@ class BackupRestoreService private constructor(private val context: Context) {
      * Prefers App Documents Directory on Scoped Storage to bypass runtime storage permissions entirely.
      */
     fun getSafeBackupDirectory(): File {
-        val externalFilesDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-        val parentDir = if (externalFilesDir != null) {
-            File(externalFilesDir, "YANSPROJECT.ID/Backup")
-        } else {
-            File(context.filesDir, "Backup")
-        }
-        if (!parentDir.exists()) {
-            parentDir.mkdirs()
-        }
-        return parentDir
+        val dir = com.yansproject.app.ui.DocumentExporter.getExportDirectory(context, "backup")
+        com.yansproject.app.ui.DocumentExporter.mirrorToDownloads(context, dir, "Backup")
+        return dir
     }
 
     /**

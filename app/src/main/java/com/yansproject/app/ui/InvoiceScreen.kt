@@ -192,6 +192,7 @@ fun InvoiceScreen(
     Scaffold(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0.dp),
         floatingActionButton = {
             if (isOwner) {
                 FloatingActionButton(
@@ -228,7 +229,7 @@ fun InvoiceScreen(
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // --- Header ---
                 Column {

@@ -19,9 +19,9 @@ object DataImportExportHelper {
 
     fun exportStockToCsv(context: Context, stocks: List<MasterStock>, variants: List<MasterVarianWarna>, catalogs: List<MasterCatalog>, useExcelFormat: Boolean = false): File? {
         try {
-            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir
+            val dir = DocumentExporter.getExportDirectory(context, "export")
             val ext = if (useExcelFormat) "xls" else "csv"
-            val file = File(dir, "YANS_EXKSPORT_STOK_${System.currentTimeMillis()}.$ext")
+            val file = File(dir, "YANS_EKSPORT_STOK_${System.currentTimeMillis()}.$ext")
             val delimiter = if (useExcelFormat) "\t" else ","
 
             file.bufferedWriter().use { writer ->
@@ -52,6 +52,7 @@ object DataImportExportHelper {
                     ).joinToString(delimiter) + "\n")
                 }
             }
+            DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
             e.printStackTrace()
@@ -61,7 +62,7 @@ object DataImportExportHelper {
 
     fun exportCatalogToCsv(context: Context, catalogs: List<MasterCatalog>, useExcelFormat: Boolean = false): File? {
         try {
-            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir
+            val dir = DocumentExporter.getExportDirectory(context, "catalog")
             val ext = if (useExcelFormat) "xls" else "csv"
             val file = File(dir, "YANS_EKSPORT_KATALOG_${System.currentTimeMillis()}.$ext")
             val delimiter = if (useExcelFormat) "\t" else ","
@@ -72,6 +73,7 @@ object DataImportExportHelper {
                     writer.write(listOf(it.id_catalog, it.nama_catalog, it.deskripsi, it.status).joinToString(delimiter) + "\n")
                 }
             }
+            DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
             e.printStackTrace()
@@ -81,7 +83,7 @@ object DataImportExportHelper {
 
     fun exportCustomersToCsv(context: Context, projects: List<ProjectCustom>, orders: List<OrderHistory>, useExcelFormat: Boolean = false): File? {
         try {
-            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir
+            val dir = DocumentExporter.getExportDirectory(context, "customer")
             val ext = if (useExcelFormat) "xls" else "csv"
             val file = File(dir, "YANS_EKSPORT_PELANGGAN_${System.currentTimeMillis()}.$ext")
             val delimiter = if (useExcelFormat) "\t" else ","
@@ -97,6 +99,7 @@ object DataImportExportHelper {
                     writer.write(listOf(name, phone).joinToString(delimiter) + "\n")
                 }
             }
+            DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
             e.printStackTrace()
@@ -106,7 +109,7 @@ object DataImportExportHelper {
 
     fun exportMembersToCsv(context: Context, members: Set<String>, useExcelFormat: Boolean = false): File? {
         try {
-            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir
+            val dir = DocumentExporter.getExportDirectory(context, "member")
             val ext = if (useExcelFormat) "xls" else "csv"
             val file = File(dir, "YANS_EKSPORT_MEMBER_${System.currentTimeMillis()}.$ext")
             val delimiter = if (useExcelFormat) "\t" else ","
@@ -318,7 +321,7 @@ object DataImportExportHelper {
 
     fun exportInflowsToCsv(context: Context, inflows: List<Inflow>, useExcelFormat: Boolean = false): File? {
         try {
-            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir
+            val dir = DocumentExporter.getExportDirectory(context, "finance")
             val ext = if (useExcelFormat) "xls" else "csv"
             val file = File(dir, "YANS_EKSPORT_PEMASUKAN_${System.currentTimeMillis()}.$ext")
             val delimiter = if (useExcelFormat) "\t" else ","
@@ -338,6 +341,7 @@ object DataImportExportHelper {
                     ).joinToString(delimiter) + "\n")
                 }
             }
+            DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
             e.printStackTrace()
@@ -347,7 +351,7 @@ object DataImportExportHelper {
 
     fun exportExpensesToCsv(context: Context, expenses: List<Expense>, useExcelFormat: Boolean = false): File? {
         try {
-            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir
+            val dir = DocumentExporter.getExportDirectory(context, "finance")
             val ext = if (useExcelFormat) "xls" else "csv"
             val file = File(dir, "YANS_EKSPORT_PENGELUARAN_${System.currentTimeMillis()}.$ext")
             val delimiter = if (useExcelFormat) "\t" else ","
@@ -367,6 +371,7 @@ object DataImportExportHelper {
                     ).joinToString(delimiter) + "\n")
                 }
             }
+            DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
             e.printStackTrace()
@@ -376,7 +381,7 @@ object DataImportExportHelper {
 
     fun exportCashLedgerToCsv(context: Context, transactions: List<UnifiedTxItem>, useExcelFormat: Boolean = false): File? {
         try {
-            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir
+            val dir = DocumentExporter.getExportDirectory(context, "finance")
             val ext = if (useExcelFormat) "xls" else "csv"
             val file = File(dir, "YANS_EKSPORT_BUKU_KAS_${System.currentTimeMillis()}.$ext")
             val delimiter = if (useExcelFormat) "\t" else ","
@@ -397,6 +402,7 @@ object DataImportExportHelper {
                     ).joinToString(delimiter) + "\n")
                 }
             }
+            DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
             e.printStackTrace()
@@ -406,7 +412,7 @@ object DataImportExportHelper {
 
     fun exportAjibqobulOrderHistoryToCsv(context: Context, invoices: List<Invoice>, useExcelFormat: Boolean = false): File? {
         try {
-            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir
+            val dir = DocumentExporter.getExportDirectory(context, "report")
             val ext = if (useExcelFormat) "xls" else "csv"
             val timeStamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
             val fileName = "YANS_RIWAYAT_AJIBQOBUL_$timeStamp.$ext"
@@ -463,15 +469,7 @@ object DataImportExportHelper {
                 }
             }
 
-            try {
-                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                if (!downloadsDir.exists()) downloadsDir.mkdirs()
-                val publicFile = File(downloadsDir, fileName)
-                file.copyTo(publicFile, overwrite = true)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-
+            DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
             e.printStackTrace()

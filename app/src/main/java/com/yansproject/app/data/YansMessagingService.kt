@@ -23,22 +23,7 @@ class YansMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         Log.d("YansMessagingService", "Received push notification from: ${remoteMessage.from}")
-
-        val data = remoteMessage.data
-        if (data.isNotEmpty()) {
-            val title = data["title"] ?: remoteMessage.notification?.title ?: "Notifikasi YANSPROJECT.ID"
-            val body = data["body"] ?: remoteMessage.notification?.body ?: "Sistem YANSPROJECT.ID"
-            val category = data["category"] ?: "Pembayaran"
-            val targetTab = data["targetTab"] ?: data["target_tab"] ?: "RIWAYAT"
-            
-            sendInboundNotification(title, body, category, targetTab)
-        } else {
-            remoteMessage.notification?.let {
-                val title = it.title ?: "Notifikasi YANSPROJECT.ID"
-                val body = it.body ?: ""
-                sendInboundNotification(title, body, "Sistem", "RIWAYAT")
-            }
-        }
+        com.yansproject.app.util.NotificationHandler.handleIncomingFcmMessage(this, remoteMessage)
     }
 
     private fun sendInboundNotification(

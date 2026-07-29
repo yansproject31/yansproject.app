@@ -347,6 +347,9 @@ interface InventorySummaryDao {
 
 @Dao
 interface InvoicePaymentDao {
+    @Query("SELECT * FROM invoice_payments ORDER BY date DESC")
+    fun getAllPayments(): Flow<List<InvoicePayment>>
+
     @Query("SELECT DISTINCT * FROM invoice_payments WHERE (invoiceId = :invoiceId OR (:invoiceNumber != '' AND invoiceId = :invoiceNumber)) AND id NOT LIKE '%_alt' ORDER BY date DESC")
     fun getPaymentsForInvoiceFlow(invoiceId: String, invoiceNumber: String = ""): Flow<List<InvoicePayment>>
 

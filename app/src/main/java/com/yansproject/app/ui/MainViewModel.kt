@@ -56,6 +56,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // --- Saved File Dialog Event ---
+    data class SavedFileEvent(
+        val file: java.io.File,
+        val folder: java.io.File = if (file.isDirectory) file else (file.parentFile ?: file),
+        val title: String = "BERHASIL TERSIMPAN DI PENYIMPANAN INTERNAL"
+    )
+
+    private val _savedFileEvent = MutableStateFlow<SavedFileEvent?>(null)
+    val savedFileEvent: StateFlow<SavedFileEvent?> = _savedFileEvent.asStateFlow()
+
+    fun showSavedFileDialog(file: java.io.File, folder: java.io.File = if (file.isDirectory) file else (file.parentFile ?: file), title: String = "BERHASIL TERSIMPAN DI PENYIMPANAN INTERNAL") {
+        _savedFileEvent.value = SavedFileEvent(file, folder, title)
+    }
+
+    fun dismissSavedFileDialog() {
+        _savedFileEvent.value = null
+    }
+
     // --- Authentication State ---
     val isLoggedIn: StateFlow<Boolean> = FirebaseSyncManager.currentUser
         .map { it != null }
@@ -394,17 +412,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             createdBy = createdBy
         )
         
-        // Save locally first
+        // Save locally first with exact same appNotification ID
         AppSettings.addNotification(
             getApplication(),
-            title = title,
-            message = message,
-            category = category,
-            targetTab = targetTab,
-            roleTarget = roleTarget,
-            userId = userId,
-            priority = priority,
-            createdBy = createdBy
+            appNotification
         )
         
         // Write to Firestore in cloud
@@ -435,15 +446,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearAllNotifications() {
         val current = _notifications.value
-        AppSettings.saveNotifications(getApplication(), emptyList())
-        _notifications.value = emptyList()
         current.forEach { item ->
+            AppSettings.addDeletedNotificationId(getApplication(), item.id)
             FirebaseSyncManager.deleteItemFromCloud("notifications", item.id)
             FirebaseSyncManager.deleteNotificationFromCloudPermanently(item.id)
         }
+        AppSettings.saveNotifications(getApplication(), emptyList())
+        _notifications.value = emptyList()
     }
 
     fun deleteNotification(id: String) {
+        AppSettings.addDeletedNotificationId(getApplication(), id)
         val current = _notifications.value.toMutableList()
         if (current.removeAll { it.id == id }) {
             AppSettings.saveNotifications(getApplication(), current)

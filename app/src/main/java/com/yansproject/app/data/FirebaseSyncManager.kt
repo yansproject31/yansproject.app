@@ -686,13 +686,15 @@ object FirebaseSyncManager {
                     for (doc in snapshots.documentChanges) {
                         try {
                             val item = doc.document.toObject(OrderHistory::class.java)
-                            when (doc.type) {
-                                com.google.firebase.firestore.DocumentChange.Type.ADDED,
-                                com.google.firebase.firestore.DocumentChange.Type.MODIFIED -> {
-                                    db.orderDao().insertOrder(item)
-                                }
-                                com.google.firebase.firestore.DocumentChange.Type.REMOVED -> {
-                                    db.orderDao().deleteOrder(item)
+                            if (item != null) {
+                                when (doc.type) {
+                                    com.google.firebase.firestore.DocumentChange.Type.ADDED,
+                                    com.google.firebase.firestore.DocumentChange.Type.MODIFIED -> {
+                                        db.orderDao().insertOrder(item)
+                                    }
+                                    com.google.firebase.firestore.DocumentChange.Type.REMOVED -> {
+                                        db.orderDao().deleteOrder(item)
+                                    }
                                 }
                             }
                         } catch (ex: Exception) {
@@ -1418,7 +1420,10 @@ object FirebaseSyncManager {
         try {
             val cleanEmail = userEmail.trim().lowercase()
             val sharedPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
-            val savedName = sharedPrefs.getString("saved_name", "") ?: ""
+            val savedName = sharedPrefs.getString("saved_name", "")?.trim()?.lowercase() ?: ""
+            val savedEmail = sharedPrefs.getString("saved_email", "")?.trim()?.lowercase() ?: ""
+            val shownSystemIds = sharedPrefs.getStringSet("shown_system_notif_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+
             return firestore?.collection("notifications")
                 ?.addSnapshotListener { snapshot, error ->
                     if (error != null) {
@@ -1426,9 +1431,14 @@ object FirebaseSyncManager {
                         return@addSnapshotListener
                     }
                     if (snapshot != null) {
+                        val deletedIds = AppSettings.getDeletedNotificationIds(context)
                         val list = mutableListOf<AppSettings.AppNotification>()
+                        val newSystemNotifsToPost = mutableListOf<AppSettings.AppNotification>()
+
                         for (doc in snapshot.documents) {
                             val id = doc.id
+                            if (deletedIds.contains(id)) continue
+
                             val title = doc.getString("title") ?: ""
                             val message = doc.getString("description") ?: doc.getString("message") ?: ""
                             val timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
@@ -1442,30 +1452,74 @@ object FirebaseSyncManager {
                             val isDeleted = doc.getBoolean("isDeleted") ?: doc.getBoolean("is_deleted") ?: false
                             val createdBy = doc.getString("createdBy") ?: "SYSTEM"
 
-                            val cleanTargetEmail = userId.trim().lowercase()
-                            val isForMe = (roleTarget == "ALL" || roleTarget.equals(userRole, ignoreCase = true)) &&
-                                          (userId == "ALL" || cleanTargetEmail.equals(cleanEmail, ignoreCase = true) || userId.trim().equals(savedName.trim(), ignoreCase = true))
+                            if (isDeleted) continue
 
-                            if (isForMe && !isArchived && !isDeleted) {
-                                list.add(
-                                    AppSettings.AppNotification(
-                                        id = id,
-                                        title = title,
-                                        message = message,
-                                        timestamp = timestamp,
-                                        category = category,
-                                        targetTab = targetTab,
-                                        isRead = isRead,
-                                        roleTarget = roleTarget,
-                                        userId = userId,
-                                        priority = priority,
-                                        isArchived = isArchived,
-                                        isDeleted = isDeleted,
-                                        createdBy = createdBy
+                            val catUpper = category.trim().uppercase()
+                            val isMemberRole = userRole.equals("MEMBER", ignoreCase = true)
+                            val cleanTargetUser = userId.trim().lowercase()
+
+                            // Strict Privacy Scope Rule for Member Role
+                            val isForMe = if (isMemberRole) {
+                                val isOrderOrInvoiceOrPaymentCategory = catUpper in setOf("INVOICE", "ORDER", "PESANAN", "PEMBAYARAN", "PAYMENT")
+                                if (isOrderOrInvoiceOrPaymentCategory) {
+                                    // Order & Payment/Invoice MUST explicitly match this member's email or name! NEVER show "ALL" or other members'
+                                    cleanTargetUser != "all" && (
+                                        cleanTargetUser == cleanEmail ||
+                                        cleanTargetUser == savedEmail ||
+                                        cleanTargetUser == savedName ||
+                                        cleanTargetUser.contains(savedName)
                                     )
+                                } else {
+                                    // Stock, Broadcast, Promotion, System alerts sent to ALL or MEMBER
+                                    (roleTarget == "ALL" || roleTarget.equals("MEMBER", ignoreCase = true)) &&
+                                    (userId == "ALL" || cleanTargetUser == cleanEmail || cleanTargetUser == savedEmail || cleanTargetUser == savedName)
+                                }
+                            } else {
+                                // Owner Role can see Owner alerts, Stock, System, and ALL broadcasts
+                                roleTarget == "ALL" || roleTarget.equals("OWNER", ignoreCase = true) || userId == "ALL"
+                            }
+
+                            if (isForMe && !isArchived) {
+                                val notif = AppSettings.AppNotification(
+                                    id = id,
+                                    title = title,
+                                    message = message,
+                                    timestamp = timestamp,
+                                    category = category,
+                                    targetTab = targetTab,
+                                    isRead = isRead,
+                                    roleTarget = roleTarget,
+                                    userId = userId,
+                                    priority = priority,
+                                    isArchived = isArchived,
+                                    isDeleted = false,
+                                    createdBy = createdBy
                                 )
+                                list.add(notif)
+
+                                // Trigger System Bar Notification if not yet posted and recent (within last 24h)
+                                if (!isRead && !shownSystemIds.contains(id) && (System.currentTimeMillis() - timestamp < 86400000L)) {
+                                    newSystemNotifsToPost.add(notif)
+                                    shownSystemIds.add(id)
+                                }
                             }
                         }
+
+                        // Persist updated shown system notif IDs
+                        sharedPrefs.edit().putStringSet("shown_system_notif_ids", shownSystemIds).apply()
+
+                        // Post Android status bar notifications for new incoming items
+                        newSystemNotifsToPost.forEach { item ->
+                            com.yansproject.app.util.SystemNotificationHelper.postSystemNotification(
+                                context = context,
+                                title = item.title,
+                                message = item.message,
+                                category = item.category,
+                                targetTab = item.targetTab,
+                                notificationId = item.id
+                            )
+                        }
+
                         onUpdate(list.sortedByDescending { it.timestamp })
                     }
                 }

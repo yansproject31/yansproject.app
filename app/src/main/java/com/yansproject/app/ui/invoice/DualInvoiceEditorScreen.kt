@@ -102,8 +102,10 @@ fun DualInvoiceEditorScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0.dp),
                 title = {
                     Text(
                         text = if (isCustomProject) "BUAT INVOICE CUSTOM" else "BUAT INVOICE STOCK",

@@ -30,9 +30,9 @@ object FontUtils {
         cachedArabicFontFamily?.let { return it }
 
         val assetFontNames = listOf(
-            "fonts/amiri_quran.ttf",
+            "fonts/aref_ruqaa_bold.ttf",
             "fonts/scheherazade_bold.ttf",
-            "fonts/aref_ruqaa_bold.ttf"
+            "fonts/amiri_quran.ttf"
         )
         var selectedTf: Typeface? = null
         for (assetPath in assetFontNames) {
@@ -45,7 +45,7 @@ object FontUtils {
             } catch (_: Exception) {}
         }
         if (selectedTf == null) {
-            val typefaces = listOf("serif-arabic", "sans-serif-arabic", "arabic", "amiri", "scheherazade", "cairo")
+            val typefaces = listOf("scheherazade", "amiri", "serif-arabic", "sans-serif-arabic", "arabic", "cairo")
             for (fontName in typefaces) {
                 try {
                     val tf = Typeface.create(fontName, Typeface.BOLD)
@@ -56,7 +56,8 @@ object FontUtils {
                 } catch (_: Exception) {}
             }
         }
-        val fontFamily = selectedTf?.let { FontFamily(it) } ?: FontFamily.Serif
+        val finalTf = selectedTf?.let { Typeface.create(it, Typeface.BOLD) } ?: Typeface.create(Typeface.SERIF, Typeface.BOLD)
+        val fontFamily = FontFamily(finalTf)
         cachedArabicFontFamily = fontFamily
         return fontFamily
     }
@@ -202,13 +203,28 @@ object FormatUtils {
 }
 
 object DocumentExporter {
-    fun initFolderStructure(context: Context) {
-        val parentDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
-        val folders = listOf("Invoice", "Export", "Backup", "Catalog", "Project", "Report", "Log")
-        try {
-            if (!parentDir.exists()) {
-                parentDir.mkdirs()
+    fun getRootDirectory(context: Context): File {
+        val publicDoc = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
+        return try {
+            if (!publicDoc.exists()) publicDoc.mkdirs()
+            if (publicDoc.exists() && publicDoc.canWrite()) {
+                publicDoc
+            } else {
+                val appDoc = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
+                if (!appDoc.exists()) appDoc.mkdirs()
+                appDoc
             }
+        } catch (e: Exception) {
+            val appDoc = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
+            if (!appDoc.exists()) appDoc.mkdirs()
+            appDoc
+        }
+    }
+
+    fun initFolderStructure(context: Context) {
+        val parentDir = getRootDirectory(context)
+        val folders = listOf("Invoice", "Export", "Backup", "Catalog", "Project", "Report", "Log", "Import")
+        try {
             folders.forEach { sub ->
                 val subDir = File(parentDir, sub)
                 if (!subDir.exists()) {
@@ -217,47 +233,38 @@ object DocumentExporter {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            // Fallback inside externalFilesDir
-            val fallbackParent = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
-            if (!fallbackParent.exists()) fallbackParent.mkdirs()
-            folders.forEach { sub ->
-                val subDir = File(fallbackParent, sub)
-                if (!subDir.exists()) subDir.mkdirs()
-            }
         }
     }
 
     fun getExportDirectory(context: Context, type: String): File {
         initFolderStructure(context)
-        val parentDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
+        val parentDir = getRootDirectory(context)
         val subFolderName = when (type.lowercase()) {
-            "invoice" -> "Invoice"
-            "backup" -> "Backup"
-            "export", "pdf", "png", "image" -> "Export"
-            "catalog" -> "Catalog"
-            "project" -> "Project"
-            "report" -> "Report"
-            "log" -> "Log"
+            "invoice", "invoices" -> "Invoice"
+            "backup", "backups", "db" -> "Backup"
+            "export", "exports", "csv", "excel", "xls", "stock", "customer", "member", "finance" -> "Export"
+            "catalog", "catalogs" -> "Catalog"
+            "project", "projects" -> "Project"
+            "report", "reports" -> "Report"
+            "log", "logs", "audit" -> "Log"
+            "import", "imports" -> "Import"
             else -> "Export"
         }
         val targetDir = File(parentDir, subFolderName)
+        if (!targetDir.exists()) targetDir.mkdirs()
+        return targetDir
+    }
+
+    fun mirrorToDownloads(context: Context, file: File, subFolder: String = "Export"): File? {
         return try {
-            if (!targetDir.exists()) {
-                targetDir.mkdirs()
-            }
-            if (targetDir.exists() && targetDir.canWrite()) {
-                targetDir
-            } else {
-                val fallbackParent = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
-                val fallbackTarget = File(fallbackParent, subFolderName)
-                if (!fallbackTarget.exists()) fallbackTarget.mkdirs()
-                fallbackTarget
-            }
+            val publicDownloads = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "YANSPROJECT.ID/$subFolder")
+            if (!publicDownloads.exists()) publicDownloads.mkdirs()
+            val dest = File(publicDownloads, file.name)
+            file.copyTo(dest, overwrite = true)
+            dest
         } catch (e: Exception) {
-            val fallbackParent = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
-            val fallbackTarget = File(fallbackParent, subFolderName)
-            if (!fallbackTarget.exists()) fallbackTarget.mkdirs()
-            fallbackTarget
+            e.printStackTrace()
+            null
         }
     }
 
@@ -266,7 +273,7 @@ object DocumentExporter {
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
-                folder
+                if (folder.isDirectory) folder else (folder.parentFile ?: folder)
             )
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "resource/folder")
@@ -276,7 +283,6 @@ object DocumentExporter {
             context.startActivity(intent)
         } catch (e: Exception) {
             try {
-                // Fallback to general storage
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     type = "*/*"
                     addCategory(Intent.CATEGORY_OPENABLE)
@@ -284,8 +290,51 @@ object DocumentExporter {
                 }
                 context.startActivity(intent)
             } catch (ex: Exception) {
-                Toast.makeText(context, "Tidak ada aplikasi File Manager yang kompatibel.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Membuka folder: ${folder.absolutePath}", Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    fun shareFile(context: Context, file: File, title: String = "Bagikan Berkas YANSPROJECT.ID") {
+        if (!file.exists()) {
+            Toast.makeText(context, "Berkas tidak ditemukan di penyimpanan.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val authority = "${context.packageName}.fileprovider"
+            val uri = androidx.core.content.FileProvider.getUriForFile(context, authority, file)
+            val mime = context.contentResolver.getType(uri) ?: "*/*"
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = mime
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val chooser = Intent.createChooser(intent, title).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Gagal membagikan berkas: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun openFile(context: Context, file: File) {
+        if (!file.exists()) {
+            Toast.makeText(context, "Berkas tidak ditemukan.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val authority = "${context.packageName}.fileprovider"
+            val uri = androidx.core.content.FileProvider.getUriForFile(context, authority, file)
+            val mime = context.contentResolver.getType(uri) ?: "*/*"
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mime)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Berkas tersimpan di: ${file.absolutePath}", Toast.LENGTH_LONG).show()
         }
     }
 

@@ -89,8 +89,8 @@ object EnterpriseBootstrapEngine {
                     val snapshot = firestore.collection(registry.collectionName).get().await()
                     downloadedData[registry] = snapshot.documents
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to download collection ${registry.collectionName}: ${e.message}")
-                    throw e
+                    Log.e(TAG, "Failed to download collection ${registry.collectionName} (falling back to empty list): ${e.message}")
+                    downloadedData[registry] = emptyList()
                 }
             }
 
@@ -123,23 +123,31 @@ object EnterpriseBootstrapEngine {
                     when (registry) {
                         CollectionRegistry.USERS -> {
                             for (doc in docs) {
-                                val email = doc.getString("email") ?: doc.id
-                                val passwordOrPin = doc.getString("passwordOrPin") ?: "1234"
-                                val displayName = doc.getString("displayName") ?: email
-                                val role = doc.getString("role") ?: "MEMBER"
-                                val priceCategory = doc.getString("priceCategory") ?: "Retail"
+                                try {
+                                    val email = doc.getString("email") ?: doc.get("email")?.toString() ?: doc.id
+                                    val passwordOrPin = doc.getString("passwordOrPin") ?: doc.get("passwordOrPin")?.toString() ?: "1234"
+                                    val displayName = doc.getString("displayName") ?: doc.get("displayName")?.toString() ?: email
+                                    val role = doc.getString("role") ?: doc.get("role")?.toString() ?: "MEMBER"
+                                    val priceCategory = doc.getString("priceCategory") ?: doc.get("priceCategory")?.toString() ?: "Retail"
 
-                                AppSettings.saveLocalUserCredential(context, email, passwordOrPin, displayName, role, priceCategory)
-                                if (role.equals("MEMBER", ignoreCase = true)) {
-                                    AppSettings.addMember(context, displayName)
+                                    AppSettings.saveLocalUserCredential(context, email, passwordOrPin, displayName, role, priceCategory)
+                                    if (role.equals("MEMBER", ignoreCase = true)) {
+                                        AppSettings.addMember(context, displayName)
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error parsing USER doc ${doc.id}: ${e.message}")
                                 }
                             }
                         }
                         CollectionRegistry.PROJECTS -> {
                             for (doc in docs) {
-                                val item = doc.toObject(ProjectCustom::class.java)
-                                if (item != null) {
-                                    db.projectDao().insertProject(item)
+                                try {
+                                    val item = doc.toObject(ProjectCustom::class.java)
+                                    if (item != null) {
+                                        db.projectDao().insertProject(item)
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error parsing PROJECT doc ${doc.id}: ${e.message}")
                                 }
                             }
                         }
