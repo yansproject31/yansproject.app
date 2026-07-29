@@ -218,7 +218,7 @@ fun DashboardMemberScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Sistem secara otomatis menyesuaikan katalog harga AJIBQOBUL series berdasarkan level otorisasi akun Anda.",
+                            text = "Sistem secara otomatis menyesuaikan katalog harga penawaran kaos, sablon, & custom series AJIBQOBUL berdasarkan level otorisasi akun Anda.",
                             fontSize = 11.sp,
                             color = TextSecondary.copy(alpha = 0.8f)
                         )
@@ -465,7 +465,7 @@ fun DashboardMemberScreen(
                                             color = Color.White
                                         )
                                         Text(
-                                            text = "Silakan jelajahi katalog AJIBQOBUL series untuk membuat pesanan baru.",
+                                            text = "Silakan jelajahi katalog kami untuk membuat pesanan baru.",
                                             fontSize = 10.sp,
                                             color = TextSecondary.copy(alpha = 0.6f)
                                         )

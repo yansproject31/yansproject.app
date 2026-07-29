@@ -311,7 +311,7 @@ fun SholawatMarqueeBanner(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val sholawatLafadzUnit = "۞   اَللّٰهُمَّ صَلِّ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ   "
+    val sholawatLafadzUnit = "   ۞   اَللّٰهُمَّ صَلِّ وَسَلِّمْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ   "
 
     val premiumArabicFontFamily = remember(context) {
         FontUtils.getPremiumArabicFontFamily(context)
@@ -460,7 +460,7 @@ fun SholawatMarqueeBanner(
                     Text(
                         text = "اَللّٰهُمَّ صَلِّ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ",
                         color = AgedGold,
-                        fontSize = 17.sp,
+                        fontSize = 25.sp,
                         fontFamily = premiumArabicFontFamily,
                         textAlign = TextAlign.Center,
                         lineHeight = 44.sp,
@@ -473,7 +473,7 @@ fun SholawatMarqueeBanner(
                     )
 
                     Text(
-                        text = "\"Siapapun yang suka memuji, menyanjung, dan membesarkan Rosulullah, setiap detik Maqomnya naik. Kedudukan dan Martabatnya di sisi Allah itu bertambah mulia setiap detiknya.\"\n\N- Abah Guru Sekumpul -",
+                        text = "\"Siapapun yang suka memuji, menyanjung, dan membesarkan Rosulullah, setiap detik Maqomnya naik. Kedudukan dan Martabatnya di sisi Allah itu bertambah mulia setiap detiknya.\"\nAbah Guru Sekumpul",
                         color = Color.White.copy(alpha = 0.85f),
                         fontSize = 13.sp,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
