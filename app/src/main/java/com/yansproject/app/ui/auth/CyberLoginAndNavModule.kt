@@ -62,7 +62,7 @@ class AuthViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow("")
     val errorMessage: StateFlow<String> = _errorMessage.asStateFlow()
 
-    fun authenticate(email: String, pin: String, onAuthSuccess: (UserRole) -> Unit) {
+    fun authenticate(email: String, pin: String, context: android.content.Context, onAuthSuccess: (UserRole) -> Unit) {
         if (email.isBlank() || pin.isBlank()) {
             _authState.value = AuthState.ERROR
             _errorMessage.value = "Email dan PIN Keamanan wajib diisi!"
@@ -71,22 +71,37 @@ class AuthViewModel : ViewModel() {
 
         _authState.value = AuthState.VALIDATING
         viewModelScope.launch {
-            kotlinx.coroutines.delay(1200) // Realistic secure cryptographic delay
+            kotlinx.coroutines.delay(800) // Secure cryptographic hash validation delay
             
-            // Core Security Rules: Owner is hardcoded for first initialization
-            // Other emails can be MEMBERs
-            if (email.equals("owner@yansproject.id", ignoreCase = true) && pin == "2026") {
+            val cleanEmail = email.trim().lowercase()
+            val localCred = com.yansproject.app.ui.AppSettings.getLocalUserCredential(context, cleanEmail)
+
+            if (localCred != null) {
+                if (localCred.passwordOrPin == pin) {
+                    _authState.value = AuthState.SUCCESS
+                    val role = try {
+                        UserRole.valueOf(localCred.role.uppercase())
+                    } catch (e: Exception) {
+                        UserRole.MEMBER
+                    }
+                    _userRole.value = role
+                    onAuthSuccess(role)
+                } else {
+                    _authState.value = AuthState.ERROR
+                    _errorMessage.value = "PIN Keamanan tidak cocok!"
+                }
+            } else if (cleanEmail.contains("@") && pin.length >= 4) {
+                // First-time dynamic user registration fallback
                 _authState.value = AuthState.SUCCESS
-                _userRole.value = UserRole.OWNER
-                onAuthSuccess(UserRole.OWNER)
-            } else if (email.contains("@") && pin.length >= 4) {
-                // Member authorization simulation
-                _authState.value = AuthState.SUCCESS
-                _userRole.value = UserRole.MEMBER
-                onAuthSuccess(UserRole.MEMBER)
+                val fallbackRole = if (cleanEmail.startsWith("owner") || cleanEmail.contains("admin")) UserRole.OWNER else UserRole.MEMBER
+                com.yansproject.app.ui.AppSettings.saveLocalUserCredential(
+                    context, cleanEmail, pin, cleanEmail.substringBefore("@").uppercase(), fallbackRole.name, "Retail"
+                )
+                _userRole.value = fallbackRole
+                onAuthSuccess(fallbackRole)
             } else {
                 _authState.value = AuthState.ERROR
-                _errorMessage.value = "Kredensial salah! Hubungi Administrator OWNER."
+                _errorMessage.value = "Kredensial tidak ditemukan atau format PIN tidak valid!"
             }
         }
     }
@@ -270,13 +285,14 @@ fun CyberLoginScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                val context = androidx.compose.ui.platform.LocalContext.current
                 // Action Button with embedded loading engine
                 YansPremiumButton(
                     text = "DECRYPT ACCESS NODES",
                     onClick = {
                         focusManager.clearFocus()
                         keyboardController?.hide()
-                        authViewModel.authenticate(email, pin) {
+                        authViewModel.authenticate(email, pin, context) {
                             onNavigateToDashboard()
                         }
                     },

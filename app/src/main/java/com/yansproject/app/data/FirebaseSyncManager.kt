@@ -160,7 +160,7 @@ object FirebaseSyncManager {
             // Background automatic sign-in to Firebase Auth to ensure cloud writes do not fail with PERMISSION_DENIED
             if (isFirebaseActive && auth != null && auth?.currentUser == null) {
                 val localCred = AppSettings.getLocalUserCredential(context, savedEmail)
-                val passwordOrPin = localCred?.passwordOrPin ?: if (savedEmail == "admin@yansproject.id") "yansadmin123" else null
+                val passwordOrPin = localCred?.passwordOrPin
                 if (passwordOrPin != null) {
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                         try {
@@ -169,24 +169,6 @@ object FirebaseSyncManager {
                             Log.d(TAG, "Successfully auto-logged in $savedEmail to Firebase Auth in background.")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to auto-log in $savedEmail to Firebase Auth: ${e.message}")
-                            if (savedEmail == "admin@yansproject.id") {
-                                try {
-                                    // Let's directly create user on primary auth if they don't exist
-                                    auth?.createUserWithEmailAndPassword("admin@yansproject.id", "yansadmin123")?.await()
-                                    val adminData = hashMapOf(
-                                        "email" to "admin@yansproject.id",
-                                        "role" to "OWNER",
-                                        "displayName" to "YANSPROJECT OWNER",
-                                        "priceCategory" to "Retail",
-                                        "passwordOrPin" to "yansadmin123",
-                                        "created_at" to System.currentTimeMillis()
-                                    )
-                                    firestore?.collection("users")?.document("admin@yansproject.id")?.set(adminData)?.await()
-                                    Log.d(TAG, "Successfully auto-registered admin@yansproject.id on primary auth in background.")
-                                } catch (ae: Exception) {
-                                    Log.e(TAG, "Failed to auto-register admin on primary auth in background: ${ae.message}")
-                                }
-                            }
                         }
                     }
                 }
@@ -289,58 +271,24 @@ object FirebaseSyncManager {
         val cleanInput = emailOrUsername.trim().lowercase()
         val targetEmail = if (cleanInput.contains("@")) cleanInput else "$cleanInput@yansproject.id"
         
-        // Root fallback credentials matching original admin behavior
-        if ((cleanInput == "admin" || cleanInput == "admin@yansproject.id") && passwordOrPin == "yansadmin123") {
+        // Dynamic user authentication against stored credential
+        val localCred = AppSettings.getLocalUserCredential(context, targetEmail)
+        if (localCred != null && localCred.passwordOrPin == passwordOrPin) {
             if (isFirebaseActive && auth != null) {
                 try {
-                    auth?.signInWithEmailAndPassword("admin@yansproject.id", "yansadmin123")?.await()
-                    Log.d(TAG, "Admin logged into Firebase Auth successfully. Verifying admin document exists in Firestore.")
-                    try {
-                        val adminDoc = firestore?.collection("users")?.document("admin@yansproject.id")?.get()?.await()
-                        if (adminDoc == null || !adminDoc.exists()) {
-                            val adminData = hashMapOf(
-                                "email" to "admin@yansproject.id",
-                                "role" to "OWNER",
-                                "displayName" to "YANSPROJECT OWNER",
-                                "priceCategory" to "Retail",
-                                "passwordOrPin" to "yansadmin123",
-                                "created_at" to System.currentTimeMillis()
-                            )
-                            firestore?.collection("users")?.document("admin@yansproject.id")?.set(adminData)?.await()
-                            Log.d(TAG, "Admin document created successfully during verification.")
-                        }
-                    } catch (fe: Exception) {
-                        Log.e(TAG, "Failed to verify/create admin document: ${fe.message}")
-                    }
+                    val fbPass = if (passwordOrPin.length < 6) "yans_$passwordOrPin" else passwordOrPin
+                    auth?.signInWithEmailAndPassword(targetEmail, fbPass)?.await()
+                    Log.d(TAG, "User logged into Firebase Auth successfully.")
                 } catch (e: Exception) {
-                    Log.w(TAG, "Admin sign-in failed, attempting direct registration: ${e.message}")
-                    try {
-                        // Register directly on the primary Auth instance
-                        auth?.createUserWithEmailAndPassword("admin@yansproject.id", "yansadmin123")?.await()
-                        
-                        val adminData = hashMapOf(
-                            "email" to "admin@yansproject.id",
-                            "role" to "OWNER",
-                            "displayName" to "YANSPROJECT OWNER",
-                            "priceCategory" to "Retail",
-                            "passwordOrPin" to "yansadmin123",
-                            "created_at" to System.currentTimeMillis()
-                        )
-                        firestore?.collection("users")?.document("admin@yansproject.id")?.set(adminData)?.await()
-                        Log.d(TAG, "Admin registered, signed in, and Firestore doc created successfully.")
-                    } catch (ae: Exception) {
-                        Log.e(TAG, "Failed to register admin in Firebase Auth: ${ae.message}")
-                        // If it failed because of no internet or timeout, we still let them login locally
-                    }
+                    Log.w(TAG, "Firebase Auth sign-in failed/offline: ${e.message}")
                 }
             }
-            saveSession(context, "admin@yansproject.id", UserRole.OWNER, "YANSPROJECT OWNER", "Retail")
+            val role = try { UserRole.valueOf(localCred.role.uppercase()) } catch (e: Exception) { UserRole.MEMBER }
+            saveSession(context, targetEmail, role, localCred.displayName, localCred.priceCategory)
             return true
         }
 
         // Try local credential cache fallback
-        val localCred = AppSettings.getLocalUserCredential(context, targetEmail)
-
         if (!isFirebaseActive) {
             if (localCred != null && localCred.passwordOrPin == passwordOrPin) {
                 val role = try { UserRole.valueOf(localCred.role) } catch (e: Exception) { UserRole.MEMBER }
@@ -498,10 +446,10 @@ object FirebaseSyncManager {
 
             // Robust defense: Re-authenticate primary Auth session if null or mismatched, prior to writing on Firestore
             if (isFirebaseActive && auth != null) {
-                val currentEmail = _currentUser.value?.email ?: "admin@yansproject.id"
+                val currentEmail = _currentUser.value?.email ?: "owner@yansproject.id"
                 if (auth?.currentUser == null || auth?.currentUser?.email?.lowercase() != currentEmail.lowercase()) {
                     val localCred = AppSettings.getLocalUserCredential(context, currentEmail)
-                    val pass = localCred?.passwordOrPin ?: if (currentEmail == "admin@yansproject.id") "yansadmin123" else null
+                    val pass = localCred?.passwordOrPin
                     if (pass != null) {
                         try {
                             val fbPass = if (pass.length < 6) "yans_$pass" else pass
@@ -555,10 +503,10 @@ object FirebaseSyncManager {
             Log.d(TAG, "Auth user collision for $cleanEmail. Attempting to ensure Firestore document exists anyway.")
             // Robust defense: Re-authenticate primary Auth session if null or mismatched, prior to writing on Firestore
             if (isFirebaseActive && auth != null) {
-                val currentEmail = _currentUser.value?.email ?: "admin@yansproject.id"
+                val currentEmail = _currentUser.value?.email ?: "owner@yansproject.id"
                 if (auth?.currentUser == null || auth?.currentUser?.email?.lowercase() != currentEmail.lowercase()) {
                     val localCred = AppSettings.getLocalUserCredential(context, currentEmail)
-                    val pass = localCred?.passwordOrPin ?: if (currentEmail == "admin@yansproject.id") "yansadmin123" else null
+                    val pass = localCred?.passwordOrPin
                     if (pass != null) {
                         try {
                             val fbPass = if (pass.length < 6) "yans_$pass" else pass

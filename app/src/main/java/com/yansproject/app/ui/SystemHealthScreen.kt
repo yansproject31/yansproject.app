@@ -178,13 +178,19 @@ fun SystemHealthScreen(
                     ) {
                         Column(
                             modifier = Modifier.clickable {
-                                developerTapCount++
-                                if (developerTapCount >= 13) {
-                                    developerTapCount = 0
-                                    navController.navigate("telemetry")
-                                    Toast.makeText(context, "Developer Mode: Telemetry Activated", Toast.LENGTH_SHORT).show()
-                                } else if (developerTapCount > 5) {
-                                    Toast.makeText(context, "Sisa ${13 - developerTapCount} ketukan lagi untuk diagnostik lanjut.", Toast.LENGTH_SHORT).show()
+                                val currentUser = com.yansproject.app.data.FirebaseSyncManager.currentUser.value
+                                val isOwner = currentUser?.role == com.yansproject.app.data.UserRole.OWNER || currentUser?.role == com.yansproject.app.data.UserRole.ADMIN
+                                if (isOwner) {
+                                    developerTapCount++
+                                    if (developerTapCount >= 13) {
+                                        developerTapCount = 0
+                                        navController.navigate("telemetry")
+                                        Toast.makeText(context, "Developer Mode: Telemetry Activated", Toast.LENGTH_SHORT).show()
+                                    } else if (developerTapCount > 5) {
+                                        Toast.makeText(context, "Sisa ${13 - developerTapCount} ketukan lagi untuk diagnostik lanjut.", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Akses Terbatas: Hanya OWNER/ADMIN yang berhak mengakses Mode Diagnostik Pengembang.", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         ) {

@@ -18,7 +18,6 @@ service cloud.firestore {
              request.auth.token != null && 
              'email' in request.auth.token && 
              (
-               request.auth.token.email == 'admin@yansproject.id' || 
                request.auth.token.email == 'yansart31@gmail.com' || 
                (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
                 get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'OWNER')

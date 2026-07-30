@@ -748,8 +748,9 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val savedPass = AppSettings.getLocalUserCredential(context, currentUser?.email ?: "admin@yansproject.id")?.passwordOrPin ?: "yansadmin123"
-                        if (pinInput == savedPass || pinInput == "yansadmin123") {
+                        val activeEmail = currentUser?.email ?: "owner@yansproject.id"
+                        val savedPass = AppSettings.getLocalUserCredential(context, activeEmail)?.passwordOrPin
+                        if (savedPass != null && pinInput == savedPass) {
                             isSystemUnlocked = true
                             showPinDialog = false
                             pinError = false

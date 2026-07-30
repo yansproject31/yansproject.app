@@ -283,10 +283,11 @@ fun AdminProfileScreen(
                             success = FirebaseSyncManager.changePasswordOnCloud(password)
                         }
                         if (success) {
+                            val existingPass = AppSettings.getLocalUserCredential(context, email)?.passwordOrPin ?: ""
                             AppSettings.saveLocalUserCredential(
                                 context,
                                 email,
-                                if (password.isNotEmpty()) password else "yansadmin123",
+                                if (password.isNotEmpty()) password else existingPass,
                                 name,
                                 "OWNER",
                                 "Retail"

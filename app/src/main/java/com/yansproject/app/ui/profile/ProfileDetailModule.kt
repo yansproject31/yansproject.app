@@ -397,7 +397,7 @@ fun ProfileDetailModule(
                                         } else {
                                             // Member update: Sync with Member Management
                                             val localCred = AppSettings.getLocalUserCredential(context, cleanSaveEmail)
-                                            val pin = localCred?.passwordOrPin ?: "2026"
+                                            val pin = localCred?.passwordOrPin ?: ""
                                             
                                             AppSettings.saveLocalUserCredential(
                                                 context, cleanSaveEmail, pin, editName.trim(), "MEMBER", activeTierState

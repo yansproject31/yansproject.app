@@ -1653,18 +1653,14 @@ fun AppLockScreen(
 
                     Button(
                         onClick = {
-                            val savedPass = AppSettings.getLocalUserCredential(context, FirebaseSyncManager.currentUser.value?.email ?: "")?.passwordOrPin
-                            val isValid = pinInput.isNotEmpty() && (
-                                (savedPass != null && pinInput == savedPass) ||
-                                pinInput == "admin123" || pinInput == "yansadmin123" ||
-                                pinInput == "member123" || pinInput == "123456" || pinInput == "1234" ||
-                                savedPass.isNullOrEmpty()
-                            )
+                            val activeEmail = FirebaseSyncManager.currentUser.value?.email ?: ""
+                            val savedPass = AppSettings.getLocalUserCredential(context, activeEmail)?.passwordOrPin
+                            val isValid = pinInput.isNotEmpty() && savedPass != null && pinInput == savedPass
                             if (isValid) {
                                 viewModel.addAuditLog("App Lock Terbuka (PIN)", "Pemilik sukses membuka App Lock menggunakan verifikasi PIN.")
                                 onUnlockSuccess()
                             } else {
-                                errorMessage = "PIN Keamanan atau Password salah! (Atau gunakan PIN default 'admin123')"
+                                errorMessage = "PIN Keamanan atau Password salah! Periksa kredensial akun Anda."
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack),
