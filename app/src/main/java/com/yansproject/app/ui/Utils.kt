@@ -30,9 +30,9 @@ object FontUtils {
         cachedArabicFontFamily?.let { return it }
 
         val assetFontNames = listOf(
-            "fonts/aref_ruqaa_bold.ttf",
             "fonts/scheherazade_bold.ttf",
-            "fonts/amiri_quran.ttf"
+            "fonts/amiri_quran.ttf",
+            "fonts/aref_ruqaa_bold.ttf"
         )
         var selectedTf: Typeface? = null
         for (assetPath in assetFontNames) {
@@ -56,7 +56,7 @@ object FontUtils {
                 } catch (_: Exception) {}
             }
         }
-        val finalTf = selectedTf?.let { Typeface.create(it, Typeface.BOLD) } ?: Typeface.create(Typeface.SERIF, Typeface.BOLD)
+        val finalTf = selectedTf ?: Typeface.create(Typeface.SERIF, Typeface.BOLD)
         val fontFamily = FontFamily(finalTf)
         cachedArabicFontFamily = fontFamily
         return fontFamily

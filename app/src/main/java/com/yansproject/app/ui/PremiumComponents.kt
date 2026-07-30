@@ -311,7 +311,7 @@ fun SholawatMarqueeBanner(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val sholawatLafadzUnit = "   ۞   اَللّٰهُمَّ صَلِّ وَسَلِّمْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ   "
+    val sholawatLafadzUnit = "   ۞     اَللّٰهُمَّ صَلِّ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ     "
 
     val premiumArabicFontFamily = remember(context) {
         FontUtils.getPremiumArabicFontFamily(context)
@@ -398,7 +398,7 @@ fun SholawatMarqueeBanner(
                         text = sholawatLafadzUnit,
                         textStyle = androidx.compose.ui.text.TextStyle(
                             color = AgedGold,
-                            fontSize = 20.sp,
+                            fontSize = 17.sp,
                             fontFamily = premiumArabicFontFamily,
                             shadow = androidx.compose.ui.graphics.Shadow(
                                 color = AgedGold.copy(alpha = 0.6f),
@@ -473,7 +473,7 @@ fun SholawatMarqueeBanner(
                     )
 
                     Text(
-                        text = "\"Siapapun yang suka memuji, menyanjung, dan membesarkan Rosulullah, setiap detik Maqomnya naik. Kedudukan dan Martabatnya di sisi Allah itu bertambah mulia setiap detiknya.\"\nAbah Guru Sekumpul",
+                        text = "\"Siapapun yang suka memuji, menyanjung, dan membesarkan Rosulullah, setiap detik Maqomnya naik. Kedudukan dan Martabatnya di sisi Allah itu bertambah mulia setiap detiknya.\"\n\n- Abah Guru Sekumpul -",
                         color = Color.White.copy(alpha = 0.85f),
                         fontSize = 13.sp,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
@@ -483,7 +483,7 @@ fun SholawatMarqueeBanner(
                     HorizontalDivider(color = CardGrey, thickness = 1.dp)
 
                     Text(
-                        text = "Semoga Keberkahan, Kejayaan, dan Keselamatan Senantiasa Menyertai YANSPROJECT.ID & Ashab AJIBQOBUL.",
+                        text = "Semoga Keberkahan, dan Keselamatan Senantiasa Menyertai YANSPROJECT.ID & Ashab AJIBQOBUL.",
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
