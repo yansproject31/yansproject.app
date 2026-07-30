@@ -33,18 +33,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yansproject.app.ui.theme.*
 
+typealias CatalogStockData = SeriesStockData
+
 data class SeriesStockData(
     val seriesName: String,
     val stockCount: Int,
     val readyStock: Int = stockCount,
     val reservedStock: Int = 0
-)
+) {
+    val catalogName: String get() = seriesName
+}
 
 @Composable
 fun AjibqobulStockBarChart(
     seriesList: List<SeriesStockData>,
     modifier: Modifier = Modifier,
-    title: String = "GRAFIK SISA STOK SERI AJIBQOBUL",
+    title: String = "GRAFIK STOK KATALOG (SERIES AJIBQOBUL)",
     onSeriesSelected: ((SeriesStockData) -> Unit)? = null
 ) {
     var selectedSeries by remember { mutableStateOf<SeriesStockData?>(null) }
@@ -91,7 +95,7 @@ fun AjibqobulStockBarChart(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.BarChart,
-                            contentDescription = "Grafik Batang",
+                            contentDescription = "Grafik Batang Katalog",
                             tint = AccentAgedGold,
                             modifier = Modifier.size(18.dp)
                         )
@@ -105,7 +109,7 @@ fun AjibqobulStockBarChart(
                             letterSpacing = 0.5.sp
                         )
                         Text(
-                            text = "Monitoring Ketersediaan Barang Real-Time",
+                            text = "Monitoring Ketersediaan Stok per Katalog Real-Time",
                             color = TextMuted,
                             fontSize = 10.sp
                         )
@@ -118,7 +122,7 @@ fun AjibqobulStockBarChart(
                     border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderGrey)
                 ) {
                     Text(
-                        text = "${seriesList.size} Series",
+                        text = "${seriesList.size} Katalog",
                         color = HighlightSoftCyan,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -135,7 +139,7 @@ fun AjibqobulStockBarChart(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Belum Ada Data Seri Produk AJIBQOBUL",
+                        text = "Belum Ada Data Katalog Produk AJIBQOBUL",
                         color = TextMuted,
                         fontSize = 11.sp
                     )
@@ -280,7 +284,7 @@ fun AjibqobulStockBarChart(
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
-                                    text = "SERI: ${series.seriesName.uppercase()}",
+                                    text = "KATALOG: ${series.catalogName.uppercase()}",
                                     color = AgedGold,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
@@ -337,7 +341,7 @@ fun AjibqobulStockBarChart(
                         LegendItem(color = AlertOrange, label = "Stok Menipis (<=10)")
                     }
                     Text(
-                        text = "Ketuk batang untuk detail",
+                        text = "Ketuk batang untuk detail katalog",
                         color = TextMuted,
                         fontSize = 9.5.sp
                     )

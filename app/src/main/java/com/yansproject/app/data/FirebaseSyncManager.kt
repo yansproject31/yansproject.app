@@ -26,27 +26,27 @@ enum class UserRole {
     OWNER, ADMIN, STAFF, RESELLER, MEMBER, CUSTOMER;
 
     fun hasFullERPChainAccess(): Boolean {
-        return this == OWNER
+        return this == OWNER || this == ADMIN
     }
 
     fun canManageInventory(): Boolean {
-        return this == OWNER
+        return this == OWNER || this == ADMIN
     }
 
     fun canManageProjects(): Boolean {
-        return this == OWNER
+        return this == OWNER || this == ADMIN || this == STAFF
     }
 
     fun canManageInvoices(): Boolean {
-        return this == OWNER
+        return this == OWNER || this == ADMIN || this == STAFF
     }
 
     fun canAccessFinancials(): Boolean {
-        return this == OWNER
+        return this == OWNER || this == ADMIN
     }
 
     fun canAccessSettings(): Boolean {
-        return this == OWNER
+        return this == OWNER || this == ADMIN || this == STAFF || this == MEMBER || this == RESELLER || this == CUSTOMER
     }
 }
 

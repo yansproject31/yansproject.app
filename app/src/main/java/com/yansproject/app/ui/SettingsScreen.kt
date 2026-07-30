@@ -82,7 +82,7 @@ fun SettingsScreen(
     val isDeveloperMode by viewModel.isDeveloperMode.collectAsState()
     var developerTapCount by remember { mutableStateOf(0) }
 
-    val isOwner = currentUser?.role != UserRole.MEMBER
+    val isOwner = currentUser?.role == UserRole.OWNER || currentUser?.role == UserRole.ADMIN
 
     var isOnline by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -289,42 +289,202 @@ fun SettingsScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // TopBar for main settings page
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // STICKY TOPBAR & HERO ACCOUNT CARD (LOCKED AT TOP TOGETHER)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = SecondaryShadowBlackTeal,
+                    shadowElevation = 8.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.5f))
                 ) {
-                    IconButton(
-                        onClick = {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            viewModel.setTab(AppTab.DASHBOARD)
-                        }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ArrowBack,
-                            contentDescription = "Kembali ke Dashboard",
-                            tint = AgedGold
-                        )
+                        // TopBar Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.setTab(AppTab.DASHBOARD)
+                                    },
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(DarkTeal.copy(alpha = 0.4f))
+                                        .size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.ArrowBack,
+                                        contentDescription = "Kembali ke Dashboard Utama",
+                                        tint = AgedGold,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "PENGATURAN SISTEM ERP",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Text(
+                                        text = "Konfigurasi Workspace & Otoritas YANSPROJECT.ID",
+                                        fontSize = 10.sp,
+                                        color = TextMuted
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(DarkTeal)
+                                    .border(1.dp, AgedGold.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "ERP SYSTEM",
+                                    color = AgedGold,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
+                        }
+
+                        // Hero Account Card Locked with TopBar
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = CardGrey.copy(alpha = 0.65f)),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                // Profile Layout
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(46.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(DarkTeal.copy(alpha = 0.5f))
+                                            .border(1.dp, AgedGold.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isOwner) Icons.Outlined.AdminPanelSettings else Icons.Outlined.Person,
+                                            contentDescription = null,
+                                            tint = AgedGold,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = currentUser?.displayName ?: "Pengguna System",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp,
+                                                color = Color.White,
+                                                letterSpacing = 0.2.sp
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .background(if (isOwner) AgedGold.copy(alpha = 0.2f) else HighlightSoftCyan.copy(alpha = 0.2f))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (isOwner) "OWNER" else "MEMBER",
+                                                    color = if (isOwner) AgedGold else HighlightSoftCyan,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 8.5.sp,
+                                                    letterSpacing = 0.5.sp
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = currentUser?.email?.takeIf { it.isNotEmpty() } ?: "session.offline@yansproject.id",
+                                            fontSize = 11.sp,
+                                            color = TextMuted.copy(alpha = 0.85f)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+                                HorizontalDivider(color = BorderGrey.copy(alpha = 0.25f), thickness = 1.dp)
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Connection Status & Sync Badge
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(text = "Sistem:", fontSize = 10.sp, color = TextMuted)
+                                        ConnectionBadge(isOnline = isOnline, syncStatus = syncStatus)
+                                    }
+
+                                    if (syncStatus.isNotEmpty()) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(HighlightSoftCyan.copy(alpha = 0.12f))
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.CloudSync,
+                                                contentDescription = null,
+                                                tint = HighlightSoftCyan,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Text(
+                                                text = syncStatus,
+                                                fontSize = 9.5.sp,
+                                                color = HighlightSoftCyan,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-                    Text(
-                        text = "PENGATURAN SISTEM ERP",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        letterSpacing = 0.5.sp
-                    )
                 }
 
+                // Scrollable content area below the sticky header
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    item { Spacer(modifier = Modifier.height(4.dp)) }
+                    item { Spacer(modifier = Modifier.height(8.dp)) }
                     renderMainSettingsDashboard(
                         context = context,
                         currentUser = currentUser,
@@ -342,6 +502,7 @@ fun SettingsScreen(
                         },
                         onLogoutClick = { showLogoutConfirmDialog = true }
                     )
+                    item { Spacer(modifier = Modifier.height(24.dp)) }
                 }
             }
         } else {
@@ -351,46 +512,96 @@ fun SettingsScreen(
                     .padding(innerPadding)
             ) {
                 if (subScreen != "info") {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    val (subTitleText, subDescText) = getSettingsSubScreenHeaderInfo(subScreen)
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = SecondaryShadowBlackTeal,
+                        shadowElevation = 8.dp,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.5f))
                     ) {
-                        IconButton(
-                            onClick = {
-                                val haptic = hapticFeedback
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                if (showAboutYansScreen) {
-                                    showAboutYansScreen = false
-                                } else if (showTrashScreen) {
-                                    showTrashScreen = false
-                                } else if (selectedInvoiceForDetail != null) {
-                                    selectedInvoiceForDetail = null
-                                } else if (selectedInvoiceForPayment != null) {
-                                    selectedInvoiceForPayment = null
-                                } else if (subScreen != null) {
-                                    if (navController != null && !navController.popBackStack()) {
-                                        viewModel.setTab(AppTab.DASHBOARD)
-                                    }
-                                } else {
-                                    viewModel.setTab(AppTab.DASHBOARD)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .statusBarsPadding()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        val haptic = hapticFeedback
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        if (showAboutYansScreen) {
+                                            showAboutYansScreen = false
+                                        } else if (showTrashScreen) {
+                                            showTrashScreen = false
+                                        } else if (selectedInvoiceForDetail != null) {
+                                            selectedInvoiceForDetail = null
+                                        } else if (selectedInvoiceForPayment != null) {
+                                            selectedInvoiceForPayment = null
+                                        } else if (subScreen != null) {
+                                            if (navController != null && !navController.popBackStack()) {
+                                                viewModel.setTab(AppTab.DASHBOARD)
+                                            }
+                                        } else {
+                                            viewModel.setTab(AppTab.DASHBOARD)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(DarkTeal.copy(alpha = 0.4f))
+                                        .size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.ArrowBack,
+                                        contentDescription = "Kembali ke Pengaturan Utama",
+                                        tint = AgedGold,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                Column {
+                                    Text(
+                                        text = subTitleText,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = AgedGold,
+                                        letterSpacing = 0.5.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = subDescText,
+                                        fontSize = 10.sp,
+                                        color = TextMuted,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ArrowBack,
-                                contentDescription = "Kembali",
-                                tint = AgedGold
-                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .padding(start = 8.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(DarkTeal)
+                                    .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "PENGATURAN",
+                                    color = AgedGold,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
-                        Text(
-                            text = "Kembali ke Pengaturan",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
                     }
                 }
                 Box(
@@ -1139,6 +1350,31 @@ fun ConfirmationModal(
     )
 }
 
+private fun getSettingsSubScreenHeaderInfo(subScreen: String): Pair<String, String> {
+    return when (subScreen) {
+        "identitas" -> Pair("PENGATURAN IDENTITAS BISNIS", "Nama Toko, Alamat, Kontak & Rekening Bank")
+        "keuangan" -> Pair("KONFIGURASI HAK & HARGA ERP", "Tipe Harga, Matrix Upsize & Biaya Operasional")
+        "dokumen" -> Pair("FORMAT DOKUMEN & NOTA", "Footer Invoice, Prefix Penomoran & Template Struk")
+        "member" -> Pair("MANAJEMEN MEMBER & PELANGGAN", "Daftar Pelanggan, Diskon & Level Keanggotaan")
+        "backup" -> Pair("PUSAT BACKUP & RESTORE DATA", "Cadangan Lokal SQLite & Cloud Synchronization")
+        "akun" -> Pair("PROFIL AKUN & USER SESSION", "Informasi Pengguna, Detail Akun & Sesi Aktif")
+        "owner_center" -> Pair("PUSAT KONTROL OWNER ERP", "Otoritas Sistem, Laporan Global & Kontrol Akses")
+        "member_center" -> Pair("PORTAL APLIKASI MEMBER", "Riwayat Transaksi, Katalog & Status Keanggotaan")
+        "role_management" -> Pair("MANAJEMEN PERAN & HAK AKSES", "Aturan Otorisasi Role Owner, Kasir & Member")
+        "security" -> Pair("KEAMANAN & KATA SANDI", "PIN Otorisasi, Enkripsi & Proteksi Transaksi")
+        "biometric" -> Pair("AUTENTIKASI BIOMETRIK", "Fingerprint & Face ID Biometric Gatekeeper")
+        "erp_config" -> Pair("KONFIGURASI ENGINE ERP", "Aturan Stok, Sistem Jurnal & Single Source of Truth")
+        "notifications" -> Pair("PUSAT NOTIFIKASI & ALERT", "Pemberitahuan Transaksi, Stok Tipis & Audit")
+        "db_sync" -> Pair("SINKRONISASI CLOUD FIREBASE", "Real-time Database Sync & Offline Reconciliation")
+        "storage" -> Pair("MANAJEMEN MEMORI & STORAGE", "Pembersihan Cache, Temp Files & SQLite Vacuum")
+        "appearance" -> Pair("TAMPILAN & TEMA WARNA", "Tema Visual, Font Sizing & Palet M3 Glassmorphism")
+        "info" -> Pair("INFORMASI APLIKASI & LISENSI", "Versi YANSPROJECT.ID ERP, Sistem Build & Spesifikasi")
+        "maintenance" -> Pair("PEMELIHARAAN SISTEM ERP", "Smart Maintenance, Cache Cleaning & Database Repair")
+        "dev_diag" -> Pair("DIAGNOSTIK PENGEMBANG", "Telemetry, Log Runtime & Performance Diagnostic")
+        else -> Pair(subScreen.replace("_", " ").uppercase(), "Pengaturan Sistem YANSPROJECT.ID")
+    }
+}
+
 fun LazyListScope.renderMainSettingsDashboard(
     context: android.content.Context,
     currentUser: com.yansproject.app.data.UserSession?,
@@ -1152,121 +1388,6 @@ fun LazyListScope.renderMainSettingsDashboard(
     onShowSmartMaintenance: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
-    // Elegant Multi-layered Glass Profile Card
-    item {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = CardGrey.copy(alpha = 0.5f)),
-            shape = RoundedCornerShape(20.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.4f)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 6.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                // profile layout
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(DarkTeal.copy(alpha = 0.25f))
-                            .border(1.dp, AgedGold.copy(alpha = 0.25f), RoundedCornerShape(14.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isOwner) Icons.Outlined.AdminPanelSettings else Icons.Outlined.Person,
-                            contentDescription = null,
-                            tint = AgedGold,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = currentUser?.displayName ?: "Pengguna",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = Color.White,
-                            letterSpacing = 0.25.sp
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(AgedGold.copy(alpha = 0.15f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = if (isOwner) "OWNER" else "MEMBER",
-                                    color = AgedGold,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 9.sp,
-                                    letterSpacing = 0.5.sp
-                                )
-                            }
-                            Text(
-                                text = currentUser?.email ?: "",
-                                fontSize = 11.sp,
-                                color = TextMuted.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(18.dp))
-                HorizontalDivider(color = BorderGrey.copy(alpha = 0.3f), thickness = 1.dp)
-                Spacer(modifier = Modifier.height(14.dp))
-                
-                // connection status bar
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(text = "Sistem:", fontSize = 11.sp, color = TextMuted)
-                        ConnectionBadge(isOnline = isOnline, syncStatus = syncStatus)
-                    }
-                    
-                    if (isOwner && syncStatus.isNotEmpty()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(HighlightSoftCyan.copy(alpha = 0.08f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CloudSync,
-                                contentDescription = null,
-                                tint = HighlightSoftCyan,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Text(
-                                text = syncStatus,
-                                fontSize = 10.sp,
-                                color = HighlightSoftCyan,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     if (isOwner) {
         // --- OWNER MASTER DASHBOARD (17 CONSOLIDATED SECTIONS) ---
@@ -1686,7 +1807,7 @@ fun renderNestedSubScreen(
     val isOnline = activeNetworkInfo != null && activeNetworkInfo.isConnected
 
     val currentUser by com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState()
-    val isOwner = currentUser?.role != com.yansproject.app.data.UserRole.MEMBER
+    val isOwner = currentUser?.role == com.yansproject.app.data.UserRole.OWNER || currentUser?.role == com.yansproject.app.data.UserRole.ADMIN
     val auditLogs by viewModel.allAuditLogs.collectAsState()
     val hapticFeedback = androidx.compose.ui.platform.LocalHapticFeedback.current
 
@@ -4526,35 +4647,49 @@ fun AboutYansScreen(onBack: () -> Unit) {
             .statusBarsPadding()
     ) {
         // Toolbar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(DarkGrey)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = SecondaryShadowBlackTeal,
+            shadowElevation = 8.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.5f))
         ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.Outlined.ArrowBack,
-                    contentDescription = "Kembali",
-                    tint = AgedGold
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
-                Text(
-                    text = "IDENTITAS RESMI",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AgedGold,
-                    letterSpacing = 1.sp
-                )
-                Text(
-                    text = "Tentang YANSPROJECT.ID ERP",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(DarkTeal.copy(alpha = 0.4f))
+                        .size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ArrowBack,
+                        contentDescription = "Kembali ke Pengaturan Utama",
+                        tint = AgedGold,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "IDENTITAS RESMI",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AgedGold,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "Tentang YANSPROJECT.ID ERP",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
         }
 

@@ -3,6 +3,7 @@ package com.yansproject.app.data
 import com.yansproject.app.ui.AppSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 import androidx.room.withTransaction
@@ -32,7 +33,17 @@ class BusinessRepository(private val db: AppDatabase) {
     val allStockHistory: Flow<List<StockHistory>> = stockHistoryDao.getAllHistory()
     val allInventoryLedger: Flow<List<InventoryLedger>> = inventoryLedgerDao.getAllLedgerFlow()
     val allProductionBatch: Flow<List<ProductionBatch>> = productionBatchDao.getAllBatchFlow()
-    val allInventorySummary: Flow<List<InventorySummary>> = db.inventorySummaryDao().getAllSummariesFlow()
+    val allInventorySummary: Flow<List<InventorySummary>> = combine(
+        db.inventorySummaryDao().getAllSummariesFlow(),
+        db.catalogDao().getAllCatalogs(),
+        db.varianWarnaDao().getAllVarian()
+    ) { summaries: List<InventorySummary>, catalogs: List<MasterCatalog>, variants: List<MasterVarianWarna> ->
+        val activeCatalogIds = catalogs.filter { !it.isDeleted }.map { it.id_catalog }.toSet()
+        val activeVariantIds = variants.filter { !it.isDeleted }.map { it.id_varian }.toSet()
+        summaries.filter { summary ->
+            summary.id_catalog in activeCatalogIds && summary.id_varian in activeVariantIds
+        }
+    }
 
     suspend fun generateBatchNumber(): String {
         val dateFormat = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
@@ -1802,12 +1813,19 @@ class BusinessRepository(private val db: AppDatabase) {
     }
 
     suspend fun deleteCatalog(catalog: MasterCatalog) {
-        db.catalogDao().deleteCatalog(catalog)
-        FirebaseSyncManager.deleteItemFromCloud("master_catalog", catalog.id_catalog.toString())
-        
-        val variants = db.varianWarnaDao().getVarianListByCatalog(catalog.id_catalog)
-        for (v in variants) {
-            deleteVarian(v)
+        db.withTransaction {
+            db.catalogDao().deleteCatalog(catalog)
+            FirebaseSyncManager.deleteItemFromCloud("master_catalog", catalog.id_catalog.toString())
+            
+            val variants = db.varianWarnaDao().getVarianListByCatalog(catalog.id_catalog)
+            for (v in variants) {
+                deleteVarian(v)
+            }
+            val summaries = db.inventorySummaryDao().getSummariesList().filter { it.id_catalog == catalog.id_catalog }
+            for (s in summaries) {
+                db.inventorySummaryDao().deleteSummary(s)
+                FirebaseSyncManager.deleteItemFromCloud("inventory_summary", s.id_varian.toString())
+            }
         }
     }
 
@@ -1843,22 +1861,27 @@ class BusinessRepository(private val db: AppDatabase) {
     }
 
     suspend fun deleteVarian(varian: MasterVarianWarna) {
-        db.varianWarnaDao().deleteVarian(varian)
-        FirebaseSyncManager.deleteItemFromCloud("master_varian_warna", varian.id_varian.toString())
-        
-        val existingStock = db.masterStockDao().getStockByVarian(varian.id_varian)
-        if (existingStock != null) {
-            db.masterStockDao().deleteStockMaster(existingStock)
-            FirebaseSyncManager.deleteItemFromCloud("master_stock", existingStock.id_stock.toString())
-        }
-        val catalog = db.catalogDao().getCatalogById(varian.id_catalog)
-        if (catalog != null) {
-            val prefix = "AJIBQOBUL ${catalog.nama_catalog} - ${varian.nama_warna}"
-            val allItems = stockDao.getAllStock().firstOrNull() ?: emptyList()
-            for (item in allItems) {
-                if (item.name.startsWith(prefix)) {
-                    stockDao.deleteStock(item)
-                    FirebaseSyncManager.deleteItemFromCloud("stock_items", item.id.toString())
+        db.withTransaction {
+            db.varianWarnaDao().deleteVarian(varian)
+            FirebaseSyncManager.deleteItemFromCloud("master_varian_warna", varian.id_varian.toString())
+            
+            val existingStock = db.masterStockDao().getStockByVarian(varian.id_varian)
+            if (existingStock != null) {
+                db.masterStockDao().deleteStockMaster(existingStock)
+                FirebaseSyncManager.deleteItemFromCloud("master_stock", existingStock.id_stock.toString())
+            }
+            db.inventorySummaryDao().deleteSummaryByVarian(varian.id_varian)
+            FirebaseSyncManager.deleteItemFromCloud("inventory_summary", varian.id_varian.toString())
+
+            val catalog = db.catalogDao().getCatalogById(varian.id_catalog)
+            if (catalog != null) {
+                val prefix = "AJIBQOBUL ${catalog.nama_catalog} - ${varian.nama_warna}"
+                val allItems = stockDao.getAllStock().firstOrNull() ?: emptyList()
+                for (item in allItems) {
+                    if (item.name.startsWith(prefix)) {
+                        stockDao.deleteStock(item)
+                        FirebaseSyncManager.deleteItemFromCloud("stock_items", item.id.toString())
+                    }
                 }
             }
         }
@@ -2098,8 +2121,18 @@ class BusinessRepository(private val db: AppDatabase) {
     }
 
     suspend fun updateInventorySummaryForVarian(idVarian: Int) {
-        val varian = db.varianWarnaDao().getVarianById(idVarian) ?: return
-        val catalog = db.catalogDao().getCatalogById(varian.id_catalog) ?: return
+        val varian = db.varianWarnaDao().getVarianById(idVarian)
+        if (varian == null || varian.isDeleted) {
+            db.inventorySummaryDao().deleteSummaryByVarian(idVarian)
+            FirebaseSyncManager.deleteItemFromCloud("inventory_summary", idVarian.toString())
+            return
+        }
+        val catalog = db.catalogDao().getCatalogById(varian.id_catalog)
+        if (catalog == null || catalog.isDeleted) {
+            db.inventorySummaryDao().deleteSummaryByVarian(idVarian)
+            FirebaseSyncManager.deleteItemFromCloud("inventory_summary", idVarian.toString())
+            return
+        }
         
         val ledgers = db.inventoryLedgerDao().getLedgerList().filter { it.varianId == idVarian }
         val ledgersPendek = ledgers.filter { it.sleeve.equals("Pendek", ignoreCase = true) }
@@ -2273,6 +2306,27 @@ class BusinessRepository(private val db: AppDatabase) {
         }
     }
 
+    suspend fun reconcileAllInventorySummaries() {
+        val activeCatalogs = db.catalogDao().getCatalogsList().filter { !it.isDeleted }
+        val activeVariants = db.varianWarnaDao().getAllVarianList().filter { !it.isDeleted }
+        val activeCatalogIds = activeCatalogs.map { it.id_catalog }.toSet()
+        val activeVariantIds = activeVariants.map { it.id_varian }.toSet()
+
+        val existingSummaries = db.inventorySummaryDao().getSummariesList()
+        for (s in existingSummaries) {
+            if (s.id_catalog !in activeCatalogIds || s.id_varian !in activeVariantIds) {
+                db.inventorySummaryDao().deleteSummary(s)
+                FirebaseSyncManager.deleteItemFromCloud("inventory_summary", s.id_varian.toString())
+            }
+        }
+
+        for (v in activeVariants) {
+            if (v.id_catalog in activeCatalogIds) {
+                updateInventorySummaryForVarian(v.id_varian)
+            }
+        }
+    }
+
     suspend fun syncMasterStockToStockItems(idVarian: Int) {
         val varian = db.varianWarnaDao().getVarianById(idVarian) ?: return
         val catalog = db.catalogDao().getCatalogById(varian.id_catalog) ?: return
@@ -2428,6 +2482,13 @@ class BusinessRepository(private val db: AppDatabase) {
                     db.masterStockDao().deleteStockMaster(existingStock)
                     FirebaseSyncManager.deleteItemFromCloud("master_stock", existingStock.id_stock.toString())
                 }
+                db.inventorySummaryDao().deleteSummaryByVarian(v.id_varian)
+                FirebaseSyncManager.deleteItemFromCloud("inventory_summary", v.id_varian.toString())
+            }
+            val summaries = db.inventorySummaryDao().getSummariesList().filter { it.id_catalog == catalog.id_catalog }
+            for (s in summaries) {
+                db.inventorySummaryDao().deleteSummary(s)
+                FirebaseSyncManager.deleteItemFromCloud("inventory_summary", s.id_varian.toString())
             }
             val prefixPrefix = "AJIBQOBUL ${catalog.nama_catalog} - "
             val allItems = stockDao.getAllStock().firstOrNull() ?: emptyList()
@@ -2449,6 +2510,8 @@ class BusinessRepository(private val db: AppDatabase) {
                 db.masterStockDao().deleteStockMaster(existingStock)
                 FirebaseSyncManager.deleteItemFromCloud("master_stock", existingStock.id_stock.toString())
             }
+            db.inventorySummaryDao().deleteSummaryByVarian(varian.id_varian)
+            FirebaseSyncManager.deleteItemFromCloud("inventory_summary", varian.id_varian.toString())
             val catalog = db.catalogDao().getCatalogById(varian.id_catalog)
             if (catalog != null) {
                 val prefix = "AJIBQOBUL ${catalog.nama_catalog} - ${varian.nama_warna}"

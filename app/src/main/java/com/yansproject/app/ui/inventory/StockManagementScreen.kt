@@ -181,7 +181,7 @@ fun MatrixScreen(
                         item {
                             com.yansproject.app.ui.components.AjibqobulStockBarChart(
                                 seriesList = seriesDataList,
-                                title = "GRAFIK SISA STOK SERI AJIBQOBUL",
+                                title = "GRAFIK STOK KATALOG (SERIES AJIBQOBUL)",
                                 modifier = Modifier.padding(bottom = 4.dp)
                             )
                         }

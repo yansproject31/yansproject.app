@@ -1844,9 +1844,10 @@ fun DashboardScreen(
 }
 }
 
-    if (selectedInvoiceForDetail != null) {
+    val currentDashInvoice = selectedInvoiceForDetail
+    if (currentDashInvoice != null) {
         DetailRiwayatBottomSheet(
-            invoice = selectedInvoiceForDetail!!,
+            invoice = currentDashInvoice,
             onDismiss = { selectedInvoiceForDetail = null },
             onNavigateToInvoice = {
                 viewModel.setTab(AppTab.INVOICE)

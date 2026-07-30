@@ -104,7 +104,7 @@ fun YansNavHost(
             InvoiceScreen(viewModel = viewModel)
         }
         composable(Routes.History) {
-            if (userRole == UserRole.OWNER) {
+            if (userRole == UserRole.OWNER || userRole == UserRole.ADMIN) {
                 RiwayatScreen(viewModel = viewModel)
             } else {
                 Box(

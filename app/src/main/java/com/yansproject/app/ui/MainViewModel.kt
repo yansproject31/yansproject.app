@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.yansproject.app.data.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 
 enum class AppTab {
     DASHBOARD, PROJECT, STOCK, INVOICE, RIWAYAT, SETTINGS, KITAB
@@ -478,12 +479,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
-        // Run invoice deduplication to clean any existing local duplicates
-        viewModelScope.launch {
+        // Run invoice deduplication & reconcile inventory summaries to clean any orphaned data
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.deduplicateInvoicesInLocalDb()
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Error deduplicating invoices: ${e.message}")
+            }
+            try {
+                repository.reconcileAllInventorySummaries()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error reconciling inventory summaries: ${e.message}")
             }
         }
 

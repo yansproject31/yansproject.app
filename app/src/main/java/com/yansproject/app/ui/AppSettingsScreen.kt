@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,40 +54,70 @@ fun AppSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = darkTeal.copy(alpha = 0.95f),
+                shadowElevation = 8.dp,
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.5f))
             ) {
-                IconButton(onClick = {
-                    if (!navController.popBackStack()) {
-                        viewModel.setTab(AppTab.DASHBOARD)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    IconButton(
+                        onClick = {
+                            if (!navController.popBackStack()) {
+                                viewModel.setTab(AppTab.DASHBOARD)
+                            }
+                        },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(darkTeal.copy(alpha = 0.4f))
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Kembali ke Dashboard",
+                            tint = agedGold,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Kembali",
-                        tint = agedGold
-                    )
+                    Column {
+                        Text(
+                            text = "PENGATURAN UMUM & SISTEM",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = agedGold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "Konfigurasi preferensi tampilan, suara & keamanan",
+                            fontSize = 10.sp,
+                            color = textMuted
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Pengaturan Umum & Sistem",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
             }
-            Text(
-                text = "PENGATURAN UMUM",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = agedGold,
-                letterSpacing = 1.5.sp
-            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "PENGATURAN UMUM",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = agedGold,
+                    letterSpacing = 1.5.sp
+                )
 
             // row card 1: Notification
             SharedPremiumCard(
@@ -323,6 +354,7 @@ fun AppSettingsScreen(
             shape = RoundedCornerShape(16.dp)
         )
     }
+}
 }
 
 @Composable

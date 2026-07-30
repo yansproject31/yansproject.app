@@ -112,9 +112,12 @@ fun StockScreen(
         }
     }
 
-    if (selectedVarianId != null) {
+    val currentVarianId = selectedVarianId
+    val currentCatalogId = selectedCatalogId
+
+    if (currentVarianId != null) {
         // LEVEL 3: MATRIX STOCK / DETAIL VIEW
-        val varianId = selectedVarianId!!
+        val varianId = currentVarianId
         val varian = variants.find { it.id_varian == varianId }
         val catalog = catalogs.find { it.id_catalog == varian?.id_catalog }
         val stockMaster = stocks.find { it.id_varian == varianId } ?: MasterStock(id_varian = varianId)
@@ -150,9 +153,9 @@ fun StockScreen(
         } else {
             selectedVarianId = null
         }
-    } else if (selectedCatalogId != null) {
+    } else if (currentCatalogId != null) {
         // LEVEL 2: VARIAN WARNA LIST VIEW
-        val catalogId = selectedCatalogId!!
+        val catalogId = currentCatalogId
         val catalog = catalogs.find { it.id_catalog == catalogId }
         val catalogVariants = variants.filter { it.id_catalog == catalogId }
         val currentUser by FirebaseSyncManager.currentUser.collectAsState()
@@ -497,8 +500,8 @@ fun StockScreen(
                                 ) {
                                     EmptyStateView(
                                         icon = Icons.Outlined.Inventory,
-                                        title = "Belum Ada Katalog Series",
-                                        description = "Buat katalog series AJIBQOBUL baru terlebih dahulu untuk mencatat persediaan stok, varian warna, dan pencatatan transaksi penjualan."
+                                        title = "Belum Ada Katalog Terdaftar",
+                                        description = "Buat katalog baru di bawah Series AJIBQOBUL (seperti Madad Auliya 68th) untuk mencatat varian warna dan sisa stok persediaan."
                                     )
                                 }
                             } else {
@@ -598,7 +601,7 @@ fun StockScreen(
 
                                         com.yansproject.app.ui.components.AjibqobulStockBarChart(
                                             seriesList = seriesStockList,
-                                            title = "GRAFIK SISA STOK SERI AJIBQOBUL",
+                                            title = "GRAFIK STOK KATALOG (SERIES AJIBQOBUL)",
                                             modifier = Modifier.padding(bottom = 4.dp)
                                         )
                                     }
@@ -949,7 +952,7 @@ fun StockScreen(
         if (showBatchDeleteCatalogConfirm) {
             YansConfirmDialog(
                 title = "Konfirmasi Hapus Batch Catalog",
-                message = "Apakah Anda yakin ingin memindahkan ${selectedCatalogIds.size} katalog series terpilih ke Trash?",
+                message = "Apakah Anda yakin ingin memindahkan ${selectedCatalogIds.size} katalog terpilih ke Trash?",
                 onConfirm = {
                     val toDelete = catalogs.filter { selectedCatalogIds.contains(it.id_catalog) }
                     viewModel.deleteCatalogsBatch(toDelete)
@@ -1069,7 +1072,7 @@ fun BatchDetailDialog(
                 // Info Section
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Katalog Series", color = TextMuted, fontSize = 11.sp)
+                        Text(text = "Nama Katalog", color = TextMuted, fontSize = 11.sp)
                         Text(text = batch.seriesName, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -2522,7 +2525,9 @@ fun MatrixStockView(
 
         // --- CELL QUANTITY BOTTOM SHEET EDITOR ---
         if (showCellEditBottomSheet && selectedCellToEdit != null) {
-            val (size, sleeve) = selectedCellToEdit!!
+            val cell = selectedCellToEdit
+            val size = cell?.first ?: ""
+            val sleeve = cell?.second ?: ""
             PremiumBottomSheet(
                 onDismissRequest = { showCellEditBottomSheet = false }
             ) {
@@ -2986,25 +2991,43 @@ fun AddCatalogDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("TAMBAH CATALOG BARU", color = AgedGold, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                Column {
+                    Text("TAMBAH KATALOG BARU", color = AgedGold, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                    Text("Series: AJIBQOBUL", color = TextMuted, fontSize = 10.sp)
+                }
                 IconButton(onClick = onDismiss) {
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = "Tutup", tint = TextMuted)
                 }
             }
 
+            Surface(
+                color = CardGrey,
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderGrey),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Menambahkan Katalog baru ke dalam Series AJIBQOBUL. Setiap kali Katalog baru ditambahkan (seperti 'MADAD AULIYA 68TH'), jumlah Katalog dalam statistik & grafik stok akan bertambah secara otomatis.",
+                    color = TextMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+
             YansGlowingTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = "Nama Catalog *",
-                placeholder = "Contoh: Rahasia Realita",
+                label = "Nama Katalog *",
+                placeholder = "Contoh: Madad Auliya 68th, Rahasia Realita",
                 modifier = Modifier.fillMaxWidth().testTag("add_catalog_name")
             )
 
             YansGlowingTextField(
                 value = desc,
                 onValueChange = { desc = it },
-                label = "Deskripsi Catalog (Opsional)",
-                placeholder = "Contoh: Series premium eksklusif AJIBQOBUL...",
+                label = "Deskripsi Katalog (Opsional)",
+                placeholder = "Contoh: Katalog Edisi Khusus Madad Auliya 68th Series AJIBQOBUL...",
                 modifier = Modifier.fillMaxWidth().testTag("add_catalog_desc")
             )
 
@@ -3052,17 +3075,35 @@ fun AddVariantDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("TAMBAH VARIAN WARNA", color = AgedGold, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                Column {
+                    Text("TAMBAH VARIAN WARNA", color = AgedGold, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                    Text("Hierarki: Series -> Catalog -> Varian Warna", color = TextMuted, fontSize = 10.sp)
+                }
                 IconButton(onClick = onDismiss) {
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = "Tutup", tint = TextMuted)
                 }
+            }
+
+            Surface(
+                color = CardGrey,
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderGrey),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Varian Warna berada di bawah Katalog. Cukup masukkan nama warna (seperti Hitam, Navy, Maroon, Sage, Putih, dll). Tidak memerlukan kode Hex Warna.",
+                    color = TextMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
             }
 
             YansGlowingTextField(
                 value = warna,
                 onValueChange = { warna = it },
                 label = "Nama Varian Warna *",
-                placeholder = "Contoh: Hitam, Navy, Maroon, dll.",
+                placeholder = "Contoh: Hitam, Navy, Maroon, Sage, Putih",
                 modifier = Modifier.fillMaxWidth().testTag("add_variant_name")
             )
 
