@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -220,41 +221,52 @@ fun AnalisisKeuanganGlobalScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                windowInsets = WindowInsets(0.dp),
-                title = {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "ANALISIS KEUANGAN GLOBAL",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(AgedGold.copy(alpha = 0.2f))
-                                    .border(0.8.dp, AgedGold, RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text(text = "SSOT AUDIT", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+            Column {
+                TopAppBar(
+                    windowInsets = WindowInsets(0.dp),
+                    title = {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "ANALISIS KEUANGAN GLOBAL",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.25f), Color(0x33C6A15B))))
+                                        .border(1.dp, AgedGold, RoundedCornerShape(20.dp))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(text = "SSOT AUDIT • LEDGER", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                                }
                             }
+                            Text(
+                                text = "Executive Financial Audit & Real-time Ledger Output",
+                                fontSize = 10.sp,
+                                color = Color(0xFFA0AEC0)
+                            )
                         }
-                        Text(
-                            text = "Executive Financial Audit & Real-time Ledger Output",
-                            fontSize = 10.sp,
-                            color = Color.LightGray
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SecondaryShadowBlackTeal)
-            )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(Color(0x22FFFFFF))
+                                .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                                .size(36.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold, modifier = Modifier.size(18.dp))
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xEA051214))
+                )
+                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
+            }
         },
         contentWindowInsets = WindowInsets(0.dp),
         containerColor = ShadowBlack
@@ -266,7 +278,7 @@ fun AnalisisKeuanganGlobalScreen(
                     Brush.verticalGradient(
                         colors = listOf(
                             ShadowBlack,
-                            Color(0xFF0C2425),
+                            Color(0xFF071B1D),
                             ShadowBlack
                         )
                     )
@@ -280,9 +292,11 @@ fun AnalisisKeuanganGlobalScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Period Filter Chips
+                // Period Filter Chips (Horizontally Scrollable)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val periods = listOf("Hari Ini", "7 Hari", "30 Hari", "Bulan Ini", "Semua")
@@ -290,11 +304,14 @@ fun AnalisisKeuanganGlobalScreen(
                         val isSelected = selectedFilter == period
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) AgedGold else CardDarkCard)
-                                .border(1.dp, if (isSelected) AgedGold else DividerDarkCyanGray, RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isSelected) Brush.horizontalGradient(listOf(AgedGold, Color(0xFFD4AF37)))
+                                    else Brush.horizontalGradient(listOf(Color(0x1F0F3D3E), Color(0x1F051214)))
+                                )
+                                .border(1.dp, if (isSelected) AgedGold else Color(0x33319795), RoundedCornerShape(12.dp))
                                 .clickable { selectedFilter = period }
-                                .padding(horizontal = 12.dp, vertical = 7.dp)
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
                                 .testTag("financial_filter_$period")
                         ) {
                             Text(
@@ -312,9 +329,10 @@ fun AnalisisKeuanganGlobalScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .glassCard(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardDarkCard.copy(alpha = 0.9f)),
-                    border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, PrimaryDarkTeal, AgedGold)))
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -326,61 +344,68 @@ fun AnalisisKeuanganGlobalScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(
-                                    text = "TOTAL NET ASSET VALUATION",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = AgedGold,
-                                    letterSpacing = 1.sp
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(modifier = Modifier.width(3.dp).height(12.dp).background(AgedGold, RoundedCornerShape(2.dp)))
+                                    Text(
+                                        text = "TOTAL NET ASSET VALUATION",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = AgedGold,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
                                 Text(
                                     text = "Akumulasi Kas, Stok & Piutang Sesuai Ledger Realtime",
                                     fontSize = 10.sp,
-                                    color = Color.Gray
+                                    color = Color(0xFFA0AEC0)
                                 )
                             }
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(AgedGold.copy(alpha = 0.15f))
-                                    .border(1.dp, AgedGold.copy(alpha = 0.4f), CircleShape),
+                                    .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.25f), Color.Transparent)))
+                                    .border(1.dp, AgedGold.copy(alpha = 0.5f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.AccountBalanceWallet,
                                     contentDescription = null,
                                     tint = AgedGold,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
 
                         Text(
                             text = formatRupiah(totalAssetValuation),
-                            fontSize = 28.sp,
+                            fontSize = 30.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color.White
+                            color = Color.White,
+                            letterSpacing = 0.5.sp
                         )
 
-                        HorizontalDivider(color = DividerDarkCyanGray, thickness = 1.dp)
+                        HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
 
                         // 3-Column Asset Breakdown
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             AssetMiniBox(
+                                modifier = Modifier.weight(1f),
                                 title = "Kas Aktif",
                                 value = formatRupiah(saldoKasAktifAllTime),
                                 color = HighlightSoftCyan
                             )
                             AssetMiniBox(
+                                modifier = Modifier.weight(1f),
                                 title = "Stok Persediaan",
                                 value = formatRupiah(totalNilaiStokGudang),
                                 color = AgedGold
                             )
                             AssetMiniBox(
+                                modifier = Modifier.weight(1f),
                                 title = "Piutang Dagang",
                                 value = formatRupiah(piutangOutstanding),
                                 color = StatusDangerRed
@@ -392,21 +417,24 @@ fun AnalisisKeuanganGlobalScreen(
                 // Financial Health Indicators Section
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardDarkCard.copy(alpha = 0.85f)),
-                    border = BorderStroke(1.dp, PrimaryDarkTeal.copy(alpha = 0.6f))
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Text(
-                            text = "INDIKATOR KESEHATAN KEUANGAN ($selectedFilter)",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = HighlightSoftCyan,
-                            letterSpacing = 1.sp
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(modifier = Modifier.width(3.dp).height(12.dp).background(HighlightSoftCyan, RoundedCornerShape(2.dp)))
+                            Text(
+                                text = "INDIKATOR KESEHATAN KEUANGAN ($selectedFilter)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = HighlightSoftCyan,
+                                letterSpacing = 1.sp
+                            )
+                        }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -459,9 +487,9 @@ fun AnalisisKeuanganGlobalScreen(
                 // Visual Cashflow Bar Chart & Distribution Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardDarkCard.copy(alpha = 0.85f)),
-                    border = BorderStroke(1.dp, PrimaryDarkTeal.copy(alpha = 0.6f))
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
@@ -472,13 +500,16 @@ fun AnalisisKeuanganGlobalScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "GRAFIK & DISTRIBUSI ARUS KAS ($selectedFilter)",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White,
-                                letterSpacing = 1.sp
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(modifier = Modifier.width(3.dp).height(12.dp).background(AgedGold, RoundedCornerShape(2.dp)))
+                                Text(
+                                    text = "GRAFIK & DISTRIBUSI ARUS KAS ($selectedFilter)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    letterSpacing = 1.sp
+                                )
+                            }
                             Icon(
                                 imageVector = Icons.Outlined.BarChart,
                                 contentDescription = null,
@@ -515,14 +546,15 @@ fun AnalisisKeuanganGlobalScreen(
                                     .fillMaxWidth()
                                     .height(14.dp)
                                     .clip(RoundedCornerShape(7.dp))
-                                    .background(DividerDarkCyanGray)
+                                    .background(Color(0x33000000))
+                                    .border(1.dp, Color(0x2AFFFFFF), RoundedCornerShape(7.dp))
                             ) {
                                 if (inflowRatio > 0f) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxHeight()
                                             .weight(inflowRatio.coerceAtLeast(0.01f))
-                                            .background(StatusSuccessGreen)
+                                            .background(Brush.horizontalGradient(listOf(StatusSuccessGreen, Color(0xFF38A169))))
                                     )
                                 }
                                 if ((1f - inflowRatio) > 0f) {
@@ -530,13 +562,13 @@ fun AnalisisKeuanganGlobalScreen(
                                         modifier = Modifier
                                             .fillMaxHeight()
                                             .weight((1f - inflowRatio).coerceAtLeast(0.01f))
-                                            .background(StatusDangerRed)
+                                            .background(Brush.horizontalGradient(listOf(StatusDangerRed, Color(0xFFE53E3E))))
                                     )
                                 }
                             }
                         }
 
-                        HorizontalDivider(color = DividerDarkCyanGray.copy(alpha = 0.5f))
+                        HorizontalDivider(color = Color(0x33319795))
 
                         // Inflow Stream Allocation Details
                         Text(
@@ -572,21 +604,24 @@ fun AnalisisKeuanganGlobalScreen(
                 // Executive Summary Audit Table
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardDarkCard.copy(alpha = 0.85f)),
-                    border = BorderStroke(1.dp, PrimaryDarkTeal.copy(alpha = 0.6f))
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f))
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            text = "RINGKASAN AUDIT KEUANGAN LEDGER",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = AgedGold,
-                            letterSpacing = 1.sp
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(modifier = Modifier.width(3.dp).height(12.dp).background(AgedGold, RoundedCornerShape(2.dp)))
+                            Text(
+                                text = "RINGKASAN AUDIT KEUANGAN LEDGER",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = AgedGold,
+                                letterSpacing = 1.sp
+                            )
+                        }
 
                         TableAuditRow(
                             label = "Total Pemasukan Kas ($selectedFilter)",
@@ -625,9 +660,9 @@ fun AnalisisKeuanganGlobalScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(PrimaryDarkTeal.copy(alpha = 0.25f))
-                        .border(1.dp, PrimaryDarkTeal.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0x250F3D3E))
+                        .border(1.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                         .padding(14.dp)
                 ) {
                     Row(
@@ -638,12 +673,12 @@ fun AnalisisKeuanganGlobalScreen(
                             imageVector = Icons.Outlined.Shield,
                             contentDescription = null,
                             tint = AgedGold,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                         Text(
                             text = "Laporan ini merupakan output data final global yang tidak dapat diedit secara manual. Seluruh angka terhitung otomatis dari Room Database & Audit Logs YANSPROJECT.ID.",
                             fontSize = 10.sp,
-                            color = Color.LightGray,
+                            color = Color(0xFFA0AEC0),
                             lineHeight = 14.sp
                         )
                     }
@@ -895,41 +930,52 @@ fun AnalisisPenjualanAjibqobulScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                windowInsets = WindowInsets(0.dp),
-                title = {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "ANALISIS PENJUALAN STOK AJIBQOBUL",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(HighlightSoftCyan.copy(alpha = 0.2f))
-                                    .border(0.8.dp, HighlightSoftCyan, RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text(text = "SALES ANALYTICS", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = HighlightSoftCyan)
+            Column {
+                TopAppBar(
+                    windowInsets = WindowInsets(0.dp),
+                    title = {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "ANALISIS PENJUALAN STOK AJIBQOBUL",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Brush.horizontalGradient(listOf(HighlightSoftCyan.copy(alpha = 0.25f), Color(0x33319795))))
+                                        .border(1.dp, HighlightSoftCyan, RoundedCornerShape(20.dp))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(text = "SALES ANALYTICS • LIVE", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = HighlightSoftCyan)
+                                }
                             }
+                            Text(
+                                text = "Volume Penjualan, Distribusi Member & Sell-Through Rate",
+                                fontSize = 10.sp,
+                                color = Color(0xFFA0AEC0)
+                            )
                         }
-                        Text(
-                            text = "Volume Penjualan, Distribusi Member & Sell-Through Rate",
-                            fontSize = 10.sp,
-                            color = Color.LightGray
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SecondaryShadowBlackTeal)
-            )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(Color(0x22FFFFFF))
+                                .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                                .size(36.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold, modifier = Modifier.size(18.dp))
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xEA051214))
+                )
+                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
+            }
         },
         contentWindowInsets = WindowInsets(0.dp),
         containerColor = ShadowBlack
@@ -941,7 +987,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                     Brush.verticalGradient(
                         colors = listOf(
                             ShadowBlack,
-                            Color(0xFF0C2425),
+                            Color(0xFF071B1D),
                             ShadowBlack
                         )
                     )
@@ -955,9 +1001,11 @@ fun AnalisisPenjualanAjibqobulScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Filter Time Chips
+                // Filter Time Chips (Horizontally Scrollable)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val periods = listOf("Hari Ini", "7 Hari", "30 Hari", "Bulan Ini", "Semua")
@@ -965,11 +1013,14 @@ fun AnalisisPenjualanAjibqobulScreen(
                         val isSelected = selectedFilter == period
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) AgedGold else CardDarkCard)
-                                .border(1.dp, if (isSelected) AgedGold else DividerDarkCyanGray, RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isSelected) Brush.horizontalGradient(listOf(AgedGold, Color(0xFFD4AF37)))
+                                    else Brush.horizontalGradient(listOf(Color(0x1F0F3D3E), Color(0x1F051214)))
+                                )
+                                .border(1.dp, if (isSelected) AgedGold else Color(0x33319795), RoundedCornerShape(12.dp))
                                 .clickable { selectedFilter = period }
-                                .padding(horizontal = 12.dp, vertical = 7.dp)
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
                                 .testTag("sales_filter_$period")
                         ) {
                             Text(
@@ -987,9 +1038,10 @@ fun AnalisisPenjualanAjibqobulScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .glassCard(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardDarkCard.copy(alpha = 0.9f)),
-                    border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(HighlightSoftCyan, PrimaryDarkTeal, HighlightSoftCyan)))
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(HighlightSoftCyan, AgedGold, HighlightSoftCyan))),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -1001,53 +1053,72 @@ fun AnalisisPenjualanAjibqobulScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(
-                                    text = "TOTAL OMSET PENJUALAN ($selectedFilter)",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = AgedGold,
-                                    letterSpacing = 1.sp
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(modifier = Modifier.width(3.dp).height(12.dp).background(HighlightSoftCyan, RoundedCornerShape(2.dp)))
+                                    Text(
+                                        text = "TOTAL OMSET PENJUALAN ($selectedFilter)",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = AgedGold,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
                                 Text(
                                     text = "Bruto Terkumpul Dari Invoice & Standalone Order",
                                     fontSize = 10.sp,
-                                    color = Color.Gray
+                                    color = Color(0xFFA0AEC0)
                                 )
                             }
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(HighlightSoftCyan.copy(alpha = 0.15f))
-                                    .border(1.dp, HighlightSoftCyan.copy(alpha = 0.4f), CircleShape),
+                                    .background(Brush.radialGradient(listOf(HighlightSoftCyan.copy(alpha = 0.25f), Color.Transparent)))
+                                    .border(1.dp, HighlightSoftCyan.copy(alpha = 0.5f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Leaderboard,
                                     contentDescription = null,
                                     tint = HighlightSoftCyan,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
 
                         Text(
                             text = formatRupiah(totalOmsetPenjualan),
-                            fontSize = 28.sp,
+                            fontSize = 30.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color.White
+                            color = Color.White,
+                            letterSpacing = 0.5.sp
                         )
 
-                        HorizontalDivider(color = DividerDarkCyanGray, thickness = 1.dp)
+                        HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
 
                         // 3 Key Stats
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            SalesMiniStatBox(title = "Total Terjual", value = "$totalPcsTerjual Pcs", color = HighlightSoftCyan)
-                            SalesMiniStatBox(title = "Total Transaksi", value = "$totalTransaksiCount Order", color = AgedGold)
-                            SalesMiniStatBox(title = "Rata-Rata Order", value = formatRupiah(averageOrderValue), color = StatusSuccessGreen)
+                            SalesMiniStatBox(
+                                modifier = Modifier.weight(1f),
+                                title = "Total Terjual",
+                                value = "$totalPcsTerjual Pcs",
+                                color = HighlightSoftCyan
+                            )
+                            SalesMiniStatBox(
+                                modifier = Modifier.weight(1f),
+                                title = "Total Transaksi",
+                                value = "$totalTransaksiCount Order",
+                                color = AgedGold
+                            )
+                            SalesMiniStatBox(
+                                modifier = Modifier.weight(1f),
+                                title = "Rata-Rata Order",
+                                value = formatRupiah(averageOrderValue),
+                                color = StatusSuccessGreen
+                            )
                         }
                     }
                 }
@@ -1055,9 +1126,9 @@ fun AnalisisPenjualanAjibqobulScreen(
                 // Production vs Sales Distribution Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardDarkCard.copy(alpha = 0.85f)),
-                    border = BorderStroke(1.dp, PrimaryDarkTeal.copy(alpha = 0.6f))
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
@@ -1068,17 +1139,20 @@ fun AnalisisPenjualanAjibqobulScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "DISTRIBUSI STOK PRODUKSI VS TERJUAL",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White,
-                                letterSpacing = 1.sp
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(modifier = Modifier.width(3.dp).height(12.dp).background(AgedGold, RoundedCornerShape(2.dp)))
+                                Text(
+                                    text = "DISTRIBUSI STOK PRODUKSI VS TERJUAL",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    letterSpacing = 1.sp
+                                )
+                            }
                             Text(
                                 text = "Sell-Through: ${String.format("%.1f", sellThroughRate)}%",
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = AgedGold
                             )
                         }
@@ -1090,14 +1164,15 @@ fun AnalisisPenjualanAjibqobulScreen(
                                 .fillMaxWidth()
                                 .height(14.dp)
                                 .clip(RoundedCornerShape(7.dp))
-                                .background(DividerDarkCyanGray)
+                                .background(Color(0x33000000))
+                                .border(1.dp, Color(0x2AFFFFFF), RoundedCornerShape(7.dp))
                         ) {
                             if (soldRatio > 0f) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxHeight()
                                         .weight(soldRatio.coerceAtLeast(0.01f))
-                                        .background(HighlightSoftCyan)
+                                        .background(Brush.horizontalGradient(listOf(HighlightSoftCyan, Color(0xFF2B6CB0))))
                                 )
                             }
                             if ((1f - soldRatio) > 0f) {
@@ -1105,7 +1180,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                                     modifier = Modifier
                                         .fillMaxHeight()
                                         .weight((1f - soldRatio).coerceAtLeast(0.01f))
-                                        .background(AgedGold.copy(alpha = 0.4f))
+                                        .background(Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.5f), Color(0x44C6A15B))))
                                 )
                             }
                         }
@@ -1129,21 +1204,24 @@ fun AnalisisPenjualanAjibqobulScreen(
                 // Member vs Non-Member / Retail Breakdown Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardDarkCard.copy(alpha = 0.85f)),
-                    border = BorderStroke(1.dp, PrimaryDarkTeal.copy(alpha = 0.6f))
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Text(
-                            text = "PENJUALAN MEMBER MITRA VS RETAIL/NON-MEMBER",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = AgedGold,
-                            letterSpacing = 1.sp
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(modifier = Modifier.width(3.dp).height(12.dp).background(AgedGold, RoundedCornerShape(2.dp)))
+                            Text(
+                                text = "PENJUALAN MEMBER MITRA VS RETAIL/NON-MEMBER",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = AgedGold,
+                                letterSpacing = 1.sp
+                            )
+                        }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1151,27 +1229,27 @@ fun AnalisisPenjualanAjibqobulScreen(
                         ) {
                             Card(
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = SecondaryShadowBlackTeal),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0x1F0F3D3E)),
                                 border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(text = "MEMBER MITRA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = HighlightSoftCyan)
                                     Text(text = formatRupiah(memberOmset), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                                    Text(text = "$memberQty Pcs Terjual", fontSize = 10.sp, color = Color.Gray)
+                                    Text(text = "$memberQty Pcs Terjual", fontSize = 10.sp, color = Color(0xFFA0AEC0))
                                 }
                             }
 
                             Card(
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = SecondaryShadowBlackTeal),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0x1F0F3D3E)),
                                 border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(text = "RETAIL / NON-MEMBER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AgedGold)
                                     Text(text = formatRupiah(retailOmset), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                                    Text(text = "$retailQty Pcs Terjual", fontSize = 10.sp, color = Color.Gray)
+                                    Text(text = "$retailQty Pcs Terjual", fontSize = 10.sp, color = Color(0xFFA0AEC0))
                                 }
                             }
                         }
@@ -1181,9 +1259,9 @@ fun AnalisisPenjualanAjibqobulScreen(
                 // Top Selling Catalog Leaderboard (Realtime Data & Luxury Design)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardDarkCard.copy(alpha = 0.85f)),
-                    border = BorderStroke(1.dp, PrimaryDarkTeal.copy(alpha = 0.6f))
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f))
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
@@ -1195,24 +1273,27 @@ fun AnalisisPenjualanAjibqobulScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(
-                                    text = "KATALOG PRODUK TERLARIS ($selectedFilter)",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
-                                    letterSpacing = 1.sp
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(modifier = Modifier.width(3.dp).height(12.dp).background(AgedGold, RoundedCornerShape(2.dp)))
+                                    Text(
+                                        text = "KATALOG PRODUK TERLARIS ($selectedFilter)",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
                                 Text(
                                     text = "Peringkat Berdasarkan Unit Terjual & Omset Realtime",
                                     fontSize = 10.sp,
-                                    color = Color.Gray
+                                    color = Color(0xFFA0AEC0)
                                 )
                             }
                             Icon(
                                 imageVector = Icons.Filled.EmojiEvents,
                                 contentDescription = null,
                                 tint = AgedGold,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
 
@@ -1270,7 +1351,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                                                 modifier = Modifier
                                                     .size(28.dp)
                                                     .clip(CircleShape)
-                                                    .background(if (index == 0) AgedGold else SecondaryShadowBlackTeal)
+                                                    .background(if (index == 0) AgedGold else Color(0x1F0F3D3E))
                                                     .border(1.dp, rankColor, CircleShape),
                                                 contentAlignment = Alignment.Center
                                             ) {
@@ -1321,7 +1402,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                                                     Text(
                                                         text = "• ${item.seriesTag}",
                                                         fontSize = 9.sp,
-                                                        color = Color.Gray
+                                                        color = Color(0xFFA0AEC0)
                                                     )
                                                 }
                                             }
@@ -1340,7 +1421,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                                             .fillMaxWidth()
                                             .height(5.dp)
                                             .clip(RoundedCornerShape(3.dp))
-                                            .background(DividerDarkCyanGray)
+                                            .background(Color(0x33000000))
                                     ) {
                                         Box(
                                             modifier = Modifier
@@ -1355,7 +1436,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                                     }
                                 }
                                 if (index < catalogSalesList.size - 1 && index < 9) {
-                                    HorizontalDivider(color = DividerDarkCyanGray.copy(alpha = 0.3f))
+                                    HorizontalDivider(color = Color(0x22319795))
                                 }
                             }
                         }
@@ -1366,9 +1447,9 @@ fun AnalisisPenjualanAjibqobulScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(PrimaryDarkTeal.copy(alpha = 0.25f))
-                        .border(1.dp, PrimaryDarkTeal.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0x250F3D3E))
+                        .border(1.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                         .padding(14.dp)
                 ) {
                     Row(
@@ -1384,7 +1465,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                         Text(
                             text = "Analisis Penjualan ini ditarik secara real-time dari database Room & Firestore YANSPROJECT.ID. Data valid single-source-of-truth.",
                             fontSize = 10.sp,
-                            color = Color.LightGray,
+                            color = Color(0xFFA0AEC0),
                             lineHeight = 14.sp
                         )
                     }
@@ -1396,11 +1477,23 @@ fun AnalisisPenjualanAjibqobulScreen(
 
 // Helper Composables for Financial & Sales Screens
 @Composable
-private fun AssetMiniBox(title: String, value: String, color: Color) {
-    Column {
-        Text(text = title, fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(text = value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = color)
+private fun AssetMiniBox(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    color: Color
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0x1F000000))
+            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .padding(10.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(text = title, fontSize = 9.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.Bold, letterSpacing = 0.3.sp)
+            Text(text = value, fontSize = 11.sp, fontWeight = FontWeight.Black, color = color)
+        }
     }
 }
 
@@ -1415,21 +1508,29 @@ private fun RatioMetricCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SecondaryShadowBlackTeal),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.4f))
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x1F0F3D3E)),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.45f))
     ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = title, fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-                Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
+                Text(text = title, fontSize = 10.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.ExtraBold)
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(color.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+                }
             }
             Text(text = value, fontSize = 16.sp, fontWeight = FontWeight.Black, color = color)
-            Text(text = subtitle, fontSize = 9.sp, color = Color.LightGray)
+            Text(text = subtitle, fontSize = 9.sp, color = Color.White.copy(alpha = 0.7f))
         }
     }
 }
@@ -1437,9 +1538,9 @@ private fun RatioMetricCard(
 @Composable
 private fun InflowStreamProgress(label: String, amount: Double, total: Double, color: Color) {
     val pct = if (total > 0) (amount / total).toFloat().coerceIn(0f, 1f) else 0f
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(text = label, fontSize = 10.sp, color = Color.LightGray)
+            Text(text = label, fontSize = 10.sp, color = Color(0xFFA0AEC0))
             Text(
                 text = "${formatRupiah(amount)} (${String.format("%.1f", pct * 100)}%)",
                 fontSize = 10.sp,
@@ -1454,33 +1555,61 @@ private fun InflowStreamProgress(label: String, amount: Double, total: Double, c
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp)),
             color = color,
-            trackColor = DividerDarkCyanGray
+            trackColor = Color(0x33000000)
         )
     }
 }
 
 @Composable
 private fun TableAuditRow(label: String, value: String, isPositive: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0x1F000000))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
-        Text(text = label, fontSize = 11.sp, color = Color.LightGray)
-        Text(
-            text = value,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (isPositive) StatusSuccessGreen else StatusDangerRed
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(if (isPositive) StatusSuccessGreen else StatusDangerRed)
+                )
+                Text(text = label, fontSize = 11.sp, color = Color.White)
+            }
+            Text(
+                text = value,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = if (isPositive) StatusSuccessGreen else StatusDangerRed
+            )
+        }
     }
 }
 
 @Composable
-private fun SalesMiniStatBox(title: String, value: String, color: Color) {
-    Column {
-        Text(text = title, fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(text = value, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = color)
+private fun SalesMiniStatBox(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    color: Color
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0x1F000000))
+            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .padding(10.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(text = title, fontSize = 9.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.Bold, letterSpacing = 0.3.sp)
+            Text(text = value, fontSize = 11.sp, fontWeight = FontWeight.Black, color = color)
+        }
     }
 }

@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -32,6 +33,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -2749,9 +2751,9 @@ fun AddSaleDialog(
                 .widthIn(max = 780.dp)
                 .fillMaxHeight(0.92f)
                 .padding(vertical = 8.dp, horizontal = 4.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = CardGrey,
-            border = BorderStroke(1.dp, BorderGrey),
+            shape = RoundedCornerShape(22.dp),
+            color = Color(0xFA0A0A0A),
+            border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, PrimaryDarkTeal, AgedGold))),
             shadowElevation = 24.dp
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -2759,8 +2761,8 @@ fun AddSaleDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(SecondaryShadowBlackTeal)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .background(Brush.horizontalGradient(listOf(Color(0xEA051214), Color(0xEA0F3D3E), Color(0xEA051214))))
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -2770,8 +2772,9 @@ fun AddSaleDialog(
                     ) {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(DarkTeal)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.25f), Color.Transparent)))
+                                .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                 .padding(8.dp)
                         ) {
                             Icon(
@@ -2783,15 +2786,27 @@ fun AddSaleDialog(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "FORMULIR INPUT INVOICE MANUAL OWNER",
+                                    color = AgedGold,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 13.sp,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(AgedGold.copy(alpha = 0.2f))
+                                        .border(0.5.dp, AgedGold, RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                                ) {
+                                    Text(text = "LIVE ERP", fontSize = 8.sp, fontWeight = FontWeight.Black, color = AgedGold)
+                                }
+                            }
                             Text(
-                                text = "FORMULIR INPUT INVOICE MANUAL OWNER",
-                                color = AgedGold,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = "Single Source of Truth • YANSPROJECT.ID",
-                                color = TextMuted,
+                                text = "Single Source of Truth • YANSPROJECT.ID Enterprise Ledger",
+                                color = Color(0xFFA0AEC0),
                                 fontSize = 10.sp
                             )
                         }
@@ -2800,8 +2815,9 @@ fun AddSaleDialog(
                     IconButton(
                         onClick = onDismiss,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(DarkTeal)
+                            .clip(CircleShape)
+                            .background(Color(0x22FFFFFF))
+                            .border(1.dp, Color(0x33FFFFFF), CircleShape)
                             .size(36.dp)
                     ) {
                         Icon(
@@ -2813,7 +2829,7 @@ fun AddSaleDialog(
                     }
                 }
 
-                HorizontalDivider(color = BorderGrey, thickness = 1.dp)
+                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
 
                 // SCROLLABLE BODY
                 LazyColumn(
@@ -2821,41 +2837,61 @@ fun AddSaleDialog(
                         .weight(1f)
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     item {
-                        Text(
-                            text = "Gunakan form ini untuk mencatat transaksi penjualan langsung. Data stok dan katalog terhubung secara realtime dengan database.",
-                            fontSize = 11.sp,
-                            color = TextMuted
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0x1F0F3D3E))
+                                .border(1.dp, Color(0x33319795), RoundedCornerShape(12.dp))
+                                .padding(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Info,
+                                    contentDescription = null,
+                                    tint = HighlightSoftCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "Gunakan form ini untuk mencatat transaksi penjualan langsung. Data stok dan katalog terhubung secara realtime dengan database.",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFA0AEC0)
+                                )
+                            }
+                        }
                     }
 
                     // 1. Customer Info
                     item {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = SecondaryShadowBlackTeal),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, BorderGrey),
+                            colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text(text = "1. DATA PELANGGAN / MEMBER", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(modifier = Modifier.width(3.dp).height(12.dp).background(AgedGold, RoundedCornerShape(2.dp)))
+                                    Text(text = "1. DATA PELANGGAN / MEMBER", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                                }
                                 OutlinedTextField(
                                     value = clientName,
                                     onValueChange = { clientName = it },
-                                    label = { Text("Nama Customer / Member") },
-                                    placeholder = { Text("Masukkan nama pelanggan...") },
+                                    label = { Text("Nama Customer / Member", color = Color(0xFFA0AEC0)) },
+                                    placeholder = { Text("Masukkan nama pelanggan...", color = TextMuted) },
                                     modifier = Modifier.fillMaxWidth().testTag("sale_client_name"),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = Color(0x44319795))
                                 )
 
                                 OutlinedTextField(
                                     value = clientPhone,
                                     onValueChange = { clientPhone = it.filter { char -> char.isDigit() || char == '+' } },
-                                    label = { Text("No. WhatsApp (Opsional)") },
-                                    placeholder = { Text("Contoh: 08123456789") },
+                                    label = { Text("No. WhatsApp (Opsional)", color = Color(0xFFA0AEC0)) },
+                                    placeholder = { Text("Contoh: 08123456789", color = TextMuted) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                                     modifier = Modifier.fillMaxWidth().testTag("sale_client_phone"),
                                     shape = RoundedCornerShape(8.dp),
@@ -3419,24 +3455,24 @@ fun AddSaleDialog(
                     }
                 }
 
-                HorizontalDivider(color = BorderGrey, thickness = 1.dp)
+                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
 
                 // STICKY BOTTOM ACTION FOOTER
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(SecondaryShadowBlackTeal)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .background(Brush.horizontalGradient(listOf(Color(0xEA051214), Color(0xEA0F3D3E), Color(0xEA051214))))
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        border = BorderStroke(1.dp, BorderGrey),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLight),
-                        shape = RoundedCornerShape(8.dp)
+                        border = BorderStroke(1.dp, Color(0x44319795)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("BATAL", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("BATAL", fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, letterSpacing = 0.5.sp)
                     }
 
                     Button(
@@ -3469,11 +3505,11 @@ fun AddSaleDialog(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("SIMPAN TRANSAKSI INVOICE", fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                        Text("SIMPAN TRANSAKSI INVOICE", fontWeight = FontWeight.Black, fontSize = 12.sp, letterSpacing = 0.5.sp)
                     }
                 }
             }

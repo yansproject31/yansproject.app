@@ -311,7 +311,7 @@ fun SholawatMarqueeBanner(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val sholawatLafadzUnit = "   ۞     اَللّٰهُمَّ صَلِّ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ     "
+    val sholawatLafadzUnit = "۞     اَللّٰهُمَّ صَلِّ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ     "
 
     val premiumArabicFontFamily = remember(context) {
         FontUtils.getPremiumArabicFontFamily(context)
@@ -460,7 +460,7 @@ fun SholawatMarqueeBanner(
                     Text(
                         text = "اَللّٰهُمَّ صَلِّ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ",
                         color = AgedGold,
-                        fontSize = 25.sp,
+                        fontSize = 19.sp,
                         fontFamily = premiumArabicFontFamily,
                         textAlign = TextAlign.Center,
                         lineHeight = 44.sp,

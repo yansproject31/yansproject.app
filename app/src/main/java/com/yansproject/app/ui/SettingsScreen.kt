@@ -19,7 +19,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.Icons
 import java.io.File
 import androidx.compose.material.icons.filled.*
@@ -289,19 +291,22 @@ fun SettingsScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // STICKY TOPBAR & HERO ACCOUNT CARD (LOCKED AT TOP TOGETHER)
+                // STICKY TOPBAR & HERO ACCOUNT CARD (LOCKED AT TOP TOGETHER WITH MATERIAL 3 GLASSMORPHISM)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = SecondaryShadowBlackTeal,
-                    shadowElevation = 8.dp,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.5f))
+                    color = Color(0xEA051214),
+                    shadowElevation = 12.dp,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.5f), HighlightSoftCyan.copy(alpha = 0.4f), AgedGold.copy(alpha = 0.5f)))
+                    )
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .statusBarsPadding()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // TopBar Row
                         Row(
@@ -311,7 +316,7 @@ fun SettingsScreen(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 IconButton(
                                     onClick = {
@@ -319,56 +324,80 @@ fun SettingsScreen(
                                         viewModel.setTab(AppTab.DASHBOARD)
                                     },
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(DarkTeal.copy(alpha = 0.4f))
-                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.25f), Color(0x1F0F3D3E))))
+                                        .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                        .size(38.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.ArrowBack,
                                         contentDescription = "Kembali ke Dashboard Utama",
                                         tint = AgedGold,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                                 Column {
-                                    Text(
-                                        text = "PENGATURAN SISTEM ERP",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color.White,
-                                        letterSpacing = 0.5.sp
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "PENGATURAN SISTEM ERP",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color.White,
+                                            letterSpacing = 0.5.sp
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(AgedGold.copy(alpha = 0.2f))
+                                                .border(0.5.dp, AgedGold, RoundedCornerShape(10.dp))
+                                                .padding(horizontal = 6.dp, vertical = 1.dp)
+                                        ) {
+                                            Text(
+                                                text = "SSOT • CONFIG",
+                                                color = AgedGold,
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                letterSpacing = 0.5.sp
+                                            )
+                                        }
+                                    }
                                     Text(
                                         text = "Konfigurasi Workspace & Otoritas YANSPROJECT.ID",
                                         fontSize = 10.sp,
-                                        color = TextMuted
+                                        color = Color(0xFFA0AEC0)
                                     )
                                 }
                             }
 
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(DarkTeal)
-                                    .border(1.dp, AgedGold.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.25f), Color(0x33C6A15B))))
+                                    .border(1.dp, AgedGold, RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = "ERP SYSTEM",
                                     color = AgedGold,
                                     fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.5.sp
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 0.8.sp
                                 )
                             }
                         }
 
-                        // Hero Account Card Locked with TopBar
+                        // Hero Account Card Locked with TopBar (Material 3 Glassmorphism & Embossed Depth)
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = CardGrey.copy(alpha = 0.65f)),
-                            shape = RoundedCornerShape(16.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.5f)),
-                            modifier = Modifier.fillMaxWidth()
+                            colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                            shape = RoundedCornerShape(20.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .glassCard()
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 // Profile Layout
@@ -378,17 +407,17 @@ fun SettingsScreen(
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(46.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(DarkTeal.copy(alpha = 0.5f))
-                                            .border(1.dp, AgedGold.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                                            .size(48.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.35f), Color(0x220F3D3E))))
+                                            .border(1.2.dp, AgedGold, RoundedCornerShape(14.dp)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = if (isOwner) Icons.Outlined.AdminPanelSettings else Icons.Outlined.Person,
                                             contentDescription = null,
                                             tint = AgedGold,
-                                            modifier = Modifier.size(24.dp)
+                                            modifier = Modifier.size(26.dp)
                                         )
                                     }
 
@@ -401,23 +430,27 @@ fun SettingsScreen(
                                         ) {
                                             Text(
                                                 text = currentUser?.displayName ?: "Pengguna System",
-                                                fontWeight = FontWeight.Bold,
+                                                fontWeight = FontWeight.Black,
                                                 fontSize = 15.sp,
                                                 color = Color.White,
-                                                letterSpacing = 0.2.sp
+                                                letterSpacing = 0.3.sp
                                             )
                                             Box(
                                                 modifier = Modifier
-                                                    .clip(RoundedCornerShape(4.dp))
-                                                    .background(if (isOwner) AgedGold.copy(alpha = 0.2f) else HighlightSoftCyan.copy(alpha = 0.2f))
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(
+                                                        if (isOwner) Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.3f), Color(0x33C6A15B)))
+                                                        else Brush.horizontalGradient(listOf(HighlightSoftCyan.copy(alpha = 0.3f), Color(0x33319795)))
+                                                    )
+                                                    .border(1.dp, if (isOwner) AgedGold else HighlightSoftCyan, RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 7.dp, vertical = 2.dp)
                                             ) {
                                                 Text(
                                                     text = if (isOwner) "OWNER" else "MEMBER",
                                                     color = if (isOwner) AgedGold else HighlightSoftCyan,
-                                                    fontWeight = FontWeight.Bold,
+                                                    fontWeight = FontWeight.Black,
                                                     fontSize = 8.5.sp,
-                                                    letterSpacing = 0.5.sp
+                                                    letterSpacing = 0.8.sp
                                                 )
                                             }
                                         }
@@ -425,13 +458,13 @@ fun SettingsScreen(
                                         Text(
                                             text = currentUser?.email?.takeIf { it.isNotEmpty() } ?: "session.offline@yansproject.id",
                                             fontSize = 11.sp,
-                                            color = TextMuted.copy(alpha = 0.85f)
+                                            color = Color(0xFFA0AEC0)
                                         )
                                     }
                                 }
 
                                 Spacer(modifier = Modifier.height(10.dp))
-                                HorizontalDivider(color = BorderGrey.copy(alpha = 0.25f), thickness = 1.dp)
+                                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 // Connection Status & Sync Badge
@@ -444,7 +477,7 @@ fun SettingsScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        Text(text = "Sistem:", fontSize = 10.sp, color = TextMuted)
+                                        Text(text = "Sistem:", fontSize = 10.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.Bold)
                                         ConnectionBadge(isOnline = isOnline, syncStatus = syncStatus)
                                     }
 
@@ -453,21 +486,22 @@ fun SettingsScreen(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(HighlightSoftCyan.copy(alpha = 0.12f))
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color(0x22319795))
+                                                .border(1.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
                                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Outlined.CloudSync,
                                                 contentDescription = null,
                                                 tint = HighlightSoftCyan,
-                                                modifier = Modifier.size(12.dp)
+                                                modifier = Modifier.size(13.dp)
                                             )
                                             Text(
                                                 text = syncStatus,
                                                 fontSize = 9.5.sp,
                                                 color = HighlightSoftCyan,
-                                                fontWeight = FontWeight.SemiBold
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }

@@ -37,6 +37,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -220,16 +221,19 @@ fun RiwayatScreen(
                 // --- Top Bar Glassmorphism Header ---
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = SecondaryShadowBlackTeal,
-                    shadowElevation = 8.dp,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.5f))
+                    color = Color(0xEA051214),
+                    shadowElevation = 12.dp,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.5f), HighlightSoftCyan.copy(alpha = 0.4f), AgedGold.copy(alpha = 0.5f)))
+                    )
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .statusBarsPadding()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -237,17 +241,28 @@ fun RiwayatScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(
-                                    text = "RIWAYAT TRANSAKSI ERP",
-                                    fontSize = 11.sp,
-                                    color = AgedGold,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.5.sp
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        text = "RIWAYAT TRANSAKSI ERP",
+                                        fontSize = 11.sp,
+                                        color = AgedGold,
+                                        fontWeight = FontWeight.Black,
+                                        letterSpacing = 1.2.sp
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(AgedGold.copy(alpha = 0.2f))
+                                            .border(0.5.dp, AgedGold, RoundedCornerShape(10.dp))
+                                            .padding(horizontal = 6.dp, vertical = 1.dp)
+                                    ) {
+                                        Text(text = "SSOT AUDIT", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                                    }
+                                }
                                 Text(
                                     text = "Single Source of Truth",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 19.sp,
+                                    fontWeight = FontWeight.Black,
                                     color = Color.White
                                 )
                             }

@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -88,13 +89,14 @@ fun MatrixScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tab Navigation Row
+            // Tab Navigation Row (M3 Glassmorphism & Gold Gradient Border)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(SecondaryShadowBlackTeal)
-                    .padding(4.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0x2A0F3D3E))
+                    .border(1.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold)), RoundedCornerShape(14.dp))
+                    .padding(5.dp)
             ) {
                 TabButton(
                     title = "DAFTAR STOK",
