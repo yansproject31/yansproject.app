@@ -1,6 +1,7 @@
 package com.yansproject.app.ui.member
 
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.yansproject.app.data.FirebaseSyncManager
 import com.yansproject.app.data.MasterStock
 import com.yansproject.app.data.PriceResolverEngine
+import com.yansproject.app.ui.AppSettings
 import com.yansproject.app.ui.DocumentExporter
 import com.yansproject.app.ui.FormatUtils
 import com.yansproject.app.ui.MainViewModel
@@ -60,48 +62,86 @@ fun LuxuryCartScreen(
 
     val priceCategory = currentUser?.priceCategory ?: "Retail"
 
+    // Real-Time Listener for MEMBER: Sync with Member Management on Firestore
+    LaunchedEffect(currentUser?.email) {
+        val email = currentUser?.email ?: ""
+        val cleanEmail = email.trim().lowercase()
+        if (cleanEmail.isNotBlank() && FirebaseSyncManager.isFirebaseActive) {
+            try {
+                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                firestore.collection("users").document(cleanEmail)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error == null && snapshot != null && snapshot.exists()) {
+                            val liveName = snapshot.getString("displayName") ?: ""
+                            val liveWA = snapshot.getString("whatsapp") ?: snapshot.getString("phone") ?: snapshot.getString("phoneNumber") ?: ""
+                            val liveAddress = snapshot.getString("address") ?: ""
+                            val liveTier = snapshot.getString("priceCategory") ?: ""
+
+                            if (liveName.isNotBlank() && customerName != liveName) {
+                                customerName = liveName
+                                viewModel.updateDraftClientName(liveName)
+                            }
+                            if (liveWA.isNotBlank() && customerPhone != liveWA) {
+                                customerPhone = liveWA
+                                viewModel.updateDraftClientPhone(liveWA)
+                            }
+                            if (liveAddress.isNotBlank() && customerAddress != liveAddress) {
+                                customerAddress = liveAddress
+                                viewModel.updateDraftClientAddress(liveAddress)
+                            }
+
+                            // Keep global session in sync
+                            if (currentUser != null) {
+                                FirebaseSyncManager.saveSession(
+                                    context = context,
+                                    email = cleanEmail,
+                                    role = currentUser!!.role,
+                                    displayName = liveName.ifBlank { currentUser!!.displayName },
+                                    priceCategory = liveTier.ifBlank { currentUser!!.priceCategory },
+                                    whatsapp = liveWA.ifBlank { currentUser!!.whatsapp },
+                                    address = liveAddress.ifBlank { currentUser!!.address },
+                                    uid = currentUser!!.uid
+                                )
+                            }
+                        }
+                    }
+            } catch (e: Exception) {
+                Log.e("LuxuryCartScreen", "Error observing member profile in cart: ${e.message}")
+            }
+        }
+    }
+
     // Auto populate client information
     LaunchedEffect(draftSalesOrder, currentUser) {
         val email = currentUser?.email ?: ""
-        if (currentUser != null && currentUser?.role?.name == "MEMBER") {
-            val defaultName = currentUser?.displayName ?: ""
-            val defaultPhone = currentUser?.whatsapp ?: ""
-            val defaultAddress = currentUser?.address ?: ""
-
-            customerName = defaultName
-            customerPhone = defaultPhone
-            customerAddress = defaultAddress
-            
-            viewModel.updateDraftClientName(defaultName)
-            viewModel.updateDraftClientPhone(defaultPhone)
-            viewModel.updateDraftClientAddress(defaultAddress)
-        } else if (email.isNotBlank()) {
-            val userPrefs = context.getSharedPreferences("yans_user_prefs_${email.trim().lowercase()}", Context.MODE_PRIVATE)
+        val cleanEmail = email.trim().lowercase()
+        if (cleanEmail.isNotBlank()) {
+            val userPrefs = context.getSharedPreferences("yans_user_prefs_$cleanEmail", Context.MODE_PRIVATE)
             val credPrefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
-            val waKey = "wa_${email.trim().lowercase()}"
-            val addressKey = "address_${email.trim().lowercase()}"
-            
-            val defaultName = currentUser?.displayName ?: ""
-            
-            var defaultPhone = currentUser?.whatsapp ?: ""
-            if (defaultPhone.isBlank()) {
-                defaultPhone = userPrefs.getString("user_whatsapp", "") ?: ""
-                if (defaultPhone.isBlank()) {
-                    defaultPhone = credPrefs.getString(waKey, "") ?: ""
-                }
-            }
-            
-            var defaultAddress = currentUser?.address ?: ""
-            if (defaultAddress.isBlank()) {
-                defaultAddress = userPrefs.getString("user_address", "") ?: ""
-                if (defaultAddress.isBlank()) {
-                    defaultAddress = credPrefs.getString(addressKey, "") ?: ""
-                }
-            }
+            val localCred = AppSettings.getLocalUserCredential(context, cleanEmail)
+
+            val curName = currentUser?.displayName ?: ""
+            val curPhone = currentUser?.whatsapp ?: ""
+            val curAddr = currentUser?.address ?: ""
+
+            val localName = localCred?.displayName ?: ""
+            val localPhone = localCred?.whatsapp ?: ""
+            val localAddr = localCred?.address ?: ""
+
+            val credName = credPrefs.getString("name_$cleanEmail", "") ?: ""
+            val credPhone = credPrefs.getString("wa_$cleanEmail", "") ?: ""
+            val credAddr = credPrefs.getString("address_$cleanEmail", "") ?: ""
+
+            val userPhone = userPrefs.getString("user_whatsapp", "") ?: ""
+            val userAddr = userPrefs.getString("user_address", "") ?: ""
+
+            val defaultName = if (curName.isNotBlank()) curName else if (localName.isNotBlank()) localName else credName
+            val defaultPhone = if (curPhone.isNotBlank()) curPhone else if (localPhone.isNotBlank()) localPhone else if (credPhone.isNotBlank()) credPhone else userPhone
+            val defaultAddress = if (curAddr.isNotBlank()) curAddr else if (localAddr.isNotBlank()) localAddr else if (credAddr.isNotBlank()) credAddr else userAddr
 
             val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
             val lastDraftUserEmail = authPrefs.getString("last_draft_user_email", "") ?: ""
-            val isUserChanged = lastDraftUserEmail.lowercase().trim() != email.lowercase().trim()
+            val isUserChanged = lastDraftUserEmail.lowercase().trim() != cleanEmail
 
             if (isUserChanged || customerName.isEmpty()) {
                 customerName = if (isUserChanged) defaultName else (if (draftSalesOrder.clientName.isNotEmpty()) draftSalesOrder.clientName else defaultName)

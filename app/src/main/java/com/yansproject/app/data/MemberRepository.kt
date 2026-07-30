@@ -64,9 +64,25 @@ class MemberRepository(private val context: Context) {
                             // Synchronize with local offline cache
                             com.yansproject.app.ui.AppSettings.addMember(context, displayName)
                             com.yansproject.app.ui.AppSettings.saveLocalUserCredential(
-                                context, email, passwordOrPin, displayName, "MEMBER", priceCategory
+                                context, email, passwordOrPin, displayName, "MEMBER", priceCategory, whatsapp, address
                             )
                             com.yansproject.app.ui.AppSettings.saveMemberPriceCategory(context, displayName, priceCategory)
+
+                            val activeUser = FirebaseSyncManager.currentUser.value
+                            if (activeUser != null && activeUser.email.equals(email.trim(), ignoreCase = true)) {
+                                if (activeUser.displayName != displayName || activeUser.whatsapp != whatsapp || activeUser.address != address || activeUser.priceCategory != priceCategory) {
+                                    FirebaseSyncManager.saveSession(
+                                        context = context,
+                                        email = activeUser.email,
+                                        role = activeUser.role,
+                                        displayName = displayName,
+                                        priceCategory = priceCategory,
+                                        whatsapp = whatsapp,
+                                        address = address,
+                                        uid = activeUser.uid
+                                    )
+                                }
+                            }
 
                             edit.putString("name_$normalizedEmail", displayName)
                                 .putString("wa_$normalizedEmail", whatsapp)
@@ -166,12 +182,33 @@ class MemberRepository(private val context: Context) {
             com.yansproject.app.ui.AppSettings.saveMemberPriceCategory(context, newDisplayName, newTier)
             com.yansproject.app.ui.AppSettings.addMember(context, newDisplayName)
             val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+            val existingPass = prefs.getString("pass_$targetEmail", "1234") ?: "1234"
+            val existingRole = prefs.getString("role_$targetEmail", "MEMBER") ?: "MEMBER"
+
+            com.yansproject.app.ui.AppSettings.saveLocalUserCredential(
+                context, targetEmail, existingPass, newDisplayName, existingRole, newTier, newWhatsapp, newAddress
+            )
+
             prefs.edit()
                 .putString("name_$targetEmail", newDisplayName)
                 .putString("wa_$targetEmail", newWhatsapp)
                 .putString("address_$targetEmail", newAddress)
                 .putString("price_$targetEmail", newTier)
                 .apply()
+
+            val activeUser = FirebaseSyncManager.currentUser.value
+            if (activeUser != null && activeUser.email.equals(targetEmail, ignoreCase = true)) {
+                FirebaseSyncManager.saveSession(
+                    context = context,
+                    email = activeUser.email,
+                    role = activeUser.role,
+                    displayName = newDisplayName,
+                    priceCategory = newTier,
+                    whatsapp = newWhatsapp,
+                    address = newAddress,
+                    uid = activeUser.uid
+                )
+            }
             true
         } catch (e: Exception) {
             Log.e("MemberRepository", "Failed updating member profile: ${e.message}")

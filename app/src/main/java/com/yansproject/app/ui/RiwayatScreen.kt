@@ -222,11 +222,7 @@ fun RiwayatScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = Color(0xEA051214),
-                    shadowElevation = 12.dp,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.5f), HighlightSoftCyan.copy(alpha = 0.4f), AgedGold.copy(alpha = 0.5f)))
-                    )
+                    shadowElevation = 8.dp
                 ) {
                     Column(
                         modifier = Modifier
@@ -396,24 +392,36 @@ fun RiwayatScreen(
                             // Card 1: Total Omset Gross
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = CardGrey.copy(alpha = 0.7f)),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.4f))
+                                colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                                shape = RoundedCornerShape(14.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.2.dp, AgedGold.copy(alpha = 0.5f))
                             ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
+                                Column(
+                                    modifier = Modifier
+                                        .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.15f), Color.Transparent)))
+                                        .padding(12.dp)
+                                ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Text(text = "TOTAL OMSET", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = TextMuted)
-                                        Icon(imageVector = Icons.Outlined.Payments, contentDescription = null, tint = AgedGold, modifier = Modifier.size(14.dp))
+                                        Text(text = "TOTAL OMSET", fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFA0AEC0), letterSpacing = 0.5.sp)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(AgedGold.copy(alpha = 0.18f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(imageVector = Icons.Outlined.Payments, contentDescription = null, tint = AgedGold, modifier = Modifier.size(13.dp))
+                                        }
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = FormatUtils.formatRupiah(totalGrossValue),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Black,
                                         color = AgedGold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -424,24 +432,36 @@ fun RiwayatScreen(
                             // Card 2: Terbayar (Lunas)
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = CardGrey.copy(alpha = 0.7f)),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.4f))
+                                colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                                shape = RoundedCornerShape(14.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.2.dp, AlertGreen.copy(alpha = 0.5f))
                             ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
+                                Column(
+                                    modifier = Modifier
+                                        .background(Brush.radialGradient(listOf(AlertGreen.copy(alpha = 0.15f), Color.Transparent)))
+                                        .padding(12.dp)
+                                ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Text(text = "DITERIMA", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = TextMuted)
-                                        Icon(imageVector = Icons.Outlined.CheckCircle, contentDescription = null, tint = AlertGreen, modifier = Modifier.size(14.dp))
+                                        Text(text = "DITERIMA", fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFA0AEC0), letterSpacing = 0.5.sp)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(AlertGreen.copy(alpha = 0.18f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(imageVector = Icons.Outlined.CheckCircle, contentDescription = null, tint = AlertGreen, modifier = Modifier.size(13.dp))
+                                        }
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = FormatUtils.formatRupiah(totalPaidValue),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Black,
                                         color = AlertGreen,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -457,29 +477,53 @@ fun RiwayatScreen(
                             // Card 3: Sisa Piutang / Pending
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = CardGrey.copy(alpha = 0.7f)),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.4f))
+                                colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                                shape = RoundedCornerShape(14.dp),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.2.dp,
+                                    if (totalRemainingValue > 0) StatusWarningGold.copy(alpha = 0.6f) else HighlightSoftCyan.copy(alpha = 0.4f)
+                                )
                             ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
+                                Column(
+                                    modifier = Modifier
+                                        .background(
+                                            Brush.radialGradient(
+                                                listOf(
+                                                    if (totalRemainingValue > 0) StatusWarningGold.copy(alpha = 0.15f) else HighlightSoftCyan.copy(alpha = 0.15f),
+                                                    Color.Transparent
+                                                )
+                                            )
+                                        )
+                                        .padding(12.dp)
+                                ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Text(text = "SISA PIUTANG", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = TextMuted)
-                                        Icon(
-                                            imageVector = Icons.Outlined.Pending,
-                                            contentDescription = null,
-                                            tint = if (totalRemainingValue > 0) StatusWarningGold else HighlightSoftCyan,
-                                            modifier = Modifier.size(14.dp)
-                                        )
+                                        Text(text = "SISA PIUTANG", fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFA0AEC0), letterSpacing = 0.5.sp)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (totalRemainingValue > 0) StatusWarningGold.copy(alpha = 0.18f) else HighlightSoftCyan.copy(alpha = 0.18f)
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Pending,
+                                                contentDescription = null,
+                                                tint = if (totalRemainingValue > 0) StatusWarningGold else HighlightSoftCyan,
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                        }
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = FormatUtils.formatRupiah(totalRemainingValue),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Black,
                                         color = if (totalRemainingValue > 0) StatusWarningGold else HighlightSoftCyan,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -490,24 +534,36 @@ fun RiwayatScreen(
                             // Card 4: Quantity & Transaction Count
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = CardGrey.copy(alpha = 0.7f)),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.4f))
+                                colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                                shape = RoundedCornerShape(14.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.2.dp, HighlightSoftCyan.copy(alpha = 0.5f))
                             ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
+                                Column(
+                                    modifier = Modifier
+                                        .background(Brush.radialGradient(listOf(HighlightSoftCyan.copy(alpha = 0.15f), Color.Transparent)))
+                                        .padding(12.dp)
+                                ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Text(text = "VOLUME PRODUK", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = TextMuted)
-                                        Icon(imageVector = Icons.Outlined.ShoppingBag, contentDescription = null, tint = HighlightSoftCyan, modifier = Modifier.size(14.dp))
+                                        Text(text = "VOLUME PRODUK", fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFA0AEC0), letterSpacing = 0.5.sp)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(HighlightSoftCyan.copy(alpha = 0.18f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(imageVector = Icons.Outlined.ShoppingBag, contentDescription = null, tint = HighlightSoftCyan, modifier = Modifier.size(13.dp))
+                                        }
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = "$totalItemQuantity Pcs (${filteredInvoices.size} Inv)",
-                                        fontSize = 12.5.sp,
-                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Black,
                                         color = Color.White,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis

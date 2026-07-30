@@ -295,11 +295,7 @@ fun SettingsScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = Color(0xEA051214),
-                    shadowElevation = 12.dp,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.5f), HighlightSoftCyan.copy(alpha = 0.4f), AgedGold.copy(alpha = 0.5f)))
-                    )
+                    shadowElevation = 8.dp
                 ) {
                     Column(
                         modifier = Modifier

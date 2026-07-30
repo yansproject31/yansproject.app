@@ -1486,13 +1486,13 @@ private fun AssetMiniBox(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0x1F000000))
-            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-            .padding(10.dp)
+            .background(Brush.radialGradient(listOf(color.copy(alpha = 0.18f), Color(0x1F0F3D3E))))
+            .border(1.2.dp, color.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(text = title, fontSize = 9.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.Bold, letterSpacing = 0.3.sp)
-            Text(text = value, fontSize = 11.sp, fontWeight = FontWeight.Black, color = color)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(text = title, fontSize = 9.5.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.Bold, letterSpacing = 0.3.sp)
+            Text(text = value, fontSize = 12.5.sp, fontWeight = FontWeight.Black, color = color)
         }
     }
 }
@@ -1508,9 +1508,9 @@ private fun RatioMetricCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0x1F0F3D3E)),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.45f))
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+        border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(color.copy(alpha = 0.6f), color.copy(alpha = 0.25f))))
     ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(
@@ -1518,19 +1518,20 @@ private fun RatioMetricCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = title, fontSize = 10.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.ExtraBold)
+                Text(text = title, fontSize = 10.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.ExtraBold, letterSpacing = 0.3.sp)
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
-                        .background(color.copy(alpha = 0.15f)),
+                        .background(color.copy(alpha = 0.18f))
+                        .border(1.dp, color.copy(alpha = 0.4f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+                    Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(15.dp))
                 }
             }
-            Text(text = value, fontSize = 16.sp, fontWeight = FontWeight.Black, color = color)
-            Text(text = subtitle, fontSize = 9.sp, color = Color.White.copy(alpha = 0.7f))
+            Text(text = value, fontSize = 17.sp, fontWeight = FontWeight.Black, color = color)
+            Text(text = subtitle, fontSize = 9.5.sp, color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -1540,7 +1541,7 @@ private fun InflowStreamProgress(label: String, amount: Double, total: Double, c
     val pct = if (total > 0) (amount / total).toFloat().coerceIn(0f, 1f) else 0f
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(text = label, fontSize = 10.sp, color = Color(0xFFA0AEC0))
+            Text(text = label, fontSize = 10.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.Medium)
             Text(
                 text = "${formatRupiah(amount)} (${String.format("%.1f", pct * 100)}%)",
                 fontSize = 10.sp,
@@ -1565,9 +1566,10 @@ private fun TableAuditRow(label: String, value: String, isPositive: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0x1F000000))
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0x220F3D3E))
+            .border(0.8.dp, Color(0x33319795), RoundedCornerShape(10.dp))
+            .padding(horizontal = 12.dp, vertical = 9.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1577,15 +1579,15 @@ private fun TableAuditRow(label: String, value: String, isPositive: Boolean) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(
                     modifier = Modifier
-                        .size(6.dp)
+                        .size(7.dp)
                         .clip(CircleShape)
                         .background(if (isPositive) StatusSuccessGreen else StatusDangerRed)
                 )
-                Text(text = label, fontSize = 11.sp, color = Color.White)
+                Text(text = label, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
             }
             Text(
                 text = value,
-                fontSize = 11.sp,
+                fontSize = 11.5.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = if (isPositive) StatusSuccessGreen else StatusDangerRed
             )
@@ -1603,13 +1605,13 @@ private fun SalesMiniStatBox(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0x1F000000))
-            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-            .padding(10.dp)
+            .background(Brush.radialGradient(listOf(color.copy(alpha = 0.18f), Color(0x1F0F3D3E))))
+            .border(1.2.dp, color.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(text = title, fontSize = 9.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.Bold, letterSpacing = 0.3.sp)
-            Text(text = value, fontSize = 11.sp, fontWeight = FontWeight.Black, color = color)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(text = title, fontSize = 9.5.sp, color = Color(0xFFA0AEC0), fontWeight = FontWeight.Bold, letterSpacing = 0.3.sp)
+            Text(text = value, fontSize = 12.5.sp, fontWeight = FontWeight.Black, color = color)
         }
     }
 }

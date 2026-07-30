@@ -294,14 +294,30 @@ object AppSettings {
         }
     }
 
-    fun saveLocalUserCredential(context: Context, email: String, passwordOrPin: String, displayName: String, role: String, priceCategory: String) {
+    fun saveLocalUserCredential(
+        context: Context,
+        email: String,
+        passwordOrPin: String,
+        displayName: String,
+        role: String,
+        priceCategory: String,
+        whatsapp: String = "",
+        address: String = ""
+    ) {
         val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
-        prefs.edit()
-            .putString("pass_${email.trim().lowercase()}", passwordOrPin)
-            .putString("name_${email.trim().lowercase()}", displayName)
-            .putString("role_${email.trim().lowercase()}", role)
-            .putString("price_${email.trim().lowercase()}", priceCategory)
-            .apply()
+        val cleanEmail = email.trim().lowercase()
+        val editor = prefs.edit()
+            .putString("pass_$cleanEmail", passwordOrPin)
+            .putString("name_$cleanEmail", displayName)
+            .putString("role_$cleanEmail", role)
+            .putString("price_$cleanEmail", priceCategory)
+        if (whatsapp.isNotBlank()) {
+            editor.putString("wa_$cleanEmail", whatsapp)
+        }
+        if (address.isNotBlank()) {
+            editor.putString("address_$cleanEmail", address)
+        }
+        editor.apply()
     }
 
     fun getLocalUserCredential(context: Context, email: String): LocalUserCredential? {
@@ -312,7 +328,9 @@ object AppSettings {
         val role = prefs.getString("role_$cleanEmail", "MEMBER") ?: "MEMBER"
         val priceDefault = if (role == "OWNER") "Retail" else "Member"
         val price = prefs.getString("price_$cleanEmail", priceDefault) ?: priceDefault
-        return LocalUserCredential(password, name, role, price)
+        val whatsapp = prefs.getString("wa_$cleanEmail", "") ?: ""
+        val address = prefs.getString("address_$cleanEmail", "") ?: ""
+        return LocalUserCredential(password, name, role, price, whatsapp, address)
     }
 
     fun getMemberPriceCategory(context: Context, displayName: String): String {
@@ -343,7 +361,9 @@ object AppSettings {
         val passwordOrPin: String,
         val displayName: String,
         val role: String,
-        val priceCategory: String
+        val priceCategory: String,
+        val whatsapp: String = "",
+        val address: String = ""
     )
 
     fun getDeveloperMode(context: Context): Boolean =

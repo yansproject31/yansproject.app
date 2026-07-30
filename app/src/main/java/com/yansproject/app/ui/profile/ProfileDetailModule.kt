@@ -196,6 +196,20 @@ fun ProfileDetailModule(
 
                             if (liveName.isNotBlank()) AppSettings.addMember(context, liveName)
                             if (liveTier.isNotBlank()) AppSettings.saveMemberPriceCategory(context, liveName, liveTier)
+
+                            val cur = FirebaseSyncManager.currentUser.value
+                            if (cur != null && cur.email.equals(cleanEmail, ignoreCase = true)) {
+                                FirebaseSyncManager.saveSession(
+                                    context = context,
+                                    email = cleanEmail,
+                                    role = cur.role,
+                                    displayName = liveName.ifBlank { cur.displayName },
+                                    priceCategory = liveTier.ifBlank { cur.priceCategory },
+                                    whatsapp = liveWA.ifBlank { cur.whatsapp },
+                                    address = liveAddress.ifBlank { cur.address },
+                                    uid = cur.uid
+                                )
+                            }
                         }
                     }
             } catch (e: Exception) {
@@ -393,14 +407,23 @@ fun ProfileDetailModule(
                                                     Log.e("ProfileDetail", "Failed Cloud sync for owner profile: ${fe.message}")
                                                 }
                                             }
-                                            FirebaseSyncManager.saveSession(context, cleanSaveEmail, role, editName.trim(), "Owner")
+                                            FirebaseSyncManager.saveSession(
+                                                context = context,
+                                                email = cleanSaveEmail,
+                                                role = role,
+                                                displayName = editName.trim(),
+                                                priceCategory = "Owner",
+                                                whatsapp = editWhatsApp.trim(),
+                                                address = editAddress.trim(),
+                                                uid = userResolve?.uid ?: ""
+                                            )
                                         } else {
                                             // Member update: Sync with Member Management
                                             val localCred = AppSettings.getLocalUserCredential(context, cleanSaveEmail)
                                             val pin = localCred?.passwordOrPin ?: ""
                                             
                                             AppSettings.saveLocalUserCredential(
-                                                context, cleanSaveEmail, pin, editName.trim(), "MEMBER", activeTierState
+                                                context, cleanSaveEmail, pin, editName.trim(), "MEMBER", activeTierState, editWhatsApp.trim(), editAddress.trim()
                                             )
                                             prefs.edit()
                                                 .putString("name_$cleanSaveEmail", editName.trim())
@@ -427,7 +450,16 @@ fun ProfileDetailModule(
                                                     Log.e("ProfileDetail", "Failed Cloud sync for member profile: ${fe.message}")
                                                 }
                                             }
-                                            FirebaseSyncManager.saveSession(context, cleanSaveEmail, role, editName.trim(), activeTierState)
+                                            FirebaseSyncManager.saveSession(
+                                                context = context,
+                                                email = cleanSaveEmail,
+                                                role = role,
+                                                displayName = editName.trim(),
+                                                priceCategory = activeTierState,
+                                                whatsapp = editWhatsApp.trim(),
+                                                address = editAddress.trim(),
+                                                uid = userResolve?.uid ?: ""
+                                            )
                                         }
 
                                         Toast.makeText(context, "Profil berhasil diperbarui & disinkronkan!", Toast.LENGTH_SHORT).show()

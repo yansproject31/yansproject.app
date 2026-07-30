@@ -133,16 +133,24 @@ object FirebaseSyncManager {
         val savedName = sharedPrefs.getString("saved_name", "") ?: ""
         val defaultPriceCat = if (savedRole == "OWNER") "Retail" else "Member"
         val savedPriceCategory = sharedPrefs.getString("saved_price_category", defaultPriceCat) ?: defaultPriceCat
-        val savedWhatsapp = sharedPrefs.getString("saved_whatsapp", "") ?: ""
-        val savedAddress = sharedPrefs.getString("saved_address", "") ?: ""
+        var savedWhatsapp = sharedPrefs.getString("saved_whatsapp", "") ?: ""
+        var savedAddress = sharedPrefs.getString("saved_address", "") ?: ""
         val savedUid = sharedPrefs.getString("saved_uid", "") ?: ""
 
         if (isLoggedIn && savedEmail != null && savedRole != null) {
+            val cleanEmail = savedEmail.trim().lowercase()
+            val localCred = AppSettings.getLocalUserCredential(context, cleanEmail)
+            if (savedWhatsapp.isBlank() && localCred != null && localCred.whatsapp.isNotBlank()) {
+                savedWhatsapp = localCred.whatsapp
+            }
+            if (savedAddress.isBlank() && localCred != null && localCred.address.isNotBlank()) {
+                savedAddress = localCred.address
+            }
             val role = try { UserRole.valueOf(savedRole) } catch (e: Exception) { UserRole.MEMBER }
             _currentUser.value = UserSession(
                 email = savedEmail,
                 role = role,
-                displayName = savedName,
+                displayName = if (savedName.isNotBlank()) savedName else (localCred?.displayName ?: ""),
                 priceCategory = savedPriceCategory,
                 whatsapp = savedWhatsapp,
                 address = savedAddress,
@@ -284,7 +292,7 @@ object FirebaseSyncManager {
                 }
             }
             val role = try { UserRole.valueOf(localCred.role.uppercase()) } catch (e: Exception) { UserRole.MEMBER }
-            saveSession(context, targetEmail, role, localCred.displayName, localCred.priceCategory)
+            saveSession(context, targetEmail, role, localCred.displayName, localCred.priceCategory, localCred.whatsapp, localCred.address)
             return true
         }
 
@@ -292,7 +300,7 @@ object FirebaseSyncManager {
         if (!isFirebaseActive) {
             if (localCred != null && localCred.passwordOrPin == passwordOrPin) {
                 val role = try { UserRole.valueOf(localCred.role) } catch (e: Exception) { UserRole.MEMBER }
-                saveSession(context, targetEmail, role, localCred.displayName, localCred.priceCategory)
+                saveSession(context, targetEmail, role, localCred.displayName, localCred.priceCategory, localCred.whatsapp, localCred.address)
                 return true
             }
             // Local-only check for other members defined in AppSettings
@@ -300,7 +308,9 @@ object FirebaseSyncManager {
             if (members.contains(emailOrUsername.trim())) {
                 // If it's a known member, allow local-only login with standard member PIN/pass
                 if (passwordOrPin == "member123") {
-                    saveSession(context, targetEmail, UserRole.MEMBER, emailOrUsername.trim(), "Member")
+                    val wa = localCred?.whatsapp ?: ""
+                    val addr = localCred?.address ?: ""
+                    saveSession(context, targetEmail, UserRole.MEMBER, emailOrUsername.trim(), "Member", wa, addr)
                     return true
                 }
             }
@@ -316,8 +326,8 @@ object FirebaseSyncManager {
                 var roleStr = if (isHardcodedOwner) "OWNER" else "MEMBER"
                 var displayName = if (isHardcodedOwner) "Yans Art" else emailOrUsername.trim()
                 var priceCategory = if (isHardcodedOwner) "Retail" else "Member"
-                var whatsapp = ""
-                var address = ""
+                var whatsapp = localCred?.whatsapp ?: ""
+                var address = localCred?.address ?: ""
                 val uid = result.user?.uid ?: ""
 
                 try {
@@ -326,8 +336,10 @@ object FirebaseSyncManager {
                         roleStr = doc.getString("role") ?: (if (isHardcodedOwner) "OWNER" else "MEMBER")
                         displayName = doc.getString("displayName") ?: (if (isHardcodedOwner) "Yans Art" else emailOrUsername.trim())
                         priceCategory = doc.getString("priceCategory") ?: (if (roleStr == "OWNER") "Retail" else "Member")
-                        whatsapp = doc.getString("whatsapp") ?: ""
-                        address = doc.getString("address") ?: ""
+                        val docWa = doc.getString("whatsapp") ?: doc.getString("phone") ?: ""
+                        val docAddr = doc.getString("address") ?: ""
+                        if (docWa.isNotBlank()) whatsapp = docWa
+                        if (docAddr.isNotBlank()) address = docAddr
                     } else if (isHardcodedOwner) {
                         // Create Firestore document if missing for hardcoded owner
                         val adminData = hashMapOf(
@@ -349,6 +361,8 @@ object FirebaseSyncManager {
                         roleStr = localCred.role
                         displayName = localCred.displayName
                         priceCategory = localCred.priceCategory
+                        if (whatsapp.isBlank()) whatsapp = localCred.whatsapp
+                        if (address.isBlank()) address = localCred.address
                     }
                 }
 
@@ -357,17 +371,17 @@ object FirebaseSyncManager {
                 
                 // Sync to local cache (save under targetEmail, prefix, and displayName)
                 val prefix = if (targetEmail.contains("@")) targetEmail.substringBefore("@") else targetEmail
-                AppSettings.saveLocalUserCredential(context, targetEmail, passwordOrPin, displayName, role.name, priceCategory)
+                AppSettings.saveLocalUserCredential(context, targetEmail, passwordOrPin, displayName, role.name, priceCategory, whatsapp, address)
                 if (role == UserRole.MEMBER) {
                     AppSettings.addMember(context, displayName)
                 }
                 
                 if (targetEmail != "$prefix@yansproject.id") {
-                    AppSettings.saveLocalUserCredential(context, "$prefix@yansproject.id", passwordOrPin, displayName, role.name, priceCategory)
+                    AppSettings.saveLocalUserCredential(context, "$prefix@yansproject.id", passwordOrPin, displayName, role.name, priceCategory, whatsapp, address)
                 }
                 val cleanDisplayName = displayName.trim().lowercase().replace(" ", "")
                 if (cleanDisplayName.isNotEmpty()) {
-                    AppSettings.saveLocalUserCredential(context, "$cleanDisplayName@yansproject.id", passwordOrPin, displayName, role.name, priceCategory)
+                    AppSettings.saveLocalUserCredential(context, "$cleanDisplayName@yansproject.id", passwordOrPin, displayName, role.name, priceCategory, whatsapp, address)
                 }
 
                 val params = android.os.Bundle().apply {
@@ -379,7 +393,7 @@ object FirebaseSyncManager {
             } else {
                 if (localCred != null && localCred.passwordOrPin == passwordOrPin) {
                     val role = try { UserRole.valueOf(localCred.role) } catch (e: Exception) { UserRole.MEMBER }
-                    saveSession(context, targetEmail, role, localCred.displayName, localCred.priceCategory, "", "", "")
+                    saveSession(context, targetEmail, role, localCred.displayName, localCred.priceCategory, localCred.whatsapp, localCred.address, "")
                     true
                 } else {
                     false
@@ -389,7 +403,7 @@ object FirebaseSyncManager {
             Log.e(TAG, "Firebase Authentication failed: ${e.message}. Trying local cached fallback...")
             if (localCred != null && localCred.passwordOrPin == passwordOrPin) {
                 val role = try { UserRole.valueOf(localCred.role) } catch (e: Exception) { UserRole.MEMBER }
-                saveSession(context, targetEmail, role, localCred.displayName, localCred.priceCategory, "", "", "")
+                saveSession(context, targetEmail, role, localCred.displayName, localCred.priceCategory, localCred.whatsapp, localCred.address, "")
                 true
             } else {
                 val members = AppSettings.getMembers(context)
@@ -492,7 +506,7 @@ object FirebaseSyncManager {
             if (role == "MEMBER") {
                 AppSettings.addMember(context, displayName)
             }
-            AppSettings.saveLocalUserCredential(context, cleanEmail, passwordOrPin, displayName, role, priceCategory)
+            AppSettings.saveLocalUserCredential(context, cleanEmail, passwordOrPin, displayName, role, priceCategory, whatsapp, address)
             val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
             prefs.edit()
                 .putString("wa_$cleanEmail", whatsapp)
