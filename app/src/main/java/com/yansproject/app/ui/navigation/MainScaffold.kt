@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -60,7 +61,16 @@ fun MainScaffold(
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val savedFileEvent by viewModel.savedFileEvent.collectAsStateWithLifecycle()
-    val hideHeaderAndBottomBar = currentTab == AppTab.KITAB || currentTab == AppTab.SETTINGS
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val isSubRoute = currentRoute != null && currentRoute !in listOf(
+        Routes.Dashboard,
+        Routes.Project,
+        Routes.Stock,
+        Routes.Invoice,
+        Routes.History
+    )
+    val hideHeaderAndBottomBar = currentTab == AppTab.KITAB || currentTab == AppTab.SETTINGS || isSubRoute
 
     if (savedFileEvent != null) {
         val event = savedFileEvent!!

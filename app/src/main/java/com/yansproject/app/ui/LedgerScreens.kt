@@ -24,6 +24,7 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -118,30 +119,37 @@ fun RiwayatModalBerjalanScreen(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            CenterAlignedTopAppBar(
-                windowInsets = WindowInsets(0.dp),
-                title = {
-                    Text(
-                        text = "MODAL BERJALAN",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        letterSpacing = 1.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = Color.White
+            Surface(
+                color = Color(0xFA081B1E),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+            ) {
+                CenterAlignedTopAppBar(
+                    windowInsets = WindowInsets(0.dp),
+                    title = {
+                        Text(
+                            text = "MODAL BERJALAN",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = AgedGold,
+                            letterSpacing = 1.sp
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = SecondaryShadowBlackTeal.copy(alpha = 0.9f)
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Kembali",
+                                tint = AgedGold
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Color.Transparent
+                    )
                 )
-            )
+            }
         }
     ) { paddingValues ->
         LazyColumn(
@@ -151,68 +159,80 @@ fun RiwayatModalBerjalanScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Main Hero Card (Glassmorphic)
+            // Main Hero Card (YANSPROJECT.ID Luxury Hero Style)
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceDarkTeal.copy(alpha = 0.85f)),
-                    border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.3f))
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color(0x2A0F3D3E),
+                                        Color(0xEA051214)
+                                    )
+                                )
+                            )
+                            .padding(20.dp)
                     ) {
-                        Text(
-                            text = "ESTIMASI MODAL BERGULIR AKTIF",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AgedGold,
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = FormatUtils.formatRupiah(modalBerjalan),
-                            fontSize = 26.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column(horizontalAlignment = Alignment.Start) {
-                                Text(
-                                    text = "Modal Awal",
-                                    fontSize = 10.sp,
-                                    color = TextSecondary,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = FormatUtils.formatRupiah(modalAwal),
-                                    fontSize = 13.sp,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            Text(
+                                text = "ESTIMASI MODAL BERGULIR AKTIF",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AgedGold,
+                                letterSpacing = 1.sp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = FormatUtils.formatRupiah(modalBerjalan),
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
                             
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = "Profit/Loss",
-                                    fontSize = 10.sp,
-                                    color = TextSecondary,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = (if (totalProfit >= 0) "+" else "") + FormatUtils.formatRupiah(totalProfit),
-                                    fontSize = 13.sp,
-                                    color = if (totalProfit >= 0) AlertGreen else AlertRed,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(horizontalAlignment = Alignment.Start) {
+                                    Text(
+                                        text = "Modal Awal",
+                                        fontSize = 10.sp,
+                                        color = TextSecondary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = FormatUtils.formatRupiah(modalAwal),
+                                        fontSize = 13.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "Profit/Loss",
+                                        fontSize = 10.sp,
+                                        color = TextSecondary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = (if (totalProfit >= 0) "+" else "") + FormatUtils.formatRupiah(totalProfit),
+                                        fontSize = 13.sp,
+                                        color = if (totalProfit >= 0) AlertGreen else AlertRed,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }
@@ -277,7 +297,7 @@ fun RiwayatModalBerjalanScreen(
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = "Belum ada riwayat penyertaan modal awal",
+                                text = "Saldo Investasi Awal Belum Terdaftar",
                                 fontSize = 12.sp,
                                 color = TextSecondary,
                                 fontWeight = FontWeight.Medium
@@ -1302,11 +1322,16 @@ fun RiwayatKasScreen(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
-                color = DarkGrey,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                color = Color(0xFA081B1E),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
             ) {
                 Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
@@ -1334,45 +1359,59 @@ fun RiwayatKasScreen(
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            // --- Cash Balance Card ---
+            // --- Cash Balance Card (YANSPROJECT.ID Luxury Hero Style) ---
             Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
-                border = BorderStroke(1.dp, BorderGrey),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0x2A0F3D3E),
+                                    Color(0xEA051214)
+                                )
+                            )
+                        )
+                        .padding(20.dp)
                 ) {
-                    Text(
-                        text = "TOTAL SALDO KAS AKTIF REAL-TIME",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AgedGold,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = FormatUtils.formatRupiah(totalSaldoKas),
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black,
-                        color = AlertGreen
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Total Pemasukan", fontSize = 10.sp, color = TextMuted)
-                            Text(FormatUtils.formatRupiah(totalAllTimePemasukan), fontSize = 12.sp, color = AlertGreen, fontWeight = FontWeight.Bold)
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Total Pengeluaran", fontSize = 10.sp, color = TextMuted)
-                            Text(FormatUtils.formatRupiah(totalAllTimePengeluaran), fontSize = 12.sp, color = AlertRed, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "TOTAL SALDO KAS AKTIF REAL-TIME",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AgedGold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = FormatUtils.formatRupiah(totalSaldoKas),
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Black,
+                            color = AlertGreen
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Total Pemasukan", fontSize = 10.sp, color = TextMuted)
+                                Text(FormatUtils.formatRupiah(totalAllTimePemasukan), fontSize = 12.sp, color = AlertGreen, fontWeight = FontWeight.Bold)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Total Pengeluaran", fontSize = 10.sp, color = TextMuted)
+                                Text(FormatUtils.formatRupiah(totalAllTimePengeluaran), fontSize = 12.sp, color = AlertRed, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -1453,7 +1492,7 @@ fun RiwayatKasScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Outlined.History, contentDescription = null, modifier = Modifier.size(48.dp), tint = TextMuted)
                         Spacer(modifier = Modifier.height(10.dp))
-                        Text("Belum ada mutasi kas yang cocok.", fontSize = 13.sp, color = TextMuted)
+                        Text("Nihil mutasi kas yang sesuai kriteria pencarian.", fontSize = 13.sp, color = TextMuted)
                     }
                 }
             } else {
@@ -1732,11 +1771,16 @@ fun DetailProfitScreen(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
-                color = DarkGrey,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                color = Color(0xFA081B1E),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
             ) {
                 Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
@@ -1789,37 +1833,51 @@ fun DetailProfitScreen(
                 }
             }
 
-            // --- Net Profit Giant Card ---
+            // --- Net Profit Giant Card (YANSPROJECT.ID Luxury Hero Style) ---
             Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
-                border = BorderStroke(1.dp, BorderGrey),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0x2A0F3D3E),
+                                    Color(0xEA051214)
+                                )
+                            )
+                        )
+                        .padding(20.dp)
                 ) {
-                    Text(
-                        text = "PROFIT BERSIH (${selectedFilter.uppercase()})",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AgedGold,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = FormatUtils.formatRupiah(netProfit),
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Black,
-                        color = if (netProfit >= 0) AlertGreen else AlertRed
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Formula: Total Pemasukan - Total Pengeluaran",
-                        fontSize = 10.sp,
-                        color = TextMuted
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "PROFIT BERSIH (${selectedFilter.uppercase()})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AgedGold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = FormatUtils.formatRupiah(netProfit),
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (netProfit >= 0) AlertGreen else AlertRed
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Formula: Total Pemasukan - Total Pengeluaran",
+                            fontSize = 10.sp,
+                            color = TextMuted
+                        )
+                    }
                 }
             }
 
@@ -1957,11 +2015,16 @@ fun RiwayatPiutangScreen(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
-                color = DarkGrey,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                color = Color(0xFA081B1E),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
             ) {
                 Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
@@ -1989,37 +2052,51 @@ fun RiwayatPiutangScreen(
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            // --- Summary Card ---
+            // --- Summary Card (YANSPROJECT.ID Luxury Hero Style) ---
             Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
-                border = BorderStroke(1.dp, BorderGrey),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0x2A0F3D3E),
+                                    Color(0xEA051214)
+                                )
+                            )
+                        )
+                        .padding(20.dp)
                 ) {
-                    Text(
-                        text = "TOTAL PIUTANG AKTIF BELUM LUNAS",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AgedGold,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = FormatUtils.formatRupiah(totalPiutang),
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black,
-                        color = AlertOrange
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Dari total ${unpaidInvs.size} Invoice Belum Lunas",
-                        fontSize = 11.sp,
-                        color = TextMuted
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "TOTAL PIUTANG AKTIF BELUM LUNAS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AgedGold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = FormatUtils.formatRupiah(totalPiutang),
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Black,
+                            color = AlertOrange
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Dari total ${unpaidInvs.size} Invoice Belum Lunas",
+                            fontSize = 11.sp,
+                            color = TextMuted
+                        )
+                    }
                 }
             }
 
@@ -2567,11 +2644,16 @@ fun RiwayatTransaksiScreen(
         },
         topBar = {
             Surface(
-                color = DarkGrey,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                color = Color(0xFA081B1E),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
             ) {
                 Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
@@ -2657,14 +2739,28 @@ fun RiwayatTransaksiScreen(
                 )
             }
 
-            // 2. Realtime Calculations Card
+            // 2. Realtime Calculations Card (YANSPROJECT.ID Luxury Hero Style)
             Card(
-                colors = CardDefaults.cardColors(containerColor = DarkGrey),
-                border = BorderStroke(1.dp, BorderGrey),
-                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
+                shape = RoundedCornerShape(22.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0x2A0F3D3E),
+                                    Color(0xEA051214)
+                                )
+                            )
+                        )
+                        .padding(16.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = if (currentModeTab == 1) "TOTAL KAS TERAPUS (TRASH)" else "RINGKASAN LEDGER TERFILTER",
                         fontSize = 10.sp,
@@ -2729,6 +2825,7 @@ fun RiwayatTransaksiScreen(
                     }
                 }
             }
+        }
 
             // 3. Search Bar
             OutlinedTextField(

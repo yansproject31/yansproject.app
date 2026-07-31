@@ -849,7 +849,7 @@ fun StockScreen(
 
                                     if (filteredBatches.isEmpty()) {
                                         Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                                            EmptyStateView(icon = Icons.Outlined.History, title = "Tidak Ada Batch Produksi", description = "Belum ada pencatatan hasil produksi batch baru yang terdaftar.")
+                                            EmptyStateView(icon = Icons.Outlined.History, title = "Tidak Ada Batch Produksi", description = "Tidak ditemukan pencatatan hasil produksi batch baru dalam database stok.")
                                         }
                                     } else {
                                         LazyColumn(
@@ -3007,7 +3007,7 @@ fun AddCatalogDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Menambahkan Katalog baru ke dalam Series AJIBQOBUL. Setiap kali Katalog baru ditambahkan (seperti 'MADAD AULIYA 68TH'), jumlah Katalog dalam statistik & grafik stok akan bertambah secara otomatis.",
+                    text = "Registrasi Master Katalog ke dalam struktur Series AJIBQOBUL.",
                     color = TextMuted,
                     fontSize = 11.sp,
                     lineHeight = 15.sp,
@@ -3077,7 +3077,7 @@ fun AddVariantDialog(
             ) {
                 Column {
                     Text("TAMBAH VARIAN WARNA", color = AgedGold, fontWeight = FontWeight.Black, fontSize = 14.sp)
-                    Text("Hierarki: Series -> Catalog -> Varian Warna", color = TextMuted, fontSize = 10.sp)
+                    Text("Master Katalog Terpilih", color = TextMuted, fontSize = 10.sp)
                 }
                 IconButton(onClick = onDismiss) {
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = "Tutup", tint = TextMuted)
@@ -3091,7 +3091,7 @@ fun AddVariantDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Varian Warna berada di bawah Katalog. Cukup masukkan nama warna (seperti Hitam, Navy, Maroon, Sage, Putih, dll). Tidak memerlukan kode Hex Warna.",
+                    text = "Registrasi spesifikasi varian warna ke dalam Master Katalog.",
                     color = TextMuted,
                     fontSize = 11.sp,
                     lineHeight = 15.sp,
@@ -4463,7 +4463,7 @@ fun TotalProduksiDetailDialog(
                         EmptyStateView(
                             icon = Icons.Outlined.Inventory2,
                             title = "Tidak Ada Batch Produksi",
-                            description = if (searchQuery.isNotEmpty()) "Pencarian '$searchQuery' tidak ditemukan dalam riwayat batch produksi." else "Belum ada rekaman batch produksi yang terdaftar di database."
+                            description = if (searchQuery.isNotEmpty()) "Pencarian '$searchQuery' tidak ditemukan dalam riwayat batch produksi." else "Tidak ditemukan rekaman batch produksi yang terdaftar di database stok."
                         )
                     }
                 } else {
@@ -4969,7 +4969,7 @@ fun TotalTerjualDetailDialog(
                         EmptyStateView(
                             icon = Icons.Outlined.ShoppingCart,
                             title = "Tidak Ada Data Penjualan",
-                            description = if (searchQuery.isNotEmpty()) "Pencarian '$searchQuery' tidak ditemukan dalam riwayat transaksi penjualan." else "Belum ada transaksi penjualan stok yang tercatat di database."
+                            description = if (searchQuery.isNotEmpty()) "Pencarian '$searchQuery' tidak ditemukan dalam riwayat transaksi penjualan." else "Tidak ditemukan pencatatan transaksi penjualan stok pada database."
                         )
                     }
                 } else {

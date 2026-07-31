@@ -324,7 +324,7 @@ fun CashFlowScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Belum ada catatan transaksi kas.",
+                        text = "Tidak ditemukan catatan mutasi transaksi kas.",
                         color = TextNonActive,
                         fontSize = 13.sp
                     )

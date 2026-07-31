@@ -729,28 +729,28 @@ fun GridOperasionalOwner(
         // 12 Cards arranged in 6 Rows of 2 Cards each
         val rowData = listOf(
             listOf(
-                GridCardData("MODAL AWAL", FormatUtils.formatRupiah(modalAwal), if (modalAwal == 0.0) "Belum ada modal awal" else "Investasi kas awal", Icons.Outlined.AccountBalanceWallet, primaryAccent, isEmpty = (modalAwal == 0.0)),
-                GridCardData("MODAL BERJALAN", FormatUtils.formatRupiah(modalBerjalan), if (modalBerjalan == 0.0) "Belum ada transaksi modal" else "Estimasi modal bergulir", Icons.Outlined.TrendingUp, HighlightSoftCyan, isEmpty = (modalBerjalan == 0.0))
+                GridCardData("MODAL AWAL", FormatUtils.formatRupiah(modalAwal), if (modalAwal == 0.0) "Saldo Investasi Awal Belum Terdaftar" else "Investasi kas awal", Icons.Outlined.AccountBalanceWallet, primaryAccent, isEmpty = (modalAwal == 0.0)),
+                GridCardData("MODAL BERJALAN", FormatUtils.formatRupiah(modalBerjalan), if (modalBerjalan == 0.0) "Nihil Mutasi Modal Bergulir" else "Estimasi modal bergulir", Icons.Outlined.TrendingUp, HighlightSoftCyan, isEmpty = (modalBerjalan == 0.0))
             ),
             listOf(
-                GridCardData("KAS AKTIF", FormatUtils.formatRupiah(saldoKas), if (saldoKas == 0.0) "Kas riil kosong" else "Sisa dana kas riil", Icons.Outlined.AccountBalance, primaryAccent, isEmpty = (saldoKas == 0.0)),
-                GridCardData("PROFIT BERSIH", FormatUtils.formatRupiah(totalProfit), if (totalProfit == 0.0) "Laba nihil periode ini" else "Laba bersih setelah HPP", Icons.Outlined.MonetizationOn, HighlightSoftCyan, isEmpty = (totalProfit == 0.0))
+                GridCardData("KAS AKTIF", FormatUtils.formatRupiah(saldoKas), if (saldoKas == 0.0) "Saldo Kas Operasional Kosong" else "Sisa dana kas riil", Icons.Outlined.AccountBalance, primaryAccent, isEmpty = (saldoKas == 0.0)),
+                GridCardData("PROFIT BERSIH", FormatUtils.formatRupiah(totalProfit), if (totalProfit == 0.0) "Nihil Realisasi Laba Periode Ini" else "Laba bersih setelah HPP", Icons.Outlined.MonetizationOn, HighlightSoftCyan, isEmpty = (totalProfit == 0.0))
             ),
             listOf(
-                GridCardData("TOTAL PENJUALAN", FormatUtils.formatRupiah(totalPenjualan), if (totalPenjualan == 0.0) "Belum ada penjualan" else "Omset bruto terkumpul", Icons.Outlined.Leaderboard, HighlightSoftCyan, isEmpty = (totalPenjualan == 0.0)),
-                GridCardData("TOTAL PENGELUARAN", FormatUtils.formatRupiah(totalPengeluaran), if (totalPengeluaran == 0.0) "Belum ada pengeluaran" else "Biaya operasional & HPP", Icons.Outlined.TrendingDown, ErrorRed, isEmpty = (totalPengeluaran == 0.0))
+                GridCardData("TOTAL PENJUALAN", FormatUtils.formatRupiah(totalPenjualan), if (totalPenjualan == 0.0) "Belum Ada Mutasi Omset Penjualan" else "Omset bruto terkumpul", Icons.Outlined.Leaderboard, HighlightSoftCyan, isEmpty = (totalPenjualan == 0.0)),
+                GridCardData("TOTAL PENGELUARAN", FormatUtils.formatRupiah(totalPengeluaran), if (totalPengeluaran == 0.0) "Nihil Realisasi Beban Operasional" else "Biaya operasional & HPP", Icons.Outlined.TrendingDown, ErrorRed, isEmpty = (totalPengeluaran == 0.0))
             ),
             listOf(
-                GridCardData("NILAI PERSEDIAAN", FormatUtils.formatRupiah(nilaiTotalStock), if (nilaiTotalStock == 0.0) "Stok gudang kosong" else "Aset stock gudang", Icons.Outlined.Inventory, primaryAccent, isEmpty = (nilaiTotalStock == 0.0)),
-                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", if (totalStockPieces == 0) "Belum ada stok fisik" else "Total unit kaos fisik", Icons.Outlined.Inventory2, primaryAccent, isEmpty = (totalStockPieces == 0))
+                GridCardData("NILAI PERSEDIAAN", FormatUtils.formatRupiah(nilaiTotalStock), if (nilaiTotalStock == 0.0) "Persediaan Gudang Kosong" else "Aset stock gudang", Icons.Outlined.Inventory, primaryAccent, isEmpty = (nilaiTotalStock == 0.0)),
+                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", if (totalStockPieces == 0) "Persediaan Unit Fisik Kosong" else "Total unit kaos fisik", Icons.Outlined.Inventory2, primaryAccent, isEmpty = (totalStockPieces == 0))
             ),
             listOf(
-                GridCardData("PIUTANG DAGANG", FormatUtils.formatRupiah(invoiceBelumLunasAmount), if (invoiceBelumLunasAmount == 0.0) "Tidak ada piutang outstanding" else "Sisa tagihan outstanding", Icons.Outlined.AssignmentLate, StatusWarningGold, isEmpty = (invoiceBelumLunasAmount == 0.0)),
-                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", if (invoiceBelumLunasCount == 0) "Semua invoice telah lunas" else "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold, isEmpty = (invoiceBelumLunasCount == 0))
+                GridCardData("PIUTANG DAGANG", FormatUtils.formatRupiah(invoiceBelumLunasAmount), if (invoiceBelumLunasAmount == 0.0) "Nihil Tagihan Piutang Outstanding" else "Sisa tagihan outstanding", Icons.Outlined.AssignmentLate, StatusWarningGold, isEmpty = (invoiceBelumLunasAmount == 0.0)),
+                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", if (invoiceBelumLunasCount == 0) "Seluruh Invoice Telah Terlunas" else "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold, isEmpty = (invoiceBelumLunasCount == 0))
             ),
             listOf(
-                GridCardData("PROJECT AKTIF", "$projectAktifCount Project", if (projectAktifCount == 0) "Tidak ada proyek aktif" else "Proyek sedang diproduksi", Icons.Outlined.Assignment, HighlightSoftCyan, isEmpty = (projectAktifCount == 0)),
-                GridCardData("TOTAL MEMBER", "$totalMembersCount Mitra", if (totalMembersCount == 0) "Belum ada mitra terdaftar" else "Jumlah akun member aktif", Icons.Outlined.People, primaryAccent, isEmpty = (totalMembersCount == 0))
+                GridCardData("PROJECT AKTIF", "$projectAktifCount Project", if (projectAktifCount == 0) "Nihil Project Dalam Antrean Produksi" else "Proyek sedang diproduksi", Icons.Outlined.Assignment, HighlightSoftCyan, isEmpty = (projectAktifCount == 0)),
+                GridCardData("TOTAL MEMBER", "$totalMembersCount Mitra", if (totalMembersCount == 0) "Belum Ada Profil Mitra Terdaftar" else "Jumlah akun member aktif", Icons.Outlined.People, primaryAccent, isEmpty = (totalMembersCount == 0))
             )
         )
 
@@ -802,12 +802,12 @@ fun GridOperasionalMember(
 
         val rowData = listOf(
             listOf(
-                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", if (totalStockPieces == 0) "Belum ada stok fisik" else "Total unit kaos fisik di gudang", Icons.Outlined.Inventory2, AgedGold, isEmpty = (totalStockPieces == 0)),
+                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", if (totalStockPieces == 0) "Persediaan Unit Fisik Kosong" else "Total unit kaos fisik di gudang", Icons.Outlined.Inventory2, AgedGold, isEmpty = (totalStockPieces == 0)),
                 GridCardData("VARIAN AKTIF", if (lowStockSize > 0) "$lowStockSize Varian Menipis" else "Semua Varian Aman", "Status ketersediaan varian", Icons.Outlined.Category, HighlightSoftCyan, isEmpty = false)
             ),
             listOf(
-                GridCardData("PROJECT AKTIF", "$projectAktifCount Proyek", if (projectAktifCount == 0) "Tidak ada proyek aktif" else "Proyek pesanan berjalan", Icons.Outlined.Assignment, HighlightSoftCyan, isEmpty = (projectAktifCount == 0)),
-                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", if (invoiceBelumLunasCount == 0) "Semua invoice telah lunas" else "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold, isEmpty = (invoiceBelumLunasCount == 0))
+                GridCardData("PROJECT AKTIF", "$projectAktifCount Proyek", if (projectAktifCount == 0) "Nihil Project Dalam Antrean" else "Proyek pesanan berjalan", Icons.Outlined.Assignment, HighlightSoftCyan, isEmpty = (projectAktifCount == 0)),
+                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", if (invoiceBelumLunasCount == 0) "Seluruh Invoice Telah Terlunas" else "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold, isEmpty = (invoiceBelumLunasCount == 0))
             )
         )
 
@@ -1474,7 +1474,7 @@ fun DashboardScreen(
                     ) {
             // --- 1. GREETING WITH SYNC STATUS ---
             item {
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1671,7 +1671,7 @@ fun DashboardScreen(
                                 "STOK AJIBQOBUL" -> viewModel.setTab(AppTab.STOCK)
                                 "PIUTANG DAGANG" -> activeLedgerPage = "piutang"
                                 "INVOICE UNPAID" -> {
-                                    viewModel.invoiceStatusFilter.value = "Belum Dibayar"
+                                    viewModel.invoiceStatusFilter.value = "Semua"
                                     viewModel.setTab(AppTab.INVOICE)
                                 }
                                 "PROJECT AKTIF" -> viewModel.setTab(AppTab.PROJECT)
@@ -1696,7 +1696,7 @@ fun DashboardScreen(
                                 "STOK AJIBQOBUL", "VARIAN AKTIF" -> viewModel.setTab(AppTab.STOCK)
                                 "PROJECT AKTIF" -> viewModel.setTab(AppTab.PROJECT)
                                 "INVOICE UNPAID" -> {
-                                    viewModel.invoiceStatusFilter.value = "Belum Dibayar"
+                                    viewModel.invoiceStatusFilter.value = "Semua"
                                     viewModel.setTab(AppTab.INVOICE)
                                 }
                             }
@@ -2477,13 +2477,13 @@ fun StaffDashboardView(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("PANDUAN OPERASIONAL STAFF", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+                    Text("SOP OPERASIONAL WORKSPACE", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text("1. Lakukan update stok secara berkala di tab 'Stock' saat ada barang datang atau keluar.", fontSize = 11.sp, color = TextLight)
+                    Text("1. Pembaruan mutasi stok secara berkala pada tab Stock.", fontSize = 11.sp, color = TextLight)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("2. Periksa status pengerjaan proyek custom sablon dan konfeksi di tab 'Project'.", fontSize = 11.sp, color = TextLight)
+                    Text("2. Monitoring status pengerjaan apparel pada tab Project.", fontSize = 11.sp, color = TextLight)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("3. Jika ada pengeluaran sablon/operasional baru, laporkan langsung kepada Owner agar dicatat dalam database keuangan.", fontSize = 11.sp, color = TextLight)
+                    Text("3. Pencatatan beban operasional via persetujuan Owner.", fontSize = 11.sp, color = TextLight)
                 }
             }
         }
@@ -3537,15 +3537,16 @@ fun RiwayatProduksiScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(DarkTeal)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .background(Color(0xFA081B1E))
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.Outlined.ArrowBack,
                         contentDescription = "Kembali",
-                        tint = Color.White
+                        tint = AgedGold
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -3554,12 +3555,13 @@ fun RiwayatProduksiScreen(
                         text = "ANTREAN PRODUKSI ERP",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = AgedGold,
+                        letterSpacing = 1.sp
                     )
                     Text(
                         text = "${activeQueue.size} Project Sedang Berjalan",
                         fontSize = 11.sp,
-                        color = AgedGold,
+                        color = TextMuted,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -3921,15 +3923,16 @@ fun RiwayatLaporanScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(DarkTeal)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .background(Color(0xFA081B1E))
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.Outlined.ArrowBack,
                         contentDescription = "Kembali",
-                        tint = Color.White
+                        tint = AgedGold
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -3938,12 +3941,13 @@ fun RiwayatLaporanScreen(
                         text = "ANALISIS & LAPORAN ERP",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = AgedGold,
+                        letterSpacing = 1.sp
                     )
                     Text(
                         text = "Ringkasan Keuangan Komprehensif",
                         fontSize = 11.sp,
-                        color = AgedGold,
+                        color = TextMuted,
                         fontWeight = FontWeight.Medium
                     )
                 }

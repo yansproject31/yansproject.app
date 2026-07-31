@@ -473,9 +473,10 @@ fun ProjectScreen(
         }
 
         // --- Dialog Detail & Alur Kerja Project ---
-        if (selectedProjectForDetail != null) {
+        val targetProjectDetail = selectedProjectForDetail
+        if (targetProjectDetail != null) {
             ProjectDetailDialog(
-                project = selectedProjectForDetail!!,
+                project = targetProjectDetail,
                 viewModel = viewModel,
                 onDismiss = { selectedProjectForDetail = null }
             )
@@ -1213,7 +1214,7 @@ fun AddProjectDialog(
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Belum ada rincian item pakaian. Tambahkan item di atas terlebih dahulu!", fontSize = 11.sp, color = AlertOrange, fontWeight = FontWeight.Bold)
+                            Text("Nihil rincian spesifikasi pakaian.", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -1233,7 +1234,7 @@ fun AddProjectDialog(
                             Text(text = "$totalQty Pcs", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Grand Total Nilai Project (Otomatis):", fontSize = 12.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                            Text(text = "Grand Total Nilai Project:", fontSize = 12.sp, color = AgedGold, fontWeight = FontWeight.Bold)
                             Text(text = FormatUtils.formatRupiah(grandTotalCost), fontSize = 13.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
                         }
                     }
@@ -1873,7 +1874,7 @@ fun ProjectDetailDialog(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("Belum ada riwayat aktivitas log timeline.", fontSize = 12.sp, color = TextMuted)
+                                    Text("Nihil rekaman aktivitas log timeline project.", fontSize = 12.sp, color = TextMuted)
                                 }
                             } else {
                                 LazyColumn(

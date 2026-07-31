@@ -1,18 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Check if the user is signed in
+
+    // Helper: Enforce authentication globally
     function isSignedIn() {
       return request.auth != null;
     }
-    
-    // Check if the user is an owner of the resource via email mapping
-    function isOwnerOf(resourceData) {
-      return isSignedIn() && resourceData.ownerId == request.auth.token.email;
-    }
 
-    // Helper function to check if the user has the global OWNER role
+    // Helper: Check if authenticated user is the designated Owner
+    // OWNER EMAIL CAN BE CHANGED HERE (e.g. yansart31@gmail.com)
     function isOwner() {
       return isSignedIn() && 
              request.auth.token != null && 
@@ -23,71 +19,82 @@ service cloud.firestore {
                 get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'OWNER')
              );
     }
-    
-    // Helper function to check if the user has the MEMBER role
-    function isMember() {
-      return isSignedIn() && 
-             request.auth.token != null && 
-             'email' in request.auth.token && 
-             exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'MEMBER';
+
+    // Helper: Check if user owns the specific document
+    function isOwnerOf(resourceData) {
+      return isSignedIn() && resourceData.ownerId == request.auth.token.email;
     }
 
-    // Restrict document size to 512KB to avoid large base64/binary payloads (highly Spark-friendly)
+    // Helper: Check document payload size to prevent storage/bandwidth abuse
     function isSizeAcceptable() {
-      return request.size < 512 * 1024;
+      return request.size < 512 * 1024; // 512KB limit
     }
 
-    // Prevent direct raw binary/data URI injection in attachment_url field
+    // Helper: Prevent raw data URI injection in attachment URLs
     function isValidAttachmentUrl(data) {
       return !('attachment_url' in data) || 
-             (data.attachment_url is string && 
-              !data.attachment_url.startsWith('data:'));
+             (data.attachment_url is string && !data.attachment_url.startsWith('data:'));
     }
 
-    // Rules for 'users' collection
+    // =========================================================================
+    // COLLECTION SECURITY RULES
+    // =========================================================================
+
+    // Users directory: Strictly authenticated read, Owner or self-update write
     match /users/{email} {
       allow read: if isSignedIn();
-      allow write: if isOwner() || request.auth.token.email == email;
+      allow write: if isOwner() || (isSignedIn() && request.auth.token.email == email);
     }
 
-    // Operational collections restricted per owner and per member
+    // Inventory & Catalog items
     match /stock_items/{id} {
       allow read, write: if isSignedIn() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data) && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
+    // Custom Projects
     match /projects/{id} {
       allow read, write: if isSignedIn() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data) && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
+    // Invoices & Billing
     match /invoices/{id} {
       allow read, write: if isSignedIn() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data) && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
+    // Orders
     match /orders/{id} {
       allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
+    // Financial Expenses & Cash Outflow
     match /expenses/{id} {
       allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
+    // Financial Inflows & Incomes
     match /inflows/{id} {
       allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
+    // Internal Notifications
     match /notifications/{id} {
       allow read: if isSignedIn();
       allow write: if isOwner();
     }
 
+    // System Backups Catalog
     match /backups_catalog/{id} {
       allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
-    // Cloud Backups Firestore document collection (Text Base64 backups)
+    // Encrypted Cloud Backups
     match /cloud_backups/{id} {
       allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
+    }
+
+    // Fallback rule: DENY all unhandled collections
+    match /{document=**} {
+      allow read, write: if isOwner();
     }
   }
 }

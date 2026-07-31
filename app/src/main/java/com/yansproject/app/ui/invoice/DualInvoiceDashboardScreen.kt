@@ -343,7 +343,7 @@ fun DualInvoiceDashboardScreen(
                             style = MaterialTheme.typography.titleMedium.copy(color = TextIsiSoftGray)
                         )
                         Text(
-                            text = "Silakan tambahkan data atau ganti filter",
+                            text = "Tidak ada transaksi invoice yang sesuai kriteria filter.",
                             style = MaterialTheme.typography.bodySmall.copy(color = TextNonActive)
                         )
                     }
@@ -432,10 +432,10 @@ fun DualInvoiceDashboardScreen(
     }
 
     // Action Hub Trigger Menu
-    if (showActionHubByInvoiceId != null) {
-        val currentId = showActionHubByInvoiceId!!
+    val actionHubTargetId = showActionHubByInvoiceId
+    if (actionHubTargetId != null) {
         ActionHubBottomSheet(
-            invoiceNumber = currentId,
+            invoiceNumber = actionHubTargetId,
             isCustomProject = isActionHubCustom,
             onDismiss = { showActionHubByInvoiceId = null },
             viewModel = viewModel
@@ -443,8 +443,9 @@ fun DualInvoiceDashboardScreen(
     }
 
     // Record Payment Bottom Sheet Trigger
-    if (showPaymentRecordByInvoiceId != null) {
-        val currentId = showPaymentRecordByInvoiceId!!
+    val paymentRecordTargetId = showPaymentRecordByInvoiceId
+    if (paymentRecordTargetId != null) {
+        val currentId = paymentRecordTargetId
         val outstandingAmount = if (isPaymentCustom) {
             val proj = state.customProjectInvoices.find { it.id == currentId }
             proj?.remainingBalance ?: 0.0

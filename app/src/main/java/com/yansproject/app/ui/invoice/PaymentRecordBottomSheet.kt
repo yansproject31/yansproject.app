@@ -198,7 +198,7 @@ fun PaymentRecordBottomSheet(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Otomatis memicu n8n webhook secara asinkron.",
+                        text = "Sinkronisasi notifikasi otomatis via sistem integrasi.",
                         color = TextNonActive,
                         fontSize = 11.sp
                     )

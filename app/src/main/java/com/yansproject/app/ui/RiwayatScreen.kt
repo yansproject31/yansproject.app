@@ -218,50 +218,71 @@ fun RiwayatScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // --- Top Bar Glassmorphism Header ---
+                // --- Top Bar YANSPROJECT.ID Luxury ERP Header ---
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color(0xEA051214),
+                    color = Color.Transparent,
                     shadowElevation = 8.dp
                 ) {
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(
-                                        text = "RIWAYAT TRANSAKSI ERP",
-                                        fontSize = 11.sp,
-                                        color = AgedGold,
-                                        fontWeight = FontWeight.Black,
-                                        letterSpacing = 1.2.sp
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color(0xFA081B1E),
+                                        Color(0xEA051214)
                                     )
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(AgedGold.copy(alpha = 0.2f))
-                                            .border(0.5.dp, AgedGold, RoundedCornerShape(10.dp))
-                                            .padding(horizontal = 6.dp, vertical = 1.dp)
-                                    ) {
-                                        Text(text = "SSOT AUDIT", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
-                                    }
-                                }
-                                Text(
-                                    text = "Single Source of Truth",
-                                    fontSize = 19.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White
                                 )
-                            }
+                            )
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.horizontalGradient(
+                                    listOf(
+                                        AgedGold.copy(alpha = 0.4f),
+                                        HighlightSoftCyan.copy(alpha = 0.4f),
+                                        AgedGold.copy(alpha = 0.4f)
+                                    )
+                                ),
+                                shape = androidx.compose.ui.graphics.RectangleShape
+                            )
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(
+                                            text = "RIWAYAT TRANSAKSI ERP",
+                                            fontSize = 11.sp,
+                                            color = AgedGold,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 1.2.sp
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(AgedGold.copy(alpha = 0.2f))
+                                                .border(0.5.dp, AgedGold, RoundedCornerShape(10.dp))
+                                                .padding(horizontal = 6.dp, vertical = 1.dp)
+                                        ) {
+                                            Text(text = "AUDIT LOG", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                                        }
+                                    }
+                                    Text(
+                                        text = "Jurnal Transaksi",
+                                        fontSize = 19.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White
+                                    )
+                                }
 
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -371,6 +392,7 @@ fun RiwayatScreen(
                             }
                         }
                     }
+                }
                 }
 
                 // --- KPI Executive Summary (Expandable) ---

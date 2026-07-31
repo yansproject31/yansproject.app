@@ -326,8 +326,9 @@ fun InvoiceHistoryScreen(
     }
 
     // 3. SECURE ACTION HUB DIALOG / SHEET INTERFACE WITH WEBHOOK SYNC
-    if (selectedInvoiceForHub != null) {
-        val activeInvoice = selectedInvoiceForHub!!
+    val currentHubInvoice = selectedInvoiceForHub
+    if (currentHubInvoice != null) {
+        val activeInvoice = currentHubInvoice
         val isSyncing by invoiceViewModel.state.collectAsState()
 
         AlertDialog(
@@ -345,7 +346,7 @@ fun InvoiceHistoryScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("Pilih tugas administrasi keuangan untuk invoice terpilih:", fontSize = 12.sp, color = TextIsiSoftGray)
+                    Text("Pilihan Tindakan Administrasi Keuangan Invoice", fontSize = 12.sp, color = TextIsiSoftGray)
 
                     HubActionItem(
                         icon = Icons.Default.PictureAsPdf,
@@ -398,8 +399,8 @@ fun InvoiceHistoryScreen(
     }
 
     // Payment collection entry form dialog
-    if (showPaymentDialog && selectedInvoiceForHub != null) {
-        val activeInvoice = selectedInvoiceForHub!!
+    if (showPaymentDialog && currentHubInvoice != null) {
+        val activeInvoice = currentHubInvoice
         AlertDialog(
             onDismissRequest = { showPaymentDialog = false },
             title = {

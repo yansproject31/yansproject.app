@@ -240,7 +240,7 @@ fun ProfessionalInvoiceDetailScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (project.stagedPayments.isEmpty()) {
-                        Text("Belum ada riwayat angsuran.", color = Color.Gray, fontSize = 13.sp)
+                        Text("Nihil riwayat catatan angsuran.", color = Color.Gray, fontSize = 13.sp)
                     } else {
                         project.stagedPayments.forEachIndexed { index, payment ->
                             Row(

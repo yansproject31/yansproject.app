@@ -72,6 +72,13 @@
 -keep class androidx.work.** { *; }
 -dontwarn androidx.work.**
 
-# 8. YANSPROJECT.ID ALL APPLICATION PACKAGES (MENCEGAH R8 MENGAPUS UTIL & SECURITY)
+# 8. KOTLIN COROUTINES & FLOW
+-keepclassmembers class kotlinx.coroutines.** { *; }
+-keep id.zelory.compressor.** { *; }
+-dontwarn kotlinx.coroutines.**
+
+# 9. YANSPROJECT.ID ALL APPLICATION PACKAGES & SECURITY MODULES
 -keep class com.yansproject.app.** { *; }
 -keepclassmembers class com.yansproject.app.** { *; }
+-keep class com.yansproject.app.data.CryptoSecurityGuard { *; }
+-keep class com.yansproject.app.security.OmniverseSecurity { *; }

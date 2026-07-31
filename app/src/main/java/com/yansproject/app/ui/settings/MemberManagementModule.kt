@@ -896,33 +896,33 @@ fun MemberManagementModule(
     }
 
     // --- MODAL 1: MEMBER DETAIL & AJIBQOBUL SERIES ANALYTICS SHEET ---
-    if (selectedMemberForDetail != null) {
+    val targetDetail = selectedMemberForDetail
+    if (targetDetail != null) {
         MemberDetailAnalyticsSheet(
-            member = selectedMemberForDetail!!,
+            member = targetDetail,
             invoices = invoices,
             onDismiss = { selectedMemberForDetail = null },
             onEditTierClick = {
-                val target = selectedMemberForDetail
                 selectedMemberForDetail = null
-                selectedMemberForEdit = target
+                selectedMemberForEdit = targetDetail
             },
             onResetPinClick = {
-                val target = selectedMemberForDetail
                 selectedMemberForDetail = null
-                selectedMemberForResetPin = target
+                selectedMemberForResetPin = targetDetail
             }
         )
     }
 
     // --- MODAL 2: EDIT MEMBER PROFILE & TIER DIALOG ---
-    if (selectedMemberForEdit != null) {
+    val targetEdit = selectedMemberForEdit
+    if (targetEdit != null) {
         EditMemberProfileDialog(
-            member = selectedMemberForEdit!!,
+            member = targetEdit,
             onDismiss = { selectedMemberForEdit = null },
             onSave = { newName, newWa, newAddr, newTier ->
                 viewModel.updateMemberProfile(
                     context = context,
-                    email = selectedMemberForEdit!!.email,
+                    email = targetEdit.email,
                     newDisplayName = newName,
                     newWhatsapp = newWa,
                     newAddress = newAddr,
@@ -941,15 +941,16 @@ fun MemberManagementModule(
     }
 
     // --- MODAL 3: RESET PASSWORD / PIN DIALOG ---
-    if (selectedMemberForResetPin != null) {
+    val targetResetPin = selectedMemberForResetPin
+    if (targetResetPin != null) {
         ResetPasswordPinDialog(
-            member = selectedMemberForResetPin!!,
+            member = targetResetPin,
             onDismiss = { selectedMemberForResetPin = null },
             onReset = { newPin ->
                 viewModel.resetPasswordOrPin(
                     context = context,
-                    email = selectedMemberForResetPin!!.email,
-                    displayName = selectedMemberForResetPin!!.displayName,
+                    email = targetResetPin.email,
+                    displayName = targetResetPin.displayName,
                     newPassOrPin = newPin
                 ) { success, msg ->
                     if (success) {
@@ -1562,7 +1563,7 @@ fun MemberDetailAnalyticsSheet(
 
                     if (memberInvoices.isEmpty()) {
                         item {
-                            Text("Belum ada invoice transaksi untuk member ini.", fontSize = 10.sp, color = TextNonActive)
+                            Text("Tidak ditemukan riwayat invoice transaksi untuk mitra ini.", fontSize = 10.sp, color = TextNonActive)
                         }
                     } else {
                         items(memberInvoices) { inv ->

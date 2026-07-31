@@ -16,9 +16,13 @@
 local.properties
 .env
 debug.keystore
+*.jks
+*.keystore
+keystore.properties
 .build-outputs/
 build-outputs/
 
-# Force tracking google-services.json for GitHub and Codemagic CI/CD
-!google-services.json
-!app/google-services.json
+# Secret credentials and configuration files
+google-services.json
+app/google-services.json
+

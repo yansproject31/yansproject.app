@@ -352,7 +352,7 @@ fun SettingsScreen(
                                                 .padding(horizontal = 6.dp, vertical = 1.dp)
                                         ) {
                                             Text(
-                                                text = "SSOT • CONFIG",
+                                                text = "SYSTEM CONFIG",
                                                 color = AgedGold,
                                                 fontSize = 8.sp,
                                                 fontWeight = FontWeight.ExtraBold,
@@ -361,7 +361,7 @@ fun SettingsScreen(
                                         }
                                     }
                                     Text(
-                                        text = "Konfigurasi Workspace & Otoritas YANSPROJECT.ID",
+                                        text = "Konfigurasi Workspace & Akses Otoritas",
                                         fontSize = 10.sp,
                                         color = Color(0xFFA0AEC0)
                                     )
@@ -385,17 +385,28 @@ fun SettingsScreen(
                             }
                         }
 
-                        // Hero Account Card Locked with TopBar (Material 3 Glassmorphism & Embossed Depth)
+                        // Hero Account Card Locked with TopBar (YANSPROJECT.ID Luxury Hero Style)
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                             shape = RoundedCornerShape(20.dp),
                             border = androidx.compose.foundation.BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
                             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .glassCard()
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color(0x2A0F3D3E),
+                                                Color(0xEA051214)
+                                            )
+                                        )
+                                    )
+                                    .padding(14.dp)
+                            ) {
+                                Column {
                                 // Profile Layout
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -504,6 +515,7 @@ fun SettingsScreen(
                                 }
                             }
                         }
+                    }
                     }
                 }
 
@@ -2040,8 +2052,7 @@ fun renderNestedSubScreen(
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Icon(Icons.Outlined.Folder, contentDescription = null, tint = TextMuted, modifier = Modifier.size(36.dp))
-                                    Text("Belum Ada Berkas Backup Tersimpan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
-                                    Text("Klik 'Buat Backup Baru' untuk membuat cadangan pertama Anda.", fontSize = 10.5.sp, color = TextMuted.copy(alpha = 0.7f))
+                                    Text("Nihil Berkas Backup Tersimpan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
                                 }
                             }
                         } else {
@@ -2918,7 +2929,7 @@ fun renderNestedSubScreen(
                             }
                         } else {
                             Text(
-                                text = "Belum ada log aktivitas tercatat di sistem saat ini.",
+                                text = "Nihil catatan aktivitas sistem terdeteksi saat ini.",
                                 fontSize = 12.sp,
                                 color = TextMuted,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -3224,7 +3235,7 @@ fun renderNestedSubScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         
                         if (auditLogs.isEmpty()) {
-                            Text("Belum ada log audit keamanan.", fontSize = 11.sp, color = TextMuted)
+                            Text("Nihil rekaman log audit keamanan terdeteksi.", fontSize = 11.sp, color = TextMuted)
                         } else {
                             auditLogs.take(3).forEach { log ->
                                 Column {
@@ -3264,7 +3275,7 @@ fun renderNestedSubScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Aktifkan Autentikasi Biometrik", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("Gunakan Sidik Jari / Face ID saat membuka menu sensitif", fontSize = 11.sp, color = TextMuted)
+                            Text("Verifikasi sidik jari & keamanan biometrik", fontSize = 11.sp, color = TextMuted)
                         }
                         Switch(
                             checked = biometricEnabled,
@@ -3989,7 +4000,7 @@ fun renderNestedSubScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
 
                                 if (filesList.isEmpty()) {
-                                    Text("Belum ada file di folder ini.", fontSize = 11.sp, color = TextMuted, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                                    Text("Direktori folder ini masih kosong.", fontSize = 11.sp, color = TextMuted, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
                                 } else {
                                     filesList.forEach { fileItem ->
                                         val fileDate = SimpleDateFormat("dd/MM/yy HH:mm", java.util.Locale.getDefault()).format(Date(fileItem.lastModified()))
