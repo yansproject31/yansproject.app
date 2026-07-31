@@ -48,12 +48,12 @@ fun Modifier.ambientGlow(
 // Custom Glassmorphic container modifier (No blur, background alpha + thin border + clip)
 fun Modifier.glassCard(
     cornerRadius: Dp = 16.dp,
-    borderColor: Color = Color(0x33319795),
-    backgroundColor: Color = Color(0x2A0F3D3E)
+    borderColor: Color = GlassBorder,
+    backgroundColor: Color = GlassWhite
 ): Modifier = this
-    .background(backgroundColor, RoundedCornerShape(cornerRadius))
-    .border(1.dp, borderColor, RoundedCornerShape(cornerRadius))
-    .clip(RoundedCornerShape(cornerRadius))
+    .background(Color(0x1AFFFFFF), RoundedCornerShape(16.dp))
+    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+    .clip(RoundedCornerShape(16.dp))
 
 // High-fidelity tactile interaction effect
 @Composable

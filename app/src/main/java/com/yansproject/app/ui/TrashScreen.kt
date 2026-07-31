@@ -254,8 +254,8 @@ fun TrashedStockList(
     if (items.isEmpty()) {
         EmptyStateView(
             icon = Icons.Outlined.DeleteOutline,
-            title = "Sampah Data Kosong",
-            description = "Nihil catatan item stok terhapus dalam arsip ini."
+            title = "Trash Kosong",
+            description = "Tidak ada barang stock yang terhapus."
         )
     } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -280,8 +280,8 @@ fun TrashedProjectsList(
     if (items.isEmpty()) {
         EmptyStateView(
             icon = Icons.Outlined.DeleteOutline,
-            title = "Sampah Data Kosong",
-            description = "Nihil catatan project custom terhapus dalam arsip ini."
+            title = "Trash Kosong",
+            description = "Tidak ada project custom yang terhapus."
         )
     } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -306,8 +306,8 @@ fun TrashedInvoicesList(
     if (items.isEmpty()) {
         EmptyStateView(
             icon = Icons.Outlined.DeleteOutline,
-            title = "Sampah Data Kosong",
-            description = "Nihil catatan invoice terhapus dalam arsip ini."
+            title = "Trash Kosong",
+            description = "Tidak ada invoice yang terhapus."
         )
     } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -332,8 +332,8 @@ fun TrashedCatalogsList(
     if (items.isEmpty()) {
         EmptyStateView(
             icon = Icons.Outlined.DeleteOutline,
-            title = "Sampah Data Kosong",
-            description = "Nihil catatan katalog terhapus dalam arsip ini."
+            title = "Trash Kosong",
+            description = "Tidak ada catalog yang terhapus."
         )
     } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -358,8 +358,8 @@ fun TrashedVarianList(
     if (items.isEmpty()) {
         EmptyStateView(
             icon = Icons.Outlined.DeleteOutline,
-            title = "Sampah Data Kosong",
-            description = "Nihil catatan varian warna terhapus dalam arsip ini."
+            title = "Trash Kosong",
+            description = "Tidak ada varian warna yang terhapus."
         )
     } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -384,8 +384,8 @@ fun TrashedMemberList(
     if (items.isEmpty()) {
         EmptyStateView(
             icon = Icons.Outlined.DeleteOutline,
-            title = "Sampah Data Kosong",
-            description = "Nihil catatan otorisasi member terhapus dalam arsip ini."
+            title = "Trash Kosong",
+            description = "Tidak ada member terdaftar yang terhapus."
         )
     } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -410,8 +410,8 @@ fun TrashedInflowsList(
     if (items.isEmpty()) {
         EmptyStateView(
             icon = Icons.Outlined.DeleteOutline,
-            title = "Sampah Data Kosong",
-            description = "Nihil catatan transaksi pemasukan terhapus dalam arsip ini."
+            title = "Trash Kosong",
+            description = "Tidak ada pemasukan yang terhapus."
         )
     } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -436,8 +436,8 @@ fun TrashedExpensesList(
     if (items.isEmpty()) {
         EmptyStateView(
             icon = Icons.Outlined.DeleteOutline,
-            title = "Sampah Data Kosong",
-            description = "Nihil catatan transaksi pengeluaran terhapus dalam arsip ini."
+            title = "Trash Kosong",
+            description = "Tidak ada pengeluaran yang terhapus."
         )
     } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {

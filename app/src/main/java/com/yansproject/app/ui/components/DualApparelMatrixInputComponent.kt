@@ -110,7 +110,7 @@ fun DualApparelMatrixInputComponent(
         Column(modifier = Modifier.padding(16.dp)) {
             // Component Title
             Text(
-                text = if (isCustomProject) "CONFIG CUSTOM PROJECT APPAREL MATRIX" else "AUTO-PRICING AJIBQOBUL APPAREL MATRIX",
+                text = if (isCustomProject) "MATRIKS UKURAN APPAREL CUSTOM" else "MATRIKS UKURAN STOK APPAREL",
                 style = MaterialTheme.typography.titleMedium.copy(
                     color = AccentAgedGold,
                     fontWeight = FontWeight.Bold

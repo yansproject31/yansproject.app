@@ -282,7 +282,7 @@ fun AjibqobulReturnAdjustmentScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Tidak ditemukan riwayat retur maupun penyesuaian (adjustment)",
+                                text = "Belum ada riwayat retur atau adjustment",
                                 color = TextIsiSoftGray,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,

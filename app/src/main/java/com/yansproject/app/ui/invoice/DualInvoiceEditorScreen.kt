@@ -370,11 +370,11 @@ fun DualInvoiceEditorScreen(
                     Button(
                         onClick = {
                             if (clientName.isBlank()) {
-                                com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Harap lengkapi nama pelanggan / mitra terlebih dahulu.")
+                                com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Silakan isi nama pelanggan terlebih dahulu!")
                                 return@Button
                             }
                             if (addedItems.isEmpty()) {
-                                com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Harap tambahkan minimal satu item rincian transaksi.")
+                                com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Silakan tambah minimal 1 item barang apparel!")
                                 return@Button
                             }
 

@@ -183,15 +183,10 @@ object AtomicCheckoutEngine {
 
                     // -- STEP 5: Transaction Audit Logging --
                     val logId = java.util.UUID.randomUUID().toString()
-                    val formattedAmount = try {
-                        String.format(java.util.Locale.US, "%,.0f", totalAmount)
-                    } catch (e: Exception) {
-                        totalAmount.toLong().toString()
-                    }
                     val logData = hashMapOf(
                         "id" to logId,
                         "action" to "Checkout Member",
-                        "details" to "Pesanan baru $invoiceNum oleh Member $clientName sebesar Rp$formattedAmount",
+                        "details" to "Pesanan baru $invoiceNum oleh Member $clientName sebesar Rp${String.format("%,.0f", totalAmount)}",
                         "timestamp" to System.currentTimeMillis(),
                         "user" to currentUserEmail
                     )
@@ -221,14 +216,10 @@ object AtomicCheckoutEngine {
                 }.await()
 
                 Log.d(TAG, "Batch completed successfully!")
-                withContext(Dispatchers.Main) {
-                    onComplete(true, invoiceNum)
-                }
+                onComplete(true, invoiceNum)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed executing atomic checkout batch: ${e.message}")
-                withContext(Dispatchers.Main) {
-                    onComplete(false, e.localizedMessage ?: "Gagal checkout atomik.")
-                }
+                onComplete(false, e.localizedMessage ?: "Gagal checkout atomik.")
             }
         }
     }

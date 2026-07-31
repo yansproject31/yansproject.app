@@ -465,7 +465,7 @@ fun DashboardMemberScreen(
                                             color = Color.White
                                         )
                                         Text(
-                                            text = "Telusuri katalog produk untuk melakukan pemesanan baru.",
+                                            text = "Pilih katalog untuk membuat pesanan baru.",
                                             fontSize = 10.sp,
                                             color = TextSecondary.copy(alpha = 0.6f)
                                         )
@@ -725,7 +725,7 @@ fun DaftarPesananMemberDialog(
                                 .fillMaxWidth(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Nihil transaksi invoice pada kategori ini.", fontSize = 12.sp, color = TextMuted)
+                            Text("Tidak ada invoice pesanan pada kategori ini.", fontSize = 12.sp, color = TextMuted)
                         }
                     }
 
@@ -1135,7 +1135,7 @@ fun RincianPesananMemberDialog(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             Icon(Icons.Outlined.Info, contentDescription = null, tint = TextMuted, modifier = Modifier.size(16.dp))
-                                            Text("Nihil riwayat catatan angsuran maupun pembayaran.", fontSize = 11.sp, color = TextMuted)
+                                            Text("Belum ada catatan angsuran / pembayaran.", fontSize = 11.sp, color = TextMuted)
                                         }
                                     }
                                 }

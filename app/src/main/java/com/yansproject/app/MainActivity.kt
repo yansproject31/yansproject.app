@@ -329,7 +329,7 @@ fun MainAppContainer(
       modifier = Modifier
         .fillMaxSize()
         .background(com.yansproject.app.ui.theme.YansCanvasGradient)
-        .padding(paddingValues)
+        .padding(if (currentTab == AppTab.KITAB || currentTab == AppTab.SETTINGS) PaddingValues(0.dp) else paddingValues)
     ) {
       com.yansproject.app.ui.navigation.YansNavHost(
           navController = navController,

@@ -198,7 +198,7 @@ fun PaymentRecordBottomSheet(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Sinkronisasi notifikasi otomatis via sistem integrasi.",
+                        text = "Kirim notifikasi resi via WhatsApp",
                         color = TextNonActive,
                         fontSize = 11.sp
                     )

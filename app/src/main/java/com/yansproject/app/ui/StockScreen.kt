@@ -501,7 +501,7 @@ fun StockScreen(
                                     EmptyStateView(
                                         icon = Icons.Outlined.Inventory,
                                         title = "Belum Ada Katalog Terdaftar",
-                                        description = "Buat katalog baru di bawah Series AJIBQOBUL (seperti Madad Auliya 68th) untuk mencatat varian warna dan sisa stok persediaan."
+                                        description = "Belum ada data katalog terdaftar."
                                     )
                                 }
                             } else {
@@ -849,7 +849,7 @@ fun StockScreen(
 
                                     if (filteredBatches.isEmpty()) {
                                         Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                                            EmptyStateView(icon = Icons.Outlined.History, title = "Tidak Ada Batch Produksi", description = "Tidak ditemukan pencatatan hasil produksi batch baru dalam database stok.")
+                                            EmptyStateView(icon = Icons.Outlined.History, title = "Tidak Ada Batch Produksi", description = "Belum ada pencatatan hasil produksi batch baru yang terdaftar.")
                                         }
                                     } else {
                                         LazyColumn(
@@ -1729,7 +1729,7 @@ fun VarianWarnaListView(
                     EmptyStateView(
                         icon = Icons.Outlined.Palette,
                         title = "Belum Ada Varian Warna",
-                        description = "Varian warna produk (seperti Hitam, Navy, Sage, dll.) belum terdaftar untuk katalog series ini. Tambahkan warna untuk mulai mencatat kuantitas stok."
+                        description = "Belum ada varian warna terdaftar."
                     )
                 }
             } else if (filteredVariants.isEmpty()) {
@@ -3007,7 +3007,7 @@ fun AddCatalogDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Registrasi Master Katalog ke dalam struktur Series AJIBQOBUL.",
+                    text = "Menambahkan Katalog baru ke dalam Series AJIBQOBUL. Setiap kali Katalog baru ditambahkan (seperti 'MADAD AULIYA 68TH'), jumlah Katalog dalam statistik & grafik stok akan bertambah secara otomatis.",
                     color = TextMuted,
                     fontSize = 11.sp,
                     lineHeight = 15.sp,
@@ -3077,7 +3077,7 @@ fun AddVariantDialog(
             ) {
                 Column {
                     Text("TAMBAH VARIAN WARNA", color = AgedGold, fontWeight = FontWeight.Black, fontSize = 14.sp)
-                    Text("Master Katalog Terpilih", color = TextMuted, fontSize = 10.sp)
+                    Text("Hierarki: Series -> Catalog -> Varian Warna", color = TextMuted, fontSize = 10.sp)
                 }
                 IconButton(onClick = onDismiss) {
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = "Tutup", tint = TextMuted)
@@ -3091,7 +3091,7 @@ fun AddVariantDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Registrasi spesifikasi varian warna ke dalam Master Katalog.",
+                    text = "Varian Warna berada di bawah Katalog. Cukup masukkan nama warna (seperti Hitam, Navy, Maroon, Sage, Putih, dll). Tidak memerlukan kode Hex Warna.",
                     color = TextMuted,
                     fontSize = 11.sp,
                     lineHeight = 15.sp,
@@ -4463,7 +4463,7 @@ fun TotalProduksiDetailDialog(
                         EmptyStateView(
                             icon = Icons.Outlined.Inventory2,
                             title = "Tidak Ada Batch Produksi",
-                            description = if (searchQuery.isNotEmpty()) "Pencarian '$searchQuery' tidak ditemukan dalam riwayat batch produksi." else "Tidak ditemukan rekaman batch produksi yang terdaftar di database stok."
+                            description = if (searchQuery.isNotEmpty()) "Pencarian '$searchQuery' tidak ditemukan dalam riwayat batch produksi." else "Belum ada rekaman batch produksi yang terdaftar di database."
                         )
                     }
                 } else {
@@ -4969,7 +4969,7 @@ fun TotalTerjualDetailDialog(
                         EmptyStateView(
                             icon = Icons.Outlined.ShoppingCart,
                             title = "Tidak Ada Data Penjualan",
-                            description = if (searchQuery.isNotEmpty()) "Pencarian '$searchQuery' tidak ditemukan dalam riwayat transaksi penjualan." else "Tidak ditemukan pencatatan transaksi penjualan stok pada database."
+                            description = if (searchQuery.isNotEmpty()) "Pencarian '$searchQuery' tidak ditemukan dalam riwayat transaksi penjualan." else "Belum ada transaksi penjualan stok yang tercatat di database."
                         )
                     }
                 } else {
@@ -5415,14 +5415,14 @@ fun NilaiPersediaanDetailDialog(
                         }
                         Column {
                             Text(
-                                text = "AUDIT RINCIAN NILAI PERSEDIAAN",
+                                text = "RINCIAN NILAI PERSEDIAAN",
                                 color = AgedGold,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 0.5.sp
                             )
                             Text(
-                                text = "Kalkulasi HPP Real-time Berdasarkan Sisa Stok Fisik Matrix",
+                                text = "Kalkulasi HPP Berdasarkan Sisa Stok Fisik",
                                 color = TextMuted,
                                 fontSize = 10.sp
                             )

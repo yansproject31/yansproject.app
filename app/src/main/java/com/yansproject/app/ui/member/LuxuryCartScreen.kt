@@ -91,17 +91,16 @@ fun LuxuryCartScreen(
                             }
 
                             // Keep global session in sync
-                            val user = currentUser
-                            if (user != null) {
+                            if (currentUser != null) {
                                 FirebaseSyncManager.saveSession(
                                     context = context,
                                     email = cleanEmail,
-                                    role = user.role,
-                                    displayName = liveName.ifBlank { user.displayName },
-                                    priceCategory = liveTier.ifBlank { user.priceCategory },
-                                    whatsapp = liveWA.ifBlank { user.whatsapp },
-                                    address = liveAddress.ifBlank { user.address },
-                                    uid = user.uid
+                                    role = currentUser!!.role,
+                                    displayName = liveName.ifBlank { currentUser!!.displayName },
+                                    priceCategory = liveTier.ifBlank { currentUser!!.priceCategory },
+                                    whatsapp = liveWA.ifBlank { currentUser!!.whatsapp },
+                                    address = liveAddress.ifBlank { currentUser!!.address },
+                                    uid = currentUser!!.uid
                                 )
                             }
                         }

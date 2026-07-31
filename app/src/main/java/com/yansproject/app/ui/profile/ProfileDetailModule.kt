@@ -23,7 +23,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -573,12 +572,12 @@ fun ProfileDetailModule(
                 }
             }
 
-            // Editable Profile Fields Card (YANSPROJECT.ID ERP Card DNA)
+            // Editable Profile Fields Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
-                border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AccentAgedGold, HighlightSoftCyan, AccentAgedGold)))
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                border = BorderStroke(1.dp, PrimaryDarkTeal.copy(alpha = 0.5f))
             ) {
                 Column(
                     modifier = Modifier.padding(18.dp),

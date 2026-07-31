@@ -32,9 +32,12 @@ fun NavHostController.safeNavigate(route: String) {
     try {
         navigate(route) {
             launchSingleTop = true
-            restoreState = true
         }
     } catch (e: Exception) {
-        e.printStackTrace()
+        try {
+            navigate(route)
+        } catch (e2: Exception) {
+            e2.printStackTrace()
+        }
     }
 }

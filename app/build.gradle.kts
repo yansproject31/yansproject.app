@@ -68,7 +68,7 @@ android {
             signingConfig = signingConfigs.getByName("release")
 
             configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
-                mappingFileUploadEnabled = false
+                mappingFileUploadEnabled = true
             }
         }
         debug {

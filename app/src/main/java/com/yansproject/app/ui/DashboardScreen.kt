@@ -60,6 +60,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
@@ -67,6 +68,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -729,28 +733,28 @@ fun GridOperasionalOwner(
         // 12 Cards arranged in 6 Rows of 2 Cards each
         val rowData = listOf(
             listOf(
-                GridCardData("MODAL AWAL", FormatUtils.formatRupiah(modalAwal), if (modalAwal == 0.0) "Saldo Investasi Awal Belum Terdaftar" else "Investasi kas awal", Icons.Outlined.AccountBalanceWallet, primaryAccent, isEmpty = (modalAwal == 0.0)),
-                GridCardData("MODAL BERJALAN", FormatUtils.formatRupiah(modalBerjalan), if (modalBerjalan == 0.0) "Nihil Mutasi Modal Bergulir" else "Estimasi modal bergulir", Icons.Outlined.TrendingUp, HighlightSoftCyan, isEmpty = (modalBerjalan == 0.0))
+                GridCardData("MODAL AWAL", FormatUtils.formatRupiah(modalAwal), if (modalAwal == 0.0) "Belum ada modal awal" else "Investasi kas awal", Icons.Outlined.AccountBalanceWallet, primaryAccent, isEmpty = (modalAwal == 0.0)),
+                GridCardData("MODAL BERJALAN", FormatUtils.formatRupiah(modalBerjalan), if (modalBerjalan == 0.0) "Belum ada transaksi modal" else "Estimasi modal bergulir", Icons.Outlined.TrendingUp, HighlightSoftCyan, isEmpty = (modalBerjalan == 0.0))
             ),
             listOf(
-                GridCardData("KAS AKTIF", FormatUtils.formatRupiah(saldoKas), if (saldoKas == 0.0) "Saldo Kas Operasional Kosong" else "Sisa dana kas riil", Icons.Outlined.AccountBalance, primaryAccent, isEmpty = (saldoKas == 0.0)),
-                GridCardData("PROFIT BERSIH", FormatUtils.formatRupiah(totalProfit), if (totalProfit == 0.0) "Nihil Realisasi Laba Periode Ini" else "Laba bersih setelah HPP", Icons.Outlined.MonetizationOn, HighlightSoftCyan, isEmpty = (totalProfit == 0.0))
+                GridCardData("KAS AKTIF", FormatUtils.formatRupiah(saldoKas), if (saldoKas == 0.0) "Kas riil kosong" else "Sisa dana kas riil", Icons.Outlined.AccountBalance, primaryAccent, isEmpty = (saldoKas == 0.0)),
+                GridCardData("PROFIT BERSIH", FormatUtils.formatRupiah(totalProfit), if (totalProfit == 0.0) "Laba nihil periode ini" else "Laba bersih setelah HPP", Icons.Outlined.MonetizationOn, HighlightSoftCyan, isEmpty = (totalProfit == 0.0))
             ),
             listOf(
-                GridCardData("TOTAL PENJUALAN", FormatUtils.formatRupiah(totalPenjualan), if (totalPenjualan == 0.0) "Belum Ada Mutasi Omset Penjualan" else "Omset bruto terkumpul", Icons.Outlined.Leaderboard, HighlightSoftCyan, isEmpty = (totalPenjualan == 0.0)),
-                GridCardData("TOTAL PENGELUARAN", FormatUtils.formatRupiah(totalPengeluaran), if (totalPengeluaran == 0.0) "Nihil Realisasi Beban Operasional" else "Biaya operasional & HPP", Icons.Outlined.TrendingDown, ErrorRed, isEmpty = (totalPengeluaran == 0.0))
+                GridCardData("TOTAL PENJUALAN", FormatUtils.formatRupiah(totalPenjualan), if (totalPenjualan == 0.0) "Belum ada penjualan" else "Omset bruto terkumpul", Icons.Outlined.Leaderboard, HighlightSoftCyan, isEmpty = (totalPenjualan == 0.0)),
+                GridCardData("TOTAL PENGELUARAN", FormatUtils.formatRupiah(totalPengeluaran), if (totalPengeluaran == 0.0) "Belum ada pengeluaran" else "Biaya operasional & HPP", Icons.Outlined.TrendingDown, ErrorRed, isEmpty = (totalPengeluaran == 0.0))
             ),
             listOf(
-                GridCardData("NILAI PERSEDIAAN", FormatUtils.formatRupiah(nilaiTotalStock), if (nilaiTotalStock == 0.0) "Persediaan Gudang Kosong" else "Aset stock gudang", Icons.Outlined.Inventory, primaryAccent, isEmpty = (nilaiTotalStock == 0.0)),
-                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", if (totalStockPieces == 0) "Persediaan Unit Fisik Kosong" else "Total unit kaos fisik", Icons.Outlined.Inventory2, primaryAccent, isEmpty = (totalStockPieces == 0))
+                GridCardData("NILAI PERSEDIAAN", FormatUtils.formatRupiah(nilaiTotalStock), if (nilaiTotalStock == 0.0) "Stok gudang kosong" else "Aset stock gudang", Icons.Outlined.Inventory, primaryAccent, isEmpty = (nilaiTotalStock == 0.0)),
+                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", if (totalStockPieces == 0) "Belum ada stok fisik" else "Total unit kaos fisik", Icons.Outlined.Inventory2, primaryAccent, isEmpty = (totalStockPieces == 0))
             ),
             listOf(
-                GridCardData("PIUTANG DAGANG", FormatUtils.formatRupiah(invoiceBelumLunasAmount), if (invoiceBelumLunasAmount == 0.0) "Nihil Tagihan Piutang Outstanding" else "Sisa tagihan outstanding", Icons.Outlined.AssignmentLate, StatusWarningGold, isEmpty = (invoiceBelumLunasAmount == 0.0)),
-                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", if (invoiceBelumLunasCount == 0) "Seluruh Invoice Telah Terlunas" else "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold, isEmpty = (invoiceBelumLunasCount == 0))
+                GridCardData("PIUTANG DAGANG", FormatUtils.formatRupiah(invoiceBelumLunasAmount), if (invoiceBelumLunasAmount == 0.0) "Tidak ada piutang outstanding" else "Sisa tagihan outstanding", Icons.Outlined.AssignmentLate, StatusWarningGold, isEmpty = (invoiceBelumLunasAmount == 0.0)),
+                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", if (invoiceBelumLunasCount == 0) "Semua invoice telah lunas" else "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold, isEmpty = (invoiceBelumLunasCount == 0))
             ),
             listOf(
-                GridCardData("PROJECT AKTIF", "$projectAktifCount Project", if (projectAktifCount == 0) "Nihil Project Dalam Antrean Produksi" else "Proyek sedang diproduksi", Icons.Outlined.Assignment, HighlightSoftCyan, isEmpty = (projectAktifCount == 0)),
-                GridCardData("TOTAL MEMBER", "$totalMembersCount Mitra", if (totalMembersCount == 0) "Belum Ada Profil Mitra Terdaftar" else "Jumlah akun member aktif", Icons.Outlined.People, primaryAccent, isEmpty = (totalMembersCount == 0))
+                GridCardData("PROJECT AKTIF", "$projectAktifCount Project", if (projectAktifCount == 0) "Tidak ada proyek aktif" else "Proyek sedang diproduksi", Icons.Outlined.Assignment, HighlightSoftCyan, isEmpty = (projectAktifCount == 0)),
+                GridCardData("TOTAL MEMBER", "$totalMembersCount Mitra", if (totalMembersCount == 0) "Belum ada mitra terdaftar" else "Jumlah akun member aktif", Icons.Outlined.People, primaryAccent, isEmpty = (totalMembersCount == 0))
             )
         )
 
@@ -802,12 +806,12 @@ fun GridOperasionalMember(
 
         val rowData = listOf(
             listOf(
-                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", if (totalStockPieces == 0) "Persediaan Unit Fisik Kosong" else "Total unit kaos fisik di gudang", Icons.Outlined.Inventory2, AgedGold, isEmpty = (totalStockPieces == 0)),
+                GridCardData("STOK AJIBQOBUL", "$totalStockPieces Pcs", if (totalStockPieces == 0) "Belum ada stok fisik" else "Total unit kaos fisik di gudang", Icons.Outlined.Inventory2, AgedGold, isEmpty = (totalStockPieces == 0)),
                 GridCardData("VARIAN AKTIF", if (lowStockSize > 0) "$lowStockSize Varian Menipis" else "Semua Varian Aman", "Status ketersediaan varian", Icons.Outlined.Category, HighlightSoftCyan, isEmpty = false)
             ),
             listOf(
-                GridCardData("PROJECT AKTIF", "$projectAktifCount Proyek", if (projectAktifCount == 0) "Nihil Project Dalam Antrean" else "Proyek pesanan berjalan", Icons.Outlined.Assignment, HighlightSoftCyan, isEmpty = (projectAktifCount == 0)),
-                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", if (invoiceBelumLunasCount == 0) "Seluruh Invoice Telah Terlunas" else "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold, isEmpty = (invoiceBelumLunasCount == 0))
+                GridCardData("PROJECT AKTIF", "$projectAktifCount Proyek", if (projectAktifCount == 0) "Tidak ada proyek aktif" else "Proyek pesanan berjalan", Icons.Outlined.Assignment, HighlightSoftCyan, isEmpty = (projectAktifCount == 0)),
+                GridCardData("INVOICE UNPAID", "$invoiceBelumLunasCount Invoice", if (invoiceBelumLunasCount == 0) "Semua invoice telah lunas" else "Penagihan belum lunas", Icons.Outlined.ErrorOutline, StatusWarningGold, isEmpty = (invoiceBelumLunasCount == 0))
             )
         )
 
@@ -859,6 +863,7 @@ fun DashboardScreen(
 
     var activeLedgerPage by remember { mutableStateOf<String?>(null) } // "pemasukan", "pengeluaran", "kas", "profit", "piutang", "produksi", "laporan"
     var selectedInvoiceForDetail by remember { mutableStateOf<Invoice?>(null) }
+    var isRecentActivitiesVisible by remember { mutableStateOf(true) }
 
     // CSV Import Launchers
     val importStockLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -1474,7 +1479,7 @@ fun DashboardScreen(
                     ) {
             // --- 1. GREETING WITH SYNC STATUS ---
             item {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1676,7 +1681,7 @@ fun DashboardScreen(
                                 }
                                 "PROJECT AKTIF" -> viewModel.setTab(AppTab.PROJECT)
                                 "TOTAL MEMBER" -> {
-                                    navController?.safeNavigate("settings_member") ?: run {
+                                    navController?.safeNavigate(com.yansproject.app.ui.navigation.Routes.SettingsMember) ?: run {
                                         Toast.makeText(context, "Buka menu Pengaturan untuk mengelola member", Toast.LENGTH_SHORT).show()
                                     }
                                 }
@@ -1794,26 +1799,116 @@ fun DashboardScreen(
 
             // --- 9. AKTIVITAS TERBARU ---
             item {
-                Text(
-                    text = "Aktivitas Terbaru (${selectedFilter})",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(AgedGold.copy(alpha = 0.15f), CircleShape)
+                                .border(0.8.dp, AgedGold.copy(alpha = 0.4f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.History,
+                                contentDescription = null,
+                                tint = AgedGold,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Text(
+                            text = "Aktivitas Terbaru (${selectedFilter})",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    // Luxury View / Hide Toggle Button with Animation
+                    val rotationAngle by animateFloatAsState(
+                        targetValue = if (isRecentActivitiesVisible) 0f else 180f,
+                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                        label = "toggle_rotation"
+                    )
+
+                    Surface(
+                        onClick = { isRecentActivitiesVisible = !isRecentActivitiesVisible },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isRecentActivitiesVisible) AgedGold.copy(alpha = 0.12f) else DarkGrey,
+                        border = BorderStroke(
+                            0.8.dp,
+                            if (isRecentActivitiesVisible) AgedGold.copy(alpha = 0.5f) else BorderGrey
+                        ),
+                        modifier = Modifier.clip(RoundedCornerShape(20.dp))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isRecentActivitiesVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                                contentDescription = if (isRecentActivitiesVisible) "Sembunyikan" else "Tampilkan",
+                                tint = if (isRecentActivitiesVisible) AgedGold else TextMuted,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            AnimatedContent(
+                                targetState = isRecentActivitiesVisible,
+                                transitionSpec = {
+                                    fadeIn(animationSpec = tween(200)) + scaleIn(initialScale = 0.92f) togetherWith
+                                            fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 0.92f)
+                                },
+                                label = "toggle_text_anim"
+                            ) { visible ->
+                                Text(
+                                    text = if (visible) "Sembunyikan" else "Tampilkan",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (visible) AgedGold else TextMuted
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Outlined.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = if (isRecentActivitiesVisible) AgedGold else TextMuted,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .graphicsLayer(rotationZ = rotationAngle)
+                            )
+                        }
+                    }
+                }
             }
 
-            if (activities.isEmpty()) {
-                item {
-                    EmptyStateView(
-                        icon = Icons.Outlined.Timeline,
-                        title = "Tidak Ada Aktivitas",
-                        description = "Semua riwayat keuangan dan proyek operasional terfilter akan tampil di sini secara real-time saat transaksi mulai dicatat."
-                    )
-                }
-            } else {
-                items(activities) { activity ->
-                    ActivityRow(activity = activity)
+            item {
+                AnimatedVisibility(
+                    visible = isRecentActivitiesVisible,
+                    enter = fadeIn(tween(250)) + expandVertically(tween(250)),
+                    exit = fadeOut(tween(200)) + shrinkVertically(tween(200))
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (activities.isEmpty()) {
+                            EmptyStateView(
+                                icon = Icons.Outlined.Timeline,
+                                title = "Tidak Ada Aktivitas",
+                                description = "Semua riwayat keuangan dan proyek operasional terfilter akan tampil di sini secara real-time saat transaksi mulai dicatat."
+                            )
+                        } else {
+                            activities.forEach { activity ->
+                                ActivityRow(activity = activity)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -2477,13 +2572,13 @@ fun StaffDashboardView(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("SOP OPERASIONAL WORKSPACE", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+                    Text("PANDUAN OPERASIONAL STAFF", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text("1. Pembaruan mutasi stok secara berkala pada tab Stock.", fontSize = 11.sp, color = TextLight)
+                    Text("1. Lakukan update stok secara berkala di tab 'Stock' saat ada barang datang atau keluar.", fontSize = 11.sp, color = TextLight)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("2. Monitoring status pengerjaan apparel pada tab Project.", fontSize = 11.sp, color = TextLight)
+                    Text("2. Periksa status pengerjaan proyek custom sablon dan konfeksi di tab 'Project'.", fontSize = 11.sp, color = TextLight)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("3. Pencatatan beban operasional via persetujuan Owner.", fontSize = 11.sp, color = TextLight)
+                    Text("3. Jika ada pengeluaran sablon/operasional baru, laporkan langsung kepada Owner agar dicatat dalam database keuangan.", fontSize = 11.sp, color = TextLight)
                 }
             }
         }
@@ -2863,7 +2958,12 @@ fun AddInflowDialog(
 data class DonutSlice(
     val label: String,
     val amount: Double,
-    val color: Color
+    val color: Color,
+    val gradientColors: List<Color> = listOf(
+        color.copy(alpha = 0.9f),
+        color,
+        color.copy(alpha = 0.75f)
+    )
 )
 
 @Composable
@@ -2877,7 +2977,7 @@ fun InteractiveDonutChart(
         animatedProgress.snapTo(0f)
         animatedProgress.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing)
         )
     }
     
@@ -2887,7 +2987,8 @@ fun InteractiveDonutChart(
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = 22.dp.toPx()
-            val diameter = size.minDimension - strokeWidth
+            val glowWidth = 28.dp.toPx()
+            val diameter = size.minDimension - glowWidth
             val rect = Rect(
                 left = (size.width - diameter) / 2f,
                 top = (size.height - diameter) / 2f,
@@ -2896,12 +2997,18 @@ fun InteractiveDonutChart(
             )
             
             var startAngle = -90f
-            
             val total = slices.sumOf { it.amount }
             
-            // Background thin track circle
+            // Background thin track circle with metallic shimmer
             drawArc(
-                color = Color.White.copy(alpha = 0.05f),
+                brush = Brush.sweepGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.08f),
+                        Color.White.copy(alpha = 0.03f),
+                        Color.White.copy(alpha = 0.08f)
+                    ),
+                    center = center
+                ),
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,
@@ -2913,7 +3020,14 @@ fun InteractiveDonutChart(
             if (slices.isEmpty() || total == 0.0) {
                 // If empty, percentage 0% and display gray donut ring as requested
                 drawArc(
-                    color = Color.Gray.copy(alpha = 0.2f),
+                    brush = Brush.sweepGradient(
+                        colors = listOf(
+                            Color.Gray.copy(alpha = 0.15f),
+                            Color.Gray.copy(alpha = 0.30f),
+                            Color.Gray.copy(alpha = 0.15f)
+                        ),
+                        center = center
+                    ),
                     startAngle = -90f,
                     sweepAngle = 360f,
                     useCenter = false,
@@ -2927,40 +3041,125 @@ fun InteractiveDonutChart(
                     val sweepAngle = percentage * 360f * animatedProgress.value
                     
                     if (sweepAngle > 0f) {
+                        val startRad = Math.toRadians(startAngle.toDouble())
+                        val endRad = Math.toRadians((startAngle + sweepAngle).toDouble())
+                        val radius = diameter / 2f
+                        val startOffset = Offset(
+                            center.x + radius * kotlin.math.cos(startRad).toFloat(),
+                            center.y + radius * kotlin.math.sin(startRad).toFloat()
+                        )
+                        val endOffset = Offset(
+                            center.x + radius * kotlin.math.cos(endRad).toFloat(),
+                            center.y + radius * kotlin.math.sin(endRad).toFloat()
+                        )
+
+                        val gradientBrush = if (slice.gradientColors.size >= 2) {
+                            Brush.linearGradient(
+                                colors = slice.gradientColors,
+                                start = startOffset,
+                                end = endOffset
+                            )
+                        } else {
+                            SolidColor(slice.color)
+                        }
+
+                        // Layer 1: Ambient Outer Glow Arc
                         drawArc(
-                            color = slice.color,
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    slice.gradientColors.firstOrNull()?.copy(alpha = 0.35f) ?: slice.color.copy(alpha = 0.35f),
+                                    Color.Transparent
+                                ),
+                                center = center,
+                                radius = diameter / 1.5f
+                            ),
                             startAngle = startAngle,
                             sweepAngle = sweepAngle,
                             useCenter = false,
-                            style = Stroke(width = strokeWidth),
+                            style = Stroke(width = glowWidth, cap = StrokeCap.Round),
                             topLeft = Offset(rect.left, rect.top),
                             size = Size(rect.width, rect.height)
                         )
+
+                        // Layer 2: Main Luxury Gradient Arc
+                        drawArc(
+                            brush = gradientBrush,
+                            startAngle = startAngle,
+                            sweepAngle = sweepAngle,
+                            useCenter = false,
+                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                            topLeft = Offset(rect.left, rect.top),
+                            size = Size(rect.width, rect.height)
+                        )
+
+                        // Layer 3: Ultra Fine Specular Highlight (3D Glass Shine Effect)
+                        val innerRadius = diameter - strokeWidth / 2f
+                        val innerRect = Rect(
+                            left = (size.width - innerRadius) / 2f,
+                            top = (size.height - innerRadius) / 2f,
+                            right = (size.width + innerRadius) / 2f,
+                            bottom = (size.height + innerRadius) / 2f
+                        )
+                        drawArc(
+                            color = Color.White.copy(alpha = 0.25f),
+                            startAngle = startAngle + 2f,
+                            sweepAngle = maxOf(0f, sweepAngle - 4f),
+                            useCenter = false,
+                            style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round),
+                            topLeft = Offset(innerRect.left, innerRect.top),
+                            size = Size(innerRect.width, innerRect.height)
+                        )
+
                         startAngle += sweepAngle
                     }
                 }
             }
         }
         
-        // Centered info inside the donut hole
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        // Glassy Inner Center Hole for Luxury Aesthetics
+        Box(
+            modifier = Modifier
+                .size(110.dp)
+                .clip(CircleShape)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            SurfaceDarkTeal.copy(alpha = 0.95f),
+                            SecondaryShadowBlackTeal.copy(alpha = 0.98f)
+                        )
+                    )
+                )
+                .border(
+                    0.8.dp,
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            AgedGold.copy(alpha = 0.35f),
+                            Color.Transparent
+                        )
+                    ),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            val totalAmount = slices.sumOf { it.amount }
-            Text(
-                text = "TOTAL",
-                fontSize = 10.sp,
-                color = TextMuted,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
-            )
-            Text(
-                text = FormatUtils.formatRupiah(totalAmount),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                val totalAmount = slices.sumOf { it.amount }
+                Text(
+                    text = "TOTAL",
+                    fontSize = 9.sp,
+                    color = AgedGold,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.5.sp
+                )
+                Text(
+                    text = FormatUtils.formatRupiah(totalAmount),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
+                )
+            }
         }
     }
 }
@@ -3074,29 +3273,79 @@ fun DashboardRingkasanKeuanganCard(
         }.sumOf { it.amount }
     }
 
-    // Determine current slices based on activeTab
+    // Determine current slices based on activeTab with Luxury Gradients
     val slices = remember(activeTab, totalPemasukan, totalPengeluaran, modalAmt, penjualanAmt, lainnyaInAmt, produksiAmt, aksesoriesAmt, transportAmt, operasionalAmt, lainnyaOutAmt) {
         when (activeTab) {
             "SEMUA" -> {
                 listOf(
-                    DonutSlice("Pemasukan", totalPemasukan, HighlightSoftCyan),
-                    DonutSlice("Pengeluaran", totalPengeluaran, AgedGold)
+                    DonutSlice(
+                        label = "Pemasukan",
+                        amount = totalPemasukan,
+                        color = HighlightSoftCyan,
+                        gradientColors = listOf(Color(0xFF38BDF8), Color(0xFF00F2FE), Color(0xFF10B981))
+                    ),
+                    DonutSlice(
+                        label = "Pengeluaran",
+                        amount = totalPengeluaran,
+                        color = AgedGold,
+                        gradientColors = listOf(Color(0xFFFFD700), Color(0xFFF59E0B), Color(0xFFC6A15B))
+                    )
                 )
             }
             "PEMASUKAN" -> {
                 listOf(
-                    DonutSlice("Modal", modalAmt, HighlightSoftCyan),
-                    DonutSlice("Penjualan", penjualanAmt, AgedGold),
-                    DonutSlice("Lainnya", lainnyaInAmt, Color(0xFF319795))
+                    DonutSlice(
+                        label = "Modal",
+                        amount = modalAmt,
+                        color = HighlightSoftCyan,
+                        gradientColors = listOf(Color(0xFF38BDF8), Color(0xFF0284C7), Color(0xFF06B6D4))
+                    ),
+                    DonutSlice(
+                        label = "Penjualan",
+                        amount = penjualanAmt,
+                        color = AgedGold,
+                        gradientColors = listOf(Color(0xFFFDE047), Color(0xFFEAB308), Color(0xFFC6A15B))
+                    ),
+                    DonutSlice(
+                        label = "Lainnya",
+                        amount = lainnyaInAmt,
+                        color = Color(0xFF319795),
+                        gradientColors = listOf(Color(0xFF2DD4BF), Color(0xFF14B8A6), Color(0xFF0D9488))
+                    )
                 )
             }
             "PENGELUARAN" -> {
                 listOf(
-                    DonutSlice("Produksi", produksiAmt, AgedGold),
-                    DonutSlice("Aksesories", aksesoriesAmt, Color(0xFF3182CE)),
-                    DonutSlice("Transport", transportAmt, Color(0xFFECC94B)),
-                    DonutSlice("Operasional", operasionalAmt, AlertRed),
-                    DonutSlice("Lainnya", lainnyaOutAmt, Color(0xFF805AD5))
+                    DonutSlice(
+                        label = "Produksi",
+                        amount = produksiAmt,
+                        color = AgedGold,
+                        gradientColors = listOf(Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFC6A15B))
+                    ),
+                    DonutSlice(
+                        label = "Aksesories",
+                        amount = aksesoriesAmt,
+                        color = Color(0xFF3182CE),
+                        gradientColors = listOf(Color(0xFF60A5FA), Color(0xFF3B82F6), Color(0xFF1D4ED8))
+                    ),
+                    DonutSlice(
+                        label = "Transport",
+                        amount = transportAmt,
+                        color = Color(0xFFECC94B),
+                        gradientColors = listOf(Color(0xFFFDE047), Color(0xFFFBBF24), Color(0xFFD97706))
+                    ),
+                    DonutSlice(
+                        label = "Operasional",
+                        amount = operasionalAmt,
+                        color = AlertRed,
+                        gradientColors = listOf(Color(0xFFF87171), Color(0xFFEF4444), Color(0xFFDC2626))
+                    ),
+                    DonutSlice(
+                        label = "Lainnya",
+                        amount = lainnyaOutAmt,
+                        color = Color(0xFF805AD5),
+                        gradientColors = listOf(Color(0xFFC084FC), Color(0xFFA855F7), Color(0xFF7E22CE))
+                    )
                 )
             }
             else -> emptyList()
@@ -3185,13 +3434,15 @@ fun DashboardRingkasanKeuanganCard(
                                 label = "Total Pemasukan",
                                 percentage = persenPemasukan,
                                 amount = totalPemasukan,
-                                color = HighlightSoftCyan
+                                color = HighlightSoftCyan,
+                                gradientColors = listOf(Color(0xFF38BDF8), Color(0xFF00F2FE), Color(0xFF10B981))
                             )
                             RincianItemRow(
                                 label = "Total Pengeluaran",
                                 percentage = persenPengeluaran,
                                 amount = totalPengeluaran,
-                                color = AgedGold
+                                color = AgedGold,
+                                gradientColors = listOf(Color(0xFFFFD700), Color(0xFFF59E0B), Color(0xFFC6A15B))
                             )
                             
                             HorizontalDivider(
@@ -3224,9 +3475,9 @@ fun DashboardRingkasanKeuanganCard(
                             val pPenjualan = if (totalAmount > 0) (penjualanAmt / totalAmount * 100).toInt() else 0
                             val pLainnya = if (totalAmount > 0) (lainnyaInAmt / totalAmount * 100).toInt() else 0
 
-                            RincianItemRow("Modal", pModal, modalAmt, HighlightSoftCyan)
-                            RincianItemRow("Penjualan", pPenjualan, penjualanAmt, AgedGold)
-                            RincianItemRow("Lainnya", pLainnya, lainnyaInAmt, Color(0xFF319795))
+                            RincianItemRow("Modal", pModal, modalAmt, HighlightSoftCyan, listOf(Color(0xFF38BDF8), Color(0xFF0284C7), Color(0xFF06B6D4)))
+                            RincianItemRow("Penjualan", pPenjualan, penjualanAmt, AgedGold, listOf(Color(0xFFFDE047), Color(0xFFEAB308), Color(0xFFC6A15B)))
+                            RincianItemRow("Lainnya", pLainnya, lainnyaInAmt, Color(0xFF319795), listOf(Color(0xFF2DD4BF), Color(0xFF14B8A6), Color(0xFF0D9488)))
                         }
                         "PENGELUARAN" -> {
                             val pProduksi = if (totalAmount > 0) (produksiAmt / totalAmount * 100).toInt() else 0
@@ -3235,11 +3486,11 @@ fun DashboardRingkasanKeuanganCard(
                             val pOperasional = if (totalAmount > 0) (operasionalAmt / totalAmount * 100).toInt() else 0
                             val pLainnya = if (totalAmount > 0) (lainnyaOutAmt / totalAmount * 100).toInt() else 0
 
-                            RincianItemRow("Produksi", pProduksi, produksiAmt, AgedGold)
-                            RincianItemRow("Aksesories", pAksesories, aksesoriesAmt, Color(0xFF3182CE))
-                            RincianItemRow("Transport", pTransport, transportAmt, Color(0xFFECC94B))
-                            RincianItemRow("Operasional", pOperasional, operasionalAmt, ErrorRed)
-                            RincianItemRow("Lainnya", pLainnya, lainnyaOutAmt, Color(0xFF805AD5))
+                            RincianItemRow("Produksi", pProduksi, produksiAmt, AgedGold, listOf(Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFC6A15B)))
+                            RincianItemRow("Aksesories", pAksesories, aksesoriesAmt, Color(0xFF3182CE), listOf(Color(0xFF60A5FA), Color(0xFF3B82F6), Color(0xFF1D4ED8)))
+                            RincianItemRow("Transport", pTransport, transportAmt, Color(0xFFECC94B), listOf(Color(0xFFFDE047), Color(0xFFFBBF24), Color(0xFFD97706)))
+                            RincianItemRow("Operasional", pOperasional, operasionalAmt, ErrorRed, listOf(Color(0xFFF87171), Color(0xFFEF4444), Color(0xFFDC2626)))
+                            RincianItemRow("Lainnya", pLainnya, lainnyaOutAmt, Color(0xFF805AD5), listOf(Color(0xFFC084FC), Color(0xFFA855F7), Color(0xFF7E22CE)))
                         }
                     }
                 }
@@ -3290,7 +3541,8 @@ fun RincianItemRow(
     label: String,
     percentage: Int,
     amount: Double,
-    color: Color
+    color: Color,
+    gradientColors: List<Color> = emptyList()
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -3301,11 +3553,17 @@ fun RincianItemRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val dotBrush = if (gradientColors.size >= 2) {
+                Brush.horizontalGradient(gradientColors)
+            } else {
+                SolidColor(color)
+            }
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(10.dp)
                     .clip(CircleShape)
-                    .background(color)
+                    .background(dotBrush)
+                    .border(0.8.dp, Color.White.copy(alpha = 0.3f), CircleShape)
             )
             Text(
                 text = "$label ($percentage%)",
@@ -3537,16 +3795,15 @@ fun RiwayatProduksiScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFA081B1E))
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .background(DarkTeal)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.Outlined.ArrowBack,
                         contentDescription = "Kembali",
-                        tint = AgedGold
+                        tint = Color.White
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -3555,13 +3812,12 @@ fun RiwayatProduksiScreen(
                         text = "ANTREAN PRODUKSI ERP",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AgedGold,
-                        letterSpacing = 1.sp
+                        color = Color.White
                     )
                     Text(
                         text = "${activeQueue.size} Project Sedang Berjalan",
                         fontSize = 11.sp,
-                        color = TextMuted,
+                        color = AgedGold,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -3923,16 +4179,15 @@ fun RiwayatLaporanScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFA081B1E))
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .background(DarkTeal)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.Outlined.ArrowBack,
                         contentDescription = "Kembali",
-                        tint = AgedGold
+                        tint = Color.White
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -3941,13 +4196,12 @@ fun RiwayatLaporanScreen(
                         text = "ANALISIS & LAPORAN ERP",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AgedGold,
-                        letterSpacing = 1.sp
+                        color = Color.White
                     )
                     Text(
                         text = "Ringkasan Keuangan Komprehensif",
                         fontSize = 11.sp,
-                        color = TextMuted,
+                        color = AgedGold,
                         fontWeight = FontWeight.Medium
                     )
                 }

@@ -473,10 +473,9 @@ fun ProjectScreen(
         }
 
         // --- Dialog Detail & Alur Kerja Project ---
-        val targetProjectDetail = selectedProjectForDetail
-        if (targetProjectDetail != null) {
+        if (selectedProjectForDetail != null) {
             ProjectDetailDialog(
-                project = targetProjectDetail,
+                project = selectedProjectForDetail!!,
                 viewModel = viewModel,
                 onDismiss = { selectedProjectForDetail = null }
             )
@@ -890,7 +889,7 @@ fun AddProjectDialog(
             ) {
                 item {
                     Text(
-                        text = "Gunakan form ini untuk mencatat project custom (PO). Anda dapat memasukkan Kaos Pendek dan Kaos Panjang sekaligus.",
+                        text = "Pencatatan Order Project Custom (PO)",
                         fontSize = 11.sp,
                         color = TextMuted
                     )
@@ -1214,7 +1213,7 @@ fun AddProjectDialog(
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Nihil rincian spesifikasi pakaian.", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
+                            Text("Belum ada rincian item pakaian. Tambahkan item di atas terlebih dahulu!", fontSize = 11.sp, color = AlertOrange, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1234,7 +1233,7 @@ fun AddProjectDialog(
                             Text(text = "$totalQty Pcs", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Grand Total Nilai Project:", fontSize = 12.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                            Text(text = "Grand Total Nilai Project (Otomatis):", fontSize = 12.sp, color = AgedGold, fontWeight = FontWeight.Bold)
                             Text(text = FormatUtils.formatRupiah(grandTotalCost), fontSize = 13.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
                         }
                     }
@@ -1874,7 +1873,7 @@ fun ProjectDetailDialog(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("Nihil rekaman aktivitas log timeline project.", fontSize = 12.sp, color = TextMuted)
+                                    Text("Belum ada riwayat aktivitas log timeline.", fontSize = 12.sp, color = TextMuted)
                                 }
                             } else {
                                 LazyColumn(

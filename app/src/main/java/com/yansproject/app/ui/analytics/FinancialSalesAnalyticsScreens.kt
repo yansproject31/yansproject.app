@@ -221,7 +221,7 @@ fun AnalisisKeuanganGlobalScreen(
 
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.statusBarsPadding()) {
+            Column {
                 TopAppBar(
                     windowInsets = WindowInsets(0.dp),
                     title = {
@@ -241,11 +241,11 @@ fun AnalisisKeuanganGlobalScreen(
                                         .border(1.dp, AgedGold, RoundedCornerShape(20.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
-                                    Text(text = "AUDIT LEDGER", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                                    Text(text = "ANALISIS KEUANGAN", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
                                 }
                             }
                             Text(
-                                text = "Laporan Keuangan Terkonsolidasi",
+                                text = "Ringkasan Arus Kas & Laporan Keuangan",
                                 fontSize = 10.sp,
                                 color = Color(0xFFA0AEC0)
                             )
@@ -263,7 +263,7 @@ fun AnalisisKeuanganGlobalScreen(
                             Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold, modifier = Modifier.size(18.dp))
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xEA051214))
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F1720))
                 )
                 HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
             }
@@ -277,9 +277,9 @@ fun AnalisisKeuanganGlobalScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            ShadowBlack,
-                            Color(0xFF071B1D),
-                            ShadowBlack
+                            Color(0xFF0B1017),
+                            Color(0xFF0F1720),
+                            Color(0xFF0B1017)
                         )
                     )
                 )
@@ -307,7 +307,7 @@ fun AnalisisKeuanganGlobalScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(
                                     if (isSelected) Brush.horizontalGradient(listOf(AgedGold, Color(0xFFD4AF37)))
-                                    else Brush.horizontalGradient(listOf(Color(0x1F0F3D3E), Color(0x1F051214)))
+                                    else Brush.horizontalGradient(listOf(Color(0xFF161E28), Color(0xFF131A25)))
                                 )
                                 .border(1.dp, if (isSelected) AgedGold else Color(0x33319795), RoundedCornerShape(12.dp))
                                 .clickable { selectedFilter = period }
@@ -324,103 +324,90 @@ fun AnalisisKeuanganGlobalScreen(
                     }
                 }
 
-                // Hero Net Asset & Cash Reserve Card (YANSPROJECT.ID Luxury Hero Style)
+                // Hero Net Asset & Cash Reserve Card (M3 Premium DNA Style)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
                     border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0x2A0F3D3E),
-                                        Color(0xEA051214)
-                                    )
-                                )
-                            )
-                            .padding(20.dp)
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Box(modifier = Modifier.width(3.dp).height(12.dp).background(AgedGold, RoundedCornerShape(2.dp)))
-                                        Text(
-                                            text = "TOTAL NET ASSET VALUATION",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = AgedGold,
-                                            letterSpacing = 1.sp
-                                        )
-                                    }
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(modifier = Modifier.width(3.dp).height(12.dp).background(AgedGold, RoundedCornerShape(2.dp)))
                                     Text(
-                                        text = "Akumulasi Kas, Stok & Piutang Sesuai Ledger Realtime",
-                                        fontSize = 10.sp,
-                                        color = Color(0xFFA0AEC0)
+                                        text = "TOTAL NET ASSET VALUATION",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = AgedGold,
+                                        letterSpacing = 1.sp
                                     )
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.25f), Color.Transparent)))
-                                        .border(1.dp, AgedGold.copy(alpha = 0.5f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.AccountBalanceWallet,
-                                        contentDescription = null,
-                                        tint = AgedGold,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
+                                Text(
+                                    text = "Akumulasi Kas, Stok & Piutang Sesuai Ledger Realtime",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFFA0AEC0)
+                                )
                             }
-
-                            Text(
-                                text = formatRupiah(totalAssetValuation),
-                                fontSize = 30.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                letterSpacing = 0.5.sp
-                            )
-
-                            HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
-
-                            // 3-Column Asset Breakdown
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.25f), Color.Transparent)))
+                                    .border(1.dp, AgedGold.copy(alpha = 0.5f), CircleShape),
+                                contentAlignment = Alignment.Center
                             ) {
-                                AssetMiniBox(
-                                    modifier = Modifier.weight(1f),
-                                    title = "Kas Aktif",
-                                    value = formatRupiah(saldoKasAktifAllTime),
-                                    color = HighlightSoftCyan
-                                )
-                                AssetMiniBox(
-                                    modifier = Modifier.weight(1f),
-                                    title = "Stok Persediaan",
-                                    value = formatRupiah(totalNilaiStokGudang),
-                                    color = AgedGold
-                                )
-                                AssetMiniBox(
-                                    modifier = Modifier.weight(1f),
-                                    title = "Piutang Dagang",
-                                    value = formatRupiah(piutangOutstanding),
-                                    color = StatusDangerRed
+                                Icon(
+                                    imageVector = Icons.Outlined.AccountBalanceWallet,
+                                    contentDescription = null,
+                                    tint = AgedGold,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
+                        }
+
+                        Text(
+                            text = formatRupiah(totalAssetValuation),
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            letterSpacing = 0.5.sp
+                        )
+
+                        HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
+
+                        // 3-Column Asset Breakdown
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AssetMiniBox(
+                                modifier = Modifier.weight(1f),
+                                title = "Kas Aktif",
+                                value = formatRupiah(saldoKasAktifAllTime),
+                                color = HighlightSoftCyan
+                            )
+                            AssetMiniBox(
+                                modifier = Modifier.weight(1f),
+                                title = "Stok Persediaan",
+                                value = formatRupiah(totalNilaiStokGudang),
+                                color = AgedGold
+                            )
+                            AssetMiniBox(
+                                modifier = Modifier.weight(1f),
+                                title = "Piutang Dagang",
+                                value = formatRupiah(piutangOutstanding),
+                                color = StatusDangerRed
+                            )
                         }
                     }
                 }
@@ -429,7 +416,7 @@ fun AnalisisKeuanganGlobalScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
                     border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
@@ -499,7 +486,7 @@ fun AnalisisKeuanganGlobalScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
                     border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
@@ -616,7 +603,7 @@ fun AnalisisKeuanganGlobalScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
                     border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f))
                 ) {
                     Column(
@@ -672,7 +659,7 @@ fun AnalisisKeuanganGlobalScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0x250F3D3E))
+                        .background(Color(0xFF161E28))
                         .border(1.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                         .padding(14.dp)
                 ) {
@@ -687,7 +674,7 @@ fun AnalisisKeuanganGlobalScreen(
                             modifier = Modifier.size(22.dp)
                         )
                         Text(
-                            text = "Laporan data final terkonsolidasi berdasarkan audit transaksi sistem YANSPROJECT.ID.",
+                            text = "Laporan ini merupakan output data final global yang tidak dapat diedit secara manual. Seluruh angka terhitung otomatis dari Room Database & Audit Logs YANSPROJECT.ID.",
                             fontSize = 10.sp,
                             color = Color(0xFFA0AEC0),
                             lineHeight = 14.sp
@@ -941,7 +928,7 @@ fun AnalisisPenjualanAjibqobulScreen(
 
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.statusBarsPadding()) {
+            Column {
                 TopAppBar(
                     windowInsets = WindowInsets(0.dp),
                     title = {
@@ -961,11 +948,11 @@ fun AnalisisPenjualanAjibqobulScreen(
                                         .border(1.dp, HighlightSoftCyan, RoundedCornerShape(20.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
-                                    Text(text = "SALES ANALYTICS", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = HighlightSoftCyan)
+                                    Text(text = "ANALISIS PENJUALAN", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = HighlightSoftCyan)
                                 }
                             }
                             Text(
-                                text = "Analisis Volume & Performa Penjualan",
+                                text = "Volume Penjualan & Distribusi Member",
                                 fontSize = 10.sp,
                                 color = Color(0xFFA0AEC0)
                             )
@@ -983,7 +970,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                             Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold, modifier = Modifier.size(18.dp))
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xEA051214))
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F1720))
                 )
                 HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
             }
@@ -997,9 +984,9 @@ fun AnalisisPenjualanAjibqobulScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            ShadowBlack,
-                            Color(0xFF071B1D),
-                            ShadowBlack
+                            Color(0xFF0B1017),
+                            Color(0xFF0F1720),
+                            Color(0xFF0B1017)
                         )
                     )
                 )
@@ -1027,7 +1014,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(
                                     if (isSelected) Brush.horizontalGradient(listOf(AgedGold, Color(0xFFD4AF37)))
-                                    else Brush.horizontalGradient(listOf(Color(0x1F0F3D3E), Color(0x1F051214)))
+                                    else Brush.horizontalGradient(listOf(Color(0xFF161E28), Color(0xFF131A25)))
                                 )
                                 .border(1.dp, if (isSelected) AgedGold else Color(0x33319795), RoundedCornerShape(12.dp))
                                 .clickable { selectedFilter = period }
@@ -1044,90 +1031,78 @@ fun AnalisisPenjualanAjibqobulScreen(
                     }
                 }
 
-                // Hero Key Sales Metrics Card (YANSPROJECT.ID Luxury Hero Style)
+                // Hero Key Sales Metrics Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
                     border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(HighlightSoftCyan, AgedGold, HighlightSoftCyan))),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0x2A0F3D3E),
-                                        Color(0xEA051214)
-                                    )
-                                )
-                            )
-                            .padding(20.dp)
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Box(modifier = Modifier.width(3.dp).height(12.dp).background(HighlightSoftCyan, RoundedCornerShape(2.dp)))
-                                        Text(
-                                            text = "TOTAL OMSET PENJUALAN ($selectedFilter)",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = AgedGold,
-                                            letterSpacing = 1.sp
-                                        )
-                                    }
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(modifier = Modifier.width(3.dp).height(12.dp).background(HighlightSoftCyan, RoundedCornerShape(2.dp)))
                                     Text(
-                                        text = "Bruto Terkumpul Dari Invoice & Standalone Order",
-                                        fontSize = 10.sp,
-                                        color = Color(0xFFA0AEC0)
+                                        text = "TOTAL OMSET PENJUALAN ($selectedFilter)",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = AgedGold,
+                                        letterSpacing = 1.sp
                                     )
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Brush.radialGradient(listOf(HighlightSoftCyan.copy(alpha = 0.25f), Color.Transparent)))
-                                        .border(1.dp, HighlightSoftCyan.copy(alpha = 0.5f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Leaderboard,
-                                        contentDescription = null,
-                                        tint = HighlightSoftCyan,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-
-                            Text(
-                                text = formatRupiah(totalOmsetPenjualan),
-                                fontSize = 30.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                letterSpacing = 0.5.sp
-                            )
-
-                            HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
-
-                            // 3 Key Stats
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                SalesMiniStatBox(
-                                    modifier = Modifier.weight(1f),
-                                    title = "Total Terjual",
-                                    value = "$totalPcsTerjual Pcs",
-                                    color = HighlightSoftCyan
+                                Text(
+                                    text = "Bruto Terkumpul Dari Invoice & Standalone Order",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFFA0AEC0)
                                 )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Brush.radialGradient(listOf(HighlightSoftCyan.copy(alpha = 0.25f), Color.Transparent)))
+                                    .border(1.dp, HighlightSoftCyan.copy(alpha = 0.5f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Leaderboard,
+                                    contentDescription = null,
+                                    tint = HighlightSoftCyan,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = formatRupiah(totalOmsetPenjualan),
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            letterSpacing = 0.5.sp
+                        )
+
+                        HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
+
+                        // 3 Key Stats
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            SalesMiniStatBox(
+                                modifier = Modifier.weight(1f),
+                                title = "Total Terjual",
+                                value = "$totalPcsTerjual Pcs",
+                                color = HighlightSoftCyan
+                            )
                             SalesMiniStatBox(
                                 modifier = Modifier.weight(1f),
                                 title = "Total Transaksi",
@@ -1143,13 +1118,12 @@ fun AnalisisPenjualanAjibqobulScreen(
                         }
                     }
                 }
-            }
 
                 // Production vs Sales Distribution Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
                     border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
@@ -1227,7 +1201,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
                     border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
@@ -1252,7 +1226,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                             Card(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0x1F0F3D3E)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A232E)),
                                 border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1265,7 +1239,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                             Card(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0x1F0F3D3E)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A232E)),
                                 border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1282,7 +1256,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
                     border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f))
                 ) {
                     Column(
@@ -1337,7 +1311,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                                         modifier = Modifier.size(28.dp)
                                     )
                                     Text(
-                                        text = "Tidak ditemukan transaksi penjualan pada periode terpilih",
+                                        text = "Belum ada transaksi penjualan pada periode ini",
                                         fontSize = 11.sp,
                                         color = Color.Gray,
                                         textAlign = TextAlign.Center
@@ -1508,7 +1482,7 @@ private fun AssetMiniBox(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Brush.radialGradient(listOf(color.copy(alpha = 0.18f), Color(0x1F0F3D3E))))
+            .background(Color(0xFF1A232E))
             .border(1.2.dp, color.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
@@ -1531,7 +1505,7 @@ private fun RatioMetricCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A232E)),
         border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(color.copy(alpha = 0.6f), color.copy(alpha = 0.25f))))
     ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1589,7 +1563,7 @@ private fun TableAuditRow(label: String, value: String, isPositive: Boolean) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(Color(0x220F3D3E))
+            .background(Color(0xFF1A232E))
             .border(0.8.dp, Color(0x33319795), RoundedCornerShape(10.dp))
             .padding(horizontal = 12.dp, vertical = 9.dp)
     ) {
@@ -1627,7 +1601,7 @@ private fun SalesMiniStatBox(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Brush.radialGradient(listOf(color.copy(alpha = 0.18f), Color(0x1F0F3D3E))))
+            .background(Color(0xFF1A232E))
             .border(1.2.dp, color.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {

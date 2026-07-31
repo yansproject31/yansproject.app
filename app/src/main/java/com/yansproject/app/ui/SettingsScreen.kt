@@ -291,10 +291,10 @@ fun SettingsScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // STICKY TOPBAR & HERO ACCOUNT CARD (LOCKED AT TOP TOGETHER WITH MATERIAL 3 GLASSMORPHISM)
+                // STICKY TOPBAR & HERO ACCOUNT CARD (LOCKED AT TOP WITH MATERIAL 3 DASHBOARD DNA)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color(0xEA051214),
+                    color = Color(0xFF0F1720),
                     shadowElevation = 8.dp
                 ) {
                     Column(
@@ -321,7 +321,7 @@ fun SettingsScreen(
                                     },
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.25f), Color(0x1F0F3D3E))))
+                                        .background(Color(0xFF161E28))
                                         .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                         .size(38.dp)
                                 ) {
@@ -352,7 +352,7 @@ fun SettingsScreen(
                                                 .padding(horizontal = 6.dp, vertical = 1.dp)
                                         ) {
                                             Text(
-                                                text = "SYSTEM CONFIG",
+                                                text = "PENGATURAN",
                                                 color = AgedGold,
                                                 fontSize = 8.sp,
                                                 fontWeight = FontWeight.ExtraBold,
@@ -361,7 +361,7 @@ fun SettingsScreen(
                                         }
                                     }
                                     Text(
-                                        text = "Konfigurasi Workspace & Akses Otoritas",
+                                        text = "Otoritas & Profil Akun",
                                         fontSize = 10.sp,
                                         color = Color(0xFFA0AEC0)
                                     )
@@ -371,7 +371,7 @@ fun SettingsScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.25f), Color(0x33C6A15B))))
+                                    .background(Color(0xFF161E28))
                                     .border(1.dp, AgedGold, RoundedCornerShape(20.dp))
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
@@ -385,28 +385,15 @@ fun SettingsScreen(
                             }
                         }
 
-                        // Hero Account Card Locked with TopBar (YANSPROJECT.ID Luxury Hero Style)
+                        // Hero Account Card Locked with TopBar (Material 3 Dashboard DNA)
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
                             shape = RoundedCornerShape(20.dp),
                             border = androidx.compose.foundation.BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        brush = Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color(0x2A0F3D3E),
-                                                Color(0xEA051214)
-                                            )
-                                        )
-                                    )
-                                    .padding(14.dp)
-                            ) {
-                                Column {
+                            Column(modifier = Modifier.padding(14.dp)) {
                                 // Profile Layout
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -416,7 +403,7 @@ fun SettingsScreen(
                                         modifier = Modifier
                                             .size(48.dp)
                                             .clip(RoundedCornerShape(14.dp))
-                                            .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.35f), Color(0x220F3D3E))))
+                                            .background(Color(0xFF1A232E))
                                             .border(1.2.dp, AgedGold, RoundedCornerShape(14.dp)),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -446,8 +433,8 @@ fun SettingsScreen(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(6.dp))
                                                     .background(
-                                                        if (isOwner) Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.3f), Color(0x33C6A15B)))
-                                                        else Brush.horizontalGradient(listOf(HighlightSoftCyan.copy(alpha = 0.3f), Color(0x33319795)))
+                                                        if (isOwner) Color(0xFF262013)
+                                                        else Color(0xFF0D2526)
                                                     )
                                                     .border(1.dp, if (isOwner) AgedGold else HighlightSoftCyan, RoundedCornerShape(6.dp))
                                                     .padding(horizontal = 7.dp, vertical = 2.dp)
@@ -494,7 +481,7 @@ fun SettingsScreen(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0x22319795))
+                                                .background(Color(0xFF161E28))
                                                 .border(1.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
                                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                                         ) {
@@ -515,7 +502,6 @@ fun SettingsScreen(
                                 }
                             }
                         }
-                    }
                     }
                 }
 
@@ -2052,7 +2038,8 @@ fun renderNestedSubScreen(
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Icon(Icons.Outlined.Folder, contentDescription = null, tint = TextMuted, modifier = Modifier.size(36.dp))
-                                    Text("Nihil Berkas Backup Tersimpan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                                    Text("Belum Ada Berkas Backup Tersimpan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                                    Text("Klik 'Buat Backup Baru' untuk membuat cadangan pertama Anda.", fontSize = 10.5.sp, color = TextMuted.copy(alpha = 0.7f))
                                 }
                             }
                         } else {
@@ -2929,7 +2916,7 @@ fun renderNestedSubScreen(
                             }
                         } else {
                             Text(
-                                text = "Nihil catatan aktivitas sistem terdeteksi saat ini.",
+                                text = "Belum ada log aktivitas tercatat di sistem saat ini.",
                                 fontSize = 12.sp,
                                 color = TextMuted,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -3235,7 +3222,7 @@ fun renderNestedSubScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         
                         if (auditLogs.isEmpty()) {
-                            Text("Nihil rekaman log audit keamanan terdeteksi.", fontSize = 11.sp, color = TextMuted)
+                            Text("Belum ada log audit keamanan.", fontSize = 11.sp, color = TextMuted)
                         } else {
                             auditLogs.take(3).forEach { log ->
                                 Column {
@@ -3275,7 +3262,7 @@ fun renderNestedSubScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Aktifkan Autentikasi Biometrik", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("Verifikasi sidik jari & keamanan biometrik", fontSize = 11.sp, color = TextMuted)
+                            Text("Gunakan Sidik Jari / Face ID saat membuka menu sensitif", fontSize = 11.sp, color = TextMuted)
                         }
                         Switch(
                             checked = biometricEnabled,
@@ -4000,7 +3987,7 @@ fun renderNestedSubScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
 
                                 if (filesList.isEmpty()) {
-                                    Text("Direktori folder ini masih kosong.", fontSize = 11.sp, color = TextMuted, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                                    Text("Belum ada file di folder ini.", fontSize = 11.sp, color = TextMuted, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
                                 } else {
                                     filesList.forEach { fileItem ->
                                         val fileDate = SimpleDateFormat("dd/MM/yy HH:mm", java.util.Locale.getDefault()).format(Date(fileItem.lastModified()))

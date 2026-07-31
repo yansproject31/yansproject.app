@@ -615,7 +615,7 @@ fun MatrixScreen(
                                         modifier = Modifier.size(36.dp)
                                     )
                                     Text(
-                                        text = "Tidak ditemukan riwayat transaksi retur",
+                                        text = "Belum ada riwayat retur",
                                         color = TextIsiSoftGray,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,

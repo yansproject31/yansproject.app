@@ -322,16 +322,10 @@ fun DualMatrixComponent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (isCustomProject) "CUSTOM MATRIX CONFIG" else "AJIBQOBUL MATRIX CONFIG",
+                text = if (isCustomProject) "MATRIKS UKURAN APPAREL CUSTOM" else "MATRIKS UKURAN STOK APPAREL",
                 color = MaterialTheme.colorScheme.primary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Black
-            )
-            Text(
-                text = "WORKSTATION",
-                color = HighlightSoftCyan,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
             )
         }
 

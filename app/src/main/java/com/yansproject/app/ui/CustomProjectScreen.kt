@@ -79,11 +79,11 @@ fun CustomProjectScreen(
                                         .border(1.dp, LuxuryGold, RoundedCornerShape(20.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
-                                    Text(text = "LIVE ERP", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = LuxuryGold)
+                                    Text(text = "PROJECT", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = LuxuryGold)
                                 }
                             }
                             Text(
-                                text = "Layanan Produksi Apparel & Custom Order Ledger",
+                                text = "Layanan Produksi Apparel & Custom Order",
                                 fontSize = 10.sp,
                                 color = Color(0xFFA0AEC0)
                             )

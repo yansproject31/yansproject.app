@@ -218,71 +218,49 @@ fun RiwayatScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // --- Top Bar YANSPROJECT.ID Luxury ERP Header ---
+                // --- Top Bar Executive Header ---
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color.Transparent,
+                    color = Color(0xFF0F1720),
                     shadowElevation = 8.dp
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0xFA081B1E),
-                                        Color(0xEA051214)
-                                    )
-                                )
-                            )
-                            .border(
-                                width = 1.dp,
-                                brush = Brush.horizontalGradient(
-                                    listOf(
-                                        AgedGold.copy(alpha = 0.4f),
-                                        HighlightSoftCyan.copy(alpha = 0.4f),
-                                        AgedGold.copy(alpha = 0.4f)
-                                    )
-                                ),
-                                shape = androidx.compose.ui.graphics.RectangleShape
-                            )
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text(
-                                            text = "RIWAYAT TRANSAKSI ERP",
-                                            fontSize = 11.sp,
-                                            color = AgedGold,
-                                            fontWeight = FontWeight.Black,
-                                            letterSpacing = 1.2.sp
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(AgedGold.copy(alpha = 0.2f))
-                                                .border(0.5.dp, AgedGold, RoundedCornerShape(10.dp))
-                                                .padding(horizontal = 6.dp, vertical = 1.dp)
-                                        ) {
-                                            Text(text = "AUDIT LOG", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
-                                        }
-                                    }
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(
-                                        text = "Jurnal Transaksi",
-                                        fontSize = 19.sp,
+                                        text = "RIWAYAT TRANSAKSI ERP",
+                                        fontSize = 11.sp,
+                                        color = AgedGold,
                                         fontWeight = FontWeight.Black,
-                                        color = Color.White
+                                        letterSpacing = 1.2.sp
                                     )
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(AgedGold.copy(alpha = 0.2f))
+                                            .border(0.5.dp, AgedGold, RoundedCornerShape(10.dp))
+                                            .padding(horizontal = 6.dp, vertical = 1.dp)
+                                    ) {
+                                        Text(text = "RIWAYAT", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                                    }
                                 }
+                                Text(
+                                    text = "Riwayat Transaksi",
+                                    fontSize = 19.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
+                                )
+                            }
 
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -393,7 +371,6 @@ fun RiwayatScreen(
                         }
                     }
                 }
-                }
 
                 // --- KPI Executive Summary (Expandable) ---
                 AnimatedVisibility(
@@ -414,8 +391,8 @@ fun RiwayatScreen(
                             // Card 1: Total Omset Gross
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
-                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                                shape = RoundedCornerShape(16.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.2.dp, AgedGold.copy(alpha = 0.5f))
                             ) {
                                 Column(
@@ -454,8 +431,8 @@ fun RiwayatScreen(
                             // Card 2: Terbayar (Lunas)
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
-                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                                shape = RoundedCornerShape(16.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.2.dp, AlertGreen.copy(alpha = 0.5f))
                             ) {
                                 Column(
@@ -499,8 +476,8 @@ fun RiwayatScreen(
                             // Card 3: Sisa Piutang / Pending
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
-                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                                shape = RoundedCornerShape(16.dp),
                                 border = androidx.compose.foundation.BorderStroke(
                                     1.2.dp,
                                     if (totalRemainingValue > 0) StatusWarningGold.copy(alpha = 0.6f) else HighlightSoftCyan.copy(alpha = 0.4f)
@@ -556,8 +533,8 @@ fun RiwayatScreen(
                             // Card 4: Quantity & Transaction Count
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
-                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                                shape = RoundedCornerShape(16.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.2.dp, HighlightSoftCyan.copy(alpha = 0.5f))
                             ) {
                                 Column(
@@ -614,12 +591,12 @@ fun RiwayatScreen(
                         .padding(horizontal = 16.dp)
                         .height(48.dp)
                         .testTag("riwayat_search"),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AgedGold,
-                        unfocusedBorderColor = BorderGrey,
-                        focusedContainerColor = ShadowBlack,
-                        unfocusedContainerColor = ShadowBlack
+                        unfocusedBorderColor = Color(0x33319795),
+                        focusedContainerColor = Color(0xFF161E28),
+                        unfocusedContainerColor = Color(0xFF161E28)
                     ),
                     singleLine = true
                 )
@@ -634,9 +611,9 @@ fun RiwayatScreen(
                         val isSelected = filter == selectedFilter
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(if (isSelected) AgedGold else CardGrey)
-                                .border(1.dp, if (isSelected) AgedGold else BorderGrey, RoundedCornerShape(16.dp))
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) AgedGold else Color(0xFF161E28))
+                                .border(1.dp, if (isSelected) AgedGold else Color(0x33319795), RoundedCornerShape(12.dp))
                                 .clickable { viewModel.riwayatFilter.value = filter }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
@@ -790,12 +767,13 @@ fun RiwayatItemCard(
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF061517)), // Deep dark teal shadow
-        shape = RoundedCornerShape(14.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.35f)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33319795)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() }
             .testTag("riwayat_item_${invoice.id}")
     ) {
@@ -1083,9 +1061,9 @@ fun DetailRiwayatBottomSheet(
                     )
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = ShadowBlack),
-                        shape = RoundedCornerShape(14.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.4f))
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33319795))
                     ) {
                         Column(
                             modifier = Modifier
@@ -1154,9 +1132,9 @@ fun DetailRiwayatBottomSheet(
 
                     if (!isProject) {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = ShadowBlack),
-                            shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.4f))
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33319795))
                         ) {
                             Column(
                                 modifier = Modifier
@@ -1180,9 +1158,9 @@ fun DetailRiwayatBottomSheet(
                     } else {
                         // Project Item Table
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = ShadowBlack),
-                            shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.4f))
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33319795))
                         ) {
                             Column(
                                 modifier = Modifier
@@ -1257,9 +1235,9 @@ fun DetailRiwayatBottomSheet(
                     }
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = ShadowBlack),
-                        shape = RoundedCornerShape(14.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey.copy(alpha = 0.4f))
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33319795))
                     ) {
                         Column(
                             modifier = Modifier

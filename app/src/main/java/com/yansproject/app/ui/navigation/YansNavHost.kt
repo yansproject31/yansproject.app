@@ -41,7 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yansproject.app.data.FirebaseSyncManager
 
-private val LuxuryMotionEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+private val LuxuryFastMotionEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f)
 
 @Composable
 fun YansNavHost(
@@ -64,24 +64,20 @@ fun YansNavHost(
         startDestination = initialRoute,
         modifier = modifier,
         enterTransition = {
-            fadeIn(animationSpec = tween(320, easing = LuxuryMotionEasing)) +
-            scaleIn(initialScale = 0.96f, animationSpec = tween(320, easing = LuxuryMotionEasing)) +
-            slideInHorizontally(animationSpec = tween(320, easing = LuxuryMotionEasing)) { it / 12 }
+            fadeIn(animationSpec = tween(180, easing = LuxuryFastMotionEasing)) +
+            scaleIn(initialScale = 0.98f, animationSpec = tween(180, easing = LuxuryFastMotionEasing))
         },
         exitTransition = {
-            fadeOut(animationSpec = tween(240, easing = LuxuryMotionEasing)) +
-            scaleOut(targetScale = 0.96f, animationSpec = tween(240, easing = LuxuryMotionEasing)) +
-            slideOutHorizontally(animationSpec = tween(240, easing = LuxuryMotionEasing)) { -it / 12 }
+            fadeOut(animationSpec = tween(150, easing = LuxuryFastMotionEasing)) +
+            scaleOut(targetScale = 0.98f, animationSpec = tween(150, easing = LuxuryFastMotionEasing))
         },
         popEnterTransition = {
-            fadeIn(animationSpec = tween(320, easing = LuxuryMotionEasing)) +
-            scaleIn(initialScale = 0.96f, animationSpec = tween(320, easing = LuxuryMotionEasing)) +
-            slideInHorizontally(animationSpec = tween(320, easing = LuxuryMotionEasing)) { -it / 12 }
+            fadeIn(animationSpec = tween(180, easing = LuxuryFastMotionEasing)) +
+            scaleIn(initialScale = 0.98f, animationSpec = tween(180, easing = LuxuryFastMotionEasing))
         },
         popExitTransition = {
-            fadeOut(animationSpec = tween(240, easing = LuxuryMotionEasing)) +
-            scaleOut(targetScale = 0.96f, animationSpec = tween(240, easing = LuxuryMotionEasing)) +
-            slideOutHorizontally(animationSpec = tween(240, easing = LuxuryMotionEasing)) { it / 12 }
+            fadeOut(animationSpec = tween(150, easing = LuxuryFastMotionEasing)) +
+            scaleOut(targetScale = 0.98f, animationSpec = tween(150, easing = LuxuryFastMotionEasing))
         }
     ) {
         composable(Routes.Startup) {

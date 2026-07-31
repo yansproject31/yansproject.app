@@ -328,9 +328,8 @@ fun InvoiceScreen(
         }
 
         // --- Detail Invoice Dialog ---
-        val targetDetail = selectedInvoiceForDetail
-        if (targetDetail != null) {
-            val invoice = invoices.find { it.id == targetDetail.id } ?: targetDetail
+        if (selectedInvoiceForDetail != null) {
+            val invoice = invoices.find { it.id == selectedInvoiceForDetail!!.id } ?: selectedInvoiceForDetail!!
             val linkedProject = if (invoice.projectId != null) {
                 projects.find { it.id == invoice.projectId }
             } else null
@@ -362,9 +361,8 @@ fun InvoiceScreen(
         }
 
         // --- Payment Dialog ---
-        val targetPayment = selectedInvoiceForPayment
-        if (targetPayment != null) {
-            val invoice = targetPayment
+        if (selectedInvoiceForPayment != null) {
+            val invoice = selectedInvoiceForPayment!!
             PaymentInputDialog(
                 invoice = invoice,
                 isDP = isRecordingDP,
@@ -1289,7 +1287,7 @@ fun InvoiceDetailDialog(
                                         .padding(12.dp)
                                 ) {
                                     Text(
-                                        text = currentNote.ifEmpty { "Nihil catatan administratif internal dari Owner untuk invoice ini." },
+                                        text = currentNote.ifEmpty { "Belum ada catatan administratif dari Owner untuk invoice ini." },
                                         fontSize = 12.sp,
                                         color = if (currentNote.isEmpty()) TextMuted else TextLight,
                                         fontStyle = if (currentNote.isEmpty()) androidx.compose.ui.text.font.FontStyle.Italic else androidx.compose.ui.text.font.FontStyle.Normal
@@ -1341,7 +1339,7 @@ fun InvoiceDetailDialog(
 
                                 if (paymentsList.isEmpty()) {
                                     Text(
-                                        text = "Nihil riwayat pencatatan transaksi pembayaran maupun angsuran.",
+                                        text = "Belum ada riwayat pembayaran untuk invoice ini.",
                                         fontSize = 11.sp,
                                         color = TextMuted,
                                         modifier = Modifier.padding(vertical = 4.dp)
@@ -2005,8 +2003,8 @@ fun InvoiceDetailDialog(
                     OutlinedTextField(
                         value = notes,
                         onValueChange = { notes = it },
-                        label = { Text("Catatan Transaksi (Opsional)") },
-                        placeholder = { Text("Masukkan rincian atau referensi transaksi pembayaran") },
+                        label = { Text("Catatan (Opsional)") },
+                        placeholder = { Text("Tulis catatan khusus pembayaran") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = AgedGold,
@@ -2071,9 +2069,8 @@ fun InvoiceDetailDialog(
         )
     }
 
-    val targetPaymentForEdit = selectedPaymentForEdit
-    if (showEditPaymentDialog && targetPaymentForEdit != null) {
-        val payment = targetPaymentForEdit
+    if (showEditPaymentDialog && selectedPaymentForEdit != null) {
+        val payment = selectedPaymentForEdit!!
         var payAmountStr by remember(payment) { mutableStateOf(payment.amount.toInt().toString()) }
         var selectedMethod by remember(payment) { mutableStateOf(payment.paymentMethod) }
         var methodDetail by remember(payment) { mutableStateOf(payment.methodDetail) }
@@ -2228,8 +2225,8 @@ fun InvoiceDetailDialog(
                     OutlinedTextField(
                         value = notes,
                         onValueChange = { notes = it },
-                        label = { Text("Catatan Transaksi (Opsional)") },
-                        placeholder = { Text("Masukkan rincian atau referensi transaksi pembayaran") },
+                        label = { Text("Catatan (Opsional)") },
+                        placeholder = { Text("Tulis catatan khusus pembayaran") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = AgedGold,
@@ -2295,9 +2292,8 @@ fun InvoiceDetailDialog(
         )
     }
 
-    val targetPaymentForDelete = selectedPaymentForDelete
-    if (showDeletePaymentConfirm && targetPaymentForDelete != null) {
-        val payment = targetPaymentForDelete
+    if (showDeletePaymentConfirm && selectedPaymentForDelete != null) {
+        val payment = selectedPaymentForDelete!!
         AlertDialog(
             onDismissRequest = { showDeletePaymentConfirm = false },
             title = { Text("Konfirmasi Hapus Pembayaran", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
@@ -2461,7 +2457,7 @@ fun EditAdminNoteDialog(
                 OutlinedTextField(
                     value = noteText,
                     onValueChange = { noteText = it },
-                    label = { Text("Masukkan Catatan Internal Admin...", color = TextMuted) },
+                    label = { Text("Ketik Catatan Admin...", color = TextMuted) },
                     modifier = Modifier.fillMaxWidth().height(120.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AgedGold,
@@ -2805,11 +2801,11 @@ fun AddSaleDialog(
                                         .border(0.5.dp, AgedGold, RoundedCornerShape(10.dp))
                                         .padding(horizontal = 6.dp, vertical = 1.dp)
                                 ) {
-                                    Text(text = "LIVE ERP", fontSize = 8.sp, fontWeight = FontWeight.Black, color = AgedGold)
+                                    Text(text = "INVOICE", fontSize = 8.sp, fontWeight = FontWeight.Black, color = AgedGold)
                                 }
                             }
                             Text(
-                                text = "Single Source of Truth • YANSPROJECT.ID Enterprise Ledger",
+                                text = "Daftar Tagihan & Transaksi Invoice",
                                 color = Color(0xFFA0AEC0),
                                 fontSize = 10.sp
                             )
@@ -2860,7 +2856,7 @@ fun AddSaleDialog(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Text(
-                                    text = "Gunakan form ini untuk mencatat transaksi penjualan langsung. Data stok dan katalog terhubung secara realtime dengan database.",
+                                    text = "Form Pencatatan Transaksi Penjualan Langsung",
                                     fontSize = 11.sp,
                                     color = Color(0xFFA0AEC0)
                                 )
@@ -2971,7 +2967,7 @@ fun AddSaleDialog(
 
                                 if (activeCatalogs.isEmpty()) {
                                     Text(
-                                        text = "Katalog Series belum terdaftar di database Stok. Harap tambahkan Master Katalog terlebih dahulu pada modul Stok.",
+                                        text = "Belum ada katalog series terdaftar di stok.",
                                         color = AlertRed,
                                         fontSize = 11.sp
                                     )
@@ -3038,7 +3034,7 @@ fun AddSaleDialog(
                                         }
                                     } else {
                                         Text(
-                                            text = "Varian warna belum terdaftar pada katalog terpilih.",
+                                            text = "Belum ada varian warna terdaftar untuk catalog ini.",
                                             fontSize = 10.sp,
                                             color = AlertOrange
                                         )
@@ -3116,7 +3112,7 @@ fun AddSaleDialog(
                                             )
                                         }
                                         Text(
-                                            text = "LIVE DB",
+                                            text = "STOK",
                                             fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = TextMuted
@@ -3360,7 +3356,7 @@ fun AddSaleDialog(
                                     .padding(16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Nihil item kuantitas pakaian terpilih.", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
+                                Text("Keranjang penjualan masih kosong. Pilih matriks di atas!", fontSize = 11.sp, color = AlertOrange, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -3449,7 +3445,7 @@ fun AddSaleDialog(
                                 OutlinedTextField(
                                     value = deliveryNotes,
                                     onValueChange = { deliveryNotes = it },
-                                    placeholder = { Text("Masukkan detail alamat penerima, pilihan ekspedisi, dan instruksi pengiriman...", fontSize = 11.sp, color = TextMuted) },
+                                    placeholder = { Text("Tulis alamat pengiriman, ekspedisi, atau catatan resi di sini...", fontSize = 11.sp, color = TextMuted) },
                                     modifier = Modifier.fillMaxWidth().height(90.dp),
                                     shape = RoundedCornerShape(8.dp),
                                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
