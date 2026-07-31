@@ -49,7 +49,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 private const val OWNER_DEFAULT_NAME = "YANSPROJECT.ID"
-private const val OWNER_DEFAULT_EMAIL = "admin@yansproject.id"
+private const val OWNER_DEFAULT_EMAIL = "yansart31@gmail.com"
 private const val OWNER_DEFAULT_WA = "+62 877-7739-8813"
 private const val OWNER_DEFAULT_ADDR = "Tangerang, Banten"
 

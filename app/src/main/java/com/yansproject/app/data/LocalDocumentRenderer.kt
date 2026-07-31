@@ -51,7 +51,7 @@ class LocalDocumentRenderer(private val context: Context) {
 
             paint.color = Color.parseColor("#4FD1C5") // Soft Cyan
             paint.textSize = 9.5f
-            canvas.drawText("Email: admin@yansproject.id | WhatsApp Support: +62 87777-3988-13", 40f, 88f, paint)
+            canvas.drawText("Email: yansart31@gmail.com | WhatsApp Support: +62 87777-3988-13", 40f, 88f, paint)
             canvas.drawText("Sistem Informasi ERP & Manajemen Operasional Terintegrasi", 40f, 104f, paint)
 
             // Right side Header Badge: FAKTUR INVOICE

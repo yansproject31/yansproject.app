@@ -54,7 +54,8 @@ class MemberViewModel : ViewModel() {
                                 role.equals("ADMIN", ignoreCase = true) ||
                                 displayName.contains("Owner", ignoreCase = true) ||
                                 displayName.equals("YANSPROJECT.ID", ignoreCase = true) ||
-                                emailKey.equals("admin@yansproject.id", ignoreCase = true)
+                                emailKey.equals("admin@yansproject.id", ignoreCase = true) ||
+                                emailKey.equals("yansart31@gmail.com", ignoreCase = true)
 
                         if (!isOwner) {
                             val normalizedName = displayName.lowercase()
@@ -91,7 +92,8 @@ class MemberViewModel : ViewModel() {
                                     m.role.equals("ADMIN", ignoreCase = true) ||
                                     m.displayName.contains("Owner", ignoreCase = true) ||
                                     m.displayName.equals("YANSPROJECT.ID", ignoreCase = true) ||
-                                    m.email.equals("admin@yansproject.id", ignoreCase = true)
+                                    m.email.equals("admin@yansproject.id", ignoreCase = true) ||
+                                    m.email.equals("yansart31@gmail.com", ignoreCase = true)
                             !isOwner
                         }.distinctBy { it.displayName.lowercase().trim() }
 

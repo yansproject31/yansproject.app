@@ -56,7 +56,7 @@ fun BusinessIdentityModule(
     var whatsapp by remember { mutableStateOf(dataWhatsApp ?: whatsappDefaultValue) }
 
     val dataEmail = try { AppSettings.getEmail(context).ifBlank { null } } catch (e: Exception) { null }
-    val emailDefaultValue = "admin@yansproject.id"
+    val emailDefaultValue = "yansart31@gmail.com"
     var email by remember { mutableStateOf(dataEmail ?: emailDefaultValue) }
 
     val dataWebsite = try { AppSettings.getWebsite(context).ifBlank { null } } catch (e: Exception) { null }
@@ -76,7 +76,7 @@ fun BusinessIdentityModule(
                 AppSettings.setWhatsApp(context, "+62 877-7739-8813")
             }
             if (AppSettings.getEmail(context).isBlank()) {
-                AppSettings.setEmail(context, "admin@yansproject.id")
+                AppSettings.setEmail(context, "yansart31@gmail.com")
             }
         } catch (e: Exception) {
             e.printStackTrace()

@@ -52,7 +52,7 @@ object AppSettings {
         getPrefs(context).edit().putString("store_whatsapp", value).apply()
 
     fun getEmail(context: Context): String =
-        getPrefs(context).getString("store_email", "admin@yansproject.id") ?: "admin@yansproject.id"
+        getPrefs(context).getString("store_email", "yansart31@gmail.com") ?: "yansart31@gmail.com"
 
     fun setEmail(context: Context, value: String) =
         getPrefs(context).edit().putString("store_email", value).apply()
@@ -236,7 +236,8 @@ object AppSettings {
             !clean.contains("Owner", ignoreCase = true) &&
             !clean.equals("Administrator", ignoreCase = true) &&
             !clean.equals("YANSPROJECT.ID", ignoreCase = true) &&
-            !clean.equals("admin@yansproject.id", ignoreCase = true)
+            !clean.equals("admin@yansproject.id", ignoreCase = true) &&
+            !clean.equals("yansart31@gmail.com", ignoreCase = true)
         }.toSet()
     }
 
