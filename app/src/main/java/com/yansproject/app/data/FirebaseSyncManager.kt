@@ -322,10 +322,10 @@ object FirebaseSyncManager {
             val result = auth?.signInWithEmailAndPassword(targetEmail, firebasePassword)?.await()
             if (result != null) {
                 // Fetch details from Firestore "users" collection safely
-                val isHardcodedOwner = targetEmail.lowercase() == "yansart31@gmail.com"
-                var roleStr = if (isHardcodedOwner) "OWNER" else "MEMBER"
-                var displayName = if (isHardcodedOwner) "Yans Art" else emailOrUsername.trim()
-                var priceCategory = if (isHardcodedOwner) "Retail" else "Member"
+                val isDefaultAdmin = targetEmail.lowercase() == "admin@yansproject.id"
+                var roleStr = if (isDefaultAdmin) "OWNER" else "MEMBER"
+                var displayName = if (isDefaultAdmin) "YANSPROJECT.ID" else emailOrUsername.trim()
+                var priceCategory = if (isDefaultAdmin) "Retail" else "Member"
                 var whatsapp = localCred?.whatsapp ?: ""
                 var address = localCred?.address ?: ""
                 val uid = result.user?.uid ?: ""
@@ -333,15 +333,15 @@ object FirebaseSyncManager {
                 try {
                     val doc = firestore?.collection("users")?.document(targetEmail)?.get()?.await()
                     if (doc != null && doc.exists()) {
-                        roleStr = doc.getString("role") ?: (if (isHardcodedOwner) "OWNER" else "MEMBER")
-                        displayName = doc.getString("displayName") ?: (if (isHardcodedOwner) "Yans Art" else emailOrUsername.trim())
+                        roleStr = doc.getString("role") ?: (if (isDefaultAdmin) "OWNER" else "MEMBER")
+                        displayName = doc.getString("displayName") ?: (if (isDefaultAdmin) "YANSPROJECT.ID" else emailOrUsername.trim())
                         priceCategory = doc.getString("priceCategory") ?: (if (roleStr == "OWNER") "Retail" else "Member")
                         val docWa = doc.getString("whatsapp") ?: doc.getString("phone") ?: ""
                         val docAddr = doc.getString("address") ?: ""
                         if (docWa.isNotBlank()) whatsapp = docWa
                         if (docAddr.isNotBlank()) address = docAddr
-                    } else if (isHardcodedOwner) {
-                        // Create Firestore document if missing for hardcoded owner
+                    } else if (isDefaultAdmin) {
+                        // Create Firestore document if missing for default admin
                         val adminData = hashMapOf(
                             "email" to targetEmail,
                             "role" to "OWNER",
@@ -353,7 +353,7 @@ object FirebaseSyncManager {
                             "created_at" to System.currentTimeMillis()
                         )
                         firestore?.collection("users")?.document(targetEmail)?.set(adminData)?.await()
-                        Log.d(TAG, "Created missing Firestore document for owner yansart31@gmail.com")
+                        Log.d(TAG, "Created missing Firestore document for default admin")
                     }
                 } catch (fe: Exception) {
                     Log.e(TAG, "Failed to fetch user details from Firestore: ${fe.message}. Falling back to default/local parameters.")

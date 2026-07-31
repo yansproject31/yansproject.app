@@ -7,17 +7,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper: Check if authenticated user is the designated Owner
-    // OWNER EMAIL CAN BE CHANGED HERE (e.g. yansart31@gmail.com)
+    // Helper: Check if authenticated user is the designated Owner based on Firestore role document
     function isOwner() {
       return isSignedIn() && 
              request.auth.token != null && 
              'email' in request.auth.token && 
-             (
-               request.auth.token.email == 'yansart31@gmail.com' || 
-               (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
-                get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'OWNER')
-             );
+             exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'OWNER';
     }
 
     // Helper: Check if user owns the specific document
