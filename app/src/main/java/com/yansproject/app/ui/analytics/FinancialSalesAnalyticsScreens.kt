@@ -56,8 +56,8 @@ private val PrimaryDarkTeal = Color(0xFF0F3D3E)
 private val HighlightSoftCyan = Color(0xFF319795)
 private val ShadowBlack = Color(0xFF0A0A0A)
 private val SecondaryShadowBlackTeal = Color(0xFF131D21)
-private val CardDarkCard = Color(0xFF161B22)
-private val DividerDarkCyanGray = Color(0xFF21262D)
+private val CardDarkCard = Color(0xFF121A16)
+private val DividerDarkCyanGray = Color(0xFF2A3A32)
 private val StatusDangerRed = Color(0xFFFF5555)
 private val StatusSuccessGreen = Color(0xFF48BB78)
 
@@ -263,7 +263,7 @@ fun AnalisisKeuanganGlobalScreen(
                             Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold, modifier = Modifier.size(18.dp))
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F1720))
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF051214))
                 )
                 HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
             }
@@ -277,9 +277,9 @@ fun AnalisisKeuanganGlobalScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF0B1017),
-                            Color(0xFF0F1720),
-                            Color(0xFF0B1017)
+                            Color(0xFF0A0F0D),
+                            Color(0xFF051214),
+                            Color(0xFF0A0F0D)
                         )
                     )
                 )
@@ -307,7 +307,7 @@ fun AnalisisKeuanganGlobalScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(
                                     if (isSelected) Brush.horizontalGradient(listOf(AgedGold, Color(0xFFD4AF37)))
-                                    else Brush.horizontalGradient(listOf(Color(0xFF161E28), Color(0xFF131A25)))
+                                    else Brush.horizontalGradient(listOf(Color(0xFF2A3A32), Color(0xFF121A16)))
                                 )
                                 .border(1.dp, if (isSelected) AgedGold else Color(0x33319795), RoundedCornerShape(12.dp))
                                 .clickable { selectedFilter = period }
@@ -328,7 +328,7 @@ fun AnalisisKeuanganGlobalScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                     border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                 ) {
@@ -416,7 +416,7 @@ fun AnalisisKeuanganGlobalScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                     border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
@@ -486,7 +486,7 @@ fun AnalisisKeuanganGlobalScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                     border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
@@ -552,7 +552,7 @@ fun AnalisisKeuanganGlobalScreen(
                                         modifier = Modifier
                                             .fillMaxHeight()
                                             .weight(inflowRatio.coerceAtLeast(0.01f))
-                                            .background(Brush.horizontalGradient(listOf(StatusSuccessGreen, Color(0xFF38A169))))
+                                            .background(Brush.horizontalGradient(listOf(StatusSuccessGreen, Color(0xFF2ECC71))))
                                     )
                                 }
                                 if ((1f - inflowRatio) > 0f) {
@@ -594,7 +594,7 @@ fun AnalisisKeuanganGlobalScreen(
                             label = "Pemasukan Non-Invoice / Modal",
                             amount = directInflow,
                             total = totalInflowFiltered,
-                            color = Color(0xFF9F7AEA)
+                            color = Color(0xFFC6A15B)
                         )
                     }
                 }
@@ -603,7 +603,7 @@ fun AnalisisKeuanganGlobalScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                     border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f))
                 ) {
                     Column(
@@ -659,7 +659,7 @@ fun AnalisisKeuanganGlobalScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF161E28))
+                        .background(Color(0xFF2A3A32))
                         .border(1.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                         .padding(14.dp)
                 ) {
@@ -970,7 +970,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                             Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold, modifier = Modifier.size(18.dp))
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F1720))
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF051214))
                 )
                 HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
             }
@@ -984,9 +984,9 @@ fun AnalisisPenjualanAjibqobulScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF0B1017),
-                            Color(0xFF0F1720),
-                            Color(0xFF0B1017)
+                            Color(0xFF0A0F0D),
+                            Color(0xFF051214),
+                            Color(0xFF0A0F0D)
                         )
                     )
                 )
@@ -1014,7 +1014,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(
                                     if (isSelected) Brush.horizontalGradient(listOf(AgedGold, Color(0xFFD4AF37)))
-                                    else Brush.horizontalGradient(listOf(Color(0xFF161E28), Color(0xFF131A25)))
+                                    else Brush.horizontalGradient(listOf(Color(0xFF2A3A32), Color(0xFF121A16)))
                                 )
                                 .border(1.dp, if (isSelected) AgedGold else Color(0x33319795), RoundedCornerShape(12.dp))
                                 .clickable { selectedFilter = period }
@@ -1035,7 +1035,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                     border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(HighlightSoftCyan, AgedGold, HighlightSoftCyan))),
                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                 ) {
@@ -1123,7 +1123,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                     border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
@@ -1168,7 +1168,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                                     modifier = Modifier
                                         .fillMaxHeight()
                                         .weight(soldRatio.coerceAtLeast(0.01f))
-                                        .background(Brush.horizontalGradient(listOf(HighlightSoftCyan, Color(0xFF2B6CB0))))
+                                        .background(Brush.horizontalGradient(listOf(HighlightSoftCyan, Color(0xFF0F3D3E))))
                                 )
                             }
                             if ((1f - soldRatio) > 0f) {
@@ -1201,7 +1201,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                     border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f))
                 ) {
                     Column(
@@ -1226,7 +1226,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                             Card(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A232E)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F3D3E)),
                                 border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1239,7 +1239,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                             Card(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A232E)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F3D3E)),
                                 border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1256,7 +1256,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                     border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.35f))
                 ) {
                     Column(
@@ -1482,7 +1482,7 @@ private fun AssetMiniBox(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF1A232E))
+            .background(Color(0xFF0F3D3E))
             .border(1.2.dp, color.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
@@ -1505,7 +1505,7 @@ private fun RatioMetricCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A232E)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F3D3E)),
         border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(color.copy(alpha = 0.6f), color.copy(alpha = 0.25f))))
     ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1563,7 +1563,7 @@ private fun TableAuditRow(label: String, value: String, isPositive: Boolean) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFF1A232E))
+            .background(Color(0xFF0F3D3E))
             .border(0.8.dp, Color(0x33319795), RoundedCornerShape(10.dp))
             .padding(horizontal = 12.dp, vertical = 9.dp)
     ) {
@@ -1601,7 +1601,7 @@ private fun SalesMiniStatBox(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF1A232E))
+            .background(Color(0xFF0F3D3E))
             .border(1.2.dp, color.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {

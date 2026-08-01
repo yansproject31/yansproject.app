@@ -3273,7 +3273,7 @@ fun DashboardRingkasanKeuanganCard(
         }.sumOf { it.amount }
     }
 
-    // Determine current slices based on activeTab with Luxury Gradients
+    // Determine current slices based on activeTab with Luxury Sibling Gradients
     val slices = remember(activeTab, totalPemasukan, totalPengeluaran, modalAmt, penjualanAmt, lainnyaInAmt, produksiAmt, aksesoriesAmt, transportAmt, operasionalAmt, lainnyaOutAmt) {
         when (activeTab) {
             "SEMUA" -> {
@@ -3282,35 +3282,35 @@ fun DashboardRingkasanKeuanganCard(
                         label = "Pemasukan",
                         amount = totalPemasukan,
                         color = HighlightSoftCyan,
-                        gradientColors = listOf(Color(0xFF38BDF8), Color(0xFF00F2FE), Color(0xFF10B981))
+                        gradientColors = listOf(Color(0xFF319795), Color(0xFF1E5C5A), Color(0xFF0F3D3E))
                     ),
                     DonutSlice(
                         label = "Pengeluaran",
                         amount = totalPengeluaran,
                         color = AgedGold,
-                        gradientColors = listOf(Color(0xFFFFD700), Color(0xFFF59E0B), Color(0xFFC6A15B))
+                        gradientColors = listOf(Color(0xFFD4AF37), Color(0xFFC6A15B), Color(0xFF997A3D))
                     )
                 )
             }
             "PEMASUKAN" -> {
                 listOf(
                     DonutSlice(
-                        label = "Modal",
-                        amount = modalAmt,
-                        color = HighlightSoftCyan,
-                        gradientColors = listOf(Color(0xFF38BDF8), Color(0xFF0284C7), Color(0xFF06B6D4))
-                    ),
-                    DonutSlice(
                         label = "Penjualan",
                         amount = penjualanAmt,
                         color = AgedGold,
-                        gradientColors = listOf(Color(0xFFFDE047), Color(0xFFEAB308), Color(0xFFC6A15B))
+                        gradientColors = listOf(Color(0xFFD4AF37), Color(0xFFC6A15B), Color(0xFF997A3D))
+                    ),
+                    DonutSlice(
+                        label = "Modal",
+                        amount = modalAmt,
+                        color = HighlightSoftCyan,
+                        gradientColors = listOf(Color(0xFF319795), Color(0xFF1E5C5A), Color(0xFF0F3D3E))
                     ),
                     DonutSlice(
                         label = "Lainnya",
                         amount = lainnyaInAmt,
-                        color = Color(0xFF319795),
-                        gradientColors = listOf(Color(0xFF2DD4BF), Color(0xFF14B8A6), Color(0xFF0D9488))
+                        color = Color(0xFF2ECC71),
+                        gradientColors = listOf(Color(0xFF00E676), Color(0xFF2ECC71), Color(0xFF121A16))
                     )
                 )
             }
@@ -3319,32 +3319,32 @@ fun DashboardRingkasanKeuanganCard(
                     DonutSlice(
                         label = "Produksi",
                         amount = produksiAmt,
-                        color = AgedGold,
-                        gradientColors = listOf(Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFC6A15B))
+                        color = Color(0xFFCD7F32),
+                        gradientColors = listOf(Color(0xFFCD7F32), Color(0xFFA65E2E), Color(0xFF8B4513))
                     ),
                     DonutSlice(
                         label = "Aksesories",
                         amount = aksesoriesAmt,
-                        color = Color(0xFF3182CE),
-                        gradientColors = listOf(Color(0xFF60A5FA), Color(0xFF3B82F6), Color(0xFF1D4ED8))
+                        color = Color(0xFF8A9A92),
+                        gradientColors = listOf(Color(0xFF8A9A92), Color(0xFF4A5A52), Color(0xFF2A3A32))
                     ),
                     DonutSlice(
                         label = "Transport",
                         amount = transportAmt,
-                        color = Color(0xFFECC94B),
-                        gradientColors = listOf(Color(0xFFFDE047), Color(0xFFFBBF24), Color(0xFFD97706))
+                        color = Color(0xFFFFB300),
+                        gradientColors = listOf(Color(0xFFFFB300), Color(0xFFD97706), Color(0xFF8B4500))
                     ),
                     DonutSlice(
                         label = "Operasional",
                         amount = operasionalAmt,
-                        color = AlertRed,
-                        gradientColors = listOf(Color(0xFFF87171), Color(0xFFEF4444), Color(0xFFDC2626))
+                        color = Color(0xFFE5A186),
+                        gradientColors = listOf(Color(0xFFE5A186), Color(0xFFC26E5C), Color(0xFF8B1E1E))
                     ),
                     DonutSlice(
                         label = "Lainnya",
                         amount = lainnyaOutAmt,
-                        color = Color(0xFF805AD5),
-                        gradientColors = listOf(Color(0xFFC084FC), Color(0xFFA855F7), Color(0xFF7E22CE))
+                        color = Color(0xFFE0E0E0),
+                        gradientColors = listOf(Color(0xFFE0E0E0), Color(0xFFA0AEC0), Color(0xFF4A5568))
                     )
                 )
             }
@@ -3435,14 +3435,14 @@ fun DashboardRingkasanKeuanganCard(
                                 percentage = persenPemasukan,
                                 amount = totalPemasukan,
                                 color = HighlightSoftCyan,
-                                gradientColors = listOf(Color(0xFF38BDF8), Color(0xFF00F2FE), Color(0xFF10B981))
+                                gradientColors = listOf(Color(0xFF319795), Color(0xFF1E5C5A), Color(0xFF0F3D3E))
                             )
                             RincianItemRow(
                                 label = "Total Pengeluaran",
                                 percentage = persenPengeluaran,
                                 amount = totalPengeluaran,
                                 color = AgedGold,
-                                gradientColors = listOf(Color(0xFFFFD700), Color(0xFFF59E0B), Color(0xFFC6A15B))
+                                gradientColors = listOf(Color(0xFFD4AF37), Color(0xFFC6A15B), Color(0xFF997A3D))
                             )
                             
                             HorizontalDivider(
@@ -3475,9 +3475,9 @@ fun DashboardRingkasanKeuanganCard(
                             val pPenjualan = if (totalAmount > 0) (penjualanAmt / totalAmount * 100).toInt() else 0
                             val pLainnya = if (totalAmount > 0) (lainnyaInAmt / totalAmount * 100).toInt() else 0
 
-                            RincianItemRow("Modal", pModal, modalAmt, HighlightSoftCyan, listOf(Color(0xFF38BDF8), Color(0xFF0284C7), Color(0xFF06B6D4)))
-                            RincianItemRow("Penjualan", pPenjualan, penjualanAmt, AgedGold, listOf(Color(0xFFFDE047), Color(0xFFEAB308), Color(0xFFC6A15B)))
-                            RincianItemRow("Lainnya", pLainnya, lainnyaInAmt, Color(0xFF319795), listOf(Color(0xFF2DD4BF), Color(0xFF14B8A6), Color(0xFF0D9488)))
+                            RincianItemRow("Penjualan", pPenjualan, penjualanAmt, AgedGold, listOf(Color(0xFFD4AF37), Color(0xFFC6A15B), Color(0xFF997A3D)))
+                            RincianItemRow("Modal", pModal, modalAmt, HighlightSoftCyan, listOf(Color(0xFF319795), Color(0xFF1E5C5A), Color(0xFF0F3D3E)))
+                            RincianItemRow("Lainnya", pLainnya, lainnyaInAmt, Color(0xFF2ECC71), listOf(Color(0xFF00E676), Color(0xFF2ECC71), Color(0xFF121A16)))
                         }
                         "PENGELUARAN" -> {
                             val pProduksi = if (totalAmount > 0) (produksiAmt / totalAmount * 100).toInt() else 0
@@ -3486,11 +3486,11 @@ fun DashboardRingkasanKeuanganCard(
                             val pOperasional = if (totalAmount > 0) (operasionalAmt / totalAmount * 100).toInt() else 0
                             val pLainnya = if (totalAmount > 0) (lainnyaOutAmt / totalAmount * 100).toInt() else 0
 
-                            RincianItemRow("Produksi", pProduksi, produksiAmt, AgedGold, listOf(Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFC6A15B)))
-                            RincianItemRow("Aksesories", pAksesories, aksesoriesAmt, Color(0xFF3182CE), listOf(Color(0xFF60A5FA), Color(0xFF3B82F6), Color(0xFF1D4ED8)))
-                            RincianItemRow("Transport", pTransport, transportAmt, Color(0xFFECC94B), listOf(Color(0xFFFDE047), Color(0xFFFBBF24), Color(0xFFD97706)))
-                            RincianItemRow("Operasional", pOperasional, operasionalAmt, ErrorRed, listOf(Color(0xFFF87171), Color(0xFFEF4444), Color(0xFFDC2626)))
-                            RincianItemRow("Lainnya", pLainnya, lainnyaOutAmt, Color(0xFF805AD5), listOf(Color(0xFFC084FC), Color(0xFFA855F7), Color(0xFF7E22CE)))
+                            RincianItemRow("Produksi", pProduksi, produksiAmt, Color(0xFFCD7F32), listOf(Color(0xFFCD7F32), Color(0xFFA65E2E), Color(0xFF8B4513)))
+                            RincianItemRow("Aksesories", pAksesories, aksesoriesAmt, Color(0xFF8A9A92), listOf(Color(0xFF8A9A92), Color(0xFF4A5A52), Color(0xFF2A3A32)))
+                            RincianItemRow("Transport", pTransport, transportAmt, Color(0xFFFFB300), listOf(Color(0xFFFFB300), Color(0xFFD97706), Color(0xFF8B4500)))
+                            RincianItemRow("Operasional", pOperasional, operasionalAmt, Color(0xFFE5A186), listOf(Color(0xFFE5A186), Color(0xFFC26E5C), Color(0xFF8B1E1E)))
+                            RincianItemRow("Lainnya", pLainnya, lainnyaOutAmt, Color(0xFFE0E0E0), listOf(Color(0xFFE0E0E0), Color(0xFFA0AEC0), Color(0xFF4A5568)))
                         }
                     }
                 }

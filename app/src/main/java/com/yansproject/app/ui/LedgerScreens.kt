@@ -136,7 +136,7 @@ fun RiwayatModalBerjalanScreen(
                             onClick = onBack,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF161E28))
+                                .background(Color(0xFF2A3A32))
                                 .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                 .size(38.dp)
                         ) {
@@ -149,7 +149,7 @@ fun RiwayatModalBerjalanScreen(
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color(0xFF0F1720)
+                        containerColor = Color(0xFF051214)
                     )
                 )
                 HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
@@ -168,7 +168,7 @@ fun RiwayatModalBerjalanScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                     border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                 ) {
@@ -237,7 +237,7 @@ fun RiwayatModalBerjalanScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF161E28)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2A3A32)),
                     border = BorderStroke(1.dp, Color(0x33319795))
                 ) {
                     Row(
@@ -690,7 +690,7 @@ fun LedgerExpenseItemCard(
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
         border = BorderStroke(1.dp, Color(0x33319795)),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -1762,7 +1762,7 @@ fun DetailProfitScreen(
                             onClick = onBack,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF161E28))
+                                .background(Color(0xFF2A3A32))
                                 .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                 .size(38.dp)
                         ) {
@@ -1775,7 +1775,7 @@ fun DetailProfitScreen(
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color(0xFF0F1720)
+                        containerColor = Color(0xFF051214)
                     )
                 )
                 HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
@@ -1801,7 +1801,7 @@ fun DetailProfitScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) AgedGold else Color(0xFF161E28))
+                            .background(if (isSelected) AgedGold else Color(0xFF2A3A32))
                             .border(1.dp, if (isSelected) AgedGold else Color(0x33319795), RoundedCornerShape(12.dp))
                             .clickable { selectedFilter = filterName }
                             .padding(horizontal = 14.dp, vertical = 8.dp)
@@ -1819,7 +1819,7 @@ fun DetailProfitScreen(
             // --- Net Profit Giant Card ---
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                 border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -1868,7 +1868,7 @@ fun DetailProfitScreen(
                 item {
                     Card(
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                         border = BorderStroke(1.dp, Color(0x33319795)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1906,7 +1906,7 @@ fun DetailProfitScreen(
                 item {
                     Card(
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                         border = BorderStroke(1.dp, Color(0x33319795)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -2003,7 +2003,7 @@ fun RiwayatPiutangScreen(
                             onClick = onBack,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF161E28))
+                                .background(Color(0xFF2A3A32))
                                 .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                 .size(38.dp)
                         ) {
@@ -2016,7 +2016,7 @@ fun RiwayatPiutangScreen(
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color(0xFF0F1720)
+                        containerColor = Color(0xFF051214)
                     )
                 )
                 HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
@@ -2035,7 +2035,7 @@ fun RiwayatPiutangScreen(
             // --- Summary Card ---
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                 border = BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(HighlightSoftCyan, AgedGold, AlertOrange))),
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -2079,8 +2079,8 @@ fun RiwayatPiutangScreen(
                     unfocusedTextColor = Color.White,
                     focusedBorderColor = AgedGold,
                     unfocusedBorderColor = Color(0x33319795),
-                    focusedContainerColor = Color(0xFF161E28),
-                    unfocusedContainerColor = Color(0xFF161E28)
+                    focusedContainerColor = Color(0xFF2A3A32),
+                    unfocusedContainerColor = Color(0xFF2A3A32)
                 ),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -2120,7 +2120,7 @@ fun RiwayatPiutangScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                             border = BorderStroke(1.dp, Color(0x33319795)),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                         ) {

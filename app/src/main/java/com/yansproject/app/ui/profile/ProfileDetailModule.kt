@@ -576,7 +576,7 @@ fun ProfileDetailModule(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                 border = BorderStroke(1.dp, PrimaryDarkTeal.copy(alpha = 0.5f))
             ) {
                 Column(

@@ -221,7 +221,7 @@ fun RiwayatScreen(
                 // --- Top Bar Executive Header ---
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color(0xFF0F1720),
+                    color = Color(0xFF051214),
                     shadowElevation = 8.dp
                 ) {
                     Column(
@@ -391,7 +391,7 @@ fun RiwayatScreen(
                             // Card 1: Total Omset Gross
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                                 shape = RoundedCornerShape(16.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.2.dp, AgedGold.copy(alpha = 0.5f))
                             ) {
@@ -431,7 +431,7 @@ fun RiwayatScreen(
                             // Card 2: Terbayar (Lunas)
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                                 shape = RoundedCornerShape(16.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.2.dp, AlertGreen.copy(alpha = 0.5f))
                             ) {
@@ -476,7 +476,7 @@ fun RiwayatScreen(
                             // Card 3: Sisa Piutang / Pending
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                                 shape = RoundedCornerShape(16.dp),
                                 border = androidx.compose.foundation.BorderStroke(
                                     1.2.dp,
@@ -533,7 +533,7 @@ fun RiwayatScreen(
                             // Card 4: Quantity & Transaction Count
                             Card(
                                 modifier = Modifier.weight(1f),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                                 shape = RoundedCornerShape(16.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.2.dp, HighlightSoftCyan.copy(alpha = 0.5f))
                             ) {
@@ -595,8 +595,8 @@ fun RiwayatScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AgedGold,
                         unfocusedBorderColor = Color(0x33319795),
-                        focusedContainerColor = Color(0xFF161E28),
-                        unfocusedContainerColor = Color(0xFF161E28)
+                        focusedContainerColor = Color(0xFF2A3A32),
+                        unfocusedContainerColor = Color(0xFF2A3A32)
                     ),
                     singleLine = true
                 )
@@ -612,7 +612,7 @@ fun RiwayatScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) AgedGold else Color(0xFF161E28))
+                                .background(if (isSelected) AgedGold else Color(0xFF2A3A32))
                                 .border(1.dp, if (isSelected) AgedGold else Color(0x33319795), RoundedCornerShape(12.dp))
                                 .clickable { viewModel.riwayatFilter.value = filter }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -767,7 +767,7 @@ fun RiwayatItemCard(
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
         shape = RoundedCornerShape(16.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33319795)),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -1061,7 +1061,7 @@ fun DetailRiwayatBottomSheet(
                     )
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                         shape = RoundedCornerShape(16.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33319795))
                     ) {
@@ -1132,7 +1132,7 @@ fun DetailRiwayatBottomSheet(
 
                     if (!isProject) {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                             shape = RoundedCornerShape(16.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33319795))
                         ) {
@@ -1158,7 +1158,7 @@ fun DetailRiwayatBottomSheet(
                     } else {
                         // Project Item Table
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                             shape = RoundedCornerShape(16.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33319795))
                         ) {
@@ -1235,7 +1235,7 @@ fun DetailRiwayatBottomSheet(
                     }
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                         shape = RoundedCornerShape(16.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33319795))
                     ) {

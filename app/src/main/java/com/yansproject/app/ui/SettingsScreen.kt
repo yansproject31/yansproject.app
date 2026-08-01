@@ -294,7 +294,7 @@ fun SettingsScreen(
                 // STICKY TOPBAR & HERO ACCOUNT CARD (LOCKED AT TOP WITH MATERIAL 3 DASHBOARD DNA)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color(0xFF0F1720),
+                    color = Color(0xFF051214),
                     shadowElevation = 8.dp
                 ) {
                     Column(
@@ -321,7 +321,7 @@ fun SettingsScreen(
                                     },
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFF161E28))
+                                        .background(Color(0xFF2A3A32))
                                         .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                         .size(38.dp)
                                 ) {
@@ -371,7 +371,7 @@ fun SettingsScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(Color(0xFF161E28))
+                                    .background(Color(0xFF2A3A32))
                                     .border(1.dp, AgedGold, RoundedCornerShape(20.dp))
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
@@ -387,7 +387,7 @@ fun SettingsScreen(
 
                         // Hero Account Card Locked with TopBar (Material 3 Dashboard DNA)
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF131A25)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF121A16)),
                             shape = RoundedCornerShape(20.dp),
                             border = androidx.compose.foundation.BorderStroke(1.2.dp, Brush.horizontalGradient(listOf(AgedGold, HighlightSoftCyan, AgedGold))),
                             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -403,7 +403,7 @@ fun SettingsScreen(
                                         modifier = Modifier
                                             .size(48.dp)
                                             .clip(RoundedCornerShape(14.dp))
-                                            .background(Color(0xFF1A232E))
+                                            .background(Color(0xFF0F3D3E))
                                             .border(1.2.dp, AgedGold, RoundedCornerShape(14.dp)),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -481,7 +481,7 @@ fun SettingsScreen(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0xFF161E28))
+                                                .background(Color(0xFF2A3A32))
                                                 .border(1.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
                                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                                         ) {
