@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yansproject.app.data.CustomProject
+import com.yansproject.app.ui.components.*
+import com.yansproject.app.ui.theme.*
 import com.yansproject.app.data.IdrAccountingEngine
 import com.yansproject.app.data.CustomStagedPayment
 import java.math.BigDecimal
@@ -67,27 +69,28 @@ fun ProfessionalInvoiceDetailScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "INVOICE DETAIL: ${project.id}",
-                        color = LuxuryGold,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        letterSpacing = 1.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = LuxuryGold)
-                    }
-                },
+            YansTopAppBar(
+                title = "INVOICE DETAIL: ${project.id}",
+                subtitle = "YANSPROJECT Custom Apparel Order",
+                navigationIcon = { YansBackButton(onClick = onNavigateBack) },
                 actions = {
-                    IconButton(onClick = { showActionBottomSheet = true }) {
-                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Menu Aksi", tint = LuxuryGold)
+                    Surface(
+                        onClick = { showActionBottomSheet = true },
+                        modifier = Modifier.size(40.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF0F2628),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, LuxuryGold.copy(alpha = 0.5f))
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Menu Aksi",
+                                tint = LuxuryGold,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DeepCarbonBlack)
+                }
             )
         },
         containerColor = DeepCarbonBlack

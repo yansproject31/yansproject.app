@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yansproject.app.data.CustomProject
 import com.yansproject.app.data.IdrAccountingEngine
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.data.VariantCell
 import com.yansproject.app.ui.DualInvoiceManagerViewModel
 import com.yansproject.app.ui.components.DualApparelMatrixInputComponent
@@ -104,27 +105,10 @@ fun DualInvoiceEditorScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                windowInsets = WindowInsets(0.dp),
-                title = {
-                    Text(
-                        text = if (isCustomProject) "BUAT INVOICE CUSTOM" else "BUAT INVOICE STOCK",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = AccentAgedGold
-                        )
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = AccentAgedGold
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SecondaryShadowBlackTeal)
+            YansTopAppBar(
+                title = if (isCustomProject) "BUAT INVOICE CUSTOM" else "BUAT INVOICE STOCK",
+                subtitle = "Formulir Pembuatan Faktur Penjualan YANSPROJECT",
+                navigationIcon = { YansBackButton(onClick = onNavigateBack) }
             )
         },
         containerColor = MaterialTheme.colorScheme.background

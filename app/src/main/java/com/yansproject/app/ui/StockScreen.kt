@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yansproject.app.data.AppTypeConverters
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.data.MasterCatalog
 import com.yansproject.app.data.MasterVarianWarna
 import com.yansproject.app.data.MasterStock
@@ -104,8 +105,22 @@ fun StockScreen(
             }
     }
 
-    BackHandler(enabled = selectedCatalogId != null || selectedVarianId != null) {
-        if (selectedVarianId != null) {
+    BackHandler(enabled = selectedCatalogId != null || selectedVarianId != null || showAddCatalogDialog || showAddVariantDialog || showCartDialog || showTotalProduksiDialog || showTotalTerjualDialog || showNilaiPersediaanDialog || selectedBatchDetail != null) {
+        if (showAddCatalogDialog) {
+            showAddCatalogDialog = false
+        } else if (showAddVariantDialog) {
+            showAddVariantDialog = false
+        } else if (showCartDialog) {
+            showCartDialog = false
+        } else if (showTotalProduksiDialog) {
+            showTotalProduksiDialog = false
+        } else if (showTotalTerjualDialog) {
+            showTotalTerjualDialog = false
+        } else if (showNilaiPersediaanDialog) {
+            showNilaiPersediaanDialog = false
+        } else if (selectedBatchDetail != null) {
+            selectedBatchDetail = null
+        } else if (selectedVarianId != null) {
             selectedVarianId = null
         } else if (selectedCatalogId != null) {
             selectedCatalogId = null
@@ -247,7 +262,8 @@ fun StockScreen(
                         badge = {
                             if (memberCart.isNotEmpty()) {
                                 Badge(containerColor = HighlightSoftCyan) {
-                                    Text(text = memberCart.sumOf { it.qty }.toString(), color = ShadowBlack, fontWeight = FontWeight.Bold)
+                                    val cartTotalQty = memberCart.sumOf { it.qty }
+                                    Text(text = if (cartTotalQty > 99) "99+" else cartTotalQty.toString(), color = ShadowBlack, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                                 }
                             }
                         }
@@ -1607,21 +1623,7 @@ fun VarianWarnaListView(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(CardGrey)
-                            .border(1.dp, BorderGrey, RoundedCornerShape(8.dp))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = AgedGold,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    YansBackButton(onClick = onBack)
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
@@ -1961,8 +1963,9 @@ fun BatchUpdateVariantModal(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = CardDarkCard,
+        containerColor = SurfaceDarkTealSurface,
         shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.border(1.dp, AgedGold.copy(alpha = 0.4f), RoundedCornerShape(20.dp)),
         title = {
             Column {
                 Text(
@@ -2229,27 +2232,15 @@ fun MatrixStockView(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
+            YansBackButton(
                 onClick = {
                     if (isFormDirty) {
                         showDiscardDialog = true
                     } else {
                         onBack()
                     }
-                },
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(CardGrey)
-                    .border(1.dp, BorderGrey, RoundedCornerShape(8.dp))
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ArrowBack,
-                    contentDescription = "Kembali",
-                    tint = AgedGold,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+                }
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
@@ -3000,21 +2991,6 @@ fun AddCatalogDialog(
                 }
             }
 
-            Surface(
-                color = CardGrey,
-                shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderGrey),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Menambahkan Katalog baru ke dalam Series AJIBQOBUL. Setiap kali Katalog baru ditambahkan (seperti 'MADAD AULIYA 68TH'), jumlah Katalog dalam statistik & grafik stok akan bertambah secara otomatis.",
-                    color = TextMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
-
             YansGlowingTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -3077,26 +3053,11 @@ fun AddVariantDialog(
             ) {
                 Column {
                     Text("TAMBAH VARIAN WARNA", color = AgedGold, fontWeight = FontWeight.Black, fontSize = 14.sp)
-                    Text("Hierarki: Series -> Catalog -> Varian Warna", color = TextMuted, fontSize = 10.sp)
+                    Text("Series: AJIBQOBUL", color = TextMuted, fontSize = 10.sp)
                 }
                 IconButton(onClick = onDismiss) {
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = "Tutup", tint = TextMuted)
                 }
-            }
-
-            Surface(
-                color = CardGrey,
-                shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderGrey),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Varian Warna berada di bawah Katalog. Cukup masukkan nama warna (seperti Hitam, Navy, Maroon, Sage, Putih, dll). Tidak memerlukan kode Hex Warna.",
-                    color = TextMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    modifier = Modifier.padding(12.dp)
-                )
             }
 
             YansGlowingTextField(
@@ -3205,21 +3166,7 @@ fun MemberDetailStockView(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(CardGrey)
-                    .border(1.dp, BorderGrey, RoundedCornerShape(8.dp))
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ArrowBack,
-                    contentDescription = "Kembali",
-                    tint = AgedGold,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+            YansBackButton(onClick = onBack)
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(

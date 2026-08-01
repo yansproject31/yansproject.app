@@ -965,46 +965,26 @@ fun MemberManagementModule(
 
     // --- MODAL 4: DELETE CONFIRMATION DIALOG ---
     if (memberToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { memberToDelete = null },
-            title = {
-                Text(
-                    text = "Konfirmasi Hapus Member",
-                    fontWeight = FontWeight.Bold,
-                    color = AccentAgedGold
-                )
-            },
-            text = {
-                Text(
-                    text = "Apakah Anda yakin ingin menghapus akun member '${memberToDelete?.displayName}' secara permanen dari server dan database?",
-                    color = Color.White
-                )
-            },
-            containerColor = CardDarkCard,
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        memberToDelete?.let { member ->
-                            viewModel.deleteMember(member.email, context, member) { success, msg ->
-                                if (success) {
-                                    FeedbackManager.triggerSuccess(context, msg)
-                                    onSaveSuccess()
-                                } else {
-                                    FeedbackManager.triggerError(context, msg)
-                                }
-                            }
+        com.yansproject.app.ui.YansConfirmDialog(
+            title = "Konfirmasi Hapus Member",
+            message = "Apakah Anda yakin ingin menghapus akun member '${memberToDelete?.displayName}' secara permanen dari server dan database?",
+            onConfirm = {
+                memberToDelete?.let { member ->
+                    viewModel.deleteMember(member.email, context, member) { success, msg ->
+                        if (success) {
+                            FeedbackManager.triggerSuccess(context, msg)
+                            onSaveSuccess()
+                        } else {
+                            FeedbackManager.triggerError(context, msg)
                         }
-                        memberToDelete = null
                     }
-                ) {
-                    Text("Ya, Hapus", color = Color(0xFFFF5555), fontWeight = FontWeight.Bold)
                 }
+                memberToDelete = null
             },
-            dismissButton = {
-                TextButton(onClick = { memberToDelete = null }) {
-                    Text("Batal", color = HighlightSoftCyan)
-                }
-            }
+            onDismiss = { memberToDelete = null },
+            confirmText = "Ya, Hapus",
+            dismissText = "Batal",
+            isDanger = true
         )
     }
 }
@@ -1393,7 +1373,8 @@ fun MemberDetailAnalyticsSheet(
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-        containerColor = CardDarkCard,
+        containerColor = SurfaceDarkTealSurface,
+        shape = RoundedCornerShape(20.dp),
         title = null,
         text = {
             Column(
@@ -1629,7 +1610,8 @@ fun EditMemberProfileDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = CardDarkCard,
+        containerColor = SurfaceDarkTealSurface,
+        shape = RoundedCornerShape(20.dp),
         title = { Text("Edit Profil & Tier Member", fontWeight = FontWeight.Bold, color = AccentAgedGold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1695,7 +1677,8 @@ fun ResetPasswordPinDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = CardDarkCard,
+        containerColor = SurfaceDarkTealSurface,
+        shape = RoundedCornerShape(20.dp),
         title = { Text("Reset Password / PIN Member", fontWeight = FontWeight.Bold, color = AccentAgedGold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

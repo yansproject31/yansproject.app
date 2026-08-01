@@ -30,6 +30,8 @@ import androidx.core.view.WindowCompat
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Typography
 
+private var strongPrefListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
+
 @Composable
 fun MyApplicationTheme(
     darkTheme: Boolean = true, // Forced Premium Luxury Dark Theme
@@ -41,23 +43,26 @@ fun MyApplicationTheme(
     var themeVariant by remember { mutableStateOf(prefs.getString("theme_variant", "YANSPROJECT.ID Classic") ?: "YANSPROJECT.ID Classic") }
     var accentColorName by remember { mutableStateOf(prefs.getString("accent_color", "Aged Gold") ?: "Aged Gold") }
     var canvasStyleName by remember { mutableStateOf(prefs.getString("canvas_style", "Shadow Black (#0A0A0A)") ?: "Shadow Black (#0A0A0A)") }
+    var glassStyleName by remember { mutableStateOf(prefs.getString("glass_style", "Glassmorphism Glow") ?: "Glassmorphism Glow") }
     var fontScale by remember { mutableStateOf(prefs.getFloat("font_scale", 1.0f)) }
 
-    val preferenceListener = remember {
-        SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
-            if (key == "theme_variant" || key == "accent_color" || key == "canvas_style" || key == "font_scale") {
+    DisposableEffect(prefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+            if (key == "theme_variant" || key == "accent_color" || key == "canvas_style" || key == "font_scale" || key == "glass_style") {
                 themeVariant = p.getString("theme_variant", "YANSPROJECT.ID Classic") ?: "YANSPROJECT.ID Classic"
                 accentColorName = p.getString("accent_color", "Aged Gold") ?: "Aged Gold"
                 canvasStyleName = p.getString("canvas_style", "Shadow Black (#0A0A0A)") ?: "Shadow Black (#0A0A0A)"
+                glassStyleName = p.getString("glass_style", "Glassmorphism Glow") ?: "Glassmorphism Glow"
                 fontScale = p.getFloat("font_scale", 1.0f)
             }
         }
-    }
-
-    DisposableEffect(prefs, preferenceListener) {
-        prefs.registerOnSharedPreferenceChangeListener(preferenceListener)
+        strongPrefListener = listener
+        prefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose {
-            prefs.unregisterOnSharedPreferenceChangeListener(preferenceListener)
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+            if (strongPrefListener == listener) {
+                strongPrefListener = null
+            }
         }
     }
 
@@ -74,7 +79,7 @@ fun MyApplicationTheme(
     val canvasBackground = when(canvasStyleName) {
         "Pure Obsidian Black (#000000)" -> Color(0xFF000000)
         "Dark Slate Teal (#081F20)" -> Color(0xFF081F20)
-        else -> Color(0xFF071516)
+        else -> Color(0xFF0A0F0D)
     }
 
     val surfaceBg = when(themeVariant) {
@@ -101,7 +106,14 @@ fun MyApplicationTheme(
         else -> StaticPrimaryDarkTeal
     }
 
-    val secondaryAccent = if (primaryAccent == StaticHighlightSoftCyan) StaticAgedGold else StaticHighlightSoftCyan
+    val secondaryAccent = when {
+        primaryAccent == StaticHighlightSoftCyan -> StaticAgedGold
+        primaryAccent == Color(0xFF2ECC71) -> Color(0xFFD4AF37)
+        primaryAccent == Color(0xFFFFB300) -> Color(0xFF3B82F6)
+        primaryAccent == Color(0xFF3B82F6) -> Color(0xFFE5C158)
+        primaryAccent == Color(0xFFE5A186) -> StaticAgedGold
+        else -> StaticHighlightSoftCyan
+    }
 
     // Sync dynamic theme snapshot states for real-time application-wide theme updates
     dynamicShadowBlack = canvasBackground
@@ -111,7 +123,7 @@ fun MyApplicationTheme(
     dynamicSecondaryShadowBlackTeal = surfaceVariantBg
     dynamicAgedGold = primaryAccent
     dynamicHighlightSoftCyan = secondaryAccent
-    dynamicBorderGrey = primaryAccent.copy(alpha = 0.3f)
+    dynamicBorderGrey = primaryAccent.copy(alpha = if (glassStyleName == "Minimalist Border") 0.18f else 0.35f)
 
     val dynamicColorScheme = darkColorScheme(
         primary = primaryAccent,

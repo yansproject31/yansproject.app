@@ -66,7 +66,7 @@ val readingThemes = listOf(
     ReadingTheme("museum_dark", "Museum Dark", Color(0xFF0A0A0A), Color(0xFFE2E8F0), Color(0xFFA0AEC0), Color(0xFFC6A15B), Color(0xFF112B2C)),
     ReadingTheme("ivory_paper", "Ivory Paper", Color(0xFFFDFBF7), Color(0xFF1C1917), Color(0xFF78716C), Color(0xFFB45309), Color(0xFFF2ECE1), serif = true),
     ReadingTheme("warm_sepia", "Warm Sepia", Color(0xFFF4ECD8), Color(0xFF2E2214), Color(0xFF7C2D12), Color(0xFF9A3412), Color(0xFFE3D8C1), serif = true),
-    ReadingTheme("classic_book", "Classic Book", Color(0xFFFFFFFF), Color(0xFF111827), Color(0xFF4B5563), Color(0xFF0F3D3E), Color(0xFFF3F4F6), serif = true),
+    ReadingTheme("classic_book", "Classic Book", Color(0xFFFFFFFF), Color(0xFF0A0F0D), Color(0xFF4B5563), Color(0xFF0F3D3E), Color(0xFFF3F4F6), serif = true),
     ReadingTheme("midnight_library", "Midnight Library", Color(0xFF040F10), Color(0xFFE2F9F5), Color(0xFF7FB8B2), Color(0xFF4FD1C5), Color(0xFF0B2123)),
     ReadingTheme("zen_reading", "Zen Reading", Color(0xFF0A0F0D), Color(0xFFC9D1D9), Color(0xFF8B949E), Color(0xFF319795), Color(0xFF121A16), serif = false),
     ReadingTheme("archive_mode", "Archive Mode", Color(0xFF111C18), Color(0xFFD1EADF), Color(0xFF8BAA9C), Color(0xFFC6A15B), Color(0xFF182923))

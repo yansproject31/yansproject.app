@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.yansproject.app.data.AuditLog
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -84,28 +85,32 @@ fun ActivityLogScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            com.yansproject.app.ui.components.YansTopAppBar(
+            YansTopAppBar(
                 title = "SECURITY AUDIT LOG",
+                subtitle = "Catatan Keamanan & Aktivitas Sistem",
                 navigationIcon = {
-                    IconButton(onClick = {
+                    YansBackButton(onClick = {
                         if (!navController.popBackStack()) {
                             viewModel.setTab(AppTab.DASHBOARD)
                         }
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = AgedGold
-                        )
-                    }
+                    })
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.clearAuditLogs() }) {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteOutline,
-                            contentDescription = "Clear Logs",
-                            tint = AlertRed
-                        )
+                    Surface(
+                        onClick = { viewModel.clearAuditLogs() },
+                        modifier = Modifier.size(40.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = SurfaceDarkTeal.copy(alpha = 0.85f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed.copy(alpha = 0.5f))
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.DeleteOutline,
+                                contentDescription = "Clear Logs",
+                                tint = AlertRed,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             )

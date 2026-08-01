@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
+import com.yansproject.app.ui.components.*
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -267,6 +268,23 @@ fun SettingsScreen(
             showAboutYansScreen = false
         } else if (showTrashScreen) {
             showTrashScreen = false
+        } else if (showFirebaseDiagSheet) {
+            showFirebaseDiagSheet = false
+        } else if (showSystemDiagSheet) {
+            showSystemDiagSheet = false
+        } else if (showMaintenanceConfirmDialog) {
+            showMaintenanceConfirmDialog = false
+        } else if (showLogoutConfirmDialog) {
+            showLogoutConfirmDialog = false
+        } else if (showPinDialog) {
+            showPinDialog = false
+            pendingMaintenanceActionAfterPin = null
+        } else if (showSyncConfirmDialog) {
+            showSyncConfirmDialog = false
+        } else if (showRestoreConfirmDialog) {
+            showRestoreConfirmDialog = false
+        } else if (showWipeConfirmDialog) {
+            showWipeConfirmDialog = false
         } else if (selectedInvoiceForDetail != null) {
             selectedInvoiceForDetail = null
         } else if (selectedInvoiceForPayment != null) {
@@ -312,26 +330,15 @@ fun SettingsScreen(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                IconButton(
+                                YansBackButton(
                                     onClick = {
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                         viewModel.setTab(AppTab.DASHBOARD)
                                     },
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFF2A3A32))
-                                        .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                        .size(38.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.ArrowBack,
-                                        contentDescription = "Kembali ke Dashboard Utama",
-                                        tint = AgedGold,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
+                                    contentDescription = "Kembali ke Dashboard Utama"
+                                )
                                 Column {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -339,10 +346,12 @@ fun SettingsScreen(
                                     ) {
                                         Text(
                                             text = "PENGATURAN SISTEM ERP",
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = Color.White,
-                                            letterSpacing = 0.5.sp
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = AgedGold,
+                                            letterSpacing = 0.5.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                         Box(
                                             modifier = Modifier
@@ -361,9 +370,12 @@ fun SettingsScreen(
                                         }
                                     }
                                     Text(
-                                        text = "Otoritas & Profil Akun",
+                                        text = "Otoritas & Profil Akun YANSPROJECT",
                                         fontSize = 10.sp,
-                                        color = Color(0xFFA0AEC0)
+                                        fontWeight = FontWeight.Medium,
+                                        color = HighlightSoftCyan.copy(alpha = 0.85f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -561,7 +573,7 @@ fun SettingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                IconButton(
+                                YansBackButton(
                                     onClick = {
                                         val haptic = hapticFeedback
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -569,6 +581,23 @@ fun SettingsScreen(
                                             showAboutYansScreen = false
                                         } else if (showTrashScreen) {
                                             showTrashScreen = false
+                                        } else if (showFirebaseDiagSheet) {
+                                            showFirebaseDiagSheet = false
+                                        } else if (showSystemDiagSheet) {
+                                            showSystemDiagSheet = false
+                                        } else if (showMaintenanceConfirmDialog) {
+                                            showMaintenanceConfirmDialog = false
+                                        } else if (showLogoutConfirmDialog) {
+                                            showLogoutConfirmDialog = false
+                                        } else if (showPinDialog) {
+                                            showPinDialog = false
+                                            pendingMaintenanceActionAfterPin = null
+                                        } else if (showSyncConfirmDialog) {
+                                            showSyncConfirmDialog = false
+                                        } else if (showRestoreConfirmDialog) {
+                                            showRestoreConfirmDialog = false
+                                        } else if (showWipeConfirmDialog) {
+                                            showWipeConfirmDialog = false
                                         } else if (selectedInvoiceForDetail != null) {
                                             selectedInvoiceForDetail = null
                                         } else if (selectedInvoiceForPayment != null) {
@@ -581,18 +610,8 @@ fun SettingsScreen(
                                             viewModel.setTab(AppTab.DASHBOARD)
                                         }
                                     },
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(DarkTeal.copy(alpha = 0.4f))
-                                        .size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.ArrowBack,
-                                        contentDescription = "Kembali ke Pengaturan Utama",
-                                        tint = AgedGold,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                    contentDescription = "Kembali ke Pengaturan Utama"
+                                )
 
                                 Column {
                                     Text(
@@ -882,44 +901,17 @@ fun SettingsScreen(
 
 
     if (showLogoutConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showLogoutConfirmDialog = false },
-            title = {
-                Text(
-                    text = "Konfirmasi Logout",
-                    color = AgedGold,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
+        YansConfirmDialog(
+            title = "Konfirmasi Logout",
+            message = "Apakah Anda yakin ingin keluar dari akun ini?",
+            onConfirm = {
+                showLogoutConfirmDialog = false
+                viewModel.logout()
             },
-            text = {
-                Text(
-                    text = "Apakah Anda yakin ingin keluar dari akun ini?",
-                    color = TextLight,
-                    fontSize = 13.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showLogoutConfirmDialog = false
-                        viewModel.logout()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed, contentColor = Color.White),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Logout", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showLogoutConfirmDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = TextMuted)
-                ) {
-                    Text("Batal", fontSize = 12.sp)
-                }
-            },
-            containerColor = CardGrey
+            onDismiss = { showLogoutConfirmDialog = false },
+            confirmText = "Logout",
+            dismissText = "Batal",
+            isDanger = true
         )
     }
 
@@ -944,102 +936,72 @@ fun SettingsScreen(
     }
 
     if (showMaintenanceConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { 
-                showMaintenanceConfirmDialog = false 
+        YansConfirmDialog(
+            title = "Konfirmasi Pemeliharaan",
+            message = "Apakah Anda yakin ingin menjalankan proses $pendingMaintenanceLabel?",
+            onConfirm = {
+                val action = pendingMaintenanceAction
+                showMaintenanceConfirmDialog = false
                 pendingMaintenanceAction = null
-            },
-            title = {
-                Text(
-                    text = "Konfirmasi",
-                    color = AgedGold,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-            },
-            text = {
-                Text(
-                    text = "Apakah Anda yakin ingin menjalankan proses $pendingMaintenanceLabel?",
-                    color = TextLight,
-                    fontSize = 13.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val action = pendingMaintenanceAction
-                        showMaintenanceConfirmDialog = false
-                        pendingMaintenanceAction = null
-                        
-                        if (action == "smart_maintenance") {
-                            coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                try {
-                                    // 1. Clear general cache
-                                    context.cacheDir?.deleteRecursively()
-                                    
-                                    // 2. Clear external/temporary cache and temp files
-                                    context.externalCacheDir?.deleteRecursively()
-                                    context.filesDir?.listFiles()?.forEach { file ->
-                                        if (file.name.startsWith("temp", ignoreCase = true) || file.name.contains("tmp", ignoreCase = true)) {
-                                            file.deleteRecursively()
-                                        }
-                                    }
-                                    
-                                    // 3. Clear unsaved drafts (files and shared preferences)
-                                    context.filesDir?.listFiles()?.forEach { file ->
-                                        if (file.name.contains("draft", ignoreCase = true)) {
-                                            file.deleteRecursively()
-                                        }
-                                    }
-                                    val sharedPrefs = context.getSharedPreferences("yans_settings_prefs", android.content.Context.MODE_PRIVATE)
-                                    val editor = sharedPrefs.edit()
-                                    sharedPrefs.all.keys.forEach { key ->
-                                        if (key.contains("draft", ignoreCase = true)) {
-                                            editor.remove(key)
-                                        }
-                                    }
-                                    editor.apply()
-                                    
-                                    // 4. Optimize SQLite Database via VACUUM
-                                    try {
-                                        val db = AppDatabase.getDatabase(context)
-                                        db.openHelper.writableDatabase.execSQL("VACUUM")
-                                    } catch (dbEx: Exception) {
-                                        dbEx.printStackTrace()
-                                    }
-                                    
-                                    System.gc()
-                                    
-                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                        Toast.makeText(context, "Smart Maintenance selesai! Sistem dan database berhasil dioptimalkan.", Toast.LENGTH_LONG).show()
-                                        viewModel.addAuditLog("Maintenance", "Smart Maintenance & Deep Cleanup berhasil dijalankan.")
-                                    }
-                                } catch (e: Exception) {
-                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                        Toast.makeText(context, "Gagal menjalankan maintenance: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    }
+                
+                if (action == "smart_maintenance") {
+                    coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            // 1. Clear general cache
+                            context.cacheDir?.deleteRecursively()
+                            
+                            // 2. Clear external/temporary cache and temp files
+                            context.externalCacheDir?.deleteRecursively()
+                            context.filesDir?.listFiles()?.forEach { file ->
+                                if (file.name.startsWith("temp", ignoreCase = true) || file.name.contains("tmp", ignoreCase = true)) {
+                                    file.deleteRecursively()
                                 }
                             }
+                            
+                            // 3. Clear unsaved drafts (files and shared preferences)
+                            context.filesDir?.listFiles()?.forEach { file ->
+                                if (file.name.contains("draft", ignoreCase = true)) {
+                                    file.deleteRecursively()
+                                }
+                            }
+                            val sharedPrefs = context.getSharedPreferences("yans_settings_prefs", android.content.Context.MODE_PRIVATE)
+                            val editor = sharedPrefs.edit()
+                            sharedPrefs.all.keys.forEach { key ->
+                                if (key.contains("draft", ignoreCase = true)) {
+                                    editor.remove(key)
+                                }
+                            }
+                            editor.apply()
+                            
+                            // 4. Optimize SQLite Database via VACUUM
+                            try {
+                                val db = AppDatabase.getDatabase(context)
+                                db.openHelper.writableDatabase.execSQL("VACUUM")
+                            } catch (dbEx: Exception) {
+                                dbEx.printStackTrace()
+                            }
+                            
+                            System.gc()
+                            
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                Toast.makeText(context, "Smart Maintenance selesai! Sistem dan database berhasil dioptimalkan.", Toast.LENGTH_LONG).show()
+                                viewModel.addAuditLog("Maintenance", "Smart Maintenance & Deep Cleanup berhasil dijalankan.")
+                            }
+                        } catch (e: Exception) {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                Toast.makeText(context, "Gagal menjalankan maintenance: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Lanjutkan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             },
-            dismissButton = {
-                TextButton(
-                    onClick = { 
-                        showMaintenanceConfirmDialog = false 
-                        pendingMaintenanceAction = null
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = TextMuted)
-                ) {
-                    Text("Batal", fontSize = 12.sp)
-                }
+            onDismiss = {
+                showMaintenanceConfirmDialog = false
+                pendingMaintenanceAction = null
             },
-            containerColor = CardGrey
+            confirmText = "Lanjutkan",
+            dismissText = "Batal",
+            isDanger = false
         )
     }
 
@@ -1340,42 +1302,14 @@ fun ConfirmationModal(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = title,
-                color = AgedGold,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        },
-        text = {
-            Text(
-                text = message,
-                color = TextLight,
-                fontSize = 13.sp
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = HighlightSoftCyan, contentColor = ShadowBlack),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(confirmText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(contentColor = TextMuted)
-            ) {
-                Text(dismissText, fontSize = 12.sp)
-            }
-        },
-        containerColor = CardGrey,
-        shape = RoundedCornerShape(16.dp)
+    YansConfirmDialog(
+        title = title,
+        message = message,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        confirmText = confirmText,
+        dismissText = dismissText,
+        isDanger = false
     )
 }
 
@@ -2343,14 +2277,19 @@ fun renderNestedSubScreen(
         }
 
         "akun" -> {
-            val userPrefs = remember { context.getSharedPreferences("yans_user_prefs_${currentUser?.email ?: "guest"}", android.content.Context.MODE_PRIVATE) }
+            val currentEmail = (currentUser?.email ?: AppSettings.getEmail(context)).trim().lowercase()
+            val userPrefs = remember(currentEmail) { 
+                context.getSharedPreferences("yans_user_prefs_${if (currentEmail.isNotBlank()) currentEmail else "guest"}", android.content.Context.MODE_PRIVATE) 
+            }
+            val localCredPrefs = remember { context.getSharedPreferences("yans_local_credentials", android.content.Context.MODE_PRIVATE) }
             
             var nameInput by remember { mutableStateOf(currentUser?.displayName ?: "") }
             var usernameInput by remember { mutableStateOf(userPrefs.getString("user_username", "") ?: "") }
-            var emailInput by remember { mutableStateOf(currentUser?.email ?: "") }
+            var emailInput by remember { mutableStateOf(currentEmail) }
             var whatsappInput by remember { mutableStateOf(userPrefs.getString("user_whatsapp", "") ?: "") }
             var addressInput by remember { mutableStateOf(userPrefs.getString("user_address", "") ?: "") }
             var recoveryAccountInput by remember { mutableStateOf(userPrefs.getString("user_recovery_email", "") ?: "") }
+            var memberPriceCategory by remember { mutableStateOf(currentUser?.priceCategory ?: "Member") }
             
             var passwordInput by remember { mutableStateOf("") }
             var transactionPinInput by remember { mutableStateOf(userPrefs.getString("transaction_pin", "") ?: "") }
@@ -2362,6 +2301,108 @@ fun renderNestedSubScreen(
             var isPhoneVerified by remember { mutableStateOf(userPrefs.getBoolean("phone_verified", false)) }
             
             var otherDevicesLoggedOut by remember { mutableStateOf(userPrefs.getBoolean("other_devices_logged_out", false)) }
+            var isSavingProfile by remember { mutableStateOf(false) }
+
+            // Real-time & Offline-First Data Synchronization with Thread Isolation & Null Safety
+            LaunchedEffect(currentEmail, isOwner, currentUser) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    try {
+                        if (isOwner) {
+                            // OWNER ACCOUNT: Must pull default data from Business Identity & Firebase
+                            val bStoreName = try { AppSettings.getStoreName(context).trim() } catch (e: Exception) { "" }
+                            val bAddress = try { AppSettings.getAddress(context).trim() } catch (e: Exception) { "" }
+                            val bWhatsapp = try { AppSettings.getWhatsApp(context).trim() } catch (e: Exception) { "" }
+                            val bEmail = try { AppSettings.getEmail(context).trim() } catch (e: Exception) { "" }
+
+                            val resolvedName = (currentUser?.displayName?.takeIf { it.isNotBlank() }
+                                ?: bStoreName.takeIf { it.isNotBlank() }
+                                ?: "YANSPROJECT.ID")
+
+                            val resolvedUsername = userPrefs.getString("user_username", "")?.takeIf { it.isNotBlank() }
+                                ?: "admin_owner"
+
+                            val resolvedEmail = (currentUser?.email?.takeIf { it.isNotBlank() }
+                                ?: bEmail.takeIf { it.isNotBlank() }
+                                ?: "")
+
+                            val resolvedWhatsapp = (currentUser?.whatsapp?.takeIf { it.isNotBlank() }
+                                ?: userPrefs.getString("user_whatsapp", "")?.takeIf { it.isNotBlank() }
+                                ?: bWhatsapp.takeIf { it.isNotBlank() }
+                                ?: "+62 877-7739-8813")
+
+                            val resolvedAddress = (currentUser?.address?.takeIf { it.isNotBlank() }
+                                ?: userPrefs.getString("user_address", "")?.takeIf { it.isNotBlank() }
+                                ?: bAddress.takeIf { it.isNotBlank() }
+                                ?: "Tangerang, Banten")
+
+                            val resolvedRecovery = userPrefs.getString("user_recovery_email", "")?.takeIf { it.isNotBlank() }
+                                ?: bEmail.takeIf { it.isNotBlank() }
+                                ?: resolvedEmail
+
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                if (nameInput.isBlank() || nameInput == "YP") nameInput = resolvedName
+                                if (usernameInput.isBlank()) usernameInput = resolvedUsername
+                                if (emailInput.isBlank()) emailInput = resolvedEmail
+                                if (whatsappInput.isBlank()) whatsappInput = resolvedWhatsapp
+                                if (addressInput.isBlank()) addressInput = resolvedAddress
+                                if (recoveryAccountInput.isBlank()) recoveryAccountInput = resolvedRecovery
+                                memberPriceCategory = "Retail / Owner"
+                            }
+                        } else {
+                            // MEMBER ACCOUNT: Must pull data from Member Management (Local Credentials & MemberRepository)
+                            val cleanKey = currentEmail.lowercase().trim()
+                            val localCred = AppSettings.getLocalUserCredential(context, cleanKey)
+                            
+                            val nameInLocal = localCredPrefs.getString("name_$cleanKey", "")?.takeIf { it.isNotBlank() }
+                                ?: localCred?.displayName?.takeIf { it.isNotBlank() }
+                            val waInLocal = localCredPrefs.getString("wa_$cleanKey", "")?.takeIf { it.isNotBlank() }
+                                ?: localCred?.whatsapp?.takeIf { it.isNotBlank() }
+                            val addressInLocal = localCredPrefs.getString("address_$cleanKey", "")?.takeIf { it.isNotBlank() }
+                                ?: localCred?.address?.takeIf { it.isNotBlank() }
+                            val priceInLocal = localCredPrefs.getString("price_$cleanKey", "")?.takeIf { it.isNotBlank() }
+                                ?: localCred?.priceCategory?.takeIf { it.isNotBlank() }
+
+                            val resolvedName = currentUser?.displayName?.takeIf { it.isNotBlank() }
+                                ?: nameInLocal
+                                ?: "Staff Member"
+
+                            val resolvedUsername = userPrefs.getString("user_username", "")?.takeIf { it.isNotBlank() }
+                                ?: cleanKey.substringBefore("@")
+
+                            val resolvedEmail = currentEmail.ifBlank { "member@yansproject.id" }
+
+                            val resolvedWhatsapp = currentUser?.whatsapp?.takeIf { it.isNotBlank() }
+                                ?: userPrefs.getString("user_whatsapp", "")?.takeIf { it.isNotBlank() }
+                                ?: waInLocal
+                                ?: ""
+
+                            val resolvedAddress = currentUser?.address?.takeIf { it.isNotBlank() }
+                                ?: userPrefs.getString("user_address", "")?.takeIf { it.isNotBlank() }
+                                ?: addressInLocal
+                                ?: ""
+
+                            val resolvedRecovery = userPrefs.getString("user_recovery_email", "")?.takeIf { it.isNotBlank() }
+                                ?: resolvedEmail
+
+                            val resolvedCategory = currentUser?.priceCategory?.takeIf { it.isNotBlank() }
+                                ?: priceInLocal
+                                ?: "Member"
+
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                if (nameInput.isBlank()) nameInput = resolvedName
+                                if (usernameInput.isBlank()) usernameInput = resolvedUsername
+                                if (emailInput.isBlank()) emailInput = resolvedEmail
+                                if (whatsappInput.isBlank()) whatsappInput = resolvedWhatsapp
+                                if (addressInput.isBlank()) addressInput = resolvedAddress
+                                if (recoveryAccountInput.isBlank()) recoveryAccountInput = resolvedRecovery
+                                memberPriceCategory = resolvedCategory
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("SettingsAccountCenter", "Error populating account data: ${e.message}", e)
+                    }
+                }
+            }
 
             Column(
                 modifier = Modifier
@@ -2393,14 +2434,14 @@ fun renderNestedSubScreen(
                             )
                         }
                         Text(
-                            text = if (isOwner) "ADMINISTRATOR / OWNER" else "STAFF / MEMBER",
+                            text = if (isOwner) "ADMINISTRATOR / OWNER" else "STAFF / MEMBER ($memberPriceCategory)",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = HighlightSoftCyan,
                             letterSpacing = 1.5.sp
                         )
                         Text(
-                            text = "Keterhubungan Sistem: AKTIF",
+                            text = "Keterhubungan Sistem: AKTIF (Realtime Sync)",
                             fontSize = 10.sp,
                             color = AlertGreen
                         )
@@ -2509,24 +2550,100 @@ fun renderNestedSubScreen(
                         Button(
                             onClick = {
                                 if (nameInput.isNotBlank()) {
-                                    FirebaseSyncManager.updateDisplayName(context, nameInput)
-                                    userPrefs.edit().apply {
-                                        putString("user_username", usernameInput)
-                                        putString("user_whatsapp", whatsappInput)
-                                        putString("user_address", addressInput)
-                                        putString("user_recovery_email", recoveryAccountInput)
-                                        apply()
+                                    isSavingProfile = true
+                                    coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                        try {
+                                            val cleanEmail = emailInput.trim().lowercase()
+                                            if (isOwner) {
+                                                // OWNER SAVE: Sync both Account Center, Session, AppSettings Business Identity, & Firebase
+                                                com.yansproject.app.data.FirebaseSyncManager.updateDisplayName(context, nameInput.trim())
+                                                AppSettings.setStoreName(context, nameInput.trim())
+                                                AppSettings.setWhatsApp(context, whatsappInput.trim())
+                                                AppSettings.setAddress(context, addressInput.trim())
+                                                AppSettings.setEmail(context, cleanEmail)
+
+                                                userPrefs.edit().apply {
+                                                    putString("user_username", usernameInput.trim())
+                                                    putString("user_whatsapp", whatsappInput.trim())
+                                                    putString("user_address", addressInput.trim())
+                                                    putString("user_recovery_email", recoveryAccountInput.trim())
+                                                    apply()
+                                                }
+
+                                                com.yansproject.app.data.FirebaseSyncManager.saveSession(
+                                                    context = context,
+                                                    email = cleanEmail,
+                                                    role = com.yansproject.app.data.UserRole.OWNER,
+                                                    displayName = nameInput.trim(),
+                                                    priceCategory = "Retail",
+                                                    whatsapp = whatsappInput.trim(),
+                                                    address = addressInput.trim(),
+                                                    uid = currentUser?.uid ?: ""
+                                                )
+                                            } else {
+                                                // MEMBER SAVE: Sync Member Profile in MemberRepository, Local Credentials & Firebase
+                                                val memberRepo = com.yansproject.app.data.MemberRepository(context)
+                                                memberRepo.updateMemberProfile(
+                                                    email = cleanEmail,
+                                                    newDisplayName = nameInput.trim(),
+                                                    newWhatsapp = whatsappInput.trim(),
+                                                    newAddress = addressInput.trim(),
+                                                    newTier = memberPriceCategory
+                                                )
+
+                                                com.yansproject.app.data.FirebaseSyncManager.updateDisplayName(context, nameInput.trim())
+                                                
+                                                userPrefs.edit().apply {
+                                                    putString("user_username", usernameInput.trim())
+                                                    putString("user_whatsapp", whatsappInput.trim())
+                                                    putString("user_address", addressInput.trim())
+                                                    putString("user_recovery_email", recoveryAccountInput.trim())
+                                                    apply()
+                                                }
+
+                                                com.yansproject.app.data.FirebaseSyncManager.saveSession(
+                                                    context = context,
+                                                    email = cleanEmail,
+                                                    role = com.yansproject.app.data.UserRole.MEMBER,
+                                                    displayName = nameInput.trim(),
+                                                    priceCategory = memberPriceCategory,
+                                                    whatsapp = whatsappInput.trim(),
+                                                    address = addressInput.trim(),
+                                                    uid = currentUser?.uid ?: ""
+                                                )
+                                            }
+
+                                            viewModel.syncDraftWithAccountCenter()
+
+                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                isSavingProfile = false
+                                                Toast.makeText(context, "Profil $nameInput berhasil disimpan & disinkronkan!", Toast.LENGTH_SHORT).show()
+                                                viewModel.addAuditLog("Update Profil Lengkap", "Berhasil memperbarui informasi identitas profil akun untuk email $cleanEmail")
+                                            }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("AccountCenterSave", "Gagal menyimpan profil: ${e.message}", e)
+                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                isSavingProfile = false
+                                                Toast.makeText(context, "Gagal menyimpan profil: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                     }
-                                    viewModel.syncDraftWithAccountCenter()
-                                    Toast.makeText(context, "Profil berhasil disimpan secara offline dan disinkronkan!", Toast.LENGTH_SHORT).show()
-                                    viewModel.addAuditLog("Update Profil Lengkap", "Berhasil memperbarui informasi identitas profil akun untuk email $emailInput")
+                                } else {
+                                    Toast.makeText(context, "Nama Lengkap tidak boleh kosong!", Toast.LENGTH_SHORT).show()
                                 }
                             },
+                            enabled = !isSavingProfile,
                             colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = Color.Black),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth().height(45.dp)
                         ) {
-                            Text("SIMPAN PROFIL LENGKAP", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            if (isSavingProfile) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.Black, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("MENYIMPAN...", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            } else {
+                                Text("SIMPAN PROFIL LENGKAP", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
                         }
                     }
                 }
@@ -3828,30 +3945,60 @@ fun renderNestedSubScreen(
         }
 
         "storage" -> {
+            val scope = rememberCoroutineScope()
             var refreshTrigger by remember { mutableStateOf(0) }
-            val rootDir: File = remember(refreshTrigger) { DocumentExporter.getRootDirectory(context) }
-            
-            val folders: List<File> = remember(refreshTrigger) {
-                listOf("Invoice", "Export", "Backup", "Catalog", "Project", "Report", "Log", "Import").map { sub ->
-                    val folder = File(rootDir, sub)
-                    if (!folder.exists()) folder.mkdirs()
-                    folder
+            var expandedFolderIndex by remember { mutableStateOf<Int?>(null) }
+
+            var storageRoot by remember { mutableStateOf<File?>(null) }
+            var storageFolders by remember { mutableStateOf<List<Pair<File, List<File>>>>(emptyList()) }
+            var isScanning by remember { mutableStateOf(true) }
+
+            LaunchedEffect(refreshTrigger) {
+                isScanning = true
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val rootDir = DocumentExporter.getRootDirectory(context)
+                    val subFolderNames = listOf("Invoice", "Export", "Backup", "Catalog", "Project", "Report", "Log", "Import")
+                    val folderPairs = subFolderNames.map { sub ->
+                        val folder = File(rootDir, sub)
+                        if (!folder.exists()) {
+                            try { folder.mkdirs() } catch (_: Exception) {}
+                        }
+                        val files = (folder.listFiles() ?: emptyArray()).sortedByDescending { it.lastModified() }
+                        Pair(folder, files)
+                    }
+                    storageRoot = rootDir
+                    storageFolders = folderPairs
+                    isScanning = false
                 }
             }
 
-            var expandedFolderIndex by remember { mutableStateOf<Int?>(null) }
+            val rootDir = storageRoot
+            val folders = storageFolders
 
-            // Compute Total Stats
-            val totalFiles: Int = remember(refreshTrigger) {
-                folders.sumOf { f -> (f.listFiles() ?: emptyArray()).size }
-            }
-            val totalBytes: Long = remember(refreshTrigger) {
-                folders.sumOf { f -> (f.listFiles() ?: emptyArray()).sumOf { file -> file.length() } }
-            }
-            val formattedTotalSize: String = remember(totalBytes) {
-                if (totalBytes >= 1024L * 1024L) String.format(java.util.Locale.US, "%.2f MB", totalBytes.toDouble() / (1024.0 * 1024.0))
-                else String.format(java.util.Locale.US, "%.1f KB", totalBytes.toDouble() / 1024.0)
-            }
+            if (isScanning && rootDir == null) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(color = AgedGold, modifier = Modifier.size(36.dp), strokeWidth = 3.dp)
+                        Text("MEMINDAI PENYIMPANAN INTERNAL...", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else if (rootDir != null) {
+                val totalFiles: Int = remember(folders) {
+                    folders.sumOf { it.second.size }
+                }
+                val totalBytes: Long = remember(folders) {
+                    folders.sumOf { (_, files) -> files.sumOf { f -> f.length() } }
+                }
+                val formattedTotalSize: String = remember(totalBytes) {
+                    if (totalBytes >= 1024L * 1024L) String.format(java.util.Locale.US, "%.2f MB", totalBytes.toDouble() / (1024.0 * 1024.0))
+                    else String.format(java.util.Locale.US, "%.1f KB", totalBytes.toDouble() / 1024.0)
+                }
 
             Column(
                 modifier = Modifier
@@ -3926,10 +4073,7 @@ fun renderNestedSubScreen(
                 Text("DAFTAR SUB-FOLDER TERVERIFIKASI", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
 
                 // Subfolders list
-                folders.forEachIndexed { index, folder ->
-                    val filesList: List<File> = remember(refreshTrigger, folder) {
-                        (folder.listFiles() ?: emptyArray()).sortedByDescending { it.lastModified() }
-                    }
+                folders.forEachIndexed { index, (folder, filesList) ->
                     val folderBytes: Long = remember(filesList) { filesList.sumOf { fileItem -> fileItem.length() } }
                     val folderSizeStr: String = remember(folderBytes) {
                         if (folderBytes >= 1024L * 1024L) String.format(java.util.Locale.US, "%.2f MB", folderBytes.toDouble() / (1024.0 * 1024.0))
@@ -4045,9 +4189,13 @@ fun renderNestedSubScreen(
                 // Refresh & Reset Structure Button
                 OutlinedButton(
                     onClick = {
-                        DocumentExporter.initFolderStructure(context)
-                        refreshTrigger++
-                        Toast.makeText(context, "Struktur folder YANSPROJECT.ID berhasil diverifikasi & diperbarui!", Toast.LENGTH_SHORT).show()
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            DocumentExporter.initFolderStructure(context)
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                refreshTrigger++
+                                Toast.makeText(context, "Struktur folder YANSPROJECT.ID berhasil diverifikasi & diperbarui!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     },
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = HighlightSoftCyan),
                     border = androidx.compose.foundation.BorderStroke(1.dp, HighlightSoftCyan),
@@ -4060,16 +4208,15 @@ fun renderNestedSubScreen(
                 }
             }
         }
+    }
 
         "appearance" -> {
-            val prefs = remember { context.getSharedPreferences("yans_appearance_prefs", android.content.Context.MODE_PRIVATE) }
-            
-            var selectedThemeVariant by remember { mutableStateOf(prefs.getString("theme_variant", "YANSPROJECT.ID Classic") ?: "YANSPROJECT.ID Classic") }
-            var accentColor by remember { mutableStateOf(prefs.getString("accent_color", "Aged Gold") ?: "Aged Gold") }
-            var canvasStyle by remember { mutableStateOf(prefs.getString("canvas_style", "Shadow Black (#0A0A0A)") ?: "Shadow Black (#0A0A0A)") }
-            var glassStyle by remember { mutableStateOf(prefs.getString("glass_style", "Glassmorphism Glow") ?: "Glassmorphism Glow") }
-            var fontScale by remember { mutableStateOf(prefs.getFloat("font_scale", 1.0f)) }
-            var hapticEnabled by remember { mutableStateOf(prefs.getBoolean("haptic_enabled", true)) }
+            val selectedThemeVariant by viewModel.themeVariant.collectAsState()
+            val accentColor by viewModel.accentColor.collectAsState()
+            val canvasStyle by viewModel.canvasStyle.collectAsState()
+            val glassStyle by viewModel.glassStyle.collectAsState()
+            val fontScale by viewModel.fontScale.collectAsState()
+            val hapticEnabled by viewModel.hapticEnabled.collectAsState()
 
             // Theme colors mapping
             val currentAccentColor = when(accentColor) {
@@ -4085,7 +4232,7 @@ fun renderNestedSubScreen(
             val currentCanvasBg = when(canvasStyle) {
                 "Pure Obsidian Black (#000000)" -> Color(0xFF000000)
                 "Dark Slate Teal (#081F20)" -> Color(0xFF081F20)
-                else -> Color(0xFF0A0A0A)
+                else -> Color(0xFF0A0F0D)
             }
 
             val currentSurfaceColor = when(selectedThemeVariant) {
@@ -4212,14 +4359,21 @@ fun renderNestedSubScreen(
                                     .border(1.dp, if (isSelected) tAccent else BorderGrey.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                                     .clickable {
                                         if (hapticEnabled) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        selectedThemeVariant = tName
-                                        accentColor = when(tName) {
+                                        val newAccent = when(tName) {
                                             "Royal Emerald Imperial" -> "Emerald Green"
                                             "Midnight Sapphire Luxury" -> "Imperial Amber"
                                             "Onyx Platinum Edition" -> "Sapphire Blue"
                                             "Ruby Imperial Velvet" -> "Rose Gold"
                                             else -> "Aged Gold"
                                         }
+                                        viewModel.updateAppearanceSettings(
+                                            themeVariant = tName,
+                                            accentColor = newAccent,
+                                            canvasStyle = canvasStyle,
+                                            glassStyle = glassStyle,
+                                            fontScale = fontScale,
+                                            hapticEnabled = hapticEnabled
+                                        )
                                     }
                                     .padding(14.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -4264,7 +4418,14 @@ fun renderNestedSubScreen(
                                             .border(1.dp, if (isSelected) cValue else BorderGrey.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
                                             .clickable {
                                                 if (hapticEnabled) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                accentColor = cName
+                                                viewModel.updateAppearanceSettings(
+                                                    themeVariant = selectedThemeVariant,
+                                                    accentColor = cName,
+                                                    canvasStyle = canvasStyle,
+                                                    glassStyle = glassStyle,
+                                                    fontScale = fontScale,
+                                                    hapticEnabled = hapticEnabled
+                                                )
                                             }
                                             .padding(vertical = 12.dp),
                                         contentAlignment = Alignment.Center
@@ -4301,7 +4462,14 @@ fun renderNestedSubScreen(
                                     .border(1.dp, if (isSelected) currentAccentColor else BorderGrey.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                                     .clickable {
                                         if (hapticEnabled) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        glassStyle = style
+                                        viewModel.updateAppearanceSettings(
+                                            themeVariant = selectedThemeVariant,
+                                            accentColor = accentColor,
+                                            canvasStyle = canvasStyle,
+                                            glassStyle = style,
+                                            fontScale = fontScale,
+                                            hapticEnabled = hapticEnabled
+                                        )
                                     }
                                     .padding(vertical = 10.dp),
                                 contentAlignment = Alignment.Center
@@ -4332,7 +4500,14 @@ fun renderNestedSubScreen(
                                     .border(1.dp, if (isSelected) currentAccentColor else BorderGrey.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                                     .clickable {
                                         if (hapticEnabled) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        canvasStyle = cOption
+                                        viewModel.updateAppearanceSettings(
+                                            themeVariant = selectedThemeVariant,
+                                            accentColor = accentColor,
+                                            canvasStyle = cOption,
+                                            glassStyle = glassStyle,
+                                            fontScale = fontScale,
+                                            hapticEnabled = hapticEnabled
+                                        )
                                     }
                                     .padding(horizontal = 12.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -4356,8 +4531,15 @@ fun renderNestedSubScreen(
                     Spacer(modifier = Modifier.height(6.dp))
                     Slider(
                         value = fontScale,
-                        onValueChange = {
-                            fontScale = it
+                        onValueChange = { newScale ->
+                            viewModel.updateAppearanceSettings(
+                                themeVariant = selectedThemeVariant,
+                                accentColor = accentColor,
+                                canvasStyle = canvasStyle,
+                                glassStyle = glassStyle,
+                                fontScale = newScale,
+                                hapticEnabled = hapticEnabled
+                            )
                         },
                         valueRange = 0.8f..1.4f,
                         steps = 5,
@@ -4376,7 +4558,14 @@ fun renderNestedSubScreen(
                                     .border(1.dp, if (isSelected) currentAccentColor else BorderGrey.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                                     .clickable {
                                         if (hapticEnabled) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        fontScale = scale
+                                        viewModel.updateAppearanceSettings(
+                                            themeVariant = selectedThemeVariant,
+                                            accentColor = accentColor,
+                                            canvasStyle = canvasStyle,
+                                            glassStyle = glassStyle,
+                                            fontScale = scale,
+                                            hapticEnabled = hapticEnabled
+                                        )
                                     }
                                     .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center
@@ -4400,9 +4589,16 @@ fun renderNestedSubScreen(
                         }
                         Switch(
                             checked = hapticEnabled,
-                            onCheckedChange = {
-                                hapticEnabled = it
-                                if (it) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onCheckedChange = { newHaptic ->
+                                if (newHaptic) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.updateAppearanceSettings(
+                                    themeVariant = selectedThemeVariant,
+                                    accentColor = accentColor,
+                                    canvasStyle = canvasStyle,
+                                    glassStyle = glassStyle,
+                                    fontScale = fontScale,
+                                    hapticEnabled = newHaptic
+                                )
                             },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.Black,
@@ -4413,6 +4609,8 @@ fun renderNestedSubScreen(
                 }
 
                 // 7. Tombol Simpan & Terapkan Pengaturan Tema
+                var isThemeSavedRecently by remember { mutableStateOf(false) }
+
                 Button(
                     onClick = {
                         if (hapticEnabled) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -4425,18 +4623,37 @@ fun renderNestedSubScreen(
                             hapticEnabled = hapticEnabled
                         )
                         
-                        Toast.makeText(context, "Tema Visual YANSPROJECT.ID Berhasil Diterapkan!", Toast.LENGTH_SHORT).show()
+                        isThemeSavedRecently = true
+                        coroutineScope.launch {
+                            kotlinx.coroutines.delay(2500)
+                            isThemeSavedRecently = false
+                        }
+
+                        Toast.makeText(context, "Tema '$selectedThemeVariant' & Aksen '$accentColor' Berhasil Disimpan & Diterapkan!", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = currentAccentColor, contentColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isThemeSavedRecently) Color(0xFF2ECC71) else currentAccentColor,
+                        contentColor = Color.Black
+                    ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(52.dp)
                 ) {
-                    Icon(Icons.Outlined.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(
+                        imageVector = if (isThemeSavedRecently) Icons.Outlined.Check else Icons.Outlined.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("TERAPKAN & SIMPAN PREFERENSI TEMA", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    Text(
+                        text = if (isThemeSavedRecently) "✓ TEMA BERHASIL TERSIMPAN & DITERAPKAN" else "TERAPKAN & SIMPAN PREFERENSI TEMA",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.8.sp
+                    )
                 }
+
 
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -4689,20 +4906,10 @@ fun AboutYansScreen(onBack: () -> Unit) {
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
+                YansBackButton(
                     onClick = onBack,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(DarkTeal.copy(alpha = 0.4f))
-                        .size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.ArrowBack,
-                        contentDescription = "Kembali ke Pengaturan Utama",
-                        tint = AgedGold,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                    contentDescription = "Kembali ke Pengaturan Utama"
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(

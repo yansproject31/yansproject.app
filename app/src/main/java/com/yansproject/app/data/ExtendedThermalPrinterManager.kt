@@ -5,12 +5,12 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.util.Log
 import java.io.OutputStream
-import java.math.BigDecimal
+import java.nio.charset.Charset
 import java.util.UUID
 
 /**
  * ExtendedThermalPrinterManager: Hardware interface manager for sending ESC/POS formatted
- * byte streams to Bluetooth Thermal Receipt Printers (58mm or 80mm width standard).
+ * byte streams to Bluetooth Thermal Receipt Printers (58mm or 80mm width standard) with YANSPROJECT.ID Brand DNA.
  */
 object ExtendedThermalPrinterManager {
 
@@ -66,24 +66,25 @@ object ExtendedThermalPrinterManager {
             
             // 3. Subtitle / Tagline
             outputStream.write(ESC_TEXT_NORMAL)
-            outputStream.write("Konveksi & Custom Project\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("Telp: +62 822-1926-2026\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("Specialist Apparel & Digital Store\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("Makna Sebelum Estetika\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("CS WA: +62 877-7739-8813\n".toByteArray(Charsets.US_ASCII))
             
             val lineCharLimit = if (isPaper80mm) 48 else 32
-            val dividerLine = "-".repeat(lineCharLimit) + "\n"
+            val dividerLine = "=".repeat(lineCharLimit) + "\n"
             outputStream.write(dividerLine.toByteArray(Charsets.US_ASCII))
 
             // 4. Details (Left Aligned)
             outputStream.write(ESC_ALIGN_LEFT)
-            outputStream.write("Invoice No : INV-PRJ-${System.currentTimeMillis().toString().substring(6)}\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("No. Invoice: INV-PRJ-${System.currentTimeMillis().toString().substring(6)}\n".toByteArray(Charsets.US_ASCII))
             outputStream.write("Project    : $projectName\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("Klien      : $clientName\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("Pelanggan  : $clientName\n".toByteArray(Charsets.US_ASCII))
             outputStream.write("Status     : $status\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write(dividerLine.toByteArray(Charsets.US_ASCII))
+            outputStream.write("-".repeat(lineCharLimit).toByteArray(Charsets.US_ASCII) + "\n".toByteArray(Charsets.US_ASCII))
 
             // 5. High-Precision Totals
             outputStream.write(ESC_TEXT_BOLD_ON)
-            outputStream.write(formatLineItem("GRAND TOTAL", IdrAccountingEngine.formatRupiah(totalAmount), lineCharLimit).toByteArray(Charsets.US_ASCII))
+            outputStream.write(formatLineItem("TOTAL BELANJA", IdrAccountingEngine.formatRupiah(totalAmount), lineCharLimit).toByteArray(Charsets.US_ASCII))
             outputStream.write(formatLineItem("TERBAYAR", IdrAccountingEngine.formatRupiah(paidAmount), lineCharLimit).toByteArray(Charsets.US_ASCII))
             outputStream.write(formatLineItem("SISA TAGIHAN", IdrAccountingEngine.formatRupiah(remainingBalance), lineCharLimit).toByteArray(Charsets.US_ASCII))
             outputStream.write(ESC_TEXT_NORMAL)
@@ -91,10 +92,9 @@ object ExtendedThermalPrinterManager {
 
             // 6. Centered Akad / Qobul Footer Contract
             outputStream.write(ESC_ALIGN_CENTER)
-            outputStream.write("DENGAN PERSETUJUAN INI,\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("KEDUA BELAH PIHAK TELAH MENYATAKAN\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("SAH AKAD JUAL BELI SECARA ADIL.\n\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("Syukron Katsiron atas kepercayaan Anda!\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("Akad Jual-Beli (Ajib & Qobul) Sah,\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("Halal & Terverifikasi YANSPROJECT.ID\n\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("Hatur Tengkyu atas kepercayaan Anda!\n".toByteArray(Charsets.US_ASCII))
 
             // Feed and Cut paper commands
             outputStream.write(ESC_FEED_LINES_4)

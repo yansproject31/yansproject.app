@@ -37,6 +37,7 @@ import androidx.compose.ui.window.Dialog
 import com.yansproject.app.data.Expense
 import com.yansproject.app.data.Inflow
 import com.yansproject.app.data.FirebaseSyncManager
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -119,41 +120,11 @@ fun RiwayatModalBerjalanScreen(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Column {
-                CenterAlignedTopAppBar(
-                    windowInsets = WindowInsets(0.dp),
-                    title = {
-                        Text(
-                            text = "MODAL BERJALAN",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = AgedGold,
-                            letterSpacing = 1.sp
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF2A3A32))
-                                .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                .size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Kembali",
-                                tint = AgedGold,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color(0xFF051214)
-                    )
-                )
-                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
-            }
+            YansTopAppBar(
+                title = "MODAL BERJALAN",
+                subtitle = "Ringkasan Eksekutif & Capital Log",
+                navigationIcon = { YansBackButton(onClick = onBack) }
+            )
         }
     ) { paddingValues ->
         LazyColumn(
@@ -1745,41 +1716,11 @@ fun DetailProfitScreen(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Column {
-                CenterAlignedTopAppBar(
-                    windowInsets = WindowInsets(0.dp),
-                    title = {
-                        Text(
-                            text = "PERHITUNGAN PROFIT",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = AgedGold,
-                            letterSpacing = 1.sp
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF2A3A32))
-                                .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                .size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Kembali",
-                                tint = AgedGold,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color(0xFF051214)
-                    )
-                )
-                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
-            }
+            YansTopAppBar(
+                title = "PERHITUNGAN PROFIT",
+                subtitle = "Analisis Laba Rugi Eksekutif",
+                navigationIcon = { YansBackButton(onClick = onBack) }
+            )
         }
     ) { innerPadding ->
         Column(
@@ -1986,41 +1927,11 @@ fun RiwayatPiutangScreen(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Column {
-                CenterAlignedTopAppBar(
-                    windowInsets = WindowInsets(0.dp),
-                    title = {
-                        Text(
-                            text = "PIUTANG DAGANG",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = AgedGold,
-                            letterSpacing = 1.sp
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF2A3A32))
-                                .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                .size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Kembali",
-                                tint = AgedGold,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color(0xFF051214)
-                    )
-                )
-                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
-            }
+            YansTopAppBar(
+                title = "PIUTANG DAGANG",
+                subtitle = "Pelacakan Tagihan Klien & Invoice Belum Lunas",
+                navigationIcon = { YansBackButton(onClick = onBack) }
+            )
         }
     ) { innerPadding ->
         Column(
@@ -2611,27 +2522,12 @@ fun RiwayatTransaksiScreen(
             }
         },
         topBar = {
-            Surface(
-                color = DarkGrey,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold)
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = pageTitle,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AgedGold,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(
+            YansTopAppBar(
+                title = pageTitle,
+                subtitle = "Buku Kas & Log Transaksi Keuangan",
+                navigationIcon = { YansBackButton(onClick = onBack) },
+                actions = {
+                    Surface(
                         onClick = {
                             val file = when (type) {
                                 "INCOME" -> {
@@ -2651,12 +2547,18 @@ fun RiwayatTransaksiScreen(
                             } else {
                                 Toast.makeText(context, "Gagal mengekspor data.", Toast.LENGTH_SHORT).show()
                             }
-                        }
+                        },
+                        modifier = Modifier.size(40.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = SurfaceDarkTeal.copy(alpha = 0.85f),
+                        border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f))
                     ) {
-                        Icon(Icons.Outlined.FileDownload, contentDescription = "Ekspor CSV", tint = AgedGold)
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Outlined.FileDownload, contentDescription = "Ekspor CSV", tint = AgedGold, modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
-            }
+            )
         }
     ) { innerPadding ->
         Column(

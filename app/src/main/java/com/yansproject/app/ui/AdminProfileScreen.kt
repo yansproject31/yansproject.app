@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.yansproject.app.data.FirebaseSyncManager
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -54,8 +55,8 @@ fun AdminProfileScreen(
         )
     }
 
-    var name by remember { mutableStateOf(currentUser?.displayName ?: "YANSPROJECT OWNER") }
-    var email by remember { mutableStateOf(currentUser?.email ?: "admin@yansproject.id") }
+    var name by remember { mutableStateOf(currentUser?.displayName ?: "") }
+    var email by remember { mutableStateOf(currentUser?.email ?: "") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -90,20 +91,15 @@ fun AdminProfileScreen(
         modifier = modifier.fillMaxSize().background(shadowBlack),
         containerColor = Color.Transparent,
         topBar = {
-            com.yansproject.app.ui.components.YansTopAppBar(
-                title = "Profil Administrator",
+            YansTopAppBar(
+                title = "PROFIL ADMINISTRATOR",
+                subtitle = "Otoritas Sistem & Pengaturan Akun",
                 navigationIcon = {
-                    IconButton(onClick = {
+                    YansBackButton(onClick = {
                         if (!navController.popBackStack()) {
                             viewModel.setTab(AppTab.DASHBOARD)
                         }
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = agedGold
-                        )
-                    }
+                    })
                 }
             )
         }

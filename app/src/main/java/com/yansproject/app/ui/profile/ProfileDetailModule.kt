@@ -37,6 +37,7 @@ import com.yansproject.app.data.FirebaseSyncManager
 import com.yansproject.app.data.UserRole
 import com.yansproject.app.data.UserSession
 import com.yansproject.app.ui.AppSettings
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import com.yansproject.app.ui.theme.glassCard
 import kotlinx.coroutines.Dispatchers
@@ -349,36 +350,28 @@ fun ProfileDetailModule(
         modifier = modifier.fillMaxSize().background(BackgroundShadowBlack),
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = if (isOwnerOrAdminUser) "Informasi Akun Owner/Admin" else "Profil Member",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = 18.sp
-                    )
-                },
+            YansTopAppBar(
+                title = if (isOwnerOrAdminUser) "INFORMASI AKUN OWNER/ADMIN" else "PROFIL MEMBER",
+                subtitle = "Kelola Data Diri & Otoritas Akun YANSPROJECT",
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = AccentAgedGold
-                        )
-                    }
+                    YansBackButton(onClick = { navController.popBackStack() })
                 },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            if (isEditMode) {
-                                // Save changes
+                    if (isSaving) {
+                        YansIconButton(
+                            onClick = {},
+                            imageVector = Icons.Default.Save,
+                            contentDescription = "Menyimpan"
+                        )
+                    } else if (isEditMode) {
+                        YansSaveButton(
+                            onClick = {
                                 isSaving = true
                                 coroutineScope.launch {
                                     try {
                                         val cleanSaveEmail = editEmail.trim().lowercase()
                                         
                                         if (isOwnerOrAdminUser) {
-                                            // Owner update: Sync with Business Identity
                                             AppSettings.setStoreName(context, editName.trim())
                                             AppSettings.setEmail(context, cleanSaveEmail)
                                             AppSettings.setWhatsApp(context, editWhatsApp.trim())
@@ -418,7 +411,6 @@ fun ProfileDetailModule(
                                                 uid = userResolve?.uid ?: ""
                                             )
                                         } else {
-                                            // Member update: Sync with Member Management
                                             val localCred = AppSettings.getLocalUserCredential(context, cleanSaveEmail)
                                             val pin = localCred?.passwordOrPin ?: ""
                                             
@@ -471,28 +463,17 @@ fun ProfileDetailModule(
                                         isEditMode = false
                                     }
                                 }
-                            } else {
-                                isEditMode = true
-                            }
-                        },
-                        modifier = Modifier.testTag("edit_save_profile_button")
-                    ) {
-                        if (isSaving) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = AccentAgedGold, strokeWidth = 2.dp)
-                        } else {
-                            Icon(
-                                imageVector = if (isEditMode) Icons.Default.Save else Icons.Default.Edit,
-                                contentDescription = if (isEditMode) "Simpan" else "Edit",
-                                tint = AccentAgedGold
-                            )
-                        }
+                            },
+                            contentDescription = "Simpan"
+                        )
+                    } else {
+                        YansIconButton(
+                            onClick = { isEditMode = true },
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit"
+                        )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BackgroundShadowBlack,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = AccentAgedGold
-                )
+                }
             )
         }
     ) { innerPadding ->

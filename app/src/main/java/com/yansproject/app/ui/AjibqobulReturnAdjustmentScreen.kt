@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yansproject.app.data.DamagedItemLog
 import com.yansproject.app.data.IdrAccountingEngine
 import com.yansproject.app.data.ReturnTransaction
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,44 +84,33 @@ fun AjibqobulReturnAdjustmentScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "LOGISTICS SHIELD",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = AccentAgedGold,
-                            letterSpacing = 1.5.sp
-                        )
+            YansTopAppBar(
+                title = "LOGISTICS SHIELD",
+                subtitle = "Manajemen Retur, Garansi & Penyesuaian Stok",
+                navigationIcon = {
+                    YansBackButton(
+                        onClick = onNavigateBack,
+                        contentDescription = "Kembali ke Dashboard"
                     )
                 },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.testTag("back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali ke Dashboard",
-                            tint = AccentAgedGold
-                        )
-                    }
-                },
                 actions = {
-                    IconButton(
+                    Surface(
                         onClick = { viewModel.loadData() },
-                        modifier = Modifier.testTag("reload_button")
+                        modifier = Modifier.size(40.dp).testTag("reload_button"),
+                        shape = RoundedCornerShape(12.dp),
+                        color = SurfaceDarkTeal.copy(alpha = 0.85f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f))
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Muat Ulang Data",
-                            tint = AccentAgedGold
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Muat Ulang Data",
+                                tint = AgedGold,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SecondaryShadowBlackTeal
-                )
+                }
             )
         },
         containerColor = BackgroundShadowBlack

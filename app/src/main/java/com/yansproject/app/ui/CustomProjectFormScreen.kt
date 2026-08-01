@@ -147,29 +147,10 @@ fun CustomProjectFormScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            "FORMULIR PROJECT CUSTOM",
-                            color = LuxuryGold,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 16.sp,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            "Standard Luxury YANSPROJECT.ID",
-                            color = TextMuted,
-                            fontSize = 10.sp
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = LuxuryGold)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DeepCarbonBlack)
+            YansTopAppBar(
+                title = "FORMULIR PROJECT CUSTOM",
+                subtitle = "Standard Luxury YANSPROJECT.ID",
+                navigationIcon = { YansBackButton(onClick = onNavigateBack) }
             )
         },
         containerColor = DeepCarbonBlack

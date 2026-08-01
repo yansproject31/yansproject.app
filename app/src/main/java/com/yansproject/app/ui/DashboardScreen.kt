@@ -1,5 +1,6 @@
 package com.yansproject.app.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,6 +29,7 @@ import com.yansproject.app.data.*
 import com.yansproject.app.ui.theme.*
 import com.yansproject.app.ui.analytics.AnalisisKeuanganGlobalScreen
 import com.yansproject.app.ui.analytics.AnalisisPenjualanAjibqobulScreen
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.navigation.Routes
 import com.yansproject.app.ui.settings.MemberViewModel
 import java.text.SimpleDateFormat
@@ -1009,6 +1011,12 @@ fun DashboardScreen(
     var showAddExpenseDialog by remember { mutableStateOf(false) }
     var showAddInflowDialog by remember { mutableStateOf(false) }
     var showLowStockDialog by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = showAddExpenseDialog || showAddInflowDialog || showLowStockDialog) {
+        showAddExpenseDialog = false
+        showAddInflowDialog = false
+        showLowStockDialog = false
+    }
 
 
 
@@ -2563,28 +2571,8 @@ fun StaffDashboardView(
             }
         }
 
-        // Task List / Info Card
         item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = DarkGrey),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderGrey),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("PANDUAN OPERASIONAL STAFF", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text("1. Lakukan update stok secara berkala di tab 'Stock' saat ada barang datang atau keluar.", fontSize = 11.sp, color = TextLight)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("2. Periksa status pengerjaan proyek custom sablon dan konfeksi di tab 'Project'.", fontSize = 11.sp, color = TextLight)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("3. Jika ada pengeluaran sablon/operasional baru, laporkan langsung kepada Owner agar dicatat dalam database keuangan.", fontSize = 11.sp, color = TextLight)
-                }
-            }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
@@ -3791,40 +3779,16 @@ fun RiwayatProduksiScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // App Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DarkTeal)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.Outlined.ArrowBack,
-                        contentDescription = "Kembali",
-                        tint = Color.White
-                    )
+            YansTopAppBar(
+                title = "ANTREAN PRODUKSI ERP",
+                subtitle = "${activeQueue.size} Project Sedang Berjalan",
+                navigationIcon = { YansBackButton(onClick = onBack) },
+                actions = {
+                    TextButton(onClick = onNavigateToProject) {
+                        Text("Kelola Project >", color = AgedGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "ANTREAN PRODUKSI ERP",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "${activeQueue.size} Project Sedang Berjalan",
-                        fontSize = 11.sp,
-                        color = AgedGold,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                TextButton(onClick = onNavigateToProject) {
-                    Text("Kelola Project >", color = AgedGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
+            )
 
             if (activeQueue.isEmpty()) {
                 Box(

@@ -6,10 +6,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
@@ -630,6 +637,172 @@ fun YansBottomSheetContainer(
 }
 
 // ==========================================
+// NAVIGATION & ACTION BUTTONS
+// ==========================================
+
+@Composable
+fun YansBackButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Kembali"
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.size(40.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = SurfaceDarkTeal.copy(alpha = 0.85f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f))
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = contentDescription,
+                tint = AgedGold,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun YansAddButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Tambah"
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.size(40.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = AgedGold.copy(alpha = 0.18f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AgedGold.copy(alpha = 0.7f))
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = contentDescription,
+                tint = AgedGold,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun YansIconButton(
+    onClick: () -> Unit,
+    imageVector: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+    tint: Color = AgedGold,
+    borderColor: Color = AgedGold.copy(alpha = 0.5f),
+    containerColor: Color = SurfaceDarkTeal.copy(alpha = 0.85f),
+    iconSize: Dp = 18.dp
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.size(40.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = imageVector,
+                contentDescription = contentDescription,
+                tint = tint,
+                modifier = Modifier.size(iconSize)
+            )
+        }
+    }
+}
+
+@Composable
+fun YansDeleteButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Hapus"
+) {
+    YansIconButton(
+        onClick = onClick,
+        imageVector = Icons.Outlined.DeleteOutline,
+        modifier = modifier,
+        contentDescription = contentDescription,
+        tint = AlertRed,
+        borderColor = AlertRed.copy(alpha = 0.5f),
+        containerColor = AlertRed.copy(alpha = 0.12f)
+    )
+}
+
+@Composable
+fun YansSaveButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Simpan"
+) {
+    YansIconButton(
+        onClick = onClick,
+        imageVector = Icons.Outlined.Save,
+        modifier = modifier,
+        contentDescription = contentDescription,
+        tint = HighlightSoftCyan,
+        borderColor = HighlightSoftCyan.copy(alpha = 0.6f),
+        containerColor = HighlightSoftCyan.copy(alpha = 0.15f)
+    )
+}
+
+@Composable
+fun YansFilterButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Filter"
+) {
+    YansIconButton(
+        onClick = onClick,
+        imageVector = Icons.Outlined.FilterList,
+        modifier = modifier,
+        contentDescription = contentDescription,
+        tint = AgedGold,
+        borderColor = AgedGold.copy(alpha = 0.5f),
+        containerColor = SurfaceDarkTeal.copy(alpha = 0.85f)
+    )
+}
+
+@Composable
+fun YansDownloadButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Unduh / Ekspor"
+) {
+    YansIconButton(
+        onClick = onClick,
+        imageVector = Icons.Outlined.FileDownload,
+        modifier = modifier,
+        contentDescription = contentDescription,
+        tint = AgedGold,
+        borderColor = AgedGold.copy(alpha = 0.5f),
+        containerColor = SurfaceDarkTeal.copy(alpha = 0.85f)
+    )
+}
+
+@Composable
+fun YansRestoreButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Pulihkan / Restore"
+) {
+    YansIconButton(
+        onClick = onClick,
+        imageVector = Icons.Outlined.Restore,
+        modifier = modifier,
+        contentDescription = contentDescription,
+        tint = HighlightSoftCyan,
+        borderColor = HighlightSoftCyan.copy(alpha = 0.5f),
+        containerColor = HighlightSoftCyan.copy(alpha = 0.12f)
+    )
+}
+
+// ==========================================
 // TOP APP BARS & SEARCH BARS
 // ==========================================
 
@@ -679,9 +852,11 @@ fun YansTopAppBar(
                     Text(
                         text = title,
                         color = AgedGold,
-                        fontSize = 17.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.5.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                     if (!subtitle.isNullOrBlank()) {
                         Text(
@@ -689,7 +864,9 @@ fun YansTopAppBar(
                             color = HighlightSoftCyan.copy(alpha = 0.85f),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
-                            letterSpacing = 0.3.sp
+                            letterSpacing = 0.3.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                 }

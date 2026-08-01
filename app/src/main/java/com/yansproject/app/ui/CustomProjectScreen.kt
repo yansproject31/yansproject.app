@@ -27,6 +27,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yansproject.app.data.CustomProject
 import com.yansproject.app.data.IdrAccountingEngine
 import com.yansproject.app.data.SleeveType
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 
 // Exact Custom Project DNA color palettes as specified
@@ -60,42 +61,10 @@ fun CustomProjectScreen(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Column {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    "MANAJEMEN PROJECT CUSTOM",
-                                    color = LuxuryGold,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 15.sp,
-                                    letterSpacing = 0.5.sp
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(Brush.horizontalGradient(listOf(LuxuryGold.copy(alpha = 0.25f), Color(0x33D4AF37))))
-                                        .border(1.dp, LuxuryGold, RoundedCornerShape(20.dp))
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text(text = "PROJECT", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = LuxuryGold)
-                                }
-                            }
-                            Text(
-                                text = "Layanan Produksi Apparel & Custom Order",
-                                fontSize = 10.sp,
-                                color = Color(0xFFA0AEC0)
-                            )
-                        }
-                    },
-                    windowInsets = WindowInsets(0.dp),
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xEA051214)
-                    )
-                )
-                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
-            }
+            YansTopAppBar(
+                title = "MANAJEMEN PROJECT CUSTOM",
+                subtitle = "Layanan Produksi Apparel & Custom Order"
+            )
         },
         floatingActionButton = {
             FloatingActionButton(

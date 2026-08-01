@@ -32,7 +32,7 @@ import com.yansproject.app.ui.DocumentExporter
 import com.yansproject.app.ui.FormatUtils
 import com.yansproject.app.ui.MainViewModel
 import com.yansproject.app.ui.MemberCartItem
-import com.yansproject.app.ui.components.YansGlowingTextField
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -177,66 +177,25 @@ fun LuxuryCartScreen(
             .background(BackgroundShadowBlack),
         containerColor = BackgroundShadowBlack,
         topBar = {
-            Column {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(
-                                text = "YANSPROJECT.ID",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Black,
-                                color = AgedGold,
-                                letterSpacing = 1.5.sp
-                            )
-                            Text(
-                                text = if (checkedOutInvoiceNum != null) "PEMESANAN SUKSES" else "PREMIUM ERP CART",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = HighlightSoftCyan,
-                                letterSpacing = 1.sp
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier
-                                .padding(start = 8.dp, end = 8.dp)
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(CardDarkCard)
-                                .border(1.dp, BorderGrey, RoundedCornerShape(8.dp))
-                        ) {
-                            Icon(imageVector = Icons.Default.Close, contentDescription = "Tutup", tint = AgedGold)
-                        }
-                    },
-                    actions = {
-                        if (cart.isNotEmpty() && checkedOutInvoiceNum == null) {
-                            IconButton(
-                                onClick = { showClearConfirm = true },
-                                modifier = Modifier
-                                    .padding(end = 12.dp)
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0x1AE53935))
-                                    .border(1.dp, Color(0xFFE53935).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.DeleteSweep,
-                                    contentDescription = "Kosongkan",
-                                    tint = Color(0xFFE53935)
-                                )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = SurfaceDarkTeal,
-                        titleContentColor = Color.White
-                    ),
-                    modifier = Modifier.border(0.dp, Color.Transparent)
-                )
-                HorizontalDivider(color = BorderGrey, thickness = 1.dp)
-            }
+            YansTopAppBar(
+                title = "YANSPROJECT.ID",
+                subtitle = if (checkedOutInvoiceNum != null) "PEMESANAN SUKSES" else "PREMIUM ERP CART",
+                navigationIcon = {
+                    YansIconButton(
+                        onClick = onDismiss,
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Tutup"
+                    )
+                },
+                actions = {
+                    if (cart.isNotEmpty() && checkedOutInvoiceNum == null) {
+                        YansDeleteButton(
+                            onClick = { showClearConfirm = true },
+                            contentDescription = "Kosongkan Keranjang"
+                        )
+                    }
+                }
+            )
         },
         bottomBar = {
             if (checkedOutInvoiceNum == null && cart.isNotEmpty()) {
@@ -584,7 +543,7 @@ fun LuxuryCartScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Jelajahi katalog premium kami dan tambahkan item pesanan eksklusif untuk memulai checkout.",
+                                text = "Keranjang belanja Anda saat ini masih kosong.",
                                 fontSize = 12.sp,
                                 color = TextMuted,
                                 textAlign = TextAlign.Center,

@@ -218,7 +218,7 @@ fun DashboardMemberScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Sistem secara otomatis menyesuaikan katalog harga penawaran kaos, sablon, & custom series AJIBQOBUL berdasarkan level otorisasi akun Anda.",
+                            text = "Level otorisasi harga khusus dan kualifikasi diskon member.",
                             fontSize = 11.sp,
                             color = TextSecondary.copy(alpha = 0.8f)
                         )

@@ -222,17 +222,20 @@ fun MainScaffold(
                                             Box(
                                                 modifier = Modifier
                                                     .align(Alignment.TopEnd)
-                                                    .padding(top = 4.dp, end = 4.dp)
-                                                    .size(14.dp)
-                                                    .background(AlertRed, RoundedCornerShape(50))
-                                                    .border(0.8.dp, ShadowBlack, RoundedCornerShape(50)),
+                                                    .offset(x = 4.dp, y = (-4).dp)
+                                                    .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
+                                                    .background(AlertRed, RoundedCornerShape(100.dp))
+                                                    .border(0.8.dp, ShadowBlack, RoundedCornerShape(100.dp))
+                                                    .padding(horizontal = 4.dp, vertical = 1.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
                                                     text = if (unreadNotificationsCount > 99) "99+" else "$unreadNotificationsCount",
-                                                    fontSize = 7.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color.White
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = Color.White,
+                                                    maxLines = 1,
+                                                    softWrap = false
                                                 )
                                             }
                                         }

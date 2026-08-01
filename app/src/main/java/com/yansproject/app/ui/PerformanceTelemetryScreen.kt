@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yansproject.app.data.AppDatabase
 import com.yansproject.app.data.YansRoomDatabase
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -126,28 +127,10 @@ fun PerformanceTelemetryScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "PERFORMANCE TELEMETRY",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp,
-                        color = AgedGold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = AgedGold
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SecondaryShadowBlackTeal
-                )
+            YansTopAppBar(
+                title = "PERFORMANCE TELEMETRY",
+                subtitle = "Metrik Latensi, Memori & Diagnostik Realtime",
+                navigationIcon = { YansBackButton(onClick = onBack) }
             )
         },
         containerColor = BackgroundShadowBlack
@@ -285,7 +268,7 @@ fun PerformanceTelemetryScreen(
             // Diagnostic Footnotes
             item {
                 Text(
-                    text = "Layar telemetry diperbarui secara otomatis secara real-time demi efisiensi operasional. Seluruh kalkulasi performa berbasis benchmarking lokal perangkat keras.",
+                    text = "Telemetry diperbarui secara real-time berbasis benchmarking lokal perangkat.",
                     fontSize = 10.sp,
                     color = TextNonActive,
                     textAlign = TextAlign.Center,

@@ -3,6 +3,7 @@ package com.yansproject.app.ui
 import android.bluetooth.BluetoothDevice
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.yansproject.app.data.*
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import java.util.*
 import org.json.JSONArray
@@ -170,69 +172,28 @@ fun InvoiceDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            YansTopAppBar(
+                title = "FAKTUR INVOICE DETAIL",
+                subtitle = "YANSPROJECT.ID ERP SYSTEM",
+                navigationIcon = { YansBackButton(onClick = onBack) },
+                actions = {
+                    Surface(
+                        onClick = { showDocumentPreviewDialog = true },
+                        modifier = Modifier.size(40.dp).testTag("preview_doc_topbar_button"),
+                        shape = RoundedCornerShape(12.dp),
+                        color = SurfaceDarkTeal.copy(alpha = 0.85f),
+                        border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f))
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(AgedGold.copy(alpha = 0.15f))
-                                .border(0.8.dp, AgedGold.copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Outlined.ReceiptLong,
-                                contentDescription = null,
+                                imageVector = Icons.Outlined.Visibility,
+                                contentDescription = "Pratinjau Dokumen",
                                 tint = AgedGold,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-                        Column {
-                            Text(
-                                text = "FAKTUR INVOICE DETAIL",
-                                fontWeight = FontWeight.Black,
-                                color = AgedGold,
-                                fontSize = 15.sp,
-                                letterSpacing = 1.sp
-                            )
-                            Text(
-                                text = "YANSPROJECT.ID ERP SYSTEM",
-                                fontSize = 9.sp,
-                                color = HighlightSoftCyan,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.8.sp
-                            )
-                        }
                     }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Outlined.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = AgedGold
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { showDocumentPreviewDialog = true },
-                        modifier = Modifier.testTag("preview_doc_topbar_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Visibility,
-                            contentDescription = "Pratinjau Dokumen",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-                )
+                }
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -865,23 +826,7 @@ fun InvoiceDetailScreen(
                             onClick = {
                                 val clientPhoneFormatted = invoice.clientPhone.replace("+", "").replace("-", "").replace(" ", "")
                                 val waPhone = if (clientPhoneFormatted.startsWith("0")) "62" + clientPhoneFormatted.substring(1) else clientPhoneFormatted
-                                val sdf = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("id", "ID"))
-                                val shareMsg = """
-                                    *FAKTUR INVOICE OFFICIAL YANSPROJECT.ID*
-                                    ----------------------------------------
-                                    No. Invoice: ${invoice.invoiceNumber}
-                                    Klien: ${invoice.clientName}
-                                    Tanggal: ${sdf.format(java.util.Date(invoice.issueDate))}
-                                    Jatuh Tempo: ${sdf.format(java.util.Date(invoice.dueDate))}
-
-                                    *Total Tagihan:* ${FormatUtils.formatRupiah(invoice.totalAmount)}
-                                    *Sudah Dibayar:* ${FormatUtils.formatRupiah(currentPaidAmount)}
-                                    *Sisa Tagihan:* ${FormatUtils.formatRupiah(remainingBalance)}
-                                    *Status:* ${if (isTenor3Paid) "LUNAS (PAID)" else if (currentPaidAmount > 0) "DIBAYAR SEBAGIAN" else "BELUM LUNAS"}
-
-                                    Akad Jual-Beli (Ajib & Qobul) Sah, Halal & Terverifikasi Sistem ERP YANSPROJECT.ID.
-                                    Terima kasih atas kerja samanya.
-                                """.trimIndent()
+                                val shareMsg = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, invoiceItems)
 
                                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                                     data = android.net.Uri.parse("https://api.whatsapp.com/send?phone=$waPhone&text=${android.net.Uri.encode(shareMsg)}")

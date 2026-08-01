@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import com.yansproject.app.ui.theme.glassCard
 import com.yansproject.app.ui.theme.ambientGlow
@@ -42,30 +43,17 @@ fun AboutScreen(
         modifier = Modifier.fillMaxSize(),
         containerColor = BackgroundShadowBlack,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "TENTANG APLIKASI",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Black,
-                        color = AccentAgedGold
-                    )
-                },
+            YansTopAppBar(
+                title = "TENTANG APLIKASI",
+                subtitle = "Versi, Lisensi & Spesifikasi Sistem",
                 navigationIcon = {
-                    IconButton(onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onBack()
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SecondaryShadowBlackTeal
-                )
+                    YansBackButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onBack()
+                        }
+                    )
+                }
             )
         }
     ) { paddingValues ->

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yansproject.app.data.OperationalPemasukan
 import com.yansproject.app.data.OperationalPengeluaran
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -55,17 +56,10 @@ fun CashFlowScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            com.yansproject.app.ui.components.YansTopAppBar(
+            YansTopAppBar(
                 title = "BUKU KAS & MUTASI",
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Outlined.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = AgedGold
-                        )
-                    }
-                }
+                subtitle = "Aliran Arus Kas & Ringkasan Mutasi",
+                navigationIcon = { YansBackButton(onClick = onBack) }
             )
         },
         containerColor = Color(0x0A0A0A) // Shadow Black

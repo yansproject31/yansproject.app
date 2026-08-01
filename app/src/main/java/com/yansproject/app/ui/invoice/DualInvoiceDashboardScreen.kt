@@ -40,6 +40,7 @@ import com.yansproject.app.data.CustomProject
 import com.yansproject.app.data.IdrAccountingEngine
 import com.yansproject.app.data.Invoice
 import com.yansproject.app.ui.DualInvoiceManagerViewModel
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -107,30 +108,10 @@ fun DualInvoiceDashboardScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                windowInsets = WindowInsets(0.dp),
-                title = {
-                    Text(
-                        text = "YANSPROJECT.ID INVOICE HUB",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = AccentAgedGold,
-                            letterSpacing = 1.sp
-                        )
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = AccentAgedGold
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SecondaryShadowBlackTeal
-                )
+            YansTopAppBar(
+                title = "YANSPROJECT.ID INVOICE HUB",
+                subtitle = "Manajemen Faktur & Pelacakan Pembayaran Multi-Channel",
+                navigationIcon = { YansBackButton(onClick = onNavigateBack) }
             )
         },
         floatingActionButton = {

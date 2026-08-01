@@ -791,7 +791,7 @@ fun GlobalSearchDialog(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                      text = "Klik 'Populasi Data' di atas untuk mengunggah sample data YANSPROJECT.ID secara otomatis ke Cloud Firestore.",
+                      text = "Gunakan tombol 'Populasi Data' untuk inisialisasi data Firestore.",
                       color = TextMuted.copy(alpha = 0.7f),
                       fontSize = 11.sp,
                       textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -1021,10 +1021,12 @@ fun NotificationCenterDialog(
                   .padding(horizontal = 6.dp, vertical = 2.dp)
               ) {
                 Text(
-                  text = unreadCount.toString(),
+                  text = if (unreadCount > 99) "99+" else unreadCount.toString(),
                   fontSize = 10.sp,
                   fontWeight = FontWeight.Bold,
-                  color = Color.White
+                  color = Color.White,
+                  maxLines = 1,
+                  softWrap = false
                 )
               }
             }

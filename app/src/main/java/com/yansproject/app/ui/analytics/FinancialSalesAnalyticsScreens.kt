@@ -42,6 +42,7 @@ import com.yansproject.app.data.MasterVarianWarna
 import com.yansproject.app.data.OrderHistory
 import com.yansproject.app.data.StockItem
 import com.yansproject.app.ui.MainViewModel
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.calculateInvoicePaid
 import com.yansproject.app.ui.calculateInvoiceSisaPiutang
 import com.yansproject.app.ui.getEffectiveOrderPaid
@@ -221,52 +222,11 @@ fun AnalisisKeuanganGlobalScreen(
 
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    windowInsets = WindowInsets(0.dp),
-                    title = {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = "ANALISIS KEUANGAN GLOBAL",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White,
-                                    letterSpacing = 0.5.sp
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(Brush.horizontalGradient(listOf(AgedGold.copy(alpha = 0.25f), Color(0x33C6A15B))))
-                                        .border(1.dp, AgedGold, RoundedCornerShape(20.dp))
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text(text = "ANALISIS KEUANGAN", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
-                                }
-                            }
-                            Text(
-                                text = "Ringkasan Arus Kas & Laporan Keuangan",
-                                fontSize = 10.sp,
-                                color = Color(0xFFA0AEC0)
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(Color(0x22FFFFFF))
-                                .border(1.dp, Color(0x33FFFFFF), CircleShape)
-                                .size(36.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold, modifier = Modifier.size(18.dp))
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF051214))
-                )
-                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
-            }
+            YansTopAppBar(
+                title = "ANALISIS KEUANGAN GLOBAL",
+                subtitle = "Ringkasan Arus Kas & Laporan Keuangan",
+                navigationIcon = { YansBackButton(onClick = onBack) }
+            )
         },
         contentWindowInsets = WindowInsets(0.dp),
         containerColor = ShadowBlack
@@ -928,52 +888,11 @@ fun AnalisisPenjualanAjibqobulScreen(
 
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    windowInsets = WindowInsets(0.dp),
-                    title = {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = "ANALISIS PENJUALAN STOK AJIBQOBUL",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White,
-                                    letterSpacing = 0.5.sp
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(Brush.horizontalGradient(listOf(HighlightSoftCyan.copy(alpha = 0.25f), Color(0x33319795))))
-                                        .border(1.dp, HighlightSoftCyan, RoundedCornerShape(20.dp))
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text(text = "ANALISIS PENJUALAN", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = HighlightSoftCyan)
-                                }
-                            }
-                            Text(
-                                text = "Volume Penjualan & Distribusi Member",
-                                fontSize = 10.sp,
-                                color = Color(0xFFA0AEC0)
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(Color(0x22FFFFFF))
-                                .border(1.dp, Color(0x33FFFFFF), CircleShape)
-                                .size(36.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali", tint = AgedGold, modifier = Modifier.size(18.dp))
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF051214))
-                )
-                HorizontalDivider(color = Color(0x33319795), thickness = 1.dp)
-            }
+            YansTopAppBar(
+                title = "ANALISIS PENJUALAN STOK AJIBQOBUL",
+                subtitle = "Volume Penjualan & Distribusi Member",
+                navigationIcon = { YansBackButton(onClick = onBack) }
+            )
         },
         contentWindowInsets = WindowInsets(0.dp),
         containerColor = ShadowBlack

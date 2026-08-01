@@ -86,8 +86,10 @@ fun InvoiceScreen(
             }
     }
 
-    BackHandler(enabled = selectedInvoiceForDetail != null || selectedInvoiceForPayment != null || showAddSaleDialog) {
-        if (selectedInvoiceForDetail != null) {
+    BackHandler(enabled = selectedInvoiceForDetail != null || selectedInvoiceForPayment != null || showAddSaleDialog || invoiceToDelete != null) {
+        if (invoiceToDelete != null) {
+            invoiceToDelete = null
+        } else if (selectedInvoiceForDetail != null) {
             selectedInvoiceForDetail = null
         } else if (selectedInvoiceForPayment != null) {
             selectedInvoiceForPayment = null
@@ -306,7 +308,7 @@ fun InvoiceScreen(
                         EmptyStateView(
                             icon = Icons.AutoMirrored.Outlined.ReceiptLong,
                             title = "Belum Ada Invoice Tagihan",
-                            description = "Faktur pembayaran untuk penjualan katalog AJIBQOBUL dan pengerjaan project custom akan terbit otomatis dan dikelola di sini."
+                            description = "Belum ada faktur tagihan yang terdaftar dalam sistem."
                         )
                     }
                 } else {
@@ -1608,40 +1610,7 @@ fun InvoiceDetailDialog(
                     Button(
                         onClick = {
                             if (invoice.clientPhone.trim().length >= 9) {
-                                val textItems = invoiceItems.filter { !it.description.startsWith("__") }
-                                val addressLine = if (currentAddress.isNotBlank()) "Alamat: $currentAddress\n" else ""
-                                val noteLine = if (currentNote.isNotBlank()) "Catatan: $currentNote\n" else ""
-                                val bankName = AppSettings.getBankName(context)
-                                val bankAcc = AppSettings.getAccountNumber(context)
-                                val bankHolder = AppSettings.getAccountHolder(context)
-                                val paymentInfo = if (bankAcc.isNotEmpty()) {
-                                    "\n*Rekening Pembayaran:*\nBank: $bankName\nNo. Rekening: $bankAcc\nA/N: $bankHolder\n"
-                                } else {
-                                    ""
-                                }
-                                val shareMessage = """
-                                    *YANSPROJECT.ID - INVOICE RESMI*
-                                    ------------------------------------------
-                                    No. Invoice: ${invoice.invoiceNumber}
-                                    Tanggal: ${FormatUtils.formatDate(invoice.issueDate)}
-                                    Customer: ${invoice.clientName}
-                                    WhatsApp: ${invoice.clientPhone}
-                                    ${addressLine}Status: ${invoice.status}
-                                    
-                                    *Rincian Pesanan:*
-                                    ${textItems.joinToString("\n") { "- ${it.description} (${it.quantity} Pcs) @ ${FormatUtils.formatRupiah(it.price)}" }}
-                                    
-                                    *Ringkasan Pembayaran:*
-                                    Subtotal: ${FormatUtils.formatRupiah(invoice.totalAmount + invoice.discount)}
-                                    Diskon: -${FormatUtils.formatRupiah(invoice.discount)}
-                                    Uang Muka (DP): ${FormatUtils.formatRupiah(invoice.dpAmount)}
-                                    Sisa Tagihan: ${FormatUtils.formatRupiah(invoice.remainingPayment)}
-                                    ------------------------------------------
-                                    *GRAND TOTAL: ${FormatUtils.formatRupiah(invoice.totalAmount)}*
-                                    ${paymentInfo}
-                                    ${noteLine}
-                                    Hatur Tengkyu atas kepercayaan Anda pada YANSPROJECT.ID!
-                                """.trimIndent().replace("\n\n\n", "\n\n")
+                                val shareMessage = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, invoiceItems)
 
                                 val formattedPhone = invoice.clientPhone.replace("+", "").replace(" ", "").replace("-", "")
                                 val whatsappPhone = if (formattedPhone.startsWith("0")) "62" + formattedPhone.substring(1) else formattedPhone
@@ -1824,27 +1793,17 @@ fun InvoiceDetailDialog(
     }
 
     if (showCancelConfirm) {
-        AlertDialog(
-            onDismissRequest = { showCancelConfirm = false },
-            title = { Text("Konfirmasi Batalkan Invoice", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
-            text = { Text("Apakah Anda yakin ingin membatalkan Invoice ini? Semua stock pakaian yang berkaitan akan dikembalikan otomatis ke database, dan status invoice diubah menjadi BATAL.", color = TextLight, fontSize = 13.sp) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onCancelInvoice(invoice.id)
-                        showCancelConfirm = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
-                ) {
-                    Text("Ya, Batalkan", fontWeight = FontWeight.Bold)
-                }
+        YansConfirmDialog(
+            title = "Konfirmasi Batalkan Invoice",
+            message = "Apakah Anda yakin ingin membatalkan Invoice ini? Semua stock pakaian yang berkaitan akan dikembalikan otomatis ke database, dan status invoice diubah menjadi BATAL.",
+            onConfirm = {
+                onCancelInvoice(invoice.id)
+                showCancelConfirm = false
             },
-            dismissButton = {
-                TextButton(onClick = { showCancelConfirm = false }, colors = ButtonDefaults.textButtonColors(contentColor = TextMuted)) {
-                    Text("Batal")
-                }
-            },
-            containerColor = CardGrey
+            onDismiss = { showCancelConfirm = false },
+            confirmText = "Ya, Batalkan",
+            dismissText = "Batal",
+            isDanger = true
         )
     }
 
@@ -1890,6 +1849,9 @@ fun InvoiceDetailDialog(
 
         AlertDialog(
             onDismissRequest = { showAddPaymentDialog = false },
+            containerColor = SurfaceDarkTealSurface,
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.border(1.dp, AgedGold.copy(alpha = 0.4f), RoundedCornerShape(20.dp)),
             title = { Text("Tambah Pembayaran", color = AgedGold, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
             text = {
                 Column(
@@ -2064,8 +2026,7 @@ fun InvoiceDetailDialog(
                 TextButton(onClick = { showAddPaymentDialog = false }) {
                     Text("Batal", color = TextLight)
                 }
-            },
-            containerColor = CardGrey
+            }
         )
     }
 
@@ -2451,6 +2412,9 @@ fun EditAdminNoteDialog(
     var noteText by remember { mutableStateOf(initialNote) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = SurfaceDarkTealSurface,
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.border(1.dp, AgedGold.copy(alpha = 0.4f), RoundedCornerShape(20.dp)),
         title = { Text("Edit Catatan Admin", color = AgedGold, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2484,8 +2448,7 @@ fun EditAdminNoteDialog(
                 Text("Batal")
             }
         },
-        properties = DialogProperties(dismissOnClickOutside = false),
-        containerColor = CardGrey
+        properties = DialogProperties(dismissOnClickOutside = false)
     )
 }
 
@@ -2504,6 +2467,9 @@ fun PaymentInputDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = SurfaceDarkTealSurface,
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.border(1.dp, AgedGold.copy(alpha = 0.4f), RoundedCornerShape(20.dp)),
         title = {
             Text(
                 text = if (isDP) "Input Uang Muka (DP)" else "Konfirmasi Pelunasan",
@@ -2598,8 +2564,7 @@ fun PaymentInputDialog(
                 Text("Batal")
             }
         },
-        properties = DialogProperties(dismissOnClickOutside = false),
-        containerColor = CardGrey
+        properties = DialogProperties(dismissOnClickOutside = false)
     )
 }
 
@@ -2972,7 +2937,7 @@ fun AddSaleDialog(
                                         fontSize = 11.sp
                                     )
                                 } else {
-                                    Text(text = "Series Catalog (Master Catalog DB):", fontSize = 11.sp, color = TextMuted)
+                                    Text(text = "Series Catalog:", fontSize = 11.sp, color = TextMuted)
                                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         items(activeCatalogs) { cat ->
                                             val isSel = cat.id_catalog == selectedCatalog?.id_catalog

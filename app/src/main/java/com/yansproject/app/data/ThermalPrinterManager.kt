@@ -7,6 +7,9 @@ import android.content.Context
 import android.util.Log
 import java.io.OutputStream
 import java.nio.charset.Charset
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 class ThermalPrinterManager(private val context: Context) {
@@ -51,7 +54,7 @@ class ThermalPrinterManager(private val context: Context) {
     }
 
     /**
-     * Establishes RFCOMM connection and sendscompiled ESC/POS receipt data bytes.
+     * Establishes RFCOMM connection and sends compiled ESC/POS receipt data bytes.
      */
     fun printReceipt(device: BluetoothDevice, invoice: OperationalInvoice, items: List<InvoiceItemDetail>): Boolean {
         var socket: BluetoothSocket? = null
@@ -80,7 +83,7 @@ class ThermalPrinterManager(private val context: Context) {
     }
 
     /**
-     * Compiles raw invoice data into structured printer-ready byte sequences (formatted with header, divider lines, product tables, and qr footer).
+     * Compiles raw invoice data into structured printer-ready byte sequences formatted with YANSPROJECT.ID Brand DNA.
      */
     private fun compileReceiptBytes(invoice: OperationalInvoice, items: List<InvoiceItemDetail>): ByteArray {
         val bytes = mutableListOf<Byte>()
@@ -101,61 +104,69 @@ class ThermalPrinterManager(private val context: Context) {
         addBytes(ESC_BOLD_ON)
         addBytes(ESC_DOUBLE_HEIGHT_ON)
         addString("YANSPROJECT.ID\n")
-        addBytes(ESC_DOUBLE_HEIGHT_ON.plus(ESC_DOUBLE_WIDTH_ON))
         addBytes(ESC_FONT_NORMAL)
         addBytes(ESC_BOLD_OFF)
-        addString("Premium Konveksi & Digital Store\n")
+        addString("Specialist Apparel & Digital Store\n")
+        addString("Makna Sebelum Estetika\n")
+        addString("CS WA: +62 877-7739-8813\n")
         addString("================================\n")
 
         // Metadata - Left aligned
         addBytes(ESC_ALIGN_LEFT)
-        addString("Invoice: ${invoice.invoiceNumber}\n")
-        addString("Tanggal: ${formatDate(invoice.issueDate)}\n")
-        addString("Client : ${invoice.clientName}\n")
-        addString("Hp     : ${invoice.clientPhone}\n")
+        addString("No. Invoice: ${invoice.invoiceNumber}\n")
+        addString("Tanggal    : ${formatDate(invoice.issueDate)}\n")
+        addString("Pelanggan  : ${invoice.clientName}\n")
+        val phoneStr = if (invoice.clientPhone.isNotBlank()) invoice.clientPhone else "-"
+        addString("WhatsApp   : $phoneStr\n")
         addString("--------------------------------\n")
 
         // Product Table Header
         addBytes(ESC_BOLD_ON)
         // 32 chars width (for 58mm printer)
         // Name (16 chars), Qty (4 chars), Price (12 chars)
-        addString(padString("Item Description", 16) + padString("Qty", 4) + padString("Price", 12) + "\n")
+        addString(padString("Item Deskripsi", 16) + padString("Qty", 4) + padString("Harga (Rp)", 12) + "\n")
         addBytes(ESC_BOLD_OFF)
         addString("--------------------------------\n")
 
         // Product Rows
-        for (item in items) {
-            val namePart = if (item.description.length > 15) item.description.substring(0, 15) else item.description
-            val qtyStr = item.quantity.toString()
-            val formattedPrice = formatCompactRupiah(item.price)
-            addString(padString(namePart, 16) + padString(qtyStr, 4) + padString(formattedPrice, 12) + "\n")
+        val filteredItems = com.yansproject.app.ui.InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
+        if (filteredItems.isEmpty()) {
+            addString(padString("Custom Project", 16) + padString("1", 4) + padString(formatCompactRupiah(invoice.totalAmount), 12) + "\n")
+        } else {
+            for (item in filteredItems) {
+                val namePart = if (item.description.length > 15) item.description.substring(0, 15) else item.description
+                val qtyStr = item.quantity.toString()
+                val formattedPrice = formatCompactRupiah(item.price)
+                addString(padString(namePart, 16) + padString(qtyStr, 4) + padString(formattedPrice, 12) + "\n")
+            }
         }
         addString("--------------------------------\n")
 
         // Financial Totals - Right Aligned
         addBytes(ESC_ALIGN_RIGHT)
-        addString("Total Belanja: " + formatCompactRupiah(invoice.totalAmount) + "\n")
+        addString("Total Belanja : " + formatCompactRupiah(invoice.totalAmount) + "\n")
         if (invoice.discount > 0) {
-            addString("Diskon       : -" + formatCompactRupiah(invoice.discount) + "\n")
+            addString("Potongan Diskon: -" + formatCompactRupiah(invoice.discount) + "\n")
         }
         if (invoice.dpAmount > 0) {
-            addString("Uang Muka/DP : " + formatCompactRupiah(invoice.dpAmount) + "\n")
+            addString("Uang Muka (DP) : " + formatCompactRupiah(invoice.dpAmount) + "\n")
         }
+        addString("Total Terbayar: " + formatCompactRupiah(invoice.paidAmount) + "\n")
+
+        val remaining = (invoice.totalAmount - invoice.paidAmount - invoice.discount).coerceAtLeast(0.0)
         addBytes(ESC_BOLD_ON)
-        addString("Total Bayar  : " + formatCompactRupiah(invoice.paidAmount) + "\n")
-        addString("Sisa Tagihan : " + formatCompactRupiah(invoice.remainingBalance) + "\n")
+        addString("SISA TAGIHAN  : " + formatCompactRupiah(remaining) + "\n")
         addBytes(ESC_BOLD_OFF)
         addString("================================\n")
 
-        // Footer & QR Placeholder text
+        // Akad Syar'i Footer (Center Aligned)
         addBytes(ESC_ALIGN_CENTER)
-        addString("Terima Kasih Atas Akad Syahdu Anda\n")
-        addString("Layanan CS WhatsApp: 6281229995511\n")
-        addString("Scan untuk cek status online:\n")
-        
-        // Custom biner QR Code sequence simulation (standard printer command for paper.id validation link)
+        addString("Akad Jual-Beli (Ajib & Qobul) Sah,\n")
+        addString("Halal & Terverifikasi YANSPROJECT.ID\n")
+        addString("Hatur Tengkyu Atas Kepercayaan Anda!\n\n")
+
         val trackingUrl = "https://yansproject.id/verify/${invoice.invoiceNumber}"
-        addString("\n$trackingUrl\n\n")
+        addString("$trackingUrl\n\n")
 
         // Feed paper
         addString("\n\n\n")
@@ -173,10 +184,10 @@ class ThermalPrinterManager(private val context: Context) {
     }
 
     private fun formatDate(timestamp: Long): String {
-        return java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(timestamp))
+        return SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("id", "ID")).format(Date(timestamp))
     }
 
     private fun formatCompactRupiah(amount: Double): String {
-        return "Rp" + String.format(java.util.Locale.US, "%,.0f", amount).replace(",", ".")
+        return "Rp " + String.format(Locale.US, "%,.0f", amount).replace(",", ".")
     }
 }

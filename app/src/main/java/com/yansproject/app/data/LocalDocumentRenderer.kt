@@ -8,14 +8,50 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import androidx.core.content.ContextCompat
+import com.yansproject.app.R
+import com.yansproject.app.ui.FormatUtils
+import com.yansproject.app.ui.InvoiceItemSorter
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
+/**
+ * LocalDocumentRenderer: Master PDF & HD PNG Invoice Rendering Engine for YANSPROJECT.ID.
+ * Implements high-resolution vector logo rendering, exact Color DNA, structured matrix layouts,
+ * Akad Syar'i contracts, and dual verification stamps.
+ */
 class LocalDocumentRenderer(private val context: Context) {
 
+    private fun drawHdLogo(canvas: Canvas, left: Float, top: Float, right: Float, bottom: Float) {
+        try {
+            val drawable = ContextCompat.getDrawable(context, R.drawable.ic_logo)
+            if (drawable != null) {
+                drawable.setBounds(left.toInt(), top.toInt(), right.toInt(), bottom.toInt())
+                drawable.draw(canvas)
+            } else {
+                drawFallbackEmblem(canvas, left, top, right, bottom)
+            }
+        } catch (e: Exception) {
+            drawFallbackEmblem(canvas, left, top, right, bottom)
+        }
+    }
+
+    private fun drawFallbackEmblem(canvas: Canvas, left: Float, top: Float, right: Float, bottom: Float) {
+        val paint = Paint().apply {
+            isAntiAlias = true
+            color = Color.parseColor("#C6A15B")
+            style = Paint.Style.STROKE
+            strokeWidth = 3f
+        }
+        canvas.drawRoundRect(left, top, right, bottom, 12f, 12f, paint)
+    }
+
     /**
-     * Renders an invoice into a native PDF A4 document (595x842 postscript points) with YANSPROJECT.ID Premium Luxury DNA.
+     * Renders an invoice into a native PDF A4 document (595x842 postscript points) with YANSPROJECT.ID Brand DNA.
      */
     fun generateInvoicePdf(
         invoice: OperationalInvoice,
@@ -27,215 +63,242 @@ class LocalDocumentRenderer(private val context: Context) {
         val canvas = page.canvas
 
         try {
-            val paint = Paint()
-            paint.isAntiAlias = true
+            val paint = Paint().apply { isAntiAlias = true }
 
-            // 1. Header & Title Banner (Dark Teal + Gold Accent)
+            // Clean White Background for Physical Print Efficiency
+            canvas.drawColor(Color.WHITE)
+
+            // 1. Header & Title Banner (Primary Dark Teal + Aged Gold Accent)
             paint.color = Color.parseColor("#0F3D3E") // Primary Dark Teal
-            canvas.drawRect(0f, 0f, 595f, 125f, paint)
+            canvas.drawRect(0f, 0f, 595f, 115f, paint)
 
             // Gold accent strip at bottom of header
             paint.color = Color.parseColor("#C6A15B") // Aged Gold
-            canvas.drawRect(0f, 120f, 595f, 125f, paint)
+            canvas.drawRect(0f, 110f, 595f, 115f, paint)
 
-            // Logo & Title
+            // Draw HD Vector Logo
+            drawHdLogo(canvas, 35f, 20f, 95f, 80f)
+
+            // Logo Title & Taglines
             paint.color = Color.parseColor("#C6A15B") // Accent Gold
-            paint.textSize = 24f
+            paint.textSize = 20f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("YANSPROJECT.ID", 40f, 48f, paint)
+            canvas.drawText("YANSPROJECT.ID", 105f, 42f, paint)
 
             paint.color = Color.WHITE
-            paint.textSize = 11f
+            paint.textSize = 9.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            canvas.drawText("MAKNA SEBELUM ESTETIKA", 40f, 70f, paint)
+            canvas.drawText("Specialist Apparel, Custom Screen Printing & Digital Ecosystem", 105f, 58f, paint)
 
             paint.color = Color.parseColor("#4FD1C5") // Soft Cyan
-            paint.textSize = 9.5f
-            canvas.drawText("Email: yansart31@gmail.com | WhatsApp Support: +62 87777-3988-13", 40f, 88f, paint)
-            canvas.drawText("Sistem Informasi ERP & Manajemen Operasional Terintegrasi", 40f, 104f, paint)
+            paint.textSize = 8.5f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.ITALIC)
+            canvas.drawText("MAKNA SEBELUM ESTETIKA", 105f, 72f, paint)
 
-            // Right side Header Badge: FAKTUR INVOICE
+            paint.color = Color.parseColor("#E0E0E0")
+            paint.textSize = 8f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            canvas.drawText("WA Support: +62 877-7739-8813 | Email: yansart31@gmail.com", 105f, 88f, paint)
+
+            // Right side Header Badge: FAKTUR INVOICE RESMI
             paint.color = Color.parseColor("#112B2C")
-            canvas.drawRoundRect(410f, 25f, 555f, 95f, 12f, 12f, paint)
+            canvas.drawRoundRect(410f, 20f, 555f, 90f, 10f, 10f, paint)
 
             paint.color = Color.parseColor("#C6A15B")
-            paint.textSize = 12f
+            paint.textSize = 11f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("FAKTUR INVOICE", 425f, 50f, paint)
+            canvas.drawText("FAKTUR INVOICE", 425f, 42f, paint)
 
             val remaining = (invoice.totalAmount - invoice.paidAmount - invoice.discount).coerceAtLeast(0.0)
             val isPaid = remaining <= 0
-            paint.color = if (isPaid) Color.parseColor("#4FD1C5") else Color.parseColor("#E53935")
-            paint.textSize = 10f
-            val statusText = if (isPaid) "LUNAS" else if (invoice.paidAmount > 0) "DIBAYAR SEBAGIAN" else "BELUM LUNAS"
-            canvas.drawText("[$statusText]", 425f, 72f, paint)
+            paint.color = if (isPaid) Color.parseColor("#2E7D32") else if (invoice.paidAmount > 0) Color.parseColor("#EF6C00") else Color.parseColor("#C62828")
+            paint.textSize = 9.5f
+            val statusText = if (isPaid) "[ LUNAS ]" else if (invoice.paidAmount > 0) "[ DIBAYAR SEBAGIAN ]" else "[ BELUM LUNAS ]"
+            canvas.drawText(statusText, 425f, 65f, paint)
 
-            // 2. Invoice Meta Details & Client Box
-            val metaY = 155f
-            paint.color = Color.parseColor("#163536") // Dark Card
-            canvas.drawRoundRect(40f, 140f, 555f, 225f, 10f, 10f, paint)
-
-            // Subtle Security Watermark (A4)
+            // 2. Subtle Security Watermark (A4)
             canvas.save()
             canvas.rotate(-30f, 297.5f, 480f)
             paint.style = Paint.Style.FILL
             paint.color = Color.parseColor("#0F3D3E")
-            paint.alpha = 18 // ~7% subtle opacity
-            paint.textSize = 42f
+            paint.alpha = 16 // ~6% subtle opacity
+            paint.textSize = 40f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             canvas.drawText("YANSPROJECT.ID", 130f, 470f, paint)
 
             paint.textSize = 12f
             paint.color = Color.parseColor("#C6A15B")
-            paint.alpha = 24 // ~9% opacity
+            paint.alpha = 20
             canvas.drawText("OFFICIAL E-INVOICE • BY YANSPROJECT.ID", 115f, 492f, paint)
             canvas.restore()
 
-            // Left Meta
-            paint.color = Color.parseColor("#C6A15B")
-            paint.textSize = 10f
-            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("NO. INVOICE  :", 55f, 162f, paint)
-            canvas.drawText("TANGGAL      :", 55f, 182f, paint)
-            canvas.drawText("JATUH TEMPO  :", 55f, 202f, paint)
+            // 3. Invoice Meta Details & Client Card Box
+            val cardTop = 130f
+            val cardBottom = 210f
+            paint.color = Color.parseColor("#F4F7F6") // Soft surface gray
+            canvas.drawRoundRect(40f, cardTop, 555f, cardBottom, 8f, 8f, paint)
 
-            paint.color = Color.WHITE
-            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            canvas.drawText(invoice.invoiceNumber, 145f, 162f, paint)
-            canvas.drawText(formatDate(invoice.issueDate), 145f, 182f, paint)
-            canvas.drawText(formatDate(invoice.dueDate), 145f, 202f, paint)
-
-            // Right Client
-            paint.color = Color.parseColor("#C6A15B")
-            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("DITUJUKAN KEPADA:", 340f, 162f, paint)
-
-            paint.color = Color.WHITE
-            paint.textSize = 12f
-            canvas.drawText(invoice.clientName, 340f, 182f, paint)
-
-            paint.color = Color.parseColor("#A0A0A0")
-            paint.textSize = 10f
-            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            val phoneText = if (invoice.clientPhone.isNotBlank()) "HP: ${invoice.clientPhone}" else "Klien Terverifikasi YANSPROJECT.ID"
-            canvas.drawText(phoneText, 340f, 202f, paint)
-
-            // 3. Table Header
-            val tableHeadY = 245f
             paint.color = Color.parseColor("#0F3D3E")
-            canvas.drawRect(40f, tableHeadY, 555f, tableHeadY + 25f, paint)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1f
+            canvas.drawRoundRect(40f, cardTop, 555f, cardBottom, 8f, 8f, paint)
+
+            paint.style = Paint.Style.FILL
+
+            // Left Meta Info
+            paint.color = Color.parseColor("#0F3D3E")
+            paint.textSize = 9.5f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            canvas.drawText("NO. INVOICE  :", 55f, cardTop + 22f, paint)
+            canvas.drawText("TANGGAL      :", 55f, cardTop + 42f, paint)
+            canvas.drawText("JATUH TEMPO  :", 55f, cardTop + 62f, paint)
+
+            paint.color = Color.parseColor("#222222")
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            canvas.drawText(invoice.invoiceNumber, 145f, cardTop + 22f, paint)
+            canvas.drawText(formatDate(invoice.issueDate), 145f, cardTop + 42f, paint)
+            canvas.drawText(formatDate(invoice.dueDate), 145f, cardTop + 62f, paint)
+
+            // Right Client Info
+            paint.color = Color.parseColor("#0F3D3E")
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            canvas.drawText("DITUJUKAN KEPADA:", 320f, cardTop + 22f, paint)
+
+            paint.color = Color.parseColor("#111111")
+            paint.textSize = 11f
+            canvas.drawText(invoice.clientName, 320f, cardTop + 42f, paint)
+
+            paint.color = Color.parseColor("#555555")
+            paint.textSize = 9.5f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            val phoneText = if (invoice.clientPhone.isNotBlank()) "HP/WA: ${invoice.clientPhone}" else "Pelanggan Terverifikasi YANSPROJECT.ID"
+            canvas.drawText(phoneText, 320f, cardTop + 62f, paint)
+
+            // 4. Table Header
+            val tableHeadY = 230f
+            paint.color = Color.parseColor("#0F3D3E")
+            canvas.drawRect(40f, tableHeadY, 555f, tableHeadY + 24f, paint)
 
             paint.color = Color.parseColor("#C6A15B")
-            paint.textSize = 10f
+            paint.textSize = 9.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("NO", 50f, tableHeadY + 17f, paint)
-            canvas.drawText("DESKRIPSI PESANAN", 80f, tableHeadY + 17f, paint)
-            canvas.drawText("QTY", 330f, tableHeadY + 17f, paint)
-            canvas.drawText("HARGA (RP)", 385f, tableHeadY + 17f, paint)
-            canvas.drawText("SUBTOTAL (RP)", 470f, tableHeadY + 17f, paint)
+            canvas.drawText("NO", 50f, tableHeadY + 16f, paint)
+            canvas.drawText("DESKRIPSI PESANAN / ARTIKEL", 80f, tableHeadY + 16f, paint)
+            canvas.drawText("QTY", 330f, tableHeadY + 16f, paint)
+            canvas.drawText("HARGA (RP)", 385f, tableHeadY + 16f, paint)
+            canvas.drawText("SUBTOTAL (RP)", 470f, tableHeadY + 16f, paint)
 
-            // 4. Drawing Items List
-            var currentY = tableHeadY + 45f
-            paint.color = Color.BLACK
-            paint.textSize = 10f
+            // 5. Drawing Items List
+            var currentY = tableHeadY + 40f
+            val filteredItems = InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
 
-            com.yansproject.app.ui.InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") }).forEachIndexed { idx, item ->
+            if (filteredItems.isEmpty()) {
+                paint.color = Color.parseColor("#333333")
                 paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-                paint.color = Color.parseColor("#222222")
-                canvas.drawText("${idx + 1}", 50f, currentY, paint)
+                canvas.drawText("1", 50f, currentY, paint)
+                canvas.drawText("Pesanan Custom Project - ${invoice.clientName}", 80f, currentY, paint)
+                canvas.drawText("1", 335f, currentY, paint)
+                canvas.drawText(formatCompactPrice(invoice.totalAmount), 385f, currentY, paint)
+                canvas.drawText(formatCompactPrice(invoice.totalAmount), 470f, currentY, paint)
+                currentY += 25f
+            } else {
+                filteredItems.forEachIndexed { idx, item ->
+                    paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+                    paint.color = Color.parseColor("#222222")
+                    canvas.drawText("${idx + 1}", 50f, currentY, paint)
 
-                // Truncate desc if too long
-                var desc = item.description
-                if (desc.length > 42) desc = desc.substring(0, 39) + "..."
-                canvas.drawText(desc, 80f, currentY, paint)
+                    var desc = item.description
+                    if (desc.length > 40) desc = desc.substring(0, 37) + "..."
+                    canvas.drawText(desc, 80f, currentY, paint)
 
-                canvas.drawText("${item.quantity}", 335f, currentY, paint)
-                canvas.drawText(formatCompactPrice(item.price), 385f, currentY, paint)
+                    canvas.drawText("${item.quantity}", 335f, currentY, paint)
+                    canvas.drawText(formatCompactPrice(item.price), 385f, currentY, paint)
 
-                val subtotal = item.price * item.quantity
-                paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-                canvas.drawText(formatCompactPrice(subtotal), 470f, currentY, paint)
+                    val subtotal = item.price * item.quantity
+                    paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                    canvas.drawText(formatCompactPrice(subtotal), 470f, currentY, paint)
 
-                currentY += 12f
-                paint.color = Color.parseColor("#E0E0E0")
-                paint.strokeWidth = 0.8f
-                canvas.drawLine(40f, currentY, 555f, currentY, paint)
-                currentY += 22f
+                    currentY += 10f
+                    paint.color = Color.parseColor("#E0E0E0")
+                    paint.strokeWidth = 0.8f
+                    canvas.drawLine(40f, currentY, 555f, currentY, paint)
+                    currentY += 22f
+                }
             }
 
-            // 5. Financial Summary Section
+            // 6. Financial Summary Section
             currentY += 10f
             val summaryBoxTop = currentY
             paint.color = Color.parseColor("#F8F9FA")
-            canvas.drawRoundRect(300f, summaryBoxTop, 555f, summaryBoxTop + 95f, 8f, 8f, paint)
+            canvas.drawRoundRect(290f, summaryBoxTop, 555f, summaryBoxTop + 105f, 8f, 8f, paint)
 
             paint.color = Color.parseColor("#0F3D3E")
             paint.strokeWidth = 1f
             paint.style = Paint.Style.STROKE
-            canvas.drawRoundRect(300f, summaryBoxTop, 555f, summaryBoxTop + 95f, 8f, 8f, paint)
+            canvas.drawRoundRect(290f, summaryBoxTop, 555f, summaryBoxTop + 105f, 8f, 8f, paint)
 
             paint.style = Paint.Style.FILL
-            paint.textSize = 10f
+            paint.textSize = 9.5f
 
-            // Total Tagihan
+            // Subtotal
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             paint.color = Color.parseColor("#333333")
-            canvas.drawText("Total Tagihan :", 315f, summaryBoxTop + 22f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(invoice.totalAmount), 440f, summaryBoxTop + 22f, paint)
+            canvas.drawText("Total Tagihan :", 305f, summaryBoxTop + 22f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(invoice.totalAmount), 435f, summaryBoxTop + 22f, paint)
 
             // Diskon
             if (invoice.discount > 0) {
                 paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
                 paint.color = Color.parseColor("#888888")
-                canvas.drawText("Potongan Diskon :", 315f, summaryBoxTop + 40f, paint)
-                canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), 440f, summaryBoxTop + 40f, paint)
+                canvas.drawText("Potongan Diskon :", 305f, summaryBoxTop + 40f, paint)
+                canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), 435f, summaryBoxTop + 40f, paint)
             }
 
-            // Terbayar
+            // Uang Muka / Terbayar
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             paint.color = Color.parseColor("#2E7D32")
-            canvas.drawText("Jumlah Terbayar :", 315f, summaryBoxTop + 58f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), 440f, summaryBoxTop + 58f, paint)
+            canvas.drawText("Jumlah Terbayar :", 305f, summaryBoxTop + 58f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), 435f, summaryBoxTop + 58f, paint)
 
-            // Sisa Piutang
+            // Sisa Piutang / Pelunasan
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             paint.color = if (remaining > 0) Color.parseColor("#C62828") else Color.parseColor("#2E7D32")
-            canvas.drawText("Sisa Piutang   :", 315f, summaryBoxTop + 80f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(remaining), 440f, summaryBoxTop + 80f, paint)
+            canvas.drawText("SISA TAGIHAN  :", 305f, summaryBoxTop + 82f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(remaining), 435f, summaryBoxTop + 82f, paint)
 
-            // 6. Akad Syar'i & Legal Notice Footer
-            var footerY = summaryBoxTop + 130f
+            // 7. Akad Syar'i & Legal Notice Footer Box
+            var footerY = summaryBoxTop + 125f
             paint.color = Color.parseColor("#112B2C")
-            canvas.drawRoundRect(40f, footerY, 555f, footerY + 38f, 6f, 6f, paint)
+            canvas.drawRoundRect(40f, footerY, 555f, footerY + 42f, 6f, 6f, paint)
 
             paint.color = Color.parseColor("#C6A15B")
             paint.textSize = 8.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("HATUR TENGKYU", 50f, footerY + 15f, paint)
+            canvas.drawText("AKAD SYAR'I & KETERANGAN RESMI", 50f, footerY + 16f, paint)
 
             paint.color = Color.WHITE
-            paint.textSize = 8f
+            paint.textSize = 7.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.ITALIC)
-            canvas.drawText("Telah menjadi bagian perjalanan YANSPROJECT.ID.", 50f, footerY + 28f, paint)
+            canvas.drawText("Akad Jual-Beli (Ajib & Qobul) Sah, Halal & Terverifikasi Sistem ERP YANSPROJECT.ID.", 50f, footerY + 30f, paint)
 
-            // 7. Signatures
+            // 8. Signatures & Verification Stamp
             footerY += 60f
             paint.color = Color.parseColor("#333333")
-            paint.textSize = 10f
+            paint.textSize = 9.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             canvas.drawText("Admin YANSPROJECT.ID", 80f, footerY, paint)
             canvas.drawText("Pemesan / Klien", 420f, footerY, paint)
 
             paint.color = Color.GRAY
             paint.strokeWidth = 1f
-            canvas.drawLine(60f, footerY + 50f, 200f, footerY + 50f, paint)
-            canvas.drawLine(390f, footerY + 50f, 510f, footerY + 50f, paint)
+            canvas.drawLine(60f, footerY + 45f, 200f, footerY + 45f, paint)
+            canvas.drawLine(390f, footerY + 45f, 510f, footerY + 45f, paint)
 
             paint.color = Color.parseColor("#555555")
-            paint.textSize = 9f
+            paint.textSize = 8.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            canvas.drawText("( Sistem Terverifikasi )", 80f, footerY + 65f, paint)
-            canvas.drawText("( ${invoice.clientName} )", 410f, footerY + 65f, paint)
+            canvas.drawText("( Sistem Terverifikasi )", 80f, footerY + 58f, paint)
+            canvas.drawText("( ${invoice.clientName} )", 410f, footerY + 58f, paint)
 
             pdfDocument.finishPage(page)
 
@@ -273,36 +336,45 @@ class LocalDocumentRenderer(private val context: Context) {
         try {
             val paint = Paint().apply { isAntiAlias = true }
 
-            // Background: Deep Shadow Black
-            canvas.drawColor(Color.parseColor("#0A0A0A"))
+            // Background: Deep Shadow Carbon Black
+            canvas.drawColor(Color.parseColor("#0A0E10"))
 
             // Decorative Top Bar (Dark Teal + Aged Gold Strip)
             paint.color = Color.parseColor("#0F3D3E")
-            canvas.drawRect(0f, 0f, width.toFloat(), 220f, paint)
+            canvas.drawRect(0f, 0f, width.toFloat(), 230f, paint)
 
             paint.color = Color.parseColor("#C6A15B")
-            canvas.drawRect(0f, 212f, width.toFloat(), 220f, paint)
+            canvas.drawRect(0f, 222f, width.toFloat(), 230f, paint)
 
-            // Logo & Title
+            // Draw HD Vector Logo at Top Left
+            drawHdLogo(canvas, 60f, 40f, 180f, 160f)
+
+            // Brand Logo & Title Typography
             paint.color = Color.parseColor("#C6A15B")
-            paint.textSize = 46f
+            paint.textSize = 44f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("YANSPROJECT.ID", 60f, 90f, paint)
+            canvas.drawText("YANSPROJECT.ID", 200f, 95f, paint)
 
             paint.color = Color.WHITE
-            paint.textSize = 22f
+            paint.textSize = 20f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            canvas.drawText("MAKNA SEBELUM ESTETIKA", 60f, 135f, paint)
+            canvas.drawText("Specialist Apparel, Custom Screen Printing & Digital Ecosystem", 200f, 135f, paint)
 
             paint.color = Color.parseColor("#4FD1C5")
-            paint.textSize = 18f
-            canvas.drawText("Official E-Invoice YANSPROJECT.ID", 60f, 175f, paint)
+            paint.textSize = 17f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.ITALIC)
+            canvas.drawText("MAKNA SEBELUM ESTETIKA", 200f, 170f, paint)
 
-            // Card Container (Dark Card Surface with Gold Border)
-            val cardLeft = 50f
+            paint.color = Color.parseColor("#A0A0A0")
+            paint.textSize = 15f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            canvas.drawText("WA Support: +62 877-7739-8813 | Email: yansart31@gmail.com", 200f, 202f, paint)
+
+            // Main Card Surface Frame
+            val cardLeft = 45f
             val cardTop = 260f
-            val cardRight = width - 50f
-            val cardBottom = height - 120f
+            val cardRight = width - 45f
+            val cardBottom = height - 100f
 
             paint.color = Color.parseColor("#163536")
             canvas.drawRoundRect(cardLeft, cardTop, cardRight, cardBottom, 28f, 28f, paint)
@@ -314,50 +386,51 @@ class LocalDocumentRenderer(private val context: Context) {
 
             paint.style = Paint.Style.FILL
 
-            // Subtle Security Watermark (PNG HD)
+            // Security Watermark (PNG HD)
             canvas.save()
             canvas.rotate(-30f, 540f, 1000f)
             paint.color = Color.parseColor("#C6A15B")
-            paint.alpha = 20 // ~8% subtle opacity
-            paint.textSize = 72f
+            paint.alpha = 18 // ~7% subtle opacity
+            paint.textSize = 70f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             canvas.drawText("YANSPROJECT.ID", 220f, 980f, paint)
 
             paint.textSize = 22f
             paint.color = Color.parseColor("#4FD1C5")
-            paint.alpha = 28 // ~11% subtle opacity
+            paint.alpha = 26 // ~10% subtle opacity
             canvas.drawText("OFFICIAL E-INVOICE • BY YANSPROJECT.ID", 180f, 1020f, paint)
             canvas.restore()
 
-            // Invoice Header Inside Card
+            // Header Inside Card
             var curY = cardTop + 70f
 
             paint.color = Color.parseColor("#C6A15B")
             paint.textSize = 34f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("FAKTUR INVOICE DETAIL", cardLeft + 40f, curY, paint)
+            canvas.drawText("FAKTUR INVOICE RESMI", cardLeft + 40f, curY, paint)
 
             // Status Pill
             val remaining = (invoice.totalAmount - invoice.paidAmount - invoice.discount).coerceAtLeast(0.0)
             val isPaid = remaining <= 0
             val statusStr = if (isPaid) "LUNAS" else if (invoice.paidAmount > 0) "DIBAYAR SEBAGIAN" else "BELUM LUNAS"
-            val statusBg = if (isPaid) Color.parseColor("#1B4D3E") else Color.parseColor("#4A2A18")
-            val statusColor = if (isPaid) Color.parseColor("#4FD1C5") else Color.parseColor("#C6A15B")
+            val statusBg = if (isPaid) Color.parseColor("#1B4D3E") else if (invoice.paidAmount > 0) Color.parseColor("#5A3A10") else Color.parseColor("#4A1818")
+            val statusColor = if (isPaid) Color.parseColor("#4FD1C5") else if (invoice.paidAmount > 0) Color.parseColor("#FFC107") else Color.parseColor("#FF5252")
 
             paint.color = statusBg
-            canvas.drawRoundRect(cardRight - 320f, curY - 40f, cardRight - 40f, curY + 15f, 20f, 20f, paint)
+            canvas.drawRoundRect(cardRight - 340f, curY - 42f, cardRight - 40f, curY + 15f, 20f, 20f, paint)
 
             paint.color = statusColor
             paint.textSize = 20f
-            canvas.drawText(statusStr, cardRight - 300f, curY - 5f, paint)
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            canvas.drawText(statusStr, cardRight - 320f, curY - 5f, paint)
 
-            // Meta Info Grid
-            curY += 80f
+            // Meta Info Grid Box
+            curY += 60f
             paint.color = Color.parseColor("#112B2C")
             canvas.drawRoundRect(cardLeft + 30f, curY, cardRight - 30f, curY + 160f, 20f, 20f, paint)
 
             paint.color = Color.parseColor("#A0A0A0")
-            paint.textSize = 20f
+            paint.textSize = 19f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             canvas.drawText("NO. INVOICE", cardLeft + 60f, curY + 50f, paint)
             canvas.drawText("TANGGAL", cardLeft + 60f, curY + 95f, paint)
@@ -369,7 +442,7 @@ class LocalDocumentRenderer(private val context: Context) {
             canvas.drawText(": ${formatDate(invoice.issueDate)}", cardLeft + 230f, curY + 95f, paint)
             canvas.drawText(": ${formatDate(invoice.dueDate)}", cardLeft + 230f, curY + 135f, paint)
 
-            // Client Info
+            // Client Info Column
             canvas.drawText("PELANGGAN", cardLeft + 540f, curY + 50f, paint)
             paint.color = Color.parseColor("#C6A15B")
             canvas.drawText(invoice.clientName, cardLeft + 540f, curY + 95f, paint)
@@ -378,84 +451,105 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.textSize = 18f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             val phoneText = if (invoice.clientPhone.isNotBlank()) invoice.clientPhone else "-"
-            canvas.drawText("HP: $phoneText", cardLeft + 540f, curY + 135f, paint)
+            canvas.drawText("HP/WA: $phoneText", cardLeft + 540f, curY + 135f, paint)
 
-            // Items Section
+            // Items Table Section
             curY += 230f
             paint.color = Color.parseColor("#0F3D3E")
             canvas.drawRect(cardLeft + 30f, curY, cardRight - 30f, curY + 50f, paint)
 
             paint.color = Color.parseColor("#C6A15B")
-            paint.textSize = 20f
+            paint.textSize = 19f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("DESKRIPSI PESANAN", cardLeft + 50f, curY + 34f, paint)
+            canvas.drawText("DESKRIPSI PESANAN / ARTIKEL", cardLeft + 50f, curY + 34f, paint)
             canvas.drawText("QTY", cardLeft + 540f, curY + 34f, paint)
             canvas.drawText("HARGA", cardLeft + 640f, curY + 34f, paint)
             canvas.drawText("SUBTOTAL", cardLeft + 800f, curY + 34f, paint)
 
             curY += 80f
-            paint.color = Color.WHITE
-            paint.textSize = 20f
+            val filteredItems = InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
 
-            com.yansproject.app.ui.InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") }).take(12).forEachIndexed { idx, item ->
+            if (filteredItems.isEmpty()) {
                 paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
                 paint.color = Color.WHITE
-
-                var desc = item.description
-                if (desc.length > 30) desc = desc.substring(0, 27) + "..."
-                canvas.drawText(desc, cardLeft + 50f, curY, paint)
-
-                canvas.drawText("${item.quantity} Pcs", cardLeft + 540f, curY, paint)
-                canvas.drawText(formatCompactPrice(item.price), cardLeft + 640f, curY, paint)
-
-                val subtotal = item.price * item.quantity
-                paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                paint.textSize = 20f
+                canvas.drawText("Custom Project Order - ${invoice.clientName}", cardLeft + 50f, curY, paint)
+                canvas.drawText("1 Pcs", cardLeft + 540f, curY, paint)
+                canvas.drawText(formatCompactPrice(invoice.totalAmount), cardLeft + 640f, curY, paint)
                 paint.color = Color.parseColor("#4FD1C5")
-                canvas.drawText(formatCompactPrice(subtotal), cardLeft + 800f, curY, paint)
+                paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                canvas.drawText(formatCompactPrice(invoice.totalAmount), cardLeft + 800f, curY, paint)
+                curY += 65f
+            } else {
+                filteredItems.take(12).forEachIndexed { idx, item ->
+                    paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+                    paint.color = Color.WHITE
+                    paint.textSize = 20f
 
-                curY += 20f
-                paint.color = Color.parseColor("#2A4D4E")
-                paint.strokeWidth = 1f
-                canvas.drawLine(cardLeft + 30f, curY, cardRight - 30f, curY, paint)
-                curY += 45f
+                    var desc = item.description
+                    if (desc.length > 30) desc = desc.substring(0, 27) + "..."
+                    canvas.drawText(desc, cardLeft + 50f, curY, paint)
+
+                    canvas.drawText("${item.quantity} Pcs", cardLeft + 540f, curY, paint)
+                    canvas.drawText(formatCompactPrice(item.price), cardLeft + 640f, curY, paint)
+
+                    val subtotal = item.price * item.quantity
+                    paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                    paint.color = Color.parseColor("#4FD1C5")
+                    canvas.drawText(formatCompactPrice(subtotal), cardLeft + 800f, curY, paint)
+
+                    curY += 20f
+                    paint.color = Color.parseColor("#2A4D4E")
+                    paint.strokeWidth = 1f
+                    canvas.drawLine(cardLeft + 30f, curY, cardRight - 30f, curY, paint)
+                    curY += 45f
+                }
             }
 
-            // Totals Box
-            curY = cardBottom - 380f
+            // Totals Summary Box
+            curY = cardBottom - 420f
             paint.color = Color.parseColor("#0F3D3E")
-            canvas.drawRoundRect(cardLeft + 30f, curY, cardRight - 30f, curY + 220f, 20f, 20f, paint)
+            canvas.drawRoundRect(cardLeft + 30f, curY, cardRight - 30f, curY + 230f, 20f, 20f, paint)
 
             paint.color = Color.parseColor("#C6A15B")
-            paint.textSize = 22f
+            paint.textSize = 21f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("TOTAL TAGIHAN", cardLeft + 60f, curY + 50f, paint)
+            canvas.drawText("TOTAL BELANJA", cardLeft + 60f, curY + 50f, paint)
             canvas.drawText("Rp " + formatCompactPrice(invoice.totalAmount), cardRight - 380f, curY + 50f, paint)
 
             if (invoice.discount > 0) {
                 paint.color = Color.parseColor("#A0A0A0")
-                paint.textSize = 20f
+                paint.textSize = 19f
                 paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
                 canvas.drawText("Potongan Diskon", cardLeft + 60f, curY + 95f, paint)
                 canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), cardRight - 380f, curY + 95f, paint)
             }
 
             paint.color = Color.parseColor("#4FD1C5")
-            paint.textSize = 22f
+            paint.textSize = 21f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             canvas.drawText("Total Terbayar", cardLeft + 60f, curY + 140f, paint)
             canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), cardRight - 380f, curY + 140f, paint)
 
             paint.color = if (remaining > 0) Color.parseColor("#FF5252") else Color.parseColor("#4FD1C5")
-            paint.textSize = 24f
-            canvas.drawText("Sisa Piutang", cardLeft + 60f, curY + 190f, paint)
+            paint.textSize = 23f
+            canvas.drawText("SISA TAGIHAN", cardLeft + 60f, curY + 190f, paint)
             canvas.drawText("Rp " + formatCompactPrice(remaining), cardRight - 380f, curY + 190f, paint)
 
-            // Footer Legal
-            val footerY = cardBottom - 120f
+            // Akad Syar'i Box Footer
+            val footerY = cardBottom - 160f
+            paint.color = Color.parseColor("#112B2C")
+            canvas.drawRoundRect(cardLeft + 30f, footerY, cardRight - 30f, footerY + 110f, 16f, 16f, paint)
+
             paint.color = Color.parseColor("#C6A15B")
             paint.textSize = 18f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            canvas.drawText("AKAD SYAR'I & KETERANGAN RESMI", cardLeft + 50f, footerY + 40f, paint)
+
+            paint.color = Color.WHITE
+            paint.textSize = 16f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.ITALIC)
-            canvas.drawText("Hatur Tengkyu telah menjadi bagian perjalanan YASNPROJECT.ID", cardLeft + 40f, footerY, paint)
+            canvas.drawText("Akad Jual-Beli (Ajib & Qobul) Sah, Halal & Terverifikasi Sistem ERP YANSPROJECT.ID.", cardLeft + 50f, footerY + 75f, paint)
 
             return bitmap
         } catch (e: Exception) {
@@ -540,11 +634,10 @@ class LocalDocumentRenderer(private val context: Context) {
     }
 
     private fun formatDate(timestamp: Long): String {
-        return java.text.SimpleDateFormat("dd MMMM yyyy", java.util.Locale("id", "ID")).format(java.util.Date(timestamp))
+        return SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID")).format(Date(timestamp))
     }
 
     private fun formatCompactPrice(price: Double): String {
-        return String.format("%,.0f", price).replace(",", ".")
+        return String.format(Locale.US, "%,.0f", price).replace(",", ".")
     }
 }
-

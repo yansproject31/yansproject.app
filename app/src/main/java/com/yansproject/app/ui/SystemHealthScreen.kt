@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.yansproject.app.data.FirebaseSyncManager
+import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -127,31 +128,16 @@ fun SystemHealthScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                windowInsets = WindowInsets(0.dp),
-                title = {
-                    Text(
-                        text = "SYSTEM & API HEALTH",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = AgedGold,
-                        letterSpacing = 1.5.sp
-                    )
-                },
+            YansTopAppBar(
+                title = "SYSTEM & API HEALTH",
+                subtitle = "Status Server, Konektivitas Cloud & Firebase",
                 navigationIcon = {
-                    IconButton(onClick = {
+                    YansBackButton(onClick = {
                         if (!navController.popBackStack()) {
                             viewModel.setTab(AppTab.DASHBOARD)
                         }
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = AgedGold
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = ShadowBlack)
+                    })
+                }
             )
         }
     ) { paddingValues ->
