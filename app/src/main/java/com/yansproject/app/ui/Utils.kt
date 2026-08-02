@@ -22,38 +22,14 @@ import java.util.*
 import android.graphics.Typeface
 import androidx.compose.ui.text.font.FontFamily
 
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontWeight
-import com.yansproject.app.R
-
 object FontUtils {
     @Volatile
     private var cachedArabicFontFamily: FontFamily? = null
 
-    val DirectArabicFontFamily: FontFamily by lazy {
-        try {
-            FontFamily(
-                Font(R.font.scheherazade_bold, FontWeight.Normal),
-                Font(R.font.scheherazade_bold, FontWeight.Bold),
-                Font(R.font.scheherazade_bold, FontWeight.Medium),
-                Font(R.font.amiri_quran, FontWeight.Light),
-                Font(R.font.aref_ruqaa_bold, FontWeight.SemiBold)
-            )
-        } catch (_: Exception) {
-            FontFamily.Serif
-        }
-    }
-
-    fun getPremiumArabicFontFamily(context: Context? = null): FontFamily {
+    fun getPremiumArabicFontFamily(context: Context): FontFamily {
         cachedArabicFontFamily?.let { return it }
 
-        val font = DirectArabicFontFamily
-        if (font != FontFamily.Serif) {
-            cachedArabicFontFamily = font
-            return font
-        }
-
-        if (context != null) {
+        return try {
             val assetFontNames = listOf(
                 "fonts/scheherazade_bold.ttf",
                 "fonts/amiri_quran.ttf",
@@ -72,10 +48,10 @@ object FontUtils {
             val finalTf = selectedTf ?: Typeface.create(Typeface.SERIF, Typeface.BOLD)
             val fontFamily = FontFamily(finalTf)
             cachedArabicFontFamily = fontFamily
-            return fontFamily
+            fontFamily
+        } catch (_: Exception) {
+            FontFamily.Serif
         }
-
-        return DirectArabicFontFamily
     }
 }
 
