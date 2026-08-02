@@ -62,12 +62,12 @@ fun MainScaffold(
     val savedFileEvent by viewModel.savedFileEvent.collectAsStateWithLifecycle()
     val hideHeaderAndBottomBar = currentTab == AppTab.KITAB || currentTab == AppTab.SETTINGS
 
-    if (savedFileEvent != null) {
-        val event = savedFileEvent!!
+    val currentSavedFileEvent = savedFileEvent
+    if (currentSavedFileEvent != null) {
         com.yansproject.app.ui.components.FileSavedSuccessDialog(
-            file = event.file,
-            folder = event.folder,
-            title = event.title,
+            file = currentSavedFileEvent.file,
+            folder = currentSavedFileEvent.folder,
+            title = currentSavedFileEvent.title,
             onDismiss = { viewModel.dismissSavedFileDialog() }
         )
     }
@@ -201,31 +201,35 @@ fun MainScaffold(
 
                                     // Notifications
                                     Box(
-                                        modifier = Modifier
-                                            .size(38.dp)
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(Color(0x25163536))
-                                            .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                                        modifier = Modifier.wrapContentSize()
                                     ) {
-                                        IconButton(
-                                            onClick = showNotifications,
-                                            modifier = Modifier.fillMaxSize().testTag("notification_bell_button")
+                                        Box(
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(Color(0x25163536))
+                                                .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Notifications,
-                                                contentDescription = "Notification Center",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(20.dp)
-                                            )
+                                            IconButton(
+                                                onClick = showNotifications,
+                                                modifier = Modifier.fillMaxSize().testTag("notification_bell_button")
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Notifications,
+                                                    contentDescription = "Notification Center",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
                                         }
                                         if (unreadNotificationsCount > 0) {
                                             Box(
                                                 modifier = Modifier
                                                     .align(Alignment.TopEnd)
-                                                    .offset(x = 4.dp, y = (-4).dp)
+                                                    .offset(x = 5.dp, y = (-5).dp)
                                                     .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
                                                     .background(AlertRed, RoundedCornerShape(100.dp))
-                                                    .border(0.8.dp, ShadowBlack, RoundedCornerShape(100.dp))
+                                                    .border(1.dp, Color(0xFF0D1E1E), RoundedCornerShape(100.dp))
                                                     .padding(horizontal = 4.dp, vertical = 1.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
@@ -319,5 +323,15 @@ fun MainScaffold(
             },
             content = content
         )
+
+        // Subtle Lottie transition feedback when switching main tabs
+        com.yansproject.app.ui.components.SubtleLottieTabTransition(
+            currentTab = currentTab,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(bottom = 60.dp),
+            size = 96.dp
+        )
     }
 }
+

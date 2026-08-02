@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -350,9 +351,9 @@ fun LedgerInflowItemCard(
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = CardGrey),
-        border = BorderStroke(1.dp, BorderGrey),
-        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B1B1C)),
+        border = BorderStroke(1.dp, Color(0xFF163536)),
+        shape = RoundedCornerShape(14.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
@@ -2571,54 +2572,149 @@ fun RiwayatTransaksiScreen(
             Spacer(modifier = Modifier.height(6.dp))
 
             // 1. Tab Mode Switcher
-            TabRow(
-                selectedTabIndex = currentModeTab,
-                containerColor = CardGrey,
-                contentColor = AgedGold,
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[currentModeTab]),
-                        color = AgedGold
-                    )
-                },
-                modifier = Modifier.clip(RoundedCornerShape(10.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                color = Color(0xFF0B1B1C),
+                border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.25f))
             ) {
-                Tab(
-                    selected = currentModeTab == 0,
-                    onClick = { currentModeTab = 0 },
-                    text = { Text("Transaksi Aktif", fontWeight = FontWeight.Bold, fontSize = 13.sp) },
-                    selectedContentColor = AgedGold,
-                    unselectedContentColor = TextMuted
-                )
-                Tab(
-                    selected = currentModeTab == 1,
-                    onClick = { currentModeTab = 1 },
-                    text = { 
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Text("Trash Bin", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Row(
+                    modifier = Modifier.padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (currentModeTab == 0) Color(0xFF163536) else Color.Transparent)
+                            .border(
+                                if (currentModeTab == 0) BorderStroke(1.dp, AgedGold) else BorderStroke(0.dp, Color.Transparent),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable { currentModeTab = 0 }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            com.yansproject.app.ui.components.LottieTabPulse(isSelected = currentModeTab == 0, size = 18.dp)
+                            Text(
+                                text = "Transaksi Aktif",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = if (currentModeTab == 0) AgedGold else TextMuted
+                            )
                         }
-                    },
-                    selectedContentColor = AlertRed,
-                    unselectedContentColor = TextMuted
-                )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (currentModeTab == 1) AlertRed.copy(alpha = 0.15f) else Color.Transparent)
+                            .border(
+                                if (currentModeTab == 1) BorderStroke(1.dp, AlertRed.copy(alpha = 0.6f)) else BorderStroke(0.dp, Color.Transparent),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable { currentModeTab = 1 }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Delete,
+                                contentDescription = null,
+                                tint = if (currentModeTab == 1) AlertRed else TextMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Trash Bin",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = if (currentModeTab == 1) AlertRed else TextMuted
+                            )
+                        }
+                    }
+                }
             }
 
             // 2. Realtime Calculations Card
             Card(
-                colors = CardDefaults.cardColors(containerColor = DarkGrey),
-                border = BorderStroke(1.dp, BorderGrey),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0B1B1C)),
+                border = BorderStroke(
+                    1.2.dp,
+                    when (type) {
+                        "EXPENSE" -> AlertRed.copy(alpha = 0.45f)
+                        "INCOME" -> AlertGreen.copy(alpha = 0.45f)
+                        "MODAL_AWAL" -> AgedGold.copy(alpha = 0.45f)
+                        else -> AgedGold.copy(alpha = 0.45f)
+                    }
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = if (currentModeTab == 1) "TOTAL KAS TERAPUS (TRASH)" else "RINGKASAN LEDGER TERFILTER",
-                        fontSize = 10.sp,
-                        color = AgedGold,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            com.yansproject.app.ui.components.LottieSectionBadge(size = 20.dp)
+                            Text(
+                                text = if (currentModeTab == 1) "TOTAL KAS TERAPUS (TRASH)" else "RINGKASAN LEDGER TERFILTER",
+                                fontSize = 11.sp,
+                                color = AgedGold,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    when (type) {
+                                        "EXPENSE" -> AlertRed.copy(alpha = 0.15f)
+                                        "INCOME" -> AlertGreen.copy(alpha = 0.15f)
+                                        else -> AgedGold.copy(alpha = 0.15f)
+                                    }
+                                )
+                                .border(
+                                    1.dp,
+                                    when (type) {
+                                        "EXPENSE" -> AlertRed.copy(alpha = 0.4f)
+                                        "INCOME" -> AlertGreen.copy(alpha = 0.4f)
+                                        else -> AgedGold.copy(alpha = 0.4f)
+                                    },
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = when (type) {
+                                    "EXPENSE" -> Icons.Outlined.TrendingDown
+                                    "INCOME" -> Icons.Outlined.TrendingUp
+                                    "MODAL_AWAL" -> Icons.Outlined.AccountBalance
+                                    else -> Icons.Outlined.AccountBalanceWallet
+                                },
+                                contentDescription = null,
+                                tint = when (type) {
+                                    "EXPENSE" -> AlertRed
+                                    "INCOME" -> AlertGreen
+                                    else -> AgedGold
+                                },
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
 
                     when (type) {
                         "INCOME" -> {
@@ -2647,6 +2743,19 @@ fun RiwayatTransaksiScreen(
                                 color = TextMuted
                             )
                         }
+                        "MODAL_AWAL" -> {
+                            Text(
+                                text = FormatUtils.formatRupiah(totalInflowVal),
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Black,
+                                color = AgedGold
+                            )
+                            Text(
+                                text = "Menampilkan ${filteredList.size} item modal awal tercatat.",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                        }
                         "ALL" -> {
                             Text(
                                 text = FormatUtils.formatRupiah(totalCashBalanceVal),
@@ -2665,12 +2774,36 @@ fun RiwayatTransaksiScreen(
                                     color = TextLight,
                                     fontWeight = FontWeight.SemiBold
                                 )
-                                Text(
-                                    text = "Inflow: +${FormatUtils.formatRupiah(totalInflowVal)}  |  Outflow: -${FormatUtils.formatRupiah(totalExpenseVal)}",
-                                    fontSize = 10.sp,
-                                    color = TextMuted,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(AlertGreen.copy(alpha = 0.12f))
+                                            .border(0.8.dp, AlertGreen.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "Inflow: +${FormatUtils.formatRupiah(totalInflowVal)}",
+                                            fontSize = 10.sp,
+                                            color = AlertGreen,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(AlertRed.copy(alpha = 0.12f))
+                                            .border(0.8.dp, AlertRed.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "Outflow: -${FormatUtils.formatRupiah(totalExpenseVal)}",
+                                            fontSize = 10.sp,
+                                            color = AlertRed,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -2681,21 +2814,21 @@ fun RiwayatTransaksiScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Cari transaksi (No. Dokumen, catatan...)", color = TextMuted, fontSize = 13.sp) },
-                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, tint = TextMuted) },
+                placeholder = { Text("Cari transaksi (No. Dokumen, catatan...)", color = TextMuted, fontSize = 12.sp) },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, tint = AgedGold, modifier = Modifier.size(18.dp)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Outlined.Close, contentDescription = "Clear", tint = TextMuted)
+                            Icon(Icons.Outlined.Close, contentDescription = "Clear", tint = TextMuted, modifier = Modifier.size(18.dp))
                         }
                     }
                 },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = AgedGold,
-                    unfocusedBorderColor = BorderGrey,
-                    focusedContainerColor = CardGrey,
-                    unfocusedContainerColor = CardGrey,
+                    unfocusedBorderColor = Color(0xFF163536),
+                    focusedContainerColor = Color(0xFF0B1B1C),
+                    unfocusedContainerColor = Color(0xFF0B1B1C),
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White
                 ),
@@ -2705,7 +2838,13 @@ fun RiwayatTransaksiScreen(
 
             // 4. Period Filter Row
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Periode Transaksi", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(Icons.Outlined.DateRange, contentDescription = null, tint = AgedGold, modifier = Modifier.size(14.dp))
+                    Text("Periode Transaksi", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                }
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -2716,17 +2855,24 @@ fun RiwayatTransaksiScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) AgedGold else CardGrey)
+                                .background(if (isSel) AgedGold else Color(0xFF0B1B1C))
+                                .border(1.dp, if (isSel) AgedGold else Color(0xFF163536), RoundedCornerShape(8.dp))
                                 .clickable { selectedDateRange = p }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
-                                .testTag("filter_period_$p")
+                                .testTag("filter_period_$p"),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = p,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSel) ShadowBlack else TextLight
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                if (isSel) {
+                                    com.yansproject.app.ui.components.LottieFilterChipPulse(isSelected = true, size = 12.dp)
+                                }
+                                Text(
+                                    text = p,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSel) ShadowBlack else TextLight
+                                )
+                            }
                         }
                     }
                 }
@@ -2743,8 +2889,8 @@ fun RiwayatTransaksiScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(CardGrey)
-                                .border(1.dp, BorderGrey, RoundedCornerShape(8.dp))
+                                .background(Color(0xFF0B1B1C))
+                                .border(1.dp, Color(0xFF163536), RoundedCornerShape(8.dp))
                                 .clickable { showStartPicker = true }
                                 .padding(10.dp),
                             contentAlignment = Alignment.Center
@@ -2760,8 +2906,8 @@ fun RiwayatTransaksiScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(CardGrey)
-                                .border(1.dp, BorderGrey, RoundedCornerShape(8.dp))
+                                .background(Color(0xFF0B1B1C))
+                                .border(1.dp, Color(0xFF163536), RoundedCornerShape(8.dp))
                                 .clickable { showEndPicker = true }
                                 .padding(10.dp),
                             contentAlignment = Alignment.Center
@@ -2775,7 +2921,13 @@ fun RiwayatTransaksiScreen(
 
             // 5. Category Filter Row
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Kategori Transaksi", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(Icons.Outlined.Category, contentDescription = null, tint = HighlightSoftCyan, modifier = Modifier.size(14.dp))
+                    Text("Kategori Transaksi", fontSize = 11.sp, color = HighlightSoftCyan, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                }
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -2783,6 +2935,7 @@ fun RiwayatTransaksiScreen(
                     val cats = when (type) {
                         "INCOME" -> listOf("Semua", "Penjualan", "Modal", "Lainnya")
                         "EXPENSE" -> listOf("Semua", "Produksi", "Aksesories", "Transport", "Operasional", "Lainnya")
+                        "MODAL_AWAL" -> listOf("Semua", "Modal", "Injeksi Kas", "Lainnya")
                         else -> listOf("Semua", "Penjualan", "Modal", "Produksi", "Aksesories", "Transport", "Operasional", "Lainnya")
                     }
                     items(cats) { cat ->
@@ -2790,17 +2943,24 @@ fun RiwayatTransaksiScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) HighlightSoftCyan else CardGrey)
+                                .background(if (isSel) HighlightSoftCyan else Color(0xFF0B1B1C))
+                                .border(1.dp, if (isSel) HighlightSoftCyan else Color(0xFF163536), RoundedCornerShape(8.dp))
                                 .clickable { selectedCategoryFilter = cat }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
-                                .testTag("filter_cat_$cat")
+                                .testTag("filter_cat_$cat"),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = cat,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSel) ShadowBlack else TextLight
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                if (isSel) {
+                                    com.yansproject.app.ui.components.LottieFilterChipPulse(isSelected = true, size = 12.dp)
+                                }
+                                Text(
+                                    text = cat,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSel) ShadowBlack else TextLight
+                                )
+                            }
                         }
                     }
                 }
@@ -2823,20 +2983,26 @@ fun RiwayatTransaksiScreen(
                             if (currentModeTab == 0) { // Active Mode
                                 when (item.type) {
                                     "INFLOW" -> {
-                                        LedgerInflowItemCard(
-                                            item = item.originalInflow!!,
-                                            onEdit = { inflowToEdit = item.originalInflow },
-                                            onDelete = { inflowToDelete = item.originalInflow },
-                                            onClick = { selectedInflowDetail = item.originalInflow }
-                                        )
+                                        val inf = item.originalInflow
+                                        if (inf != null) {
+                                            LedgerInflowItemCard(
+                                                item = inf,
+                                                onEdit = { inflowToEdit = inf },
+                                                onDelete = { inflowToDelete = inf },
+                                                onClick = { selectedInflowDetail = inf }
+                                            )
+                                        }
                                     }
                                     "EXPENSE" -> {
-                                        LedgerExpenseItemCard(
-                                            item = item.originalExpense!!,
-                                            onEdit = { expenseToEdit = item.originalExpense },
-                                            onDelete = { expenseToDelete = item.originalExpense },
-                                            onClick = { selectedExpenseDetail = item.originalExpense }
-                                        )
+                                        val exp = item.originalExpense
+                                        if (exp != null) {
+                                            LedgerExpenseItemCard(
+                                                item = exp,
+                                                onEdit = { expenseToEdit = exp },
+                                                onDelete = { expenseToDelete = exp },
+                                                onClick = { selectedExpenseDetail = exp }
+                                            )
+                                        }
                                     }
                                     "INVOICE" -> {
                                         InvoicePaymentCard(
@@ -3630,9 +3796,9 @@ fun InvoicePaymentCard(
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = CardGrey),
-        border = BorderStroke(1.dp, BorderGrey),
-        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B1B1C)),
+        border = BorderStroke(1.dp, Color(0xFF163536)),
+        shape = RoundedCornerShape(14.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
@@ -3716,9 +3882,9 @@ fun TrashedItemCard(
     onDeletePermanently: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = CardGrey),
-        border = BorderStroke(1.dp, AlertRed.copy(alpha = 0.3f)),
-        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B1B1C)),
+        border = BorderStroke(1.dp, AlertRed.copy(alpha = 0.4f)),
+        shape = RoundedCornerShape(14.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {

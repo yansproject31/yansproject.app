@@ -80,9 +80,12 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.CubicBezierEasing
 
 private val LuxuryMotionEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+private val FastLuxuryEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f)
 
 // Data class representasi aktivitas log di Dashboard
 data class DashboardActivity(
@@ -539,7 +542,7 @@ fun GlassmorphicGridCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1.0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
         label = "press_scale"
     )
 
@@ -940,55 +943,63 @@ fun DashboardScreen(
         Toast.makeText(context, "AKSES DITOLAK: Halaman rincian keuangan kas hanya untuk OWNER", Toast.LENGTH_SHORT).show()
     }
 
-    if (activeLedgerPage == "global_keuangan") {
-        AnalisisKeuanganGlobalScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
-        return
-    } else if (activeLedgerPage == "penjualan") {
-        AnalisisPenjualanAjibqobulScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
-        return
-    } else if (activeLedgerPage == "pemasukan") {
-        RiwayatPemasukanScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
-        return
-    } else if (activeLedgerPage == "modal_awal") {
-        RiwayatModalAwalScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
-        return
-    } else if (activeLedgerPage == "modal_berjalan") {
-        RiwayatModalBerjalanScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
-        return
-    } else if (activeLedgerPage == "pengeluaran") {
-        RiwayatPengeluaranScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
-        return
-    } else if (activeLedgerPage == "kas") {
-        RiwayatKasScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
-        return
-    } else if (activeLedgerPage == "profit") {
-        DetailProfitScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
-        return
-    } else if (activeLedgerPage == "piutang") {
-        RiwayatPiutangScreen(
-            viewModel = viewModel,
-            onBack = { activeLedgerPage = null },
-            onNavigateToInvoice = { _ ->
-                viewModel.setTab(AppTab.INVOICE)
-                activeLedgerPage = null
+    if (activeLedgerPage != null) {
+        AnimatedContent(
+            targetState = activeLedgerPage,
+            transitionSpec = {
+                (slideInHorizontally(
+                    initialOffsetX = { fullWidth -> (fullWidth * 0.15f).toInt() },
+                    animationSpec = tween(220, easing = FastLuxuryEasing)
+                ) + fadeIn(
+                    animationSpec = tween(220, easing = FastLuxuryEasing)
+                ) + scaleIn(
+                    initialScale = 0.97f,
+                    animationSpec = tween(220, easing = FastLuxuryEasing)
+                )).togetherWith(
+                    slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> (-fullWidth * 0.15f).toInt() },
+                        animationSpec = tween(180, easing = FastLuxuryEasing)
+                    ) + fadeOut(
+                        animationSpec = tween(180, easing = FastLuxuryEasing)
+                    ) + scaleOut(
+                        targetScale = 0.97f,
+                        animationSpec = tween(180, easing = FastLuxuryEasing)
+                    )
+                )
+            },
+            label = "ActiveLedgerPageTransition"
+        ) { page ->
+            when (page) {
+                "global_keuangan" -> AnalisisKeuanganGlobalScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+                "penjualan" -> AnalisisPenjualanAjibqobulScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+                "pemasukan" -> RiwayatPemasukanScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+                "modal_awal" -> RiwayatModalAwalScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+                "modal_berjalan" -> RiwayatModalBerjalanScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+                "pengeluaran" -> RiwayatPengeluaranScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+                "kas" -> RiwayatKasScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+                "profit" -> DetailProfitScreen(viewModel = viewModel, onBack = { activeLedgerPage = null })
+                "piutang" -> RiwayatPiutangScreen(
+                    viewModel = viewModel,
+                    onBack = { activeLedgerPage = null },
+                    onNavigateToInvoice = { _ ->
+                        viewModel.setTab(AppTab.INVOICE)
+                        activeLedgerPage = null
+                    }
+                )
+                "produksi" -> RiwayatProduksiScreen(
+                    viewModel = viewModel,
+                    onBack = { activeLedgerPage = null },
+                    onNavigateToProject = {
+                        viewModel.setTab(AppTab.PROJECT)
+                        activeLedgerPage = null
+                    }
+                )
+                "laporan" -> RiwayatLaporanScreen(
+                    viewModel = viewModel,
+                    onBack = { activeLedgerPage = null }
+                )
             }
-        )
-        return
-    } else if (activeLedgerPage == "produksi") {
-        RiwayatProduksiScreen(
-            viewModel = viewModel,
-            onBack = { activeLedgerPage = null },
-            onNavigateToProject = {
-                viewModel.setTab(AppTab.PROJECT)
-                activeLedgerPage = null
-            }
-        )
-        return
-    } else if (activeLedgerPage == "laporan") {
-        RiwayatLaporanScreen(
-            viewModel = viewModel,
-            onBack = { activeLedgerPage = null }
-        )
+        }
         return
     }
 
@@ -1566,12 +1577,20 @@ fun DashboardScreen(
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                                 .testTag("filter_chip_$period")
                         ) {
-                            Text(
-                                text = period,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelected) ShadowBlack else TextLight
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (isSelected) {
+                                    com.yansproject.app.ui.components.LottieFilterChipPulse(isSelected = true, size = 12.dp)
+                                }
+                                Text(
+                                    text = period,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) ShadowBlack else TextLight
+                                )
+                            }
                         }
                     }
                 }
@@ -1641,13 +1660,19 @@ fun DashboardScreen(
             if (alertItems.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "BUSINESS ALERTS & SYSTEM STATUS",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AgedGold,
-                            letterSpacing = 1.sp
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            com.yansproject.app.ui.components.LottieSectionBadge(size = 20.dp)
+                            Text(
+                                text = "BUSINESS ALERTS & SYSTEM STATUS",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AgedGold,
+                                letterSpacing = 1.sp
+                            )
+                        }
                         alertItems.forEach { alert ->
                             BusinessAlertCard(alert = alert)
                         }
@@ -1689,7 +1714,12 @@ fun DashboardScreen(
                                 }
                                 "PROJECT AKTIF" -> viewModel.setTab(AppTab.PROJECT)
                                 "TOTAL MEMBER" -> {
-                                    navController?.safeNavigate(com.yansproject.app.ui.navigation.Routes.SettingsMember) ?: run {
+                                    val targetMemberRoute = if (userRole == com.yansproject.app.data.UserRole.OWNER || userRole == com.yansproject.app.data.UserRole.ADMIN) {
+                                        com.yansproject.app.ui.navigation.Routes.SettingsMember
+                                    } else {
+                                        com.yansproject.app.ui.navigation.Routes.SettingsMemberCenter
+                                    }
+                                    navController?.safeNavigate(targetMemberRoute) ?: run {
                                         Toast.makeText(context, "Buka menu Pengaturan untuk mengelola member", Toast.LENGTH_SHORT).show()
                                     }
                                 }

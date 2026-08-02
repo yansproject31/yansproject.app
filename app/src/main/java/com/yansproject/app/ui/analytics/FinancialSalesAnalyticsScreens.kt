@@ -322,7 +322,7 @@ fun AnalisisKeuanganGlobalScreen(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.25f), Color.Transparent)))
+                                    .background(AgedGold.copy(alpha = 0.15f))
                                     .border(1.dp, AgedGold.copy(alpha = 0.5f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -988,7 +988,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(Brush.radialGradient(listOf(HighlightSoftCyan.copy(alpha = 0.25f), Color.Transparent)))
+                                    .background(HighlightSoftCyan.copy(alpha = 0.15f))
                                     .border(1.dp, HighlightSoftCyan.copy(alpha = 0.5f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {

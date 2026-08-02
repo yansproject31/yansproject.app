@@ -1,11 +1,14 @@
 package com.yansproject.app.ui
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -13,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -144,13 +148,33 @@ fun CustomProjectFormScreen(
     val dpAmount = dpAmountStr.toDoubleOrNull() ?: 0.0
     val sisaPembayaran = maxOf(0.0, totalPembayaran - dpAmount)
 
+    // Unsaved Changes Guard / Anti-Tap System
+    var showExitConfirmationDialog by remember { mutableStateOf(false) }
+    val hasUnsavedEdits = remember(projectName, clientName, clientPhone, deliveryAddress, notes, totalQty, dpAmountStr, discountNominalStr) {
+        projectName.isNotBlank() || clientName.isNotBlank() || clientPhone.isNotBlank() ||
+        deliveryAddress.isNotBlank() || notes.isNotBlank() || totalQty > 0 ||
+        dpAmountStr.isNotBlank() || discountNominalStr.isNotBlank()
+    }
+
+    BackHandler(enabled = hasUnsavedEdits) {
+        showExitConfirmationDialog = true
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             YansTopAppBar(
                 title = "FORMULIR PROJECT CUSTOM",
                 subtitle = "Standard Luxury YANSPROJECT.ID",
-                navigationIcon = { YansBackButton(onClick = onNavigateBack) }
+                navigationIcon = {
+                    YansBackButton(onClick = {
+                        if (hasUnsavedEdits) {
+                            showExitConfirmationDialog = true
+                        } else {
+                            onNavigateBack()
+                        }
+                    })
+                }
             )
         },
         containerColor = DeepCarbonBlack
@@ -222,6 +246,37 @@ fun CustomProjectFormScreen(
                             .testTag("form_client_name"),
                         singleLine = true
                     )
+
+                    // Quick Member Selection Chips
+                    val registeredMembers = remember { AppSettings.getMembers(context).toList() }
+                    if (registeredMembers.isNotEmpty()) {
+                        Text("Pilih Dari Pelanggan Terdaftar:", color = AccentAgedGold.copy(alpha = 0.7f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                        ) {
+                            items(registeredMembers) { memberName ->
+                                val isSelected = clientName.equals(memberName, ignoreCase = true)
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        clientName = if (isSelected) "" else memberName
+                                    },
+                                    label = { Text(memberName, fontSize = 11.sp, color = if (isSelected) ShadowBlack else TextLight) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = AccentAgedGold,
+                                        containerColor = PrimaryDarkTeal
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = isSelected,
+                                        borderColor = DividerDarkCyanGray,
+                                        selectedBorderColor = AccentAgedGold
+                                    )
+                                )
+                            }
+                        }
+                    }
 
                     // No. WhatsApp
                     YansGlowingTextField(
@@ -761,6 +816,9 @@ fun CustomProjectFormScreen(
                     )
 
                     viewModel.saveProjectToDatabase(newProject)
+                    if (clientName.isNotBlank()) {
+                        AppSettings.addMember(context, clientName.trim())
+                    }
                     com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Project Custom '${projectName}' berhasil disimpan!")
                     onNavigateBack()
                 },
@@ -771,6 +829,53 @@ fun CustomProjectFormScreen(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Unsaved Changes Confirmation Dialog
+        if (showExitConfirmationDialog) {
+            AlertDialog(
+                onDismissRequest = { showExitConfirmationDialog = false },
+                modifier = Modifier.border(1.2.dp, AccentAgedGold.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = StatusWarningGold)
+                        Text(
+                            text = "KELUAR TANPA MENYIMPAN?",
+                            color = AccentAgedGold,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                },
+                text = {
+                    Text(
+                        text = "Formulir Project Custom berisi data yang belum disimpan. Yakin ingin keluar tanpa menyimpan draf ini?",
+                        color = TextLight,
+                        fontSize = 13.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showExitConfirmationDialog = false
+                            onNavigateBack()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusDangerRed)
+                    ) {
+                        Text("KELUAR (HAPUS DRAF)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { showExitConfirmationDialog = false },
+                        border = BorderStroke(1.dp, AlertGreen)
+                    ) {
+                        Text("LANJUTKAN MENGISI", color = AlertGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                },
+                containerColor = SurfaceDarkTealSurface,
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     }
 }

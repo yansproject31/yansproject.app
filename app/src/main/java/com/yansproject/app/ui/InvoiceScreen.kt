@@ -330,8 +330,9 @@ fun InvoiceScreen(
         }
 
         // --- Detail Invoice Dialog ---
-        if (selectedInvoiceForDetail != null) {
-            val invoice = invoices.find { it.id == selectedInvoiceForDetail!!.id } ?: selectedInvoiceForDetail!!
+        val targetInvDetail = selectedInvoiceForDetail
+        if (targetInvDetail != null) {
+            val invoice = invoices.find { it.id == targetInvDetail.id } ?: targetInvDetail
             val linkedProject = if (invoice.projectId != null) {
                 projects.find { it.id == invoice.projectId }
             } else null
@@ -363,8 +364,9 @@ fun InvoiceScreen(
         }
 
         // --- Payment Dialog ---
-        if (selectedInvoiceForPayment != null) {
-            val invoice = selectedInvoiceForPayment!!
+        val targetInvPay = selectedInvoiceForPayment
+        if (targetInvPay != null) {
+            val invoice = targetInvPay
             PaymentInputDialog(
                 invoice = invoice,
                 isDP = isRecordingDP,
@@ -2030,8 +2032,9 @@ fun InvoiceDetailDialog(
         )
     }
 
-    if (showEditPaymentDialog && selectedPaymentForEdit != null) {
-        val payment = selectedPaymentForEdit!!
+    val editPay = selectedPaymentForEdit
+    if (showEditPaymentDialog && editPay != null) {
+        val payment = editPay
         var payAmountStr by remember(payment) { mutableStateOf(payment.amount.toInt().toString()) }
         var selectedMethod by remember(payment) { mutableStateOf(payment.paymentMethod) }
         var methodDetail by remember(payment) { mutableStateOf(payment.methodDetail) }
@@ -2253,8 +2256,9 @@ fun InvoiceDetailDialog(
         )
     }
 
-    if (showDeletePaymentConfirm && selectedPaymentForDelete != null) {
-        val payment = selectedPaymentForDelete!!
+    val delPay = selectedPaymentForDelete
+    if (showDeletePaymentConfirm && delPay != null) {
+        val payment = delPay
         AlertDialog(
             onDismissRequest = { showDeletePaymentConfirm = false },
             title = { Text("Konfirmasi Hapus Pembayaran", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
@@ -2738,7 +2742,7 @@ fun AddSaleDialog(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.25f), Color.Transparent)))
+                                .background(AgedGold.copy(alpha = 0.15f))
                                 .border(1.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                 .padding(8.dp)
                         ) {
@@ -3217,15 +3221,16 @@ fun AddSaleDialog(
                                                             p.sleeve.equals(slv, ignoreCase = true)
                                                         }
 
+                                                        val cms = currentMasterStock
                                                         val targetStockItem = existingStock ?: com.yansproject.app.data.StockItem(
                                                             id = (selectedCatalog.id_catalog * 10000 + selectedVarian.id_varian * 100 + sz.hashCode() + slv.hashCode()).let { if (it < 0) -it else it }.coerceAtLeast(1000),
                                                             name = itemName,
                                                             sku = "AQ-${selectedCatalog.nama_catalog.take(3).uppercase()}-${selectedVarian.nama_warna.take(3).uppercase()}-$sz-${slv.take(3).uppercase()}",
                                                             stockCount = availStock,
-                                                            price = if (currentMasterStock?.harga_retail ?: 0.0 > 0) currentMasterStock!!.harga_retail else AppSettings.getAjibqobulHargaRetail(context).let { if (it > 0) it else 125000.0 },
-                                                            priceMember = if (currentMasterStock?.harga_member ?: 0.0 > 0) currentMasterStock!!.harga_member else AppSettings.getAjibqobulHargaMember(context).let { if (it > 0) it else 99000.0 },
-                                                            priceReseller = if (currentMasterStock?.harga_reseller ?: 0.0 > 0) currentMasterStock!!.harga_reseller else AppSettings.getAjibqobulHargaReseller(context).let { if (it > 0) it else 105000.0 },
-                                                            priceCustom = if (currentMasterStock?.harga_custom ?: 0.0 > 0) currentMasterStock!!.harga_custom else AppSettings.getAjibqobulHargaCustom(context).let { if (it > 0) it else 115000.0 },
+                                                            price = if ((cms?.harga_retail ?: 0.0) > 0) (cms?.harga_retail ?: 125000.0) else AppSettings.getAjibqobulHargaRetail(context).let { if (it > 0) it else 125000.0 },
+                                                            priceMember = if ((cms?.harga_member ?: 0.0) > 0) (cms?.harga_member ?: 99000.0) else AppSettings.getAjibqobulHargaMember(context).let { if (it > 0) it else 99000.0 },
+                                                            priceReseller = if ((cms?.harga_reseller ?: 0.0) > 0) (cms?.harga_reseller ?: 105000.0) else AppSettings.getAjibqobulHargaReseller(context).let { if (it > 0) it else 105000.0 },
+                                                            priceCustom = if ((cms?.harga_custom ?: 0.0) > 0) (cms?.harga_custom ?: 115000.0) else AppSettings.getAjibqobulHargaCustom(context).let { if (it > 0) it else 115000.0 },
                                                             description = "Catalog: ${selectedCatalog.nama_catalog}, Varian: ${selectedVarian.nama_warna}, Size: $sz, Sleeve: $slv"
                                                         )
 

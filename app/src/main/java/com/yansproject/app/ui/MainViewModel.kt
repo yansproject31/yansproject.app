@@ -258,17 +258,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         allInvoicePayments
     ) { flowArray ->
         @Suppress("UNCHECKED_CAST")
-        val invoices = flowArray[0] as List<Invoice>
+        val invoices = (flowArray[0] as? List<Invoice>) ?: emptyList()
         @Suppress("UNCHECKED_CAST")
-        val projects = flowArray[1] as List<ProjectCustom>
+        val projects = (flowArray[1] as? List<ProjectCustom>) ?: emptyList()
         @Suppress("UNCHECKED_CAST")
-        val stock = flowArray[2] as List<StockItem>
+        val stock = (flowArray[2] as? List<StockItem>) ?: emptyList()
         @Suppress("UNCHECKED_CAST")
-        val orders = flowArray[3] as List<OrderHistory>
+        val orders = (flowArray[3] as? List<OrderHistory>) ?: emptyList()
         @Suppress("UNCHECKED_CAST")
-        val inflows = flowArray[4] as List<Inflow>
+        val inflows = (flowArray[4] as? List<Inflow>) ?: emptyList()
         @Suppress("UNCHECKED_CAST")
-        val payments = flowArray[5] as List<InvoicePayment>
+        val payments = (flowArray[5] as? List<InvoicePayment>) ?: emptyList()
         val invRevenue = invoices.filter { inv ->
             if (inv.isDeleted) return@filter false
             val st = (inv.status ?: "").trim().uppercase()

@@ -396,9 +396,7 @@ fun RiwayatScreen(
                                 border = androidx.compose.foundation.BorderStroke(1.2.dp, AgedGold.copy(alpha = 0.5f))
                             ) {
                                 Column(
-                                    modifier = Modifier
-                                        .background(Brush.radialGradient(listOf(AgedGold.copy(alpha = 0.15f), Color.Transparent)))
-                                        .padding(12.dp)
+                                    modifier = Modifier.padding(12.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -436,9 +434,7 @@ fun RiwayatScreen(
                                 border = androidx.compose.foundation.BorderStroke(1.2.dp, AlertGreen.copy(alpha = 0.5f))
                             ) {
                                 Column(
-                                    modifier = Modifier
-                                        .background(Brush.radialGradient(listOf(AlertGreen.copy(alpha = 0.15f), Color.Transparent)))
-                                        .padding(12.dp)
+                                    modifier = Modifier.padding(12.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -484,16 +480,7 @@ fun RiwayatScreen(
                                 )
                             ) {
                                 Column(
-                                    modifier = Modifier
-                                        .background(
-                                            Brush.radialGradient(
-                                                listOf(
-                                                    if (totalRemainingValue > 0) StatusWarningGold.copy(alpha = 0.15f) else HighlightSoftCyan.copy(alpha = 0.15f),
-                                                    Color.Transparent
-                                                )
-                                            )
-                                        )
-                                        .padding(12.dp)
+                                    modifier = Modifier.padding(12.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -538,9 +525,7 @@ fun RiwayatScreen(
                                 border = androidx.compose.foundation.BorderStroke(1.2.dp, HighlightSoftCyan.copy(alpha = 0.5f))
                             ) {
                                 Column(
-                                    modifier = Modifier
-                                        .background(Brush.radialGradient(listOf(HighlightSoftCyan.copy(alpha = 0.15f), Color.Transparent)))
-                                        .padding(12.dp)
+                                    modifier = Modifier.padding(12.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,

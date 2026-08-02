@@ -108,10 +108,17 @@ fun GuardedFinancialRoute(
     onNavigateBack: () -> Unit = {},
     content: @Composable () -> Unit
 ) {
-    var accessState by remember(userRole) { mutableStateOf<RouteAccessResult>(RouteAccessResult.Checking) }
+    var accessState by remember(userRole) {
+        mutableStateOf<RouteAccessResult>(
+            if (RouteGuard.isUserAuthorizedForFinancials(userRole)) RouteAccessResult.Granted
+            else RouteAccessResult.Checking
+        )
+    }
 
     LaunchedEffect(userRole) {
-        accessState = RouteGuard.verifyFinancialAccessWithCustomClaims(userRole)
+        if (!RouteGuard.isUserAuthorizedForFinancials(userRole)) {
+            accessState = RouteGuard.verifyFinancialAccessWithCustomClaims(userRole)
+        }
     }
 
     when (val state = accessState) {

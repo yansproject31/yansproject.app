@@ -1,10 +1,13 @@
 package com.yansproject.app.ui.invoice
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,6 +17,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +34,7 @@ import com.yansproject.app.data.CustomProject
 import com.yansproject.app.data.IdrAccountingEngine
 import com.yansproject.app.ui.components.*
 import com.yansproject.app.data.VariantCell
+import com.yansproject.app.ui.AppSettings
 import com.yansproject.app.ui.DualInvoiceManagerViewModel
 import com.yansproject.app.ui.components.DualApparelMatrixInputComponent
 import com.yansproject.app.ui.components.YansGlowingTextField
@@ -102,13 +107,33 @@ fun DualInvoiceEditorScreen(
         (grandTotal - dpVal).coerceAtLeast(0.0)
     }
 
+    // Unsaved Changes Guard / Anti-Tap System
+    var showExitConfirmationDialog by remember { mutableStateOf(false) }
+    val hasUnsavedEdits = remember(clientName, clientPhone, clientCompany, deliveryAddress, specialNotes, addedItems, discountInput, taxInput, dpInput) {
+        clientName.isNotBlank() || clientPhone.isNotBlank() || clientCompany.isNotBlank() ||
+        deliveryAddress.isNotBlank() || specialNotes.isNotBlank() || addedItems.isNotEmpty() ||
+        discountInput != "0" || taxInput != "0" || dpInput != "0"
+    }
+
+    BackHandler(enabled = hasUnsavedEdits) {
+        showExitConfirmationDialog = true
+    }
+
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             YansTopAppBar(
                 title = if (isCustomProject) "BUAT INVOICE CUSTOM" else "BUAT INVOICE STOCK",
                 subtitle = "Formulir Pembuatan Faktur Penjualan YANSPROJECT",
-                navigationIcon = { YansBackButton(onClick = onNavigateBack) }
+                navigationIcon = {
+                    YansBackButton(onClick = {
+                        if (hasUnsavedEdits) {
+                            showExitConfirmationDialog = true
+                        } else {
+                            onNavigateBack()
+                        }
+                    })
+                }
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -149,6 +174,39 @@ fun DualInvoiceEditorScreen(
                                 .fillMaxWidth()
                                 .testTag("client_name_field")
                         )
+
+                        // Registered Member Quick Selector Chips
+                        val registeredMembers = remember { AppSettings.getMembers(context).toList() }
+                        if (registeredMembers.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Atau Pilih Pelanggan Terdaftar:", color = AccentAgedGold.copy(alpha = 0.7f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                            ) {
+                                items(registeredMembers) { memberName ->
+                                    val isSelected = clientName.equals(memberName, ignoreCase = true)
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = {
+                                            clientName = if (isSelected) "" else memberName
+                                        },
+                                        label = { Text(memberName, fontSize = 11.sp, color = if (isSelected) ShadowBlack else TextLight) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = AccentAgedGold,
+                                            containerColor = PrimaryDarkTeal
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = isSelected,
+                                            borderColor = DividerDarkCyanGray,
+                                            selectedBorderColor = AccentAgedGold
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
                         Spacer(modifier = Modifier.height(10.dp))
 
                         YansGlowingTextField(
@@ -362,6 +420,11 @@ fun DualInvoiceEditorScreen(
                                 return@Button
                             }
 
+                            // Auto-register member
+                            if (clientName.isNotBlank()) {
+                                AppSettings.addMember(context, clientName.trim())
+                            }
+
                             // Commit save logic based on stream
                             if (isCustomProject) {
                                 val newProj = CustomProject(
@@ -383,9 +446,6 @@ fun DualInvoiceEditorScreen(
                                 viewModel.addCustomProjectInvoice(newProj)
                                 com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Sukses merekam invoice project custom baru!")
                             } else {
-                                // Standard system invoice mapping & sync
-                                // For standard system we update the live state so that they are instantly populated
-                                val listInvs = viewModel.state.value.ajibqobulInvoices.toMutableList()
                                 val timeCode = (System.currentTimeMillis() % 100000).toString().padStart(5, '0')
                                 val num = "INV/2026/AJB/$timeCode"
                                 val newInv = com.yansproject.app.data.Invoice(
@@ -400,11 +460,7 @@ fun DualInvoiceEditorScreen(
                                     discount = discountNominal,
                                     dpAmount = dpInput.toDoubleOrNull() ?: 0.0
                                 )
-                                // Force VM reload logic
-                                // Let's update standard state
-                                // Wait, let's trigger VM updates
-                                viewModel.receivePaymentOnInvoice(num, false, 0.0, "TUNAI") // Dummy initializer trigger
-                                // Since we initialized with standard dummy, we can append to VM list or mock
+                                viewModel.addStockInvoice(newInv)
                                 com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Sukses menyimpan invoice penjualan standard!")
                             }
                             onNavigateBack()
@@ -419,6 +475,53 @@ fun DualInvoiceEditorScreen(
                     }
                 }
             }
+        }
+
+        // Unsaved Changes Confirmation Dialog
+        if (showExitConfirmationDialog) {
+            AlertDialog(
+                onDismissRequest = { showExitConfirmationDialog = false },
+                modifier = Modifier.border(1.2.dp, AccentAgedGold.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = StatusWarningGold)
+                        Text(
+                            text = "KELUAR TANPA MENYIMPAN?",
+                            color = AccentAgedGold,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                },
+                text = {
+                    Text(
+                        text = "Data atau rincian item invoice yang diisi belum diterbitkan. Yakin ingin keluar tanpa menyimpan draf ini?",
+                        color = TextLight,
+                        fontSize = 13.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showExitConfirmationDialog = false
+                            onNavigateBack()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusDangerRed)
+                    ) {
+                        Text("KELUAR (HAPUS DRAF)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { showExitConfirmationDialog = false },
+                        border = BorderStroke(1.dp, AlertGreen)
+                    ) {
+                        Text("LANJUTKAN MENGISI", color = AlertGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                },
+                containerColor = SurfaceDarkTealSurface,
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     }
 }

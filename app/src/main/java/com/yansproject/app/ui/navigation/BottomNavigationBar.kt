@@ -152,13 +152,16 @@ fun BottomNavigationBar(
             selected = isDashSelected,
             onClick = { handleTabSelect(AppTab.DASHBOARD) },
             icon = {
-                Icon(
-                    imageVector = Icons.Outlined.Dashboard,
-                    contentDescription = "Dashboard",
-                    modifier = Modifier
-                        .size(24.dp)
-                        .graphicsLayer { scaleX = dashScale; scaleY = dashScale }
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    com.yansproject.app.ui.components.LottieTabPulse(isSelected = isDashSelected, size = 32.dp)
+                    Icon(
+                        imageVector = Icons.Outlined.Dashboard,
+                        contentDescription = "Dashboard",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer { scaleX = dashScale; scaleY = dashScale }
+                    )
+                }
             },
             label = {
                 Text(
@@ -183,13 +186,16 @@ fun BottomNavigationBar(
                 selected = isProjSelected,
                 onClick = { handleTabSelect(AppTab.PROJECT) },
                 icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.WorkOutline,
-                        contentDescription = "Project",
-                        modifier = Modifier
-                            .size(24.dp)
-                            .graphicsLayer { scaleX = projScale; scaleY = projScale }
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        com.yansproject.app.ui.components.LottieTabPulse(isSelected = isProjSelected, size = 32.dp)
+                        Icon(
+                            imageVector = Icons.Outlined.WorkOutline,
+                            contentDescription = "Project",
+                            modifier = Modifier
+                                .size(24.dp)
+                                .graphicsLayer { scaleX = projScale; scaleY = projScale }
+                        )
+                    }
                 },
                 label = {
                     Text(
@@ -214,13 +220,16 @@ fun BottomNavigationBar(
             selected = isStockSelected,
             onClick = { handleTabSelect(AppTab.STOCK) },
             icon = {
-                Icon(
-                    imageVector = Icons.Outlined.Inventory2,
-                    contentDescription = "Stock",
-                    modifier = Modifier
-                        .size(24.dp)
-                        .graphicsLayer { scaleX = stockScale; scaleY = stockScale }
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    com.yansproject.app.ui.components.LottieTabPulse(isSelected = isStockSelected, size = 32.dp)
+                    Icon(
+                        imageVector = Icons.Outlined.Inventory2,
+                        contentDescription = "Stock",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer { scaleX = stockScale; scaleY = stockScale }
+                    )
+                }
             },
             label = {
                 Text(
@@ -245,13 +254,16 @@ fun BottomNavigationBar(
                 selected = isInvSelected,
                 onClick = { handleTabSelect(AppTab.INVOICE) },
                 icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.ReceiptLong,
-                        contentDescription = "Invoice",
-                        modifier = Modifier
-                            .size(24.dp)
-                            .graphicsLayer { scaleX = invScale; scaleY = invScale }
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        com.yansproject.app.ui.components.LottieTabPulse(isSelected = isInvSelected, size = 32.dp)
+                        Icon(
+                            imageVector = Icons.Outlined.ReceiptLong,
+                            contentDescription = "Invoice",
+                            modifier = Modifier
+                                .size(24.dp)
+                                .graphicsLayer { scaleX = invScale; scaleY = invScale }
+                        )
+                    }
                 },
                 label = {
                     Text(
@@ -277,13 +289,16 @@ fun BottomNavigationBar(
                 selected = isRiwSelected,
                 onClick = { handleTabSelect(AppTab.RIWAYAT) },
                 icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.History,
-                        contentDescription = "Riwayat",
-                        modifier = Modifier
-                            .size(24.dp)
-                            .graphicsLayer { scaleX = riwScale; scaleY = riwScale }
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        com.yansproject.app.ui.components.LottieTabPulse(isSelected = isRiwSelected, size = 32.dp)
+                        Icon(
+                            imageVector = Icons.Outlined.History,
+                            contentDescription = "Riwayat",
+                            modifier = Modifier
+                                .size(24.dp)
+                                .graphicsLayer { scaleX = riwScale; scaleY = riwScale }
+                        )
+                    }
                 },
                 label = {
                     Text(

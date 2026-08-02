@@ -896,9 +896,10 @@ fun MemberManagementModule(
     }
 
     // --- MODAL 1: MEMBER DETAIL & AJIBQOBUL SERIES ANALYTICS SHEET ---
-    if (selectedMemberForDetail != null) {
+    val detailMem = selectedMemberForDetail
+    if (detailMem != null) {
         MemberDetailAnalyticsSheet(
-            member = selectedMemberForDetail!!,
+            member = detailMem,
             invoices = invoices,
             onDismiss = { selectedMemberForDetail = null },
             onEditTierClick = {
@@ -915,14 +916,16 @@ fun MemberManagementModule(
     }
 
     // --- MODAL 2: EDIT MEMBER PROFILE & TIER DIALOG ---
-    if (selectedMemberForEdit != null) {
+    val editMem = selectedMemberForEdit
+    if (editMem != null) {
         EditMemberProfileDialog(
-            member = selectedMemberForEdit!!,
+            member = editMem,
             onDismiss = { selectedMemberForEdit = null },
             onSave = { newName, newWa, newAddr, newTier ->
+                val targetEmail = editMem.email
                 viewModel.updateMemberProfile(
                     context = context,
-                    email = selectedMemberForEdit!!.email,
+                    email = targetEmail,
                     newDisplayName = newName,
                     newWhatsapp = newWa,
                     newAddress = newAddr,
@@ -941,15 +944,18 @@ fun MemberManagementModule(
     }
 
     // --- MODAL 3: RESET PASSWORD / PIN DIALOG ---
-    if (selectedMemberForResetPin != null) {
+    val resetMem = selectedMemberForResetPin
+    if (resetMem != null) {
         ResetPasswordPinDialog(
-            member = selectedMemberForResetPin!!,
+            member = resetMem,
             onDismiss = { selectedMemberForResetPin = null },
             onReset = { newPin ->
+                val targetEmail = resetMem.email
+                val targetName = resetMem.displayName
                 viewModel.resetPasswordOrPin(
                     context = context,
-                    email = selectedMemberForResetPin!!.email,
-                    displayName = selectedMemberForResetPin!!.displayName,
+                    email = targetEmail,
+                    displayName = targetName,
                     newPassOrPin = newPin
                 ) { success, msg ->
                     if (success) {

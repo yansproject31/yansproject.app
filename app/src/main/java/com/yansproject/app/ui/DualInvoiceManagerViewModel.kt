@@ -320,4 +320,28 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
             }
         }
     }
+
+    fun addStockInvoice(invoice: Invoice) {
+        viewModelScope.launch {
+            try {
+                val db = AppDatabase.getDatabase(getApplication())
+                db.invoiceDao().insertInvoice(invoice)
+                if (invoice.paidAmount > 0.0) {
+                    val transactionNumber = "TX-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
+                    val inflow = Inflow(
+                        transactionNumber = transactionNumber,
+                        category = "Penjualan",
+                        amount = invoice.paidAmount,
+                        date = System.currentTimeMillis(),
+                        notes = "Uang Muka / Pelunasan Invoice ${invoice.invoiceNumber} - ${invoice.clientName}",
+                        paymentMethod = "TUNAI",
+                        createdBy = "Owner"
+                    )
+                    db.inflowDao().insertInflow(inflow)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 }

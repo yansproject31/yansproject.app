@@ -37,6 +37,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yansproject.app.data.FirebaseSyncManager
@@ -136,7 +138,53 @@ fun YansNavHost(
                 }
             }
         }
-        composable(Routes.KitabDigital) {
+        composable(
+            route = Routes.KitabDigital,
+            enterTransition = {
+                slideInVertically(
+                    initialOffsetY = { (it * 0.15f).toInt() },
+                    animationSpec = tween(260, easing = LuxuryFastMotionEasing)
+                ) + fadeIn(
+                    animationSpec = tween(260, easing = LuxuryFastMotionEasing)
+                ) + scaleIn(
+                    initialScale = 0.96f,
+                    animationSpec = tween(260, easing = LuxuryFastMotionEasing)
+                )
+            },
+            exitTransition = {
+                slideOutVertically(
+                    targetOffsetY = { (it * 0.15f).toInt() },
+                    animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                ) + fadeOut(
+                    animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                ) + scaleOut(
+                    targetScale = 0.96f,
+                    animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                )
+            },
+            popEnterTransition = {
+                slideInVertically(
+                    initialOffsetY = { (-it * 0.15f).toInt() },
+                    animationSpec = tween(260, easing = LuxuryFastMotionEasing)
+                ) + fadeIn(
+                    animationSpec = tween(260, easing = LuxuryFastMotionEasing)
+                ) + scaleIn(
+                    initialScale = 0.96f,
+                    animationSpec = tween(260, easing = LuxuryFastMotionEasing)
+                )
+            },
+            popExitTransition = {
+                slideOutVertically(
+                    targetOffsetY = { (it * 0.15f).toInt() },
+                    animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                ) + fadeOut(
+                    animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                ) + scaleOut(
+                    targetScale = 0.96f,
+                    animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                )
+            }
+        ) {
             KitabDigitalScreen(viewModel = viewModel, onBack = {
                 viewModel.setTab(AppTab.DASHBOARD)
             })
@@ -170,7 +218,53 @@ fun YansNavHost(
                     SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "dokumen")
                 }
             }
-            composable(Routes.SettingsMember) {
+            composable(
+                route = Routes.SettingsMember,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { (it * 0.15f).toInt() },
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    ) + fadeIn(
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    ) + scaleIn(
+                        initialScale = 0.97f,
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    )
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { (-it * 0.15f).toInt() },
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    ) + fadeOut(
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    ) + scaleOut(
+                        targetScale = 0.97f,
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    )
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { (-it * 0.15f).toInt() },
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    ) + fadeIn(
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    ) + scaleIn(
+                        initialScale = 0.97f,
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    )
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { (it * 0.15f).toInt() },
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    ) + fadeOut(
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    ) + scaleOut(
+                        targetScale = 0.97f,
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    )
+                }
+            ) {
                 GuardedFinancialRoute(
                     userRole = userRole,
                     onNavigateBack = { navController.popBackStack() }
@@ -197,7 +291,53 @@ fun YansNavHost(
                     SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "owner_center")
                 }
             }
-            composable(Routes.SettingsMemberCenter) {
+            composable(
+                route = Routes.SettingsMemberCenter,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { (it * 0.15f).toInt() },
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    ) + fadeIn(
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    ) + scaleIn(
+                        initialScale = 0.97f,
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    )
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { (-it * 0.15f).toInt() },
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    ) + fadeOut(
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    ) + scaleOut(
+                        targetScale = 0.97f,
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    )
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { (-it * 0.15f).toInt() },
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    ) + fadeIn(
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    ) + scaleIn(
+                        initialScale = 0.97f,
+                        animationSpec = tween(220, easing = LuxuryFastMotionEasing)
+                    )
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { (it * 0.15f).toInt() },
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    ) + fadeOut(
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    ) + scaleOut(
+                        targetScale = 0.97f,
+                        animationSpec = tween(180, easing = LuxuryFastMotionEasing)
+                    )
+                }
+            ) {
                 SettingsScreen(viewModel = viewModel, navController = navController, subScreen = "member_center")
             }
             composable(Routes.SettingsRoleManagement) {

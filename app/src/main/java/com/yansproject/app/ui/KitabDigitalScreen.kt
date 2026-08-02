@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -40,6 +41,8 @@ import com.yansproject.app.ui.theme.*
 import com.yansproject.app.ui.components.ManuscriptDropCap
 import com.yansproject.app.ui.components.ManuscriptQuoteBlock
 import org.json.JSONObject
+
+private val FastLuxuryEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f)
 
 private val shadowBlack = ShadowBlack
 private val darkTeal = DarkTeal
@@ -436,10 +439,56 @@ fun KitabDigitalScreen(
             .fillMaxSize()
             .background(shadowBlack)
     ) {
-        Crossfade(
+        AnimatedContent(
             targetState = currentJuzView,
-            animationSpec = tween(500),
-            label = "ReaderCrossfade"
+            transitionSpec = {
+                val isGoingDeeper = (initialState == -2 && targetState != -2) ||
+                        (initialState == -3 && targetState >= -1) ||
+                        (initialState >= -1 && targetState > initialState)
+
+                if (isGoingDeeper) {
+                    (slideInHorizontally(
+                        initialOffsetX = { (it * 0.2f).toInt() },
+                        animationSpec = tween(220, easing = FastLuxuryEasing)
+                    ) + fadeIn(
+                        animationSpec = tween(220, easing = FastLuxuryEasing)
+                    ) + scaleIn(
+                        initialScale = 0.97f,
+                        animationSpec = tween(220, easing = FastLuxuryEasing)
+                    )).togetherWith(
+                        slideOutHorizontally(
+                            targetOffsetX = { (-it * 0.2f).toInt() },
+                            animationSpec = tween(180, easing = FastLuxuryEasing)
+                        ) + fadeOut(
+                            animationSpec = tween(180, easing = FastLuxuryEasing)
+                        ) + scaleOut(
+                            targetScale = 0.97f,
+                            animationSpec = tween(180, easing = FastLuxuryEasing)
+                        )
+                    )
+                } else {
+                    (slideInHorizontally(
+                        initialOffsetX = { (-it * 0.2f).toInt() },
+                        animationSpec = tween(220, easing = FastLuxuryEasing)
+                    ) + fadeIn(
+                        animationSpec = tween(220, easing = FastLuxuryEasing)
+                    ) + scaleIn(
+                        initialScale = 0.97f,
+                        animationSpec = tween(220, easing = FastLuxuryEasing)
+                    )).togetherWith(
+                        slideOutHorizontally(
+                            targetOffsetX = { (it * 0.2f).toInt() },
+                            animationSpec = tween(180, easing = FastLuxuryEasing)
+                        ) + fadeOut(
+                            animationSpec = tween(180, easing = FastLuxuryEasing)
+                        ) + scaleOut(
+                            targetScale = 0.97f,
+                            animationSpec = tween(180, easing = FastLuxuryEasing)
+                        )
+                    )
+                }
+            },
+            label = "ReaderAnimatedContent"
         ) { page ->
             if (page == -2) {
                 // ==========================================
@@ -1828,8 +1877,9 @@ fun KitabDigitalScreen(
         // ==========================================
         // INTERACTIVE PARAGRAPH EDITORIAL DIALOG
         // ==========================================
-        if (selectedParagraphKeyForAction != null) {
-            val key = selectedParagraphKeyForAction!!
+        val paraKey = selectedParagraphKeyForAction
+        if (paraKey != null) {
+            val key = paraKey
             var noteVal by remember(key) { mutableStateOf(paragraphNotes[key] ?: "") }
             val isFav = paragraphFavorites.contains(key)
             val isHil = paragraphHighlights.contains(key)

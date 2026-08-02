@@ -27,12 +27,13 @@ fun ErrorBoundaryWrapper(
 ) {
     var errorState by remember { mutableStateOf<Throwable?>(null) }
 
+    val currentError = errorState
     CompositionLocalProvider(
         LocalErrorReporter provides { errorState = it }
     ) {
-        if (errorState != null) {
+        if (currentError != null) {
             RecoveryModeScreen(
-                error = errorState!!,
+                error = currentError,
                 onRetry = {
                     errorState = null
                 }

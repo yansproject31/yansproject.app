@@ -47,7 +47,7 @@ object SecureConfigManager {
     fun getSecretOrDefault(keyName: String, fallback: String = ""): String {
         return try {
             val envVal = System.getenv(keyName)
-            if (isValidSecret(envVal)) return envVal!!.trim()
+            if (isValidSecret(envVal)) return envVal?.trim() ?: fallback
             fallback
         } catch (e: Exception) {
             Log.e(TAG, "Failed resolving secret $keyName: ${e.message}")

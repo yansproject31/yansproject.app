@@ -598,7 +598,7 @@ fun SettingsAndKitabDigitalScreen(
 
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
-                                    text = if (currentUser?.displayName.isNullOrBlank()) "PENGGUNA YANSPROJECT" else currentUser!!.displayName,
+                                    text = currentUser?.displayName?.takeIf { it.isNotBlank() } ?: "PENGGUNA YANSPROJECT",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White

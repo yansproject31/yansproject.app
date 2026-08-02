@@ -140,7 +140,8 @@ object DataImportExportHelper {
 
                     var line: String?
                     while (reader.readLine().also { line = it } != null) {
-                        val parts = line!!.split(delimiter)
+                        val currentLine = line ?: break
+                        val parts = currentLine.split(delimiter)
                         if (parts.size >= 2) {
                             val name = parts[1].removeSurrounding("\"").trim()
                             val desc = if (parts.size > 2) parts[2].removeSurrounding("\"").trim() else ""
@@ -174,7 +175,8 @@ object DataImportExportHelper {
 
                     var line: String?
                     while (reader.readLine().also { line = it } != null) {
-                        val parts = line!!.split(delimiter)
+                        val currentLine = line ?: break
+                        val parts = currentLine.split(delimiter)
                         if (parts.size >= 24) {
                             val idVarian = parts[0].trim().toIntOrNull() ?: continue
                             val xs_pdk = parts[3].trim().toIntOrNull() ?: 0
@@ -244,7 +246,8 @@ object DataImportExportHelper {
 
                     var line: String?
                     while (reader.readLine().also { line = it } != null) {
-                        val parts = line!!.split(delimiter)
+                        val currentLine = line ?: break
+                        val parts = currentLine.split(delimiter)
                         if (parts.size >= 2) {
                             val name = parts[0].removeSurrounding("\"").trim()
                             val phone = parts[1].removeSurrounding("\"").trim()
@@ -289,7 +292,8 @@ object DataImportExportHelper {
 
                     var line: String?
                     while (reader.readLine().also { line = it } != null) {
-                        val parts = line!!.split(delimiter)
+                        val currentLine = line ?: break
+                        val parts = currentLine.split(delimiter)
                         if (parts.size >= 1) {
                             val name = parts[0].removeSurrounding("\"").trim()
                             if (name.isNotEmpty()) {

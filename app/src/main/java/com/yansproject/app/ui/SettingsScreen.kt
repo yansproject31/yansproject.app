@@ -1765,8 +1765,8 @@ fun renderNestedSubScreen(
     onShowRestore: () -> Unit,
     navController: androidx.navigation.NavController? = null
 ) {
-    val connectivityManager = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-    val activeNetworkInfo = connectivityManager.activeNetworkInfo
+    val connectivityManager = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+    val activeNetworkInfo = connectivityManager?.activeNetworkInfo
     val isOnline = activeNetworkInfo != null && activeNetworkInfo.isConnected
 
     val currentUser by com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState()

@@ -400,6 +400,7 @@ fun SholawatMarqueeBanner(
                             color = AgedGold,
                             fontSize = 17.sp,
                             fontFamily = premiumArabicFontFamily,
+                            fontWeight = FontWeight.Bold,
                             shadow = androidx.compose.ui.graphics.Shadow(
                                 color = AgedGold.copy(alpha = 0.6f),
                                 blurRadius = 10f
@@ -459,12 +460,13 @@ fun SholawatMarqueeBanner(
 
                     Text(
                         text = "اَللّٰهُمَّ صَلِّ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ وَعَلَىٰ آلِ سَيِّدِنَا مُحَمَّدٍ",
-                        color = AgedGold,
-                        fontSize = 19.sp,
-                        fontFamily = premiumArabicFontFamily,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 44.sp,
                         style = androidx.compose.ui.text.TextStyle(
+                            color = AgedGold,
+                            fontSize = 19.sp,
+                            fontFamily = premiumArabicFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 44.sp,
                             shadow = androidx.compose.ui.graphics.Shadow(
                                 color = AgedGold.copy(alpha = 0.6f),
                                 blurRadius = 12f

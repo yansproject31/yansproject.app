@@ -271,7 +271,18 @@ fun MainAppContainer(
           AppTab.KITAB -> Screen.KitabDigital.route
       }
       val currentRoute = navController.currentBackStackEntry?.destination?.route
-      if (currentRoute != targetRoute) {
+
+      val isAlreadyInTab = when (currentTab) {
+          AppTab.SETTINGS -> currentRoute == "settings" || currentRoute?.startsWith("settings") == true || currentRoute == "admin_profile" || currentRoute == "app_settings" || currentRoute == "app_info" || currentRoute == "system_health" || currentRoute == "telemetry" || currentRoute == "security_log"
+          AppTab.DASHBOARD -> currentRoute == Screen.Dashboard.route
+          AppTab.PROJECT -> currentRoute == Screen.Project.route || currentRoute == "add_project" || currentRoute == "custom_project_main" || currentRoute == "custom_project_create" || currentRoute?.startsWith("custom_project_detail") == true
+          AppTab.STOCK -> currentRoute == Screen.Stock.route || currentRoute == "add_stock" || currentRoute == "instant_checkout" || currentRoute == "luxury_cart" || currentRoute == "ajib_return"
+          AppTab.INVOICE -> currentRoute == Screen.Invoice.route || currentRoute == "add_invoice"
+          AppTab.RIWAYAT -> currentRoute == Screen.Riwayat.route || currentRoute == "global_ledger" || currentRoute == "income_ledger" || currentRoute == "expense_ledger"
+          AppTab.KITAB -> currentRoute == Screen.KitabDigital.route
+      }
+
+      if (!isAlreadyInTab) {
           try {
               navController.navigate(targetRoute) {
                   popUpTo(Screen.Dashboard.route) {
@@ -1371,8 +1382,9 @@ fun NotificationCenterDialog(
   }
 
   // System Detail Info Dialog
-  if (selectedSystemNotif != null) {
-    val notif = selectedSystemNotif!!
+  val sysNotif = selectedSystemNotif
+  if (sysNotif != null) {
+    val notif = sysNotif
     val sdf = remember { java.text.SimpleDateFormat("dd MMM yyyy, HH:mm", java.util.Locale.forLanguageTag("id-ID")) }
     val timeStr = remember(notif.timestamp) { sdf.format(java.util.Date(notif.timestamp)) }
 
