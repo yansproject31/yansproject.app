@@ -117,12 +117,12 @@ fun RiwayatScreen(
     }
 
     val currentUser by FirebaseSyncManager.currentUser.collectAsState()
-    val isOwner = currentUser?.role == UserRole.OWNER
+    val isOwner = currentUser?.role == UserRole.OWNER || currentUser?.role == UserRole.ADMIN
 
     val filteredInvoices = remember(invoices, searchQuery, selectedFilter, selectedCategory, currentUser) {
         val memberName = (currentUser?.displayName ?: "").trim()
-        val memberPhone = (currentUser?.whatsapp ?: "").trim()
-        val memberEmail = (currentUser?.email ?: "").trim()
+        val memberPhone = (currentUser?.whatsapp ?: "").replace("+", "").trim()
+        val memberEmail = (currentUser?.email ?: "").trim().lowercase()
 
         invoices.filter { invoice ->
             val converters = AppTypeConverters()
@@ -130,10 +130,21 @@ fun RiwayatScreen(
 
             // If Member, verify ownership by name, phone, or email marker
             if (!isOwner) {
-                val matchesName = memberName.isNotBlank() && (invoice.clientName ?: "").contains(memberName, ignoreCase = true)
-                val matchesPhone = memberPhone.isNotBlank() && (invoice.clientPhone ?: "").contains(memberPhone, ignoreCase = true)
-                val matchesEmail = memberEmail.isNotBlank() && items.any { (it.description ?: "").contains(memberEmail, ignoreCase = true) }
-                if (!matchesName && !matchesPhone && !matchesEmail && memberName.isNotBlank()) return@filter false
+                val matchesName = memberName.isNotBlank() && (
+                    (invoice.clientName ?: "").contains(memberName, ignoreCase = true) ||
+                    memberName.contains(invoice.clientName ?: "", ignoreCase = true)
+                )
+                val cleanInvPhone = (invoice.clientPhone ?: "").replace("+", "").trim()
+                val matchesPhone = memberPhone.isNotBlank() && cleanInvPhone.isNotBlank() && (
+                    cleanInvPhone.contains(memberPhone) || memberPhone.contains(cleanInvPhone)
+                )
+                val matchesEmail = memberEmail.isNotBlank() && (
+                    (invoice.clientName ?: "").lowercase().contains(memberEmail) ||
+                    (invoice.itemsJson ?: "").lowercase().contains("__email__:$memberEmail") ||
+                    (invoice.itemsJson ?: "").lowercase().contains(memberEmail) ||
+                    items.any { (it.description ?: "").lowercase().contains(memberEmail) }
+                )
+                if (!matchesName && !matchesPhone && !matchesEmail) return@filter false
             }
 
             // Category Filter (Single Source of Truth)

@@ -1277,13 +1277,13 @@ fun MemberDetailAnalyticsSheet(
     val context = LocalContext.current
     val memberInvoices = remember(invoices, member) {
         val name = member.displayName.trim()
-        val email = member.email.trim()
+        val email = member.email.trim().lowercase()
         val wa = member.whatsapp.replace("+", "").trim()
         invoices.filter { inv ->
             !inv.isDeleted && (
                 (name.isNotBlank() && (inv.clientName.contains(name, ignoreCase = true) || name.contains(inv.clientName, ignoreCase = true))) ||
-                (email.isNotBlank() && (inv.clientName.contains(email, ignoreCase = true) || inv.itemsJson.contains("__EMAIL__:$email", ignoreCase = true))) ||
-                (wa.isNotBlank() && inv.clientPhone.replace("+", "").trim() == wa)
+                (email.isNotBlank() && (inv.clientName.lowercase().contains(email) || inv.itemsJson.lowercase().contains("__email__:$email") || inv.itemsJson.lowercase().contains(email))) ||
+                (wa.isNotBlank() && inv.clientPhone.replace("+", "").trim().let { p -> p.contains(wa) || wa.contains(p) })
             )
         }
     }

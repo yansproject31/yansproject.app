@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -121,6 +122,9 @@ fun CustomProjectFormScreen(
     var discountNominalStr by remember { mutableStateOf("") }
     var dpAmountStr by remember { mutableStateOf("") }
 
+    // Selected estimated deadline days
+    var selectedDeadlineDays by remember { mutableStateOf(14) } // Default 14 days
+
     // Live Totals Calculations
     val totalAdultShortCount = adultQuantitiesShort.values.sum()
     val totalAdultLongCount = adultQuantitiesLong.values.sum()
@@ -148,12 +152,14 @@ fun CustomProjectFormScreen(
     val dpAmount = dpAmountStr.toDoubleOrNull() ?: 0.0
     val sisaPembayaran = maxOf(0.0, totalPembayaran - dpAmount)
 
-    // Unsaved Changes Guard / Anti-Tap System
+    // Unsaved Changes Guard / Anti-Tap System (REACTIVE DERIVED STATE)
     var showExitConfirmationDialog by remember { mutableStateOf(false) }
-    val hasUnsavedEdits = remember(projectName, clientName, clientPhone, deliveryAddress, notes, totalQty, dpAmountStr, discountNominalStr) {
-        projectName.isNotBlank() || clientName.isNotBlank() || clientPhone.isNotBlank() ||
-        deliveryAddress.isNotBlank() || notes.isNotBlank() || totalQty > 0 ||
-        dpAmountStr.isNotBlank() || discountNominalStr.isNotBlank()
+    val hasUnsavedEdits by remember {
+        derivedStateOf {
+            projectName.isNotBlank() || clientName.isNotBlank() || clientPhone.isNotBlank() ||
+            deliveryAddress.isNotBlank() || notes.isNotBlank() || totalQty > 0 ||
+            dpAmountStr.isNotBlank() || discountNominalStr.isNotBlank()
+        }
     }
 
     BackHandler(enabled = hasUnsavedEdits) {
@@ -249,6 +255,16 @@ fun CustomProjectFormScreen(
 
                     // Quick Member Selection Chips
                     val registeredMembers = remember { AppSettings.getMembers(context).toList() }
+                    val matchedMemberDetail = remember(clientName) {
+                        if (clientName.isNotBlank()) AppSettings.getMemberDetail(context, clientName) else null
+                    }
+
+                    LaunchedEffect(matchedMemberDetail) {
+                        if (matchedMemberDetail != null && clientPhone.isBlank() && matchedMemberDetail.whatsapp.isNotBlank()) {
+                            clientPhone = matchedMemberDetail.whatsapp
+                        }
+                    }
+
                     if (registeredMembers.isNotEmpty()) {
                         Text("Pilih Dari Pelanggan Terdaftar:", color = AccentAgedGold.copy(alpha = 0.7f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         LazyRow(
@@ -260,7 +276,15 @@ fun CustomProjectFormScreen(
                                 FilterChip(
                                     selected = isSelected,
                                     onClick = {
-                                        clientName = if (isSelected) "" else memberName
+                                        if (isSelected) {
+                                            clientName = ""
+                                        } else {
+                                            clientName = memberName
+                                            val detail = AppSettings.getMemberDetail(context, memberName)
+                                            if (detail != null && detail.whatsapp.isNotBlank()) {
+                                                clientPhone = detail.whatsapp
+                                            }
+                                        }
                                     },
                                     label = { Text(memberName, fontSize = 11.sp, color = if (isSelected) ShadowBlack else TextLight) },
                                     colors = FilterChipDefaults.filterChipColors(
@@ -273,6 +297,29 @@ fun CustomProjectFormScreen(
                                         borderColor = DividerDarkCyanGray,
                                         selectedBorderColor = AccentAgedGold
                                     )
+                                )
+                            }
+                        }
+                    }
+
+                    if (matchedMemberDetail != null) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Surface(
+                            color = AlertGreen.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, AlertGreen.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = AlertGreen, modifier = Modifier.size(14.dp))
+                                Text(
+                                    text = "AKUN MEMBER TERDAFTAR • Tier: ${matchedMemberDetail.priceCategory}",
+                                    color = AlertGreen,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
@@ -302,6 +349,32 @@ fun CustomProjectFormScreen(
                             .testTag("form_delivery_address"),
                         singleLine = false
                     )
+
+                    // Target Estimasi Pengerjaan (Deadline)
+                    Text("Target Estimasi Pengerjaan / Deadline:", color = AccentAgedGold.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        listOf(7 to "7 Hari", 14 to "14 Hari", 21 to "21 Hari", 30 to "30 Hari").forEach { (days, label) ->
+                            val isSelected = selectedDeadlineDays == days
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedDeadlineDays = days },
+                                label = { Text(label, fontSize = 11.sp, color = if (isSelected) ShadowBlack else TextLight, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = AccentAgedGold,
+                                    containerColor = PrimaryDarkTeal
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = DividerDarkCyanGray,
+                                    selectedBorderColor = AccentAgedGold
+                                )
+                            )
+                        }
+                    }
                 }
             }
 
@@ -773,32 +846,92 @@ fun CustomProjectFormScreen(
                         return@YansPremiumButton
                     }
 
-                    // Package Matrix Lists
+                    // Package Matrix Lists and Serialized Project Items
                     val adultCells = mutableListOf<VariantCell>()
+                    val projectItemsList = mutableListOf<com.yansproject.app.ui.ProjectItem>()
+
                     adultQuantitiesShort.forEach { (sz, qty) ->
-                        if (qty > 0) adultCells.add(VariantCell(sz, SleeveType.PENDEK, qty))
+                        if (qty > 0) {
+                            adultCells.add(VariantCell(sz, SleeveType.PENDEK, qty))
+                            val p = calculateRegulerPrice(sz, "Pendek")
+                            projectItemsList.add(
+                                com.yansproject.app.ui.ProjectItem(
+                                    productType = "T-Shirt Reguler",
+                                    sleeveType = "Pendek",
+                                    size = sz,
+                                    qty = qty,
+                                    price = p,
+                                    subtotal = qty * p
+                                )
+                            )
+                        }
                     }
                     adultQuantitiesLong.forEach { (sz, qty) ->
-                        if (qty > 0) adultCells.add(VariantCell(sz, SleeveType.PANJANG, qty))
+                        if (qty > 0) {
+                            adultCells.add(VariantCell(sz, SleeveType.PANJANG, qty))
+                            val p = calculateRegulerPrice(sz, "Panjang")
+                            projectItemsList.add(
+                                com.yansproject.app.ui.ProjectItem(
+                                    productType = "T-Shirt Reguler",
+                                    sleeveType = "Panjang",
+                                    size = sz,
+                                    qty = qty,
+                                    price = p,
+                                    subtotal = qty * p
+                                )
+                            )
+                        }
                     }
 
                     val kidsCells = mutableListOf<VariantCell>()
                     kidsQuantitiesShort.forEach { (sz, qty) ->
-                        if (qty > 0) kidsCells.add(VariantCell(sz, SleeveType.PENDEK, qty))
+                        if (qty > 0) {
+                            kidsCells.add(VariantCell(sz, SleeveType.PENDEK, qty))
+                            val p = calculateKidsPrice(sz, "Pendek")
+                            projectItemsList.add(
+                                com.yansproject.app.ui.ProjectItem(
+                                    productType = "T-Shirt Kids",
+                                    sleeveType = "Pendek",
+                                    size = sz,
+                                    qty = qty,
+                                    price = p,
+                                    subtotal = qty * p
+                                )
+                            )
+                        }
                     }
                     kidsQuantitiesLong.forEach { (sz, qty) ->
-                        if (qty > 0) kidsCells.add(VariantCell(sz, SleeveType.PANJANG, qty))
+                        if (qty > 0) {
+                            kidsCells.add(VariantCell(sz, SleeveType.PANJANG, qty))
+                            val p = calculateKidsPrice(sz, "Panjang")
+                            projectItemsList.add(
+                                com.yansproject.app.ui.ProjectItem(
+                                    productType = "T-Shirt Kids",
+                                    sleeveType = "Panjang",
+                                    size = sz,
+                                    qty = qty,
+                                    price = p,
+                                    subtotal = qty * p
+                                )
+                            )
+                        }
                     }
+
+                    // Format full serialized description for auto invoice generation
+                    val serializedItems = com.yansproject.app.ui.ProjectItemParser.serialize(projectItemsList)
+                    val deadlineNote = "Target Deadline: $selectedDeadlineDays Hari"
+                    val userNoteText = if (notes.isNotBlank()) "$notes ($deadlineNote)" else deadlineNote
+                    val combinedDescription = "$userNoteText ===ITEMS_DATA=== $serializedItems"
 
                     val newProject = CustomProject(
                         id = "PRJ-${System.currentTimeMillis().toString().substring(5)}",
                         projectName = projectName,
                         clientName = if (clientName.isBlank()) "Umum / Cash" else clientName,
                         clientPhone = clientPhone,
-                        clientCompany = "", // Removed Instansi
+                        clientCompany = "",
                         deliveryAddress = deliveryAddress,
-                        specialNotes = notes, // Standardized Catatan
-                        status = "PENDING", // Default status
+                        specialNotes = combinedDescription,
+                        status = "PENDING",
                         adultPriceShort = adultPriceShort.toDoubleOrNull() ?: 85000.0,
                         adultPriceLong = adultPriceLong.toDoubleOrNull() ?: 95000.0,
                         kidsPriceShort = kidsPriceShort.toDoubleOrNull() ?: 65000.0,
@@ -816,10 +949,7 @@ fun CustomProjectFormScreen(
                     )
 
                     viewModel.saveProjectToDatabase(newProject)
-                    if (clientName.isNotBlank()) {
-                        AppSettings.addMember(context, clientName.trim())
-                    }
-                    com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Project Custom '${projectName}' berhasil disimpan!")
+                    com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Project Custom '${projectName}' berhasil disimpan & Invoice diterbitkan!")
                     onNavigateBack()
                 },
                 modifier = Modifier
@@ -831,27 +961,28 @@ fun CustomProjectFormScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Unsaved Changes Confirmation Dialog
+        // Unsaved Changes Confirmation Dialog (Modal Lock)
         if (showExitConfirmationDialog) {
             AlertDialog(
-                onDismissRequest = { showExitConfirmationDialog = false },
-                modifier = Modifier.border(1.2.dp, AccentAgedGold.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
+                onDismissRequest = { /* Lock modal: require explicit confirm/dismiss button tap */ },
+                modifier = Modifier.border(1.2.dp, AccentAgedGold.copy(alpha = 0.8f), RoundedCornerShape(16.dp)),
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.Warning, contentDescription = null, tint = StatusWarningGold)
                         Text(
                             text = "KELUAR TANPA MENYIMPAN?",
                             color = AccentAgedGold,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             fontSize = 15.sp
                         )
                     }
                 },
                 text = {
                     Text(
-                        text = "Formulir Project Custom berisi data yang belum disimpan. Yakin ingin keluar tanpa menyimpan draf ini?",
+                        text = "Formulir Project Custom berisi data atau kuantitas matriks yang belum disimpan. Yakin ingin keluar dan menghapus draf ini?",
                         color = TextLight,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
                     )
                 },
                 confirmButton = {
@@ -890,32 +1021,32 @@ private fun QuantityCounterChip(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .background(SecondaryShadowBlackTeal)
-            .border(1.dp, DividerDarkCyanGray.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+            .border(1.dp, DividerDarkCyanGray.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
             .padding(horizontal = 4.dp, vertical = 2.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(26.dp)
+                    .size(34.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(PrimaryDarkTeal.copy(alpha = 0.5f))
+                    .background(if (value > 0) PrimaryDarkTeal else PrimaryDarkTeal.copy(alpha = 0.3f))
                     .clickable { onDecrement() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("-", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("-", color = if (value > 0) LuxuryGold else TextMuted, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("$value", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
+            Text("$value", color = if (value > 0) AlertGreen else Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+            Spacer(modifier = Modifier.width(10.dp))
             Box(
                 modifier = Modifier
-                    .size(26.dp)
+                    .size(34.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(PrimaryDarkTeal.copy(alpha = 0.5f))
+                    .background(PrimaryDarkTeal)
                     .clickable { onIncrement() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("+", color = LuxuryGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("+", color = LuxuryGold, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
             }
         }
     }

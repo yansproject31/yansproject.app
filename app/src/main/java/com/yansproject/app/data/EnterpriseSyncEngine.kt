@@ -59,7 +59,7 @@ object EnterpriseSyncEngine {
 
         stopRealtimeSyncListeners()
 
-        val collections = listOf("stock_items", "projects", "invoices", "orders", "expenses", "inflows", "master_catalog", "master_varian_warna", "master_stock", "stock_history", "audit_logs", "inventory_ledger", "production_batch", "inventory_summary")
+        val collections = listOf("stock_items", "projects", "invoices", "invoice_payments", "orders", "expenses", "inflows", "master_catalog", "master_varian_warna", "master_stock", "stock_history", "audit_logs", "inventory_ledger", "production_batch", "inventory_summary")
 
         for (col in collections) {
             try {
@@ -104,6 +104,32 @@ object EnterpriseSyncEngine {
                                                     }
                                                 } else {
                                                     db.invoiceDao().insertInvoice(item.copy(id = 0))
+                                                }
+                                            }
+                                            try {
+                                                val repo = BusinessRepository(db)
+                                                repo.updateSummariesForInvoice(item)
+                                            } catch (_: Exception) {}
+                                        }
+                                        "invoice_payments" -> {
+                                            val item = doc.toObject(InvoicePayment::class.java) ?: return@launch
+                                            val local = db.invoicePaymentDao().getPaymentById(item.id)
+                                            if (isRemove) {
+                                                if (local != null) db.invoicePaymentDao().deletePaymentById(item.id)
+                                            } else {
+                                                if (local == null || item != local) db.invoicePaymentDao().insertPayment(item)
+                                            }
+                                            val invNum = item.invoiceId
+                                            if (invNum.isNotBlank()) {
+                                                val inv = db.invoiceDao().getInvoiceByNumber(invNum)
+                                                if (inv != null) {
+                                                    val payments = db.invoicePaymentDao().getPaymentsForInvoiceList(inv.invoiceNumber, inv.invoiceNumber)
+                                                    val unique = payments.distinctBy { Pair(it.id.ifEmpty { "${it.date}_${it.amount}" }, Pair(it.date, Pair(it.amount, it.paymentMethod))) }
+                                                    val totalPaid = unique.sumOf { it.amount }
+                                                    val newStatus = if (totalPaid >= inv.totalAmount && inv.totalAmount > 0) "LUNAS" else if (totalPaid > 0) "DP" else "BELUM LUNAS"
+                                                    if (inv.paidAmount != totalPaid || inv.status != newStatus) {
+                                                        db.invoiceDao().updateInvoice(inv.copy(paidAmount = totalPaid, status = newStatus))
+                                                    }
                                                 }
                                             }
                                         }

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -65,8 +66,8 @@ fun InvoiceScreen(
     val searchQuery by viewModel.invoiceSearchQuery.collectAsState()
     val selectedFilter by viewModel.invoiceStatusFilter.collectAsState()
 
-    val currentUser by com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState()
-    val isOwner = currentUser?.role == com.yansproject.app.data.UserRole.OWNER
+    val currentUser = com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState().value
+    val isOwner = currentUser?.role == com.yansproject.app.data.UserRole.OWNER || currentUser?.role == com.yansproject.app.data.UserRole.ADMIN
 
     var selectedInvoiceForDetail by remember { mutableStateOf<Invoice?>(null) }
     var selectedInvoiceForPayment by remember { mutableStateOf<Invoice?>(null) }
@@ -129,18 +130,22 @@ fun InvoiceScreen(
     val filteredInvoices = invoices.filter { invoice ->
         if (!isOwner) {
             val userDisplayName = currentUser?.displayName?.trim() ?: ""
-            val userPhone = currentUser?.whatsapp?.trim() ?: ""
-            val userEmail = currentUser?.email?.trim() ?: ""
+            val userPhone = currentUser?.whatsapp?.replace("+", "")?.trim() ?: ""
+            val userEmail = currentUser?.email?.trim()?.lowercase() ?: ""
 
             val matchesName = userDisplayName.isNotBlank() && (
                 invoice.clientName.contains(userDisplayName, ignoreCase = true) || 
                 userDisplayName.contains(invoice.clientName, ignoreCase = true)
             )
-            val matchesPhone = userPhone.isNotBlank() && (
-                invoice.clientPhone.contains(userPhone, ignoreCase = true) || 
-                userPhone.contains(invoice.clientPhone, ignoreCase = true)
+            val cleanInvoicePhone = invoice.clientPhone.replace("+", "").trim()
+            val matchesPhone = userPhone.isNotBlank() && cleanInvoicePhone.isNotBlank() && (
+                cleanInvoicePhone.contains(userPhone) || userPhone.contains(cleanInvoicePhone)
             )
-            val matchesEmail = userEmail.isNotBlank() && invoice.clientName.contains(userEmail, ignoreCase = true)
+            val matchesEmail = userEmail.isNotBlank() && (
+                invoice.clientName.lowercase().contains(userEmail) ||
+                invoice.itemsJson.lowercase().contains("__email__:$userEmail") ||
+                invoice.itemsJson.lowercase().contains(userEmail)
+            )
 
             val isMyInvoice = matchesName || matchesPhone || matchesEmail
             if (!isMyInvoice) return@filter false
@@ -2588,15 +2593,22 @@ fun AddSaleDialog(
     var paidAmountStr by remember { mutableStateOf("") }
     var selectedPriceType by remember { mutableStateOf("Retail") } // Retail, Member, Reseller, Custom
 
-    val registeredMembers = remember { AppSettings.getMembers(context) }
+    val registeredMembers = remember { AppSettings.getMembers(context).toList() }
     val matchedMember = remember(clientName) {
         registeredMembers.find { m -> m.equals(clientName.trim(), ignoreCase = true) }
+    }
+    val matchedMemberDetail = remember(matchedMember) {
+        if (matchedMember != null) AppSettings.getMemberDetail(context, matchedMember) else null
     }
 
     LaunchedEffect(matchedMember) {
         if (matchedMember != null) {
             val tier = AppSettings.getMemberPriceCategory(context, matchedMember)
             selectedPriceType = tier
+            val detail = AppSettings.getMemberDetail(context, matchedMember)
+            if (detail != null && clientPhone.isBlank() && detail.whatsapp.isNotBlank()) {
+                clientPhone = detail.whatsapp
+            }
         }
     }
 
@@ -2643,6 +2655,27 @@ fun AddSaleDialog(
 
     // Delivery note - INITIALIZED TO EMPTY STRING PER USER INSTRUCTION
     var deliveryNotes by remember { mutableStateOf("") }
+
+    // Anti-Tap Unsaved Edits Guard
+    var showExitConfirmationDialog by remember { mutableStateOf(false) }
+    val hasUnsavedEdits by remember {
+        derivedStateOf {
+            clientName.isNotBlank() || clientPhone.isNotBlank() || cartList.isNotEmpty() ||
+            paidAmountStr.isNotBlank() || deliveryNotes.isNotBlank() || matrixQtyState.values.any { it > 0 }
+        }
+    }
+
+    val attemptExit = {
+        if (hasUnsavedEdits) {
+            showExitConfirmationDialog = true
+        } else {
+            onDismiss()
+        }
+    }
+
+    BackHandler(enabled = hasUnsavedEdits) {
+        showExitConfirmationDialog = true
+    }
 
     // Helper: get available stock count for size & sleeve
     fun getAvailableStock(mStock: com.yansproject.app.data.MasterStock?, size: String, sleeve: String): Int {
@@ -2782,7 +2815,7 @@ fun AddSaleDialog(
                     }
 
                     IconButton(
-                        onClick = onDismiss,
+                        onClick = attemptExit,
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(Color(0x22FFFFFF))
@@ -2855,6 +2888,65 @@ fun AddSaleDialog(
                                     shape = RoundedCornerShape(10.dp),
                                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = Color(0x44319795))
                                 )
+
+                                if (registeredMembers.isNotEmpty()) {
+                                    Text("Pilih Pelanggan Terdaftar:", color = AgedGold.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                                    ) {
+                                        items(registeredMembers) { memberName ->
+                                            val isSelected = clientName.equals(memberName, ignoreCase = true)
+                                            FilterChip(
+                                                selected = isSelected,
+                                                onClick = {
+                                                    if (isSelected) {
+                                                        clientName = ""
+                                                    } else {
+                                                        clientName = memberName
+                                                        val detail = AppSettings.getMemberDetail(context, memberName)
+                                                        if (detail != null && detail.whatsapp.isNotBlank()) {
+                                                            clientPhone = detail.whatsapp
+                                                        }
+                                                    }
+                                                },
+                                                label = { Text(memberName, fontSize = 11.sp, color = if (isSelected) ShadowBlack else TextLight) },
+                                                colors = FilterChipDefaults.filterChipColors(
+                                                    selectedContainerColor = AgedGold,
+                                                    containerColor = PrimaryDarkTeal
+                                                ),
+                                                border = FilterChipDefaults.filterChipBorder(
+                                                    enabled = true,
+                                                    selected = isSelected,
+                                                    borderColor = BorderGrey,
+                                                    selectedBorderColor = AgedGold
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (matchedMemberDetail != null) {
+                                    Surface(
+                                        color = AlertGreen.copy(alpha = 0.15f),
+                                        border = BorderStroke(1.dp, AlertGreen.copy(alpha = 0.4f)),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = AlertGreen, modifier = Modifier.size(14.dp))
+                                            Text(
+                                                text = "AKUN MEMBER TERDAFTAR • Otomatis Tier: ${matchedMemberDetail.priceCategory}",
+                                                color = AlertGreen,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
 
                                 OutlinedTextField(
                                     value = clientPhone,
@@ -3437,7 +3529,7 @@ fun AddSaleDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedButton(
-                        onClick = onDismiss,
+                        onClick = attemptExit,
                         border = BorderStroke(1.dp, Color(0x44319795)),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                         shape = RoundedCornerShape(10.dp)
@@ -3483,6 +3575,61 @@ fun AddSaleDialog(
                     }
                 }
             }
+        }
+
+        // Unsaved Changes Confirmation Dialog
+        if (showExitConfirmationDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    // Lock modal: require explicit tap on action buttons
+                },
+                properties = DialogProperties(
+                    dismissOnClickOutside = false,
+                    dismissOnBackPress = false
+                ),
+                modifier = Modifier.border(1.2.dp, AgedGold.copy(alpha = 0.8f), RoundedCornerShape(16.dp)),
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = AlertOrange)
+                        Text(
+                            text = "KELUAR TANPA MENYIMPAN?",
+                            color = AgedGold,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp
+                        )
+                    }
+                },
+                text = {
+                    Text(
+                        text = "Data formulir invoice atau item pilihan yang diisi belum disimpan. Yakin ingin keluar tanpa menyimpan draf ini?",
+                        color = TextLight,
+                        fontSize = 13.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showExitConfirmationDialog = false
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("KELUAR (HAPUS DRAF)", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { showExitConfirmationDialog = false },
+                        border = BorderStroke(1.dp, AlertGreen),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("LANJUTKAN MENGISI", color = AlertGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                },
+                containerColor = Color(0xFF071213),
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     }
 }

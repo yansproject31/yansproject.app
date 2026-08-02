@@ -4,6 +4,7 @@ import com.yansproject.app.ui.AppSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 import androidx.room.withTransaction
@@ -26,7 +27,22 @@ class BusinessRepository(private val db: AppDatabase) {
     val allStock: Flow<List<StockItem>> = stockDao.getAllStock()
     val allProjects: Flow<List<ProjectCustom>> = projectDao.getAllProjects()
     val allOrders: Flow<List<OrderHistory>> = orderDao.getAllOrders()
-    val allInvoices: Flow<List<Invoice>> = invoiceDao.getAllInvoices()
+    val allInvoices: Flow<List<Invoice>> = invoiceDao.getAllInvoices().map { list ->
+        list.groupBy { if (it.invoiceNumber.isNotBlank()) it.invoiceNumber.trim() else it.id.toString() }
+            .mapValues { (_, group) ->
+                if (group.size == 1) group.first()
+                else group.sortedWith(
+                    compareByDescending<Invoice> { 
+                        when (it.status.uppercase().trim()) {
+                            "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "DICICIL", "BELUM LUNAS", "DISETUJUI" -> 3
+                            "MENUNGGU PERSETUJUAN", "MENUNGGU PERSETUJUAN OWNER" -> 2
+                            else -> 1
+                        }
+                    }.thenByDescending { it.paidAmount }
+                    .thenByDescending { it.id }
+                ).first()
+            }.values.sortedByDescending { it.issueDate }
+    }
     val allInvoicePayments: Flow<List<InvoicePayment>> = invoicePaymentDao.getAllPaymentsFlow()
     val allExpenses: Flow<List<Expense>> = expenseDao.getAllExpenses()
     val allInflows: Flow<List<Inflow>> = inflowDao.getAllInflows()
@@ -1151,7 +1167,8 @@ class BusinessRepository(private val db: AppDatabase) {
         }
     }
 
-    suspend fun createDirectInvoice(invoice: Invoice) {
+    suspend fun createDirectInvoice(invoice: Invoice): Invoice {
+        var result: Invoice = invoice
         db.withTransaction {
             val existing = if (invoice.invoiceNumber.isNotBlank()) {
                 invoiceDao.getInvoiceByNumber(invoice.invoiceNumber)
@@ -1169,7 +1186,9 @@ class BusinessRepository(private val db: AppDatabase) {
             updateSummariesForInvoice(finalInvoice)
             val cloudKey = finalInvoice.invoiceNumber.ifEmpty { finalInvoice.id.toString() }
             FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, finalInvoice)
+            result = finalInvoice
         }
+        return result
     }
 
     private suspend fun restoreStockForInvoice(invoice: Invoice) {

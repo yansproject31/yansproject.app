@@ -232,6 +232,7 @@ object AppSettings {
         val raw = getPrefs(context).getStringSet(KEY_MEMBERS, emptySet()) ?: emptySet()
         return raw.filter { name ->
             val clean = name.trim()
+            clean.isNotBlank() &&
             !clean.equals("Owner", ignoreCase = true) &&
             !clean.contains("Owner", ignoreCase = true) &&
             !clean.equals("Administrator", ignoreCase = true) &&
@@ -245,10 +246,39 @@ object AppSettings {
         getPrefs(context).getStringSet(KEY_DELETED_MEMBERS, emptySet()) ?: emptySet()
 
     fun addMember(context: Context, clientName: String) {
+        val trimmed = clientName.trim()
+        if (trimmed.isBlank()) return
         val current = getMembers(context).toMutableSet()
-        if (current.add(clientName.trim())) {
+        val existing = current.find { it.equals(trimmed, ignoreCase = true) }
+        if (existing == null) {
+            current.add(trimmed)
             getPrefs(context).edit().putStringSet(KEY_MEMBERS, current).apply()
         }
+    }
+
+    data class MemberDetail(
+        val email: String = "",
+        val displayName: String = "",
+        val whatsapp: String = "",
+        val address: String = "",
+        val priceCategory: String = "Member"
+    )
+
+    fun getMemberDetail(context: Context, displayName: String): MemberDetail? {
+        val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+        val allEntries = prefs.all
+        val targetName = displayName.trim()
+        if (targetName.isBlank()) return null
+        for ((key, value) in allEntries) {
+            if (key.startsWith("name_") && value is String && value.equals(targetName, ignoreCase = true)) {
+                val emailSuffix = key.substring("name_".length)
+                val wa = prefs.getString("wa_$emailSuffix", "") ?: ""
+                val addr = prefs.getString("address_$emailSuffix", "") ?: ""
+                val price = prefs.getString("price_$emailSuffix", "Member") ?: "Member"
+                return MemberDetail(emailSuffix, value, wa, addr, price)
+            }
+        }
+        return null
     }
 
     fun removeMember(context: Context, clientName: String) {

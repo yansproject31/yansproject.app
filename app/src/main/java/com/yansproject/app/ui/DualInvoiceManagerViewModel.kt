@@ -297,48 +297,61 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
         _state.update { it.copy(lastPrintedStatus = status) }
     }
 
-    fun addCustomProjectInvoice(proj: CustomProject) {
-        viewModelScope.launch {
+    fun addCustomProjectInvoice(proj: CustomProject, items: List<InvoiceItemDetail> = emptyList()) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val db = AppDatabase.getDatabase(getApplication())
                 val repository = BusinessRepository(db)
+                val prefix = AppSettings.getInvoicePrefix(getApplication())
+                val itemsDesc = if (items.isNotEmpty()) {
+                    items.joinToString("; ") { "${it.quantity}x ${it.description} @${com.yansproject.app.ui.FormatUtils.formatRupiah(it.price)}" }
+                } else proj.specialNotes.ifEmpty { proj.projectName }
+
                 val entity = ProjectCustom(
                     projectName = proj.projectName,
                     clientName = proj.clientName,
                     clientPhone = proj.clientPhone,
-                    description = proj.specialNotes,
+                    description = itemsDesc,
                     totalCost = proj.grandTotal,
                     paidAmount = proj.paidAmount,
                     status = "Planning",
                     clientInstitution = proj.clientCompany,
                     clientAddress = proj.deliveryAddress,
-                    clientNotes = proj.specialNotes
+                    clientNotes = proj.specialNotes,
+                    startDate = proj.issueDate,
+                    endDate = proj.issueDate + (86400000 * 7)
                 )
-                repository.createProject(entity, "PRJ")
+                repository.createProject(entity, prefix)
+                repository.deduplicateInvoicesInLocalDb()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
 
-    fun addStockInvoice(invoice: Invoice) {
-        viewModelScope.launch {
+    fun addStockInvoice(invoice: Invoice, dpAmount: Double = 0.0, dpMethod: String = "TUNAI") {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val db = AppDatabase.getDatabase(getApplication())
-                db.invoiceDao().insertInvoice(invoice)
-                if (invoice.paidAmount > 0.0) {
-                    val transactionNumber = "TX-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
-                    val inflow = Inflow(
-                        transactionNumber = transactionNumber,
-                        category = "Penjualan",
-                        amount = invoice.paidAmount,
-                        date = System.currentTimeMillis(),
-                        notes = "Uang Muka / Pelunasan Invoice ${invoice.invoiceNumber} - ${invoice.clientName}",
-                        paymentMethod = "TUNAI",
-                        createdBy = "Owner"
+                val repository = BusinessRepository(db)
+                val prefix = AppSettings.getInvoicePrefix(getApplication())
+                val invoiceNum = if (invoice.invoiceNumber.isNotBlank()) invoice.invoiceNumber else repository.generateInvoiceNumber(prefix, invoice.issueDate)
+                val finalInv = invoice.copy(invoiceNumber = invoiceNum)
+                val savedInv = repository.createDirectInvoice(finalInv)
+
+                val actualDp = if (dpAmount > 0.0) dpAmount else invoice.paidAmount
+                if (actualDp > 0.0) {
+                    repository.addInvoicePayment(
+                        invoiceId = savedInv.id,
+                        amount = actualDp,
+                        method = dpMethod,
+                        methodDetail = dpMethod,
+                        notes = "Uang Muka / Pelunasan Invoice ${savedInv.invoiceNumber} - ${savedInv.clientName}",
+                        adminName = "Owner",
+                        adminUid = "owner_sys"
                     )
-                    db.inflowDao().insertInflow(inflow)
                 }
+                repository.deduplicateInvoicesInLocalDb()
             } catch (e: Exception) {
                 e.printStackTrace()
             }

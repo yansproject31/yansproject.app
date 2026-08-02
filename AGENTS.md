@@ -1,9 +1,10 @@
-# MASTER BLUEPRINT: YANSPROJECT.ID ERP SYSTEM
+# MASTER BLUEPRINT & REGULASI PENGEMBANGAN: YANSPROJECT.ID ERP SYSTEM
 
 > **DOKUMEN INDUK REGULASI & BLUEPRINT PENGEMBANGAN APLIKASI**  
 > *Versi: 2.0 (Master Release)*  
 > *Sistem: YANSPROJECT.ID Enterprise Resource Planning & Financial Management System*  
-> *Status: AKTIFF & MENJADI ACUAN MUTLAK KODE BASE*
+> *Status: AKTIF & MENJADI ACUAN MUTLAK KODE BASE*  
+> *Referensi Utama: `/GRAND_MASTER_BLUEPRINT.md`*
 
 ---
 
@@ -11,7 +12,7 @@
 
 **YANSPROJECT.ID** adalah platform Enterprise Resource Planning (ERP) & Manajemen Keuangan Cyber-Industrial tingkat tinggi yang dirancang khusus untuk manajemen proyek cetak, manufaktur custom, persediaan stok, faktur penagihan, serta histori transaksi multi-channel secara real-time.
 
- Seluruh pembaruan, penambahan fitur, bugfix, dan modifikasi kode pada aplikasi ini **WAJIB MENGIKUTI DENGAN PATUH** setiap spesifikasi, DNA warna, hierarki visual, dan aturan arsitektur yang tertera di dalam dokumen Master Blueprint ini.
+Seluruh pembaruan, penambahan fitur, bugfix, dan modifikasi kode pada aplikasi ini **WAJIB MENGIKUTI DENGAN PATUH** setiap spesifikasi, DNA warna, hierarki visual, dan aturan arsitektur yang tertera di dalam dokumen Master Blueprint ini.
 
 ---
 
@@ -52,63 +53,29 @@ Sistem menggunakan tema **Cyber Emerald & High-Contrast Industrial Dark Canvas**
    - Latar belakang badge: `AlertRed` (`#FF5252`) dengan border melingkar tegas `1.dp` berwarna `#0D1E1E`.
    - Minimum size badge: `minWidth = 18.dp`, `minHeight = 18.dp` dengan padding `horizontal = 4.dp, vertical = 1.dp` agar angka 2–3 digit tetap muat dengan rapi.
 
-### 3.2 Lottie Micro-Interactions & Transitions
-- Transisi antar tab utama menggunakan mikro-animasi Lottie yang tidak mengganggu (`SubtleLottieTabTransition` & `LottieTabPulse`).
-- Filter Chip aktif menyertakan indikator halus `LottieFilterChipPulse` (size 12.dp) untuk memberikan feedback visual profesional.
+---
+
+## 4. HIERARKI OTORISASI ROLE (OWNER, ADMIN, MEMBER, NON-MEMBER)
+
+1. **Owner**: Akses 100% global tanpa batasan (Kas, Ledger Keuangan, Member Management, Reset Database).
+2. **Admin**: Otorisasi operasional proyek, stok, invoice, dan manajemen member.
+3. **Member**: Hak akses terisolasi secara mandiri (hanya melihat Invoice & Riwayat milik sendiri via nama, email, WhatsApp), membaca Kitab Digital, dan update profil.
+4. **Non-Member**: Katalog publik dan halaman login/registrasi.
 
 ---
 
-## 4. HIERARKI VISUAL & TYPOGRAPHY SYSTEM
-
-### 4.1 Typography Standards
-- **Brand Title / Header Utama**: `FontWeight.ExtraBold`, Letter Spacing `1.sp` – `2.sp`, Warna `AgedGold` atau `TextLight`.
-- **Section Headers (misal: "BUSINESS ALERTS & SYSTEM STATUS")**: `FontSize = 11.sp` - `12.sp`, `FontWeight.Bold`, Uppercase, Letter Spacing `1.sp`, Warna `AgedGold`.
-- **Primary Numerical Metrics (misal: Omset, Total Piutang)**: `FontSize = 16.sp` - `22.sp`, `FontWeight.ExtraBold`, High contrast color (`AgedGold`, `AlertGreen`, or `HighlightSoftCyan`).
-- **Body & Subtitle**: `FontSize = 12.sp` - `14.sp`, `FontWeight.Medium` / `Regular`, Warna `TextLight` atau `TextMuted`.
-
-### 4.2 Spacing & Grid System
-- Grid dasar menggunakan kelipatan **4dp / 8dp**:
-  - Small Spacing: `4.dp` / `6.dp`
-  - Medium Padding: `8.dp` / `12.dp`
-  - Container / Screen Margin: `16.dp` / `20.dp`
-- Standard Touch Target: Minimal **48.dp x 48.dp** untuk seluruh tombol dan icon interaktif.
-
----
-
-## 5. MODUL UTAMA & ARSITEKTUR FITUR ERP
-
-### 5.1 Main Navigation Header & Scaffold (`MainScaffold.kt`)
-- **Top Header Bar**: Logo Brand `YANSPROJECT.ID`, Status Pill `ONLINE` / `OFFLINE`, Search Button, Notification Bell with Overlaid Count Badge, Quick Settings Button, Logout Action.
-- **Bottom Navigation Bar (`BottomNavigationBar.kt`)**: 5 Tab Utama:
-  1. `DASHBOARD` (Ikhtisar Keuangan, Inflow, Outflow, Alert Bisnis)
-  2. `PROJECT` (Manajemen Pengerjaan Pesanan, Costing Material, Progress)
-  3. `STOK` (Katalog Inventaris, Peringatan Stok Tipis, In/Out Stock)
-  4. `INVOICE` (Pembuatan Faktur, Tracking DP & Piutang, Cetak/Export PDF)
-  5. `RIWAYAT` (Auditing Transaksi Lengkap, Filter Multi-Periode, Download CSV/PDF)
-
-### 5.2 Dashboard & Financial Intelligence Engine (`DashboardScreen.kt`)
-- Filter Periode Universal: `Semua`, `Hari Ini`, `Minggu Ini`, `Bulan Ini`, `Tahun Ini`.
-- Metric Cards: Total Omset, Diterima (Cash Inflow), Sisa Piutang, Volume Produk.
-- Real-time Business Alerts: Otomatis mendeteksi stok di bawah batas minimum, invoice jatuh tempo, dan proyek mendekati deadline.
-
-### 5.3 Modul Riwayat Transaksi (`RiwayatScreen.kt`)
-- Mengonsolidasikan seluruh aliran data ERP:
-  - Perubahan/Pergerakan Stok
-  - Pembayaran Proyek (DP / Pelunasan)
-  - Pemasukan Langsung (Direct Inflows)
-  - Pengeluaran Operasional (Expenses)
-- Menyediakan fitur pencarian cepat & Export Rangkuam Laporan PDF & CSV.
-
-### 5.4 Synchronisation & Persistence Layer (`MainViewModel.kt` & Firestore)
-- Penyimpanan lokal berbasis Room Database & SharedPreferences.
-- Integrasi Cloud Real-time Firestore untuk sinkronisasi multi-device & multi-user role.
-- Proteksi pencegahan infinite loop sync storm pada pengirim/penerima notifikasi.
+## 5. MODUL UTAMA APLIKASI
+1. **Dashboard & Sub-Ledger**: Pemasukan, Modal Awal/Berjalan, Pengeluaran, Rekap Kas/Bank, Gross/Net Profit, Penjualan & Piutang.
+2. **Custom Project**: Matriks Apparel Pricing (Size x Sleeve), Tracking DP, Material Costing, Workflow status (`Planning` -> `Production` -> `Ready` -> `Completed` -> `Delivered`).
+3. **Stok**: Master catalog, varian warna/ukuran/lengan, inventory ledger, auto-summary trigger.
+4. **Invoice**: Penomoran otomatis (`INV/2026/AJB/...`), Direct & Custom Mode, multi-payment tracking, PDF/CSV export, deduplikasi otomatis.
+5. **Riwayat Transaksi**: Timelines pergerakan stok, inflow, outflow, cicilan invoice, filter multi-periode, isolasi data member.
+6. **Settings**: Profil usaha, parameter PPN/prefix, manajemen anggota, system health/backup.
+7. **Kitab Digital**: Dokumentasi SOP, regulasi internal, dan panduan industri.
 
 ---
 
 ## 6. REGULASI PENGEMBANGAN & ATURAN INTEGRITAS (DEVELOPER MANDATES)
-
-Setiap pengembang atau AI Agent yang memperbarui basis kode aplikasi ini **WAJIB DIPATUHI PERATURAN BERIKUT**:
 
 1. **JANGAN PERNAH** merusak atau mengubah skema warna dasar `AgedGold`, `ShadowBlack`, `DeepTeal`, `AlertGreen`, dan `AlertRed`.
 2. **JANGAN PERNAH** menambahkan kembali efek `radialGradient` kotor atau background blur yang menutupi konten visual.

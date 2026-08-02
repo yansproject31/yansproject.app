@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Info
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yansproject.app.data.CustomProject
 import com.yansproject.app.data.IdrAccountingEngine
@@ -109,10 +111,12 @@ fun DualInvoiceEditorScreen(
 
     // Unsaved Changes Guard / Anti-Tap System
     var showExitConfirmationDialog by remember { mutableStateOf(false) }
-    val hasUnsavedEdits = remember(clientName, clientPhone, clientCompany, deliveryAddress, specialNotes, addedItems, discountInput, taxInput, dpInput) {
-        clientName.isNotBlank() || clientPhone.isNotBlank() || clientCompany.isNotBlank() ||
-        deliveryAddress.isNotBlank() || specialNotes.isNotBlank() || addedItems.isNotEmpty() ||
-        discountInput != "0" || taxInput != "0" || dpInput != "0"
+    val hasUnsavedEdits by remember {
+        derivedStateOf {
+            clientName.isNotBlank() || clientPhone.isNotBlank() || clientCompany.isNotBlank() ||
+            deliveryAddress.isNotBlank() || specialNotes.isNotBlank() || addedItems.isNotEmpty() ||
+            discountInput != "0" || taxInput != "0" || dpInput != "0"
+        }
     }
 
     BackHandler(enabled = hasUnsavedEdits) {
@@ -175,8 +179,23 @@ fun DualInvoiceEditorScreen(
                                 .testTag("client_name_field")
                         )
 
-                        // Registered Member Quick Selector Chips
+                        // Registered Member Quick Selector Chips & Auto-fill
                         val registeredMembers = remember { AppSettings.getMembers(context).toList() }
+                        val matchedMemberDetail = remember(clientName) {
+                            if (clientName.isNotBlank()) AppSettings.getMemberDetail(context, clientName) else null
+                        }
+
+                        LaunchedEffect(matchedMemberDetail) {
+                            if (matchedMemberDetail != null) {
+                                if (clientPhone.isBlank() && matchedMemberDetail.whatsapp.isNotBlank()) {
+                                    clientPhone = matchedMemberDetail.whatsapp
+                                }
+                                if (deliveryAddress.isBlank() && matchedMemberDetail.address.isNotBlank()) {
+                                    deliveryAddress = matchedMemberDetail.address
+                                }
+                            }
+                        }
+
                         if (registeredMembers.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text("Atau Pilih Pelanggan Terdaftar:", color = AccentAgedGold.copy(alpha = 0.7f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -189,7 +208,16 @@ fun DualInvoiceEditorScreen(
                                     FilterChip(
                                         selected = isSelected,
                                         onClick = {
-                                            clientName = if (isSelected) "" else memberName
+                                            if (isSelected) {
+                                                clientName = ""
+                                            } else {
+                                                clientName = memberName
+                                                val detail = AppSettings.getMemberDetail(context, memberName)
+                                                if (detail != null) {
+                                                    if (detail.whatsapp.isNotBlank()) clientPhone = detail.whatsapp
+                                                    if (detail.address.isNotBlank()) deliveryAddress = detail.address
+                                                }
+                                            }
                                         },
                                         label = { Text(memberName, fontSize = 11.sp, color = if (isSelected) ShadowBlack else TextLight) },
                                         colors = FilterChipDefaults.filterChipColors(
@@ -202,6 +230,29 @@ fun DualInvoiceEditorScreen(
                                             borderColor = DividerDarkCyanGray,
                                             selectedBorderColor = AccentAgedGold
                                         )
+                                    )
+                                }
+                            }
+                        }
+
+                        if (matchedMemberDetail != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                color = AlertGreen.copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, AlertGreen.copy(alpha = 0.4f)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = AlertGreen, modifier = Modifier.size(14.dp))
+                                    Text(
+                                        text = "AKUN MEMBER TERDAFTAR • Kategori: ${matchedMemberDetail.priceCategory}",
+                                        color = AlertGreen,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
@@ -420,12 +471,39 @@ fun DualInvoiceEditorScreen(
                                 return@Button
                             }
 
-                            // Auto-register member
-                            if (clientName.isNotBlank()) {
-                                AppSettings.addMember(context, clientName.trim())
+                            // Commit save logic based on stream
+                            val invoiceItems = mutableListOf<com.yansproject.app.data.InvoiceItemDetail>()
+                            addedItems.forEach { item ->
+                                item.variantCells.forEach { cell ->
+                                    val qty = cell.quantity
+                                    if (qty > 0) {
+                                        val price = item.priceMap[cell.size] ?: 0.0
+                                        val sleeveStr = cell.sleeve.name
+                                        val desc = if (isCustomProject) {
+                                            "Custom: ${item.itemName} - $sleeveStr - ${cell.size}"
+                                        } else {
+                                            "Pembelian: ${item.itemName} - ${cell.size} - $sleeveStr"
+                                        }
+                                        invoiceItems.add(
+                                            com.yansproject.app.data.InvoiceItemDetail(
+                                                description = desc,
+                                                quantity = qty,
+                                                price = price
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                            if (deliveryAddress.isNotBlank()) {
+                                invoiceItems.add(com.yansproject.app.data.InvoiceItemDetail(description = "__ADDRESS__:${deliveryAddress.trim()}", quantity = 0, price = 0.0))
+                            }
+                            if (specialNotes.isNotBlank()) {
+                                invoiceItems.add(com.yansproject.app.data.InvoiceItemDetail(description = "__NOTE__:${specialNotes.trim()}", quantity = 0, price = 0.0))
                             }
 
-                            // Commit save logic based on stream
+                            val dpVal = dpInput.toDoubleOrNull() ?: 0.0
+                            val converters = com.yansproject.app.data.AppTypeConverters()
+
                             if (isCustomProject) {
                                 val newProj = CustomProject(
                                     id = "PRJ-${UUID.randomUUID().toString().substring(0, 6).uppercase()}",
@@ -439,28 +517,27 @@ fun DualInvoiceEditorScreen(
                                     discountPercent = discountInput.toDoubleOrNull() ?: 0.0,
                                     taxPercent = taxInput.toDoubleOrNull() ?: 0.0,
                                     grandTotal = grandTotal,
-                                    paidAmount = dpInput.toDoubleOrNull() ?: 0.0,
+                                    paidAmount = dpVal,
                                     remainingBalance = remainingBalance,
                                     issueDate = System.currentTimeMillis()
                                 )
-                                viewModel.addCustomProjectInvoice(newProj)
+                                viewModel.addCustomProjectInvoice(newProj, invoiceItems)
                                 com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Sukses merekam invoice project custom baru!")
                             } else {
-                                val timeCode = (System.currentTimeMillis() % 100000).toString().padStart(5, '0')
-                                val num = "INV/2026/AJB/$timeCode"
                                 val newInv = com.yansproject.app.data.Invoice(
-                                    invoiceNumber = num,
+                                    invoiceNumber = "",
                                     clientName = clientName,
                                     clientPhone = clientPhone,
                                     totalAmount = grandTotal,
-                                    paidAmount = dpInput.toDoubleOrNull() ?: 0.0,
-                                    status = if (remainingBalance <= 0.0) "LUNAS" else "BELUM LUNAS",
+                                    paidAmount = dpVal,
+                                    status = if (remainingBalance <= 0.0) "LUNAS" else if (dpVal > 0.0) "DP" else "BELUM LUNAS",
                                     issueDate = System.currentTimeMillis(),
                                     dueDate = System.currentTimeMillis() + 86400000 * 7,
                                     discount = discountNominal,
-                                    dpAmount = dpInput.toDoubleOrNull() ?: 0.0
+                                    dpAmount = dpVal,
+                                    itemsJson = converters.fromInvoiceItemList(invoiceItems)
                                 )
-                                viewModel.addStockInvoice(newInv)
+                                viewModel.addStockInvoice(newInv, dpVal)
                                 com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Sukses menyimpan invoice penjualan standard!")
                             }
                             onNavigateBack()
@@ -480,15 +557,21 @@ fun DualInvoiceEditorScreen(
         // Unsaved Changes Confirmation Dialog
         if (showExitConfirmationDialog) {
             AlertDialog(
-                onDismissRequest = { showExitConfirmationDialog = false },
-                modifier = Modifier.border(1.2.dp, AccentAgedGold.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
+                onDismissRequest = {
+                    // Lock modal: require explicit tap on action buttons
+                },
+                properties = DialogProperties(
+                    dismissOnClickOutside = false,
+                    dismissOnBackPress = false
+                ),
+                modifier = Modifier.border(1.2.dp, AccentAgedGold.copy(alpha = 0.8f), RoundedCornerShape(16.dp)),
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.Warning, contentDescription = null, tint = StatusWarningGold)
                         Text(
                             text = "KELUAR TANPA MENYIMPAN?",
                             color = AccentAgedGold,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             fontSize = 15.sp
                         )
                     }
@@ -506,15 +589,17 @@ fun DualInvoiceEditorScreen(
                             showExitConfirmationDialog = false
                             onNavigateBack()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = StatusDangerRed)
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusDangerRed),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("KELUAR (HAPUS DRAF)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("KELUAR (HAPUS DRAF)", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
                     }
                 },
                 dismissButton = {
                     OutlinedButton(
                         onClick = { showExitConfirmationDialog = false },
-                        border = BorderStroke(1.dp, AlertGreen)
+                        border = BorderStroke(1.dp, AlertGreen),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Text("LANJUTKAN MENGISI", color = AlertGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }

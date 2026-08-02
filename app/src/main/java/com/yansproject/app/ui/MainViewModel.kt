@@ -1071,16 +1071,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             FirebaseSyncManager.logEvent("generate_invoice", invoiceParams)
 
             if (priceType == "Member") {
-                AppSettings.addMember(getApplication(), clientName)
-                
                 // Log Tambah Member
                 val memberParams = android.os.Bundle().apply {
                     putString("member_name", clientName)
                 }
                 FirebaseSyncManager.logEvent("tambah_member", memberParams)
-                
-                // FCM Notification for Member Baru Dibuat
-                triggerNotification("Member Baru", "Member baru berhasil terdaftar atas nama $clientName.", "Sistem", "SETTINGS")
             }
 
             addAuditLog(
