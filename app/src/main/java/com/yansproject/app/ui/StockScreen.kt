@@ -4125,13 +4125,16 @@ fun TotalProduksiDetailDialog(
     val totalPembayaranProduksi = remember(expenses) {
         expenses.filter { exp ->
             !exp.isDeleted && (
-                exp.category.contains("Produksi", ignoreCase = true) ||
-                exp.category.contains("Production", ignoreCase = true) ||
-                exp.category.contains("Bahan", ignoreCase = true) ||
-                exp.category.contains("Sablon", ignoreCase = true) ||
-                exp.category.contains("Aksesories", ignoreCase = true) ||
-                exp.category.contains("Aksesoris", ignoreCase = true) ||
-                exp.category.contains("Packing", ignoreCase = true)
+                exp.category.equals("Produksi", ignoreCase = true) ||
+                exp.category.equals("Production", ignoreCase = true) ||
+                (
+                    (exp.category.contains("Produksi", ignoreCase = true) || exp.category.contains("Production", ignoreCase = true)) &&
+                    !exp.category.contains("Bahan", ignoreCase = true) &&
+                    !exp.category.contains("Sablon", ignoreCase = true) &&
+                    !exp.category.contains("Aksesori", ignoreCase = true) &&
+                    !exp.category.contains("Aksesoris", ignoreCase = true) &&
+                    !exp.category.contains("Packing", ignoreCase = true)
+                )
             )
         }.sumOf { it.amount }
     }

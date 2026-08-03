@@ -49,7 +49,7 @@ class DebtReminderManager(private val context: Context) {
         val reminderMessage = "Halo ${invoice.clientName},\n\n" +
                 "Kami dari YANSPROJECT.ID ingin menginfokan mengenai Invoice No: *${invoice.invoiceNumber}* " +
                 "dengan sisa tagihan sebesar *${IdrAccountingEngine.formatRupiah(remaining)}*. " +
-                "Mohon melakukan pelunasan sebelum jatuh tempo.\n\n" +
+                "Mohon melakukan pelunasan invoice.\n\n" +
                 "Terima kasih atas kepercayaan Anda bermitra dengan YANSPROJECT.ID!"
 
         val payload = DebtReminderPayload(

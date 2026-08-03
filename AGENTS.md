@@ -1,7 +1,7 @@
 # MASTER BLUEPRINT & REGULASI PENGEMBANGAN: YANSPROJECT.ID ERP SYSTEM
 
 > **DOKUMEN INDUK REGULASI & BLUEPRINT PENGEMBANGAN APLIKASI**  
-> *Versi: 2.0 (Master Release)*  
+> *Versi: 2.1 (Master Release Update)*  
 > *Sistem: YANSPROJECT.ID Enterprise Resource Planning & Financial Management System*  
 > *Status: AKTIF & MENJADI ACUAN MUTLAK KODE BASE*  
 > *Referensi Utama: `/GRAND_MASTER_BLUEPRINT.md`*
@@ -72,6 +72,7 @@ Sistem menggunakan tema **Cyber Emerald & High-Contrast Industrial Dark Canvas**
 5. **Riwayat Transaksi**: Timelines pergerakan stok, inflow, outflow, cicilan invoice, filter multi-periode, isolasi data member.
 6. **Settings**: Profil usaha, parameter PPN/prefix, manajemen anggota, system health/backup.
 7. **Kitab Digital**: Dokumentasi SOP, regulasi internal, dan panduan industri.
+8. **Customer Selection Section**: Auto-lookup member terdaftar, chip cepat, deteksi Tier & WhatsApp, serta histori non-member.
 
 ---
 
@@ -80,8 +81,9 @@ Sistem menggunakan tema **Cyber Emerald & High-Contrast Industrial Dark Canvas**
 1. **JANGAN PERNAH** merusak atau mengubah skema warna dasar `AgedGold`, `ShadowBlack`, `DeepTeal`, `AlertGreen`, dan `AlertRed`.
 2. **JANGAN PERNAH** menambahkan kembali efek `radialGradient` kotor atau background blur yang menutupi konten visual.
 3. **WAJIB MENJAGA** presisi overlay badge agar selalu tampil utuh di luar batas kotak ikon tanpa terpotong (zero clipping).
-4. **SETIAP MODUL BARU** harus menggunakan komponen standar M3 yang sudah disesuaikan dengan `YansDesignSystem.kt` dan mendukung responsive scaling.
-5. **VERIFIKASI KOMPILASI**: Setiap perubahan kode harus terverifikasi sukses melalui `compile_applet` tanpa warning fatal atau break pada build script.
+4. **CLEAN LEDGER DISPLAY**: Pada detail tampilan Ledger dan pembayaran Invoice, hapus keterangan "Operator" / "Oleh" serta bagian "Jam/HH:mm" yang tidak valid, cukup tampilkan tanggal bersih (`dd MMMM yyyy`).
+5. **SETIAP MODUL BARU** harus menggunakan komponen standar M3 yang sudah disESuaikan dengan `YansDesignSystem.kt` dan mendukung responsive scaling.
+6. **VERIFIKASI KOMPILASI**: Setiap perubahan kode harus terverifikasi sukses melalui `compile_applet` tanpa warning fatal atau break pada build script.
 
 ---
 *YANSPROJECT.ID ERP — High-Precision Engineering & Industrial Financial Intelligence.*

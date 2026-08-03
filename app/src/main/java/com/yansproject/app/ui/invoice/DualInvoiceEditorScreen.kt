@@ -170,122 +170,24 @@ fun DualInvoiceEditorScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        YansGlowingTextField(
-                            value = clientName,
-                            onValueChange = { clientName = it },
-                            label = "Nama Lengkap *",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("client_name_field")
+                        com.yansproject.app.ui.components.CustomerSelectionSection(
+                            clientName = clientName,
+                            onClientNameChange = { clientName = it },
+                            clientPhone = clientPhone,
+                            onClientPhoneChange = { clientPhone = it },
+                            clientAddress = deliveryAddress,
+                            onClientAddressChange = { deliveryAddress = it }
                         )
-
-                        // Registered Member Quick Selector Chips & Auto-fill
-                        val registeredMembers = remember { AppSettings.getMembers(context).toList() }
-                        val matchedMemberDetail = remember(clientName) {
-                            if (clientName.isNotBlank()) AppSettings.getMemberDetail(context, clientName) else null
-                        }
-
-                        LaunchedEffect(matchedMemberDetail) {
-                            if (matchedMemberDetail != null) {
-                                if (clientPhone.isBlank() && matchedMemberDetail.whatsapp.isNotBlank()) {
-                                    clientPhone = matchedMemberDetail.whatsapp
-                                }
-                                if (deliveryAddress.isBlank() && matchedMemberDetail.address.isNotBlank()) {
-                                    deliveryAddress = matchedMemberDetail.address
-                                }
-                            }
-                        }
-
-                        if (registeredMembers.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("Atau Pilih Pelanggan Terdaftar:", color = AccentAgedGold.copy(alpha = 0.7f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                            ) {
-                                items(registeredMembers) { memberName ->
-                                    val isSelected = clientName.equals(memberName, ignoreCase = true)
-                                    FilterChip(
-                                        selected = isSelected,
-                                        onClick = {
-                                            if (isSelected) {
-                                                clientName = ""
-                                            } else {
-                                                clientName = memberName
-                                                val detail = AppSettings.getMemberDetail(context, memberName)
-                                                if (detail != null) {
-                                                    if (detail.whatsapp.isNotBlank()) clientPhone = detail.whatsapp
-                                                    if (detail.address.isNotBlank()) deliveryAddress = detail.address
-                                                }
-                                            }
-                                        },
-                                        label = { Text(memberName, fontSize = 11.sp, color = if (isSelected) ShadowBlack else TextLight) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = AccentAgedGold,
-                                            containerColor = PrimaryDarkTeal
-                                        ),
-                                        border = FilterChipDefaults.filterChipBorder(
-                                            enabled = true,
-                                            selected = isSelected,
-                                            borderColor = DividerDarkCyanGray,
-                                            selectedBorderColor = AccentAgedGold
-                                        )
-                                    )
-                                }
-                            }
-                        }
-
-                        if (matchedMemberDetail != null) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Surface(
-                                color = AlertGreen.copy(alpha = 0.15f),
-                                border = BorderStroke(1.dp, AlertGreen.copy(alpha = 0.4f)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = AlertGreen, modifier = Modifier.size(14.dp))
-                                    Text(
-                                        text = "AKUN MEMBER TERDAFTAR • Kategori: ${matchedMemberDetail.priceCategory}",
-                                        color = AlertGreen,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        YansGlowingTextField(
-                            value = clientPhone,
-                            onValueChange = { clientPhone = it },
-                            label = "No. WhatsApp (Opsional)",
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
 
                         if (isCustomProject) {
+                            Spacer(modifier = Modifier.height(10.dp))
                             YansGlowingTextField(
                                 value = clientCompany,
                                 onValueChange = { clientCompany = it },
                                 label = "Nama Instansi / Perusahaan (Opsional)",
                                 modifier = Modifier.fillMaxWidth()
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
                         }
-
-                        YansGlowingTextField(
-                            value = deliveryAddress,
-                            onValueChange = { deliveryAddress = it },
-                            label = "Alamat Pengiriman (Opsional)",
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = false
-                        )
                         Spacer(modifier = Modifier.height(10.dp))
 
                         YansGlowingTextField(

@@ -362,6 +362,8 @@ fun CashFlowScreen(
         var nominal by remember { mutableStateOf("") }
         var deskripsi by remember { mutableStateOf("") }
         var kategori by remember { mutableStateOf("Penjualan") }
+        var selectedPaymentMethod by remember { mutableStateOf("Cash") }
+        var methodDetailStr by remember { mutableStateOf("") }
 
         AlertDialog(
             onDismissRequest = { showAddInflowDialog = false },
@@ -369,6 +371,45 @@ fun CashFlowScreen(
             title = { Text("Pemasukan Kas Baru", color = AgedGold, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Payment Method Selection
+                    Column {
+                        Text("Metode Pembayaran", fontSize = 12.sp, color = TextWhite, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("Cash", "Transfer", "Lainnya").forEach { pm ->
+                                val isSel = pm == selectedPaymentMethod
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSel) HighlightSoftCyan else CardGrey)
+                                        .clickable { selectedPaymentMethod = pm }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(pm, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isSel) ShadowBlack else TextLight)
+                                }
+                            }
+                        }
+                        if (selectedPaymentMethod == "Lainnya") {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            OutlinedTextField(
+                                value = methodDetailStr,
+                                onValueChange = { methodDetailStr = it },
+                                label = { Text("Keterangan Metode (Wajib)", color = TextWhite) },
+                                placeholder = { Text("Contoh: DANA, QRIS, Voucher, dll.", color = TextWhite.copy(alpha = 0.5f)) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = HighlightSoftCyan,
+                                    unfocusedBorderColor = AgedGold.copy(alpha = 0.5f),
+                                    focusedLabelColor = HighlightSoftCyan,
+                                    unfocusedLabelColor = TextWhite,
+                                    focusedTextColor = TextWhite,
+                                    unfocusedTextColor = TextWhite
+                                ),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().testTag("cashflow_inflow_method_detail")
+                            )
+                        }
+                    }
+
                     OutlinedTextField(
                         value = nominal,
                         onValueChange = { nominal = it },
@@ -404,7 +445,16 @@ fun CashFlowScreen(
                 TextButton(
                     onClick = {
                         val amount = nominal.toDoubleOrNull() ?: 0.0
+                        if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isEmpty()) {
+                            Toast.makeText(context, "Keterangan metode wajib diisi!", Toast.LENGTH_SHORT).show()
+                            return@TextButton
+                        }
                         if (amount > 0 && deskripsi.isNotEmpty()) {
+                            val finalPm = if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isNotEmpty()) {
+                                "Lainnya (${methodDetailStr.trim()})"
+                            } else {
+                                selectedPaymentMethod
+                            }
                             val newInflow = OperationalPemasukan(
                                 id = UUID.randomUUID().toString(),
                                 transactionNumber = "INC-${System.currentTimeMillis()}",
@@ -412,7 +462,7 @@ fun CashFlowScreen(
                                 amount = amount,
                                 date = System.currentTimeMillis(),
                                 notes = deskripsi,
-                                paymentMethod = "Cash",
+                                paymentMethod = finalPm,
                                 createdBy = "Owner",
                                 ownerId = ""
                             )
@@ -441,6 +491,8 @@ fun CashFlowScreen(
         var nominal by remember { mutableStateOf("") }
         var deskripsi by remember { mutableStateOf("") }
         var kategori by remember { mutableStateOf("Operasional") }
+        var selectedPaymentMethod by remember { mutableStateOf("Cash") }
+        var methodDetailStr by remember { mutableStateOf("") }
 
         AlertDialog(
             onDismissRequest = { showAddExpenseDialog = false },
@@ -448,6 +500,45 @@ fun CashFlowScreen(
             title = { Text("Pengeluaran Kas Baru", color = AgedGold, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Payment Method Selection
+                    Column {
+                        Text("Metode Pembayaran", fontSize = 12.sp, color = TextWhite, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("Cash", "Transfer", "Lainnya").forEach { pm ->
+                                val isSel = pm == selectedPaymentMethod
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSel) HighlightSoftCyan else CardGrey)
+                                        .clickable { selectedPaymentMethod = pm }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(pm, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isSel) ShadowBlack else TextLight)
+                                }
+                            }
+                        }
+                        if (selectedPaymentMethod == "Lainnya") {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            OutlinedTextField(
+                                value = methodDetailStr,
+                                onValueChange = { methodDetailStr = it },
+                                label = { Text("Keterangan Metode (Wajib)", color = TextWhite) },
+                                placeholder = { Text("Contoh: DANA, QRIS, Voucher, dll.", color = TextWhite.copy(alpha = 0.5f)) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = HighlightSoftCyan,
+                                    unfocusedBorderColor = AgedGold.copy(alpha = 0.5f),
+                                    focusedLabelColor = HighlightSoftCyan,
+                                    unfocusedLabelColor = TextWhite,
+                                    focusedTextColor = TextWhite,
+                                    unfocusedTextColor = TextWhite
+                                ),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().testTag("cashflow_expense_method_detail")
+                            )
+                        }
+                    }
+
                     OutlinedTextField(
                         value = nominal,
                         onValueChange = { nominal = it },
@@ -483,7 +574,16 @@ fun CashFlowScreen(
                 TextButton(
                     onClick = {
                         val amount = nominal.toDoubleOrNull() ?: 0.0
+                        if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isEmpty()) {
+                            Toast.makeText(context, "Keterangan metode wajib diisi!", Toast.LENGTH_SHORT).show()
+                            return@TextButton
+                        }
                         if (amount > 0 && deskripsi.isNotEmpty()) {
+                            val finalPm = if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isNotEmpty()) {
+                                "Lainnya (${methodDetailStr.trim()})"
+                            } else {
+                                selectedPaymentMethod
+                            }
                             val newExpense = OperationalPengeluaran(
                                 id = UUID.randomUUID().toString(),
                                 transactionNumber = "EXP-${System.currentTimeMillis()}",
@@ -491,7 +591,7 @@ fun CashFlowScreen(
                                 amount = amount,
                                 date = System.currentTimeMillis(),
                                 notes = deskripsi,
-                                paymentMethod = "Cash",
+                                paymentMethod = finalPm,
                                 createdBy = "Owner",
                                 ownerId = ""
                             )

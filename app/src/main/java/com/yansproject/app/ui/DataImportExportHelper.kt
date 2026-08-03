@@ -428,7 +428,6 @@ object DataImportExportHelper {
                 val headers = listOf(
                     "No. Invoice",
                     "Tanggal Issue",
-                    "Jatuh Tempo",
                     "Nama Pelanggan",
                     "No. WhatsApp",
                     "Status",
@@ -443,7 +442,6 @@ object DataImportExportHelper {
 
                 invoices.forEach { inv ->
                     val issueDateStr = FormatUtils.formatDate(inv.issueDate)
-                    val dueDateStr = FormatUtils.formatDate(inv.dueDate)
                     val items = converters.toInvoiceItemList(inv.itemsJson)
                     val itemDetails = items.joinToString(" | ") { item ->
                         val cleanDesc = item.description.removePrefix("Pembelian: ")
@@ -458,7 +456,6 @@ object DataImportExportHelper {
                         listOf(
                             cleanInvoiceNum,
                             issueDateStr,
-                            dueDateStr,
                             cleanClientName,
                             cleanPhone,
                             inv.status,

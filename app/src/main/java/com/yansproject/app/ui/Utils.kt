@@ -166,6 +166,33 @@ object FormatUtils {
         return sdf.format(Date(timestamp))
     }
 
+    fun formatPaymentMethod(rawMethod: String, methodDetail: String = ""): String {
+        val methodTrim = rawMethod.trim()
+        val detailTrim = methodDetail.trim()
+
+        if (detailTrim.isNotBlank()) {
+            if (methodTrim.equals("LAINNYA", ignoreCase = true) || methodTrim.equals("Lainnya", ignoreCase = true)) {
+                return detailTrim
+            }
+        }
+
+        if (methodTrim.startsWith("Lainnya (", ignoreCase = true) && methodTrim.endsWith(")")) {
+            val extracted = methodTrim.substringAfter("(").substringBeforeLast(")").trim()
+            if (extracted.isNotBlank()) return extracted
+        }
+
+        if (methodTrim.startsWith("LAINNYA (", ignoreCase = true) && methodTrim.endsWith(")")) {
+            val extracted = methodTrim.substringAfter("(").substringBeforeLast(")").trim()
+            if (extracted.isNotBlank()) return extracted
+        }
+
+        if (methodTrim.equals("TUNAI", ignoreCase = true) || methodTrim.equals("Tunai", ignoreCase = true) || methodTrim.equals("CASH", ignoreCase = true)) {
+            return "Cash"
+        }
+
+        return if (methodTrim.isBlank()) "Cash" else methodTrim
+    }
+
     fun parseStockItemName(name: String): ParsedStock {
         val cleanName = name
             .replace("Pembelian: ", "", ignoreCase = true)

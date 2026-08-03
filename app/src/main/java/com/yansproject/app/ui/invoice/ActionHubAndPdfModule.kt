@@ -216,7 +216,7 @@ fun InvoiceHistoryScreen(
                         color = AccentAgedGold,
                         fontWeight = FontWeight.Black
                     )
-                    Text("Total akumulasi piutang invoice jatuh tempo.", fontSize = 10.sp, color = TextIsiSoftGray)
+                    Text("Total akumulasi sisa piutang invoice.", fontSize = 10.sp, color = TextIsiSoftGray)
                 }
             }
 
@@ -309,7 +309,7 @@ fun InvoiceHistoryScreen(
                                     Text(currencyFormat.format(invoice.totalAmount), fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text(if (isPaid) "TUNAI" else "SISA PIUTANG", fontSize = 9.sp, color = TextNonActive)
+                                    Text(if (isPaid) "LUNAS (CASH)" else "SISA PIUTANG", fontSize = 9.sp, color = TextNonActive)
                                     Text(
                                         text = if (isPaid) currencyFormat.format(invoice.paidAmount) else currencyFormat.format(invoice.totalAmount - invoice.paidAmount),
                                         fontSize = 13.sp,

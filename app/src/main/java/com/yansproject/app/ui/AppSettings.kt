@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Environment
 import com.yansproject.app.data.AppDatabase
+import com.yansproject.app.data.FirebaseSyncManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -496,6 +497,56 @@ object AppSettings {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    fun deleteNotificationsForInvoice(
+        context: Context,
+        invoiceNumber: String,
+        invoiceId: Int? = null,
+        orderId: Int? = null,
+        clientName: String? = null
+    ) {
+        val list = getNotifications(context).toMutableList()
+        val invNumClean = invoiceNumber.trim().lowercase()
+        val invIdStr = invoiceId?.takeIf { it != 0 }?.toString()
+        val ordIdStr = orderId?.takeIf { it != 0 }?.toString()
+
+        val toDelete = list.filter { notif ->
+            val msg = notif.message.lowercase()
+            val title = notif.title.lowercase()
+            val id = notif.id.lowercase()
+
+            val matchesInvNum = invNumClean.isNotEmpty() && (
+                msg.contains(invNumClean) || 
+                title.contains(invNumClean) || 
+                id.contains(invNumClean)
+            )
+            val matchesInvId = invIdStr != null && (
+                msg.contains("invoice #$invIdStr") || 
+                msg.contains("invoice id: $invIdStr") || 
+                id.contains("inv_$invIdStr")
+            )
+            val matchesOrdId = ordIdStr != null && (
+                msg.contains("pesanan #$ordIdStr") || 
+                msg.contains("order #$ordIdStr") || 
+                msg.contains("order id: $ordIdStr") || 
+                id.contains("ord_$ordIdStr")
+            )
+
+            matchesInvNum || matchesInvId || matchesOrdId
+        }
+
+        for (notif in toDelete) {
+            addDeletedNotificationId(context, notif.id)
+            FirebaseSyncManager.deleteNotificationFromCloudPermanently(notif.id)
+        }
+
+        if (toDelete.isNotEmpty()) {
+            val updated = list.filter { notIn -> toDelete.none { it.id == notIn.id } }
+            saveNotifications(context, updated)
+        }
+
+        FirebaseSyncManager.deleteNotificationsForInvoiceFromCloud(invoiceNumber, invoiceId, orderId)
     }
 
     fun addNotification(

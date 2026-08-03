@@ -106,7 +106,7 @@ class ThermalPrinterManager(private val context: Context) {
         addString("YANSPROJECT.ID\n")
         addBytes(ESC_FONT_NORMAL)
         addBytes(ESC_BOLD_OFF)
-        addString("Specialist Apparel & Digital Store\n")
+        addString("Luxury Visual Identity & Custom Merch\n")
         addString("Makna Sebelum Estetika\n")
         addString("CS WA: +62 877-7739-8813\n")
         addString("================================\n")

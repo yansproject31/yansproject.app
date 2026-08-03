@@ -26,7 +26,7 @@ object SchemaDriftRepairGuard {
             val mandatoryStringFields = mapOf(
                 "invoiceNumber" to "INV-TEMP-${System.currentTimeMillis()}",
                 "customerName" to "Umum / Non-Member",
-                "paymentMethod" to "TUNAI",
+                "paymentMethod" to "CASH",
                 "status" to "PENDING",
                 "paperIdLink" to "",
                 "issueDate" to ""

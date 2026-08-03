@@ -56,7 +56,7 @@ data class CustomStagedPayment(
     val amount: Double,
     val description: String,
     val dateTimestamp: Long = System.currentTimeMillis(),
-    val paymentMethod: String = "TUNAI",
+    val paymentMethod: String = "CASH",
     val isVerified: Boolean = true
 ) : Serializable
 

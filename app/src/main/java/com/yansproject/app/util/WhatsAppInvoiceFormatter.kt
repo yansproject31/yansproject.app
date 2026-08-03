@@ -16,7 +16,7 @@ import java.util.Locale
 object WhatsAppInvoiceFormatter {
 
     private const val BRAND_HEADER = "🧾 *FAKTUR INVOICE OFFICIAL YANSPROJECT.ID*"
-    private const val BRAND_SUBTITLE = "_Specialist Apparel, Custom Screen Printing & Digital Ecosystem_"
+    private const val BRAND_SUBTITLE = "_Luxury Visual Identity & Custom Merch_"
     private const val BRAND_SLOGAN = "• *Makna Sebelum Estetika *"
     private const val DIVIDER_DOUBLE = "══════════════════════════════════"
     private const val DIVIDER_SINGLE = "----------------------------------"
@@ -45,7 +45,6 @@ object WhatsAppInvoiceFormatter {
         sb.append("📋 *INFORMASI TRANSAKSI*\n")
         sb.append("• *No. Invoice*  : ").append(invoice.invoiceNumber).append("\n")
         sb.append("• *Tanggal*       : ").append(sdf.format(Date(invoice.issueDate))).append("\n")
-        sb.append("• *Jatuh Tempo*   : ").append(sdf.format(Date(invoice.dueDate))).append("\n")
         sb.append("• *Status*        : ").append(statusEmoji).append(" ").append(statusText).append("\n\n")
 
         sb.append("👤 *INFORMASI PELANGGAN*\n")

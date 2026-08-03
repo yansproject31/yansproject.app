@@ -33,10 +33,11 @@ fun PaymentRecordBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var amountInput by remember { mutableStateOf(remainingBalance.toInt().toString()) }
-    var selectedMethod by remember { mutableStateOf("TUNAI") }
+    var selectedMethod by remember { mutableStateOf("CASH") }
+    var methodDetail by remember { mutableStateOf("") }
     var triggerWhatsApp by remember { mutableStateOf(true) }
 
-    val paymentMethods = listOf("TUNAI", "TRANSFER BANK", "QRIS")
+    val paymentMethods = listOf("CASH", "TRANSFER", "LAINNYA")
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -169,6 +170,25 @@ fun PaymentRecordBottomSheet(
                 }
             }
 
+            if (selectedMethod == "LAINNYA") {
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = methodDetail,
+                    onValueChange = { methodDetail = it },
+                    label = { Text("Keterangan Metode Pembayaran (Wajib)", color = TextIsiSoftGray) },
+                    placeholder = { Text("DANA, QRIS, SPAY, SEABANK", color = TextNonActive) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = HighlightSoftCyan,
+                        unfocusedBorderColor = DividerDarkCyanGray,
+                        focusedLabelColor = HighlightSoftCyan,
+                        focusedTextColor = TextOnCarbon,
+                        unfocusedTextColor = TextOnCarbon
+                    ),
+                    singleLine = true
+                )
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // WhatsApp Notification Trigger Checkbox
@@ -212,7 +232,8 @@ fun PaymentRecordBottomSheet(
                 onClick = {
                     val amt = amountInput.toDoubleOrNull() ?: 0.0
                     if (amt > 0.0) {
-                        onPaymentRecorded(amt, selectedMethod, triggerWhatsApp)
+                        val finalMethod = if (selectedMethod == "LAINNYA" && methodDetail.isNotBlank()) methodDetail.trim() else selectedMethod
+                        onPaymentRecorded(amt, finalMethod, triggerWhatsApp)
                     }
                 },
                 modifier = Modifier

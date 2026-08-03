@@ -66,7 +66,7 @@ object ExtendedThermalPrinterManager {
             
             // 3. Subtitle / Tagline
             outputStream.write(ESC_TEXT_NORMAL)
-            outputStream.write("Specialist Apparel & Digital Store\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("Luxury Visual Identity & Custom Merch\n".toByteArray(Charsets.US_ASCII))
             outputStream.write("Makna Sebelum Estetika\n".toByteArray(Charsets.US_ASCII))
             outputStream.write("CS WA: +62 877-7739-8813\n".toByteArray(Charsets.US_ASCII))
             

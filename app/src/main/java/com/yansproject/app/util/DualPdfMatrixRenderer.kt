@@ -121,7 +121,7 @@ object DualPdfMatrixRenderer {
 
         whiteTextPaint.textSize = 9.5f
         whiteTextPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-        canvas.drawText("Specialist Apparel, Custom Screen Printing & Digital Ecosystem", 105f, 56f, whiteTextPaint)
+        canvas.drawText("Luxury Visual Identity & Custom Merch", 105f, 56f, whiteTextPaint)
 
         val cyanText = Paint().apply {
             color = Color.parseColor("#4FD1C5")

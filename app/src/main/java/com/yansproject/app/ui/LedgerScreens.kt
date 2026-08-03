@@ -313,12 +313,6 @@ fun RiwayatModalBerjalanScreen(
                                     fontSize = 11.sp,
                                     color = TextSecondary
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Oleh: ${item.user}",
-                                    fontSize = 9.sp,
-                                    color = TextSecondary.copy(alpha = 0.6f)
-                                )
                             }
                             
                             Column(horizontalAlignment = Alignment.End) {
@@ -401,7 +395,7 @@ fun LedgerInflowItemCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${item.category} • ${item.paymentMethod} • Oleh: ${item.createdBy}",
+                        text = "${item.category} • ${item.paymentMethod}",
                         fontSize = 11.sp,
                         color = TextMuted
                     )
@@ -436,9 +430,23 @@ fun EditInflowDialog(
     var notes by remember { mutableStateOf(inflow.notes) }
     var amountStr by remember { mutableStateOf(inflow.amount.toLong().toString()) }
     var selectedCategory by remember { mutableStateOf(inflow.category) }
-    var selectedPaymentMethod by remember { mutableStateOf(inflow.paymentMethod) }
+    
+    val initialPmRaw = inflow.paymentMethod.trim()
+    val initialPmCategory = when {
+        initialPmRaw.contains("Tunai", ignoreCase = true) || initialPmRaw.equals("Cash", ignoreCase = true) || initialPmRaw.isEmpty() -> "Cash"
+        initialPmRaw.contains("Transfer", ignoreCase = true) -> "Transfer"
+        initialPmRaw.contains("EDC", ignoreCase = true) || initialPmRaw.startsWith("Lainnya", ignoreCase = true) -> "Lainnya"
+        else -> "Cash"
+    }
+    val initialMethodDetail = when {
+        initialPmRaw.startsWith("Lainnya (") && initialPmRaw.endsWith(")") -> initialPmRaw.removePrefix("Lainnya (").removeSuffix(")")
+        initialPmRaw.equals("EDC", ignoreCase = true) -> "EDC"
+        else -> ""
+    }
+
+    var selectedPaymentMethod by remember { mutableStateOf(initialPmCategory) }
+    var methodDetailStr by remember { mutableStateOf(initialMethodDetail) }
     var timestamp by remember { mutableStateOf(inflow.date) }
-    var photoUrl by remember { mutableStateOf(inflow.photoUrl) }
     var isSaving by remember { mutableStateOf(false) }
 
     val formattedDate = remember(timestamp) {
@@ -471,21 +479,6 @@ fun EditInflowDialog(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("Catatan / Keterangan", color = TextMuted) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AgedGold,
-                        unfocusedBorderColor = BorderGrey,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Photo URL / Attachment
-                OutlinedTextField(
-                    value = photoUrl,
-                    onValueChange = { photoUrl = it },
-                    label = { Text("URL Lampiran / Bukti Foto (Opsional)", color = TextMuted) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AgedGold,
                         unfocusedBorderColor = BorderGrey,
@@ -537,7 +530,7 @@ fun EditInflowDialog(
                     Text("Metode Pembayaran", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("Tunai", "Transfer", "EDC").forEach { pm ->
+                        listOf("Cash", "Transfer", "Lainnya").forEach { pm ->
                             val isSel = pm == selectedPaymentMethod
                             Box(
                                 modifier = Modifier
@@ -549,6 +542,23 @@ fun EditInflowDialog(
                                 Text(pm, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isSel) ShadowBlack else TextLight)
                             }
                         }
+                    }
+                    if (selectedPaymentMethod == "Lainnya") {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = methodDetailStr,
+                            onValueChange = { methodDetailStr = it },
+                            label = { Text("Keterangan Metode Pembayaran (Wajib)", color = TextMuted) },
+                            placeholder = { Text("Contoh: DANA, QRIS, Voucher, dll.", color = TextMuted.copy(alpha = 0.5f)) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = HighlightSoftCyan,
+                                unfocusedBorderColor = BorderGrey,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().testTag("edit_inflow_method_detail")
+                        )
                     }
                 }
 
@@ -613,14 +623,23 @@ fun EditInflowDialog(
                                 Toast.makeText(context, "Catatan tidak boleh kosong.", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
+                            if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isEmpty()) {
+                                Toast.makeText(context, "Keterangan metode pembayaran wajib diisi!", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val finalPm = if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isNotEmpty()) {
+                                "Lainnya (${methodDetailStr.trim()})"
+                            } else {
+                                selectedPaymentMethod
+                            }
                             isSaving = true
                             val updated = inflow.copy(
                                 amount = finalAmt,
                                 notes = notes.trim(),
                                 category = selectedCategory,
-                                paymentMethod = selectedPaymentMethod,
+                                paymentMethod = finalPm,
                                 date = timestamp,
-                                photoUrl = photoUrl.trim(),
+                                photoUrl = "",
                                 updatedAt = System.currentTimeMillis()
                             )
                             viewModel.updateInflow(updated)
@@ -713,7 +732,7 @@ fun LedgerExpenseItemCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${item.category} • ${item.paymentMethod} • Oleh: ${item.createdBy}",
+                        text = "${item.category} • ${item.paymentMethod}",
                         fontSize = 11.sp,
                         color = TextMuted
                     )
@@ -748,7 +767,21 @@ fun EditExpenseDialog(
     var notes by remember { mutableStateOf(expense.notes) }
     var amountStr by remember { mutableStateOf(expense.amount.toLong().toString()) }
     var selectedCategory by remember { mutableStateOf(expense.category) }
-    var selectedPaymentMethod by remember { mutableStateOf(expense.paymentMethod) }
+    val initialPmRaw = expense.paymentMethod.trim()
+    val initialPmCategory = when {
+        initialPmRaw.contains("Tunai", ignoreCase = true) || initialPmRaw.equals("Cash", ignoreCase = true) || initialPmRaw.isEmpty() -> "Cash"
+        initialPmRaw.contains("Transfer", ignoreCase = true) -> "Transfer"
+        initialPmRaw.contains("EDC", ignoreCase = true) || initialPmRaw.startsWith("Lainnya", ignoreCase = true) -> "Lainnya"
+        else -> "Cash"
+    }
+    val initialMethodDetail = when {
+        initialPmRaw.startsWith("Lainnya (") && initialPmRaw.endsWith(")") -> initialPmRaw.removePrefix("Lainnya (").removeSuffix(")")
+        initialPmRaw.equals("EDC", ignoreCase = true) -> "EDC"
+        else -> ""
+    }
+
+    var selectedPaymentMethod by remember { mutableStateOf(initialPmCategory) }
+    var methodDetailStr by remember { mutableStateOf(initialMethodDetail) }
     var timestamp by remember { mutableStateOf(expense.date) }
     var isSaving by remember { mutableStateOf(false) }
 
@@ -833,7 +866,7 @@ fun EditExpenseDialog(
                     Text("Metode Pembayaran", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("Tunai", "Transfer", "EDC").forEach { pm ->
+                        listOf("Cash", "Transfer", "Lainnya").forEach { pm ->
                             val isSel = pm == selectedPaymentMethod
                             Box(
                                 modifier = Modifier
@@ -845,6 +878,23 @@ fun EditExpenseDialog(
                                 Text(pm, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isSel) ShadowBlack else TextLight)
                             }
                         }
+                    }
+                    if (selectedPaymentMethod == "Lainnya") {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = methodDetailStr,
+                            onValueChange = { methodDetailStr = it },
+                            label = { Text("Keterangan Metode Pembayaran (Wajib)", color = TextMuted) },
+                            placeholder = { Text("DANA, QRIS, SPAY, SEABANK", color = TextMuted.copy(alpha = 0.5f)) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = HighlightSoftCyan,
+                                unfocusedBorderColor = BorderGrey,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().testTag("edit_expense_method_detail")
+                        )
                     }
                 }
 
@@ -909,12 +959,21 @@ fun EditExpenseDialog(
                                 Toast.makeText(context, "Catatan tidak boleh kosong.", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
+                            if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isEmpty()) {
+                                Toast.makeText(context, "Keterangan metode pembayaran wajib diisi!", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val finalPm = if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isNotEmpty()) {
+                                "Lainnya (${methodDetailStr.trim()})"
+                            } else {
+                                selectedPaymentMethod
+                            }
                             isSaving = true
                             val updated = expense.copy(
                                 amount = finalAmt,
                                 notes = notes.trim(),
                                 category = selectedCategory,
-                                paymentMethod = selectedPaymentMethod,
+                                paymentMethod = finalPm,
                                 date = timestamp,
                                 updatedAt = System.currentTimeMillis()
                             )
@@ -946,9 +1005,7 @@ fun InflowDetailDialog(
     onDismiss: () -> Unit
 ) {
     val sdfDate = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.forLanguageTag("id-ID"))
-    val sdfTime = SimpleDateFormat("HH:mm", Locale.forLanguageTag("id-ID"))
     val formattedDate = sdfDate.format(Date(item.date))
-    val formattedTime = sdfTime.format(Date(item.date))
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -997,8 +1054,6 @@ fun InflowDetailDialog(
                 DetailInfoRow(label = "Kategori", value = item.category)
                 DetailInfoRow(label = "Metode", value = item.paymentMethod)
                 DetailInfoRow(label = "Tanggal", value = formattedDate)
-                DetailInfoRow(label = "Jam", value = "$formattedTime WIB")
-                DetailInfoRow(label = "Operator", value = item.createdBy)
                 DetailInfoRow(
                     label = "Status",
                     value = if (item.isDeleted) "Dihapus (Trash)" else "Aktif & Tersinkronisasi",
@@ -1063,9 +1118,7 @@ fun ExpenseDetailDialog(
     onDismiss: () -> Unit
 ) {
     val sdfDate = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.forLanguageTag("id-ID"))
-    val sdfTime = SimpleDateFormat("HH:mm", Locale.forLanguageTag("id-ID"))
     val formattedDate = sdfDate.format(Date(item.date))
-    val formattedTime = sdfTime.format(Date(item.date))
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -1114,8 +1167,6 @@ fun ExpenseDetailDialog(
                 DetailInfoRow(label = "Kategori", value = item.category)
                 DetailInfoRow(label = "Metode", value = item.paymentMethod)
                 DetailInfoRow(label = "Tanggal", value = formattedDate)
-                DetailInfoRow(label = "Jam", value = "$formattedTime WIB")
-                DetailInfoRow(label = "Operator", value = item.createdBy)
                 DetailInfoRow(
                     label = "Status",
                     value = if (item.isDeleted) "Dihapus (Trash)" else "Aktif & Tersinkronisasi",
@@ -1453,7 +1504,7 @@ fun RiwayatKasScreen(
                 ) {
                     items(filteredCashTx) { tx ->
                         val dateStr = remember(tx.date) {
-                            SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.forLanguageTag("id-ID")).format(Date(tx.date))
+                            SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("id-ID")).format(Date(tx.date))
                         }
                         val isPositive = tx.amount > 0
                         val colorAccent = if (isPositive) AlertGreen else AlertRed
@@ -3220,6 +3271,8 @@ fun AddInflowDialogLocal(
 ) {
     val context = LocalContext.current
     var selectedCategory by remember { mutableStateOf("Modal") }
+    var selectedPaymentMethod by remember { mutableStateOf("Cash") }
+    var methodDetailStr by remember { mutableStateOf("") }
     var nominalStr by remember { mutableStateOf("") }
     var dateSelected by remember { mutableStateOf(System.currentTimeMillis()) }
     var notesStr by remember { mutableStateOf("") }
@@ -3295,6 +3348,60 @@ fun AddInflowDialogLocal(
                                 )
                             }
                         }
+                    }
+                }
+
+                // Pilihan Metode Pembayaran
+                Column {
+                    Text(
+                        text = "Metode Pembayaran",
+                        fontSize = 12.sp,
+                        color = TextMuted,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val paymentMethods = listOf("Cash", "Transfer", "Lainnya")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        paymentMethods.forEach { pm ->
+                            val isPmSelected = selectedPaymentMethod == pm
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isPmSelected) HighlightSoftCyan else CardGrey)
+                                    .clickable { selectedPaymentMethod = pm }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = pm,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isPmSelected) ShadowBlack else TextLight,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                    if (selectedPaymentMethod == "Lainnya") {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = methodDetailStr,
+                            onValueChange = { methodDetailStr = it },
+                            label = { Text("Keterangan Metode (Wajib)", color = TextMuted) },
+                            placeholder = { Text("DANA, QRIS, SPAY, SEABANK", color = TextMuted.copy(alpha = 0.5f)) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = HighlightSoftCyan,
+                                unfocusedBorderColor = BorderGrey,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().testTag("local_inflow_method_detail")
+                        )
                     }
                 }
 
@@ -3416,6 +3523,10 @@ fun AddInflowDialogLocal(
                                 errorMessage = "Nominal harus berupa angka lebih besar dari 0!"
                                 return@Button
                             }
+                            if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isEmpty()) {
+                                errorMessage = "Keterangan metode pembayaran wajib diisi!"
+                                return@Button
+                            }
                             if (selectedCategory == "Lainnya" && notesStr.trim().isEmpty()) {
                                 errorMessage = "Catatan wajib diisi untuk kategori Lainnya!"
                                 return@Button
@@ -3427,11 +3538,18 @@ fun AddInflowDialogLocal(
                                 if (notesStr.trim().isNotEmpty()) notesStr.trim() else "Pemasukan $selectedCategory"
                             }
 
+                            val finalPm = if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isNotEmpty()) {
+                                "Lainnya (${methodDetailStr.trim()})"
+                            } else {
+                                selectedPaymentMethod
+                            }
+
                             viewModel.addInflow(
                                 category = selectedCategory,
                                 amount = amountVal,
                                 date = dateSelected,
-                                notes = finalNotes
+                                notes = finalNotes,
+                                paymentMethod = finalPm
                             )
                             Toast.makeText(context, "Pemasukan berhasil dicatat.", Toast.LENGTH_SHORT).show()
                             onDismiss()
@@ -3481,6 +3599,8 @@ fun AddExpenseDialogLocal(
 ) {
     val context = LocalContext.current
     var selectedCategory by remember { mutableStateOf("Produksi") }
+    var selectedPaymentMethod by remember { mutableStateOf("Cash") }
+    var methodDetailStr by remember { mutableStateOf("") }
     var nominalStr by remember { mutableStateOf("") }
     var dateSelected by remember { mutableStateOf(System.currentTimeMillis()) }
     var notesStr by remember { mutableStateOf("") }
@@ -3638,6 +3758,60 @@ fun AddExpenseDialogLocal(
                         .testTag("input_nominal_expense")
                 )
 
+                // Metode Pembayaran
+                Column {
+                    Text(
+                        text = "Metode Pembayaran",
+                        fontSize = 12.sp,
+                        color = TextMuted,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val paymentMethods = listOf("Cash", "Transfer", "Lainnya")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        paymentMethods.forEach { pm ->
+                            val isPmSelected = selectedPaymentMethod == pm
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isPmSelected) HighlightSoftCyan else CardGrey)
+                                    .clickable { selectedPaymentMethod = pm }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = pm,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isPmSelected) ShadowBlack else TextLight,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                    if (selectedPaymentMethod == "Lainnya") {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = methodDetailStr,
+                            onValueChange = { methodDetailStr = it },
+                            label = { Text("Keterangan Metode (Wajib)", color = TextMuted) },
+                            placeholder = { Text("DANA, QRIS, SPAY, SEABANK", color = TextMuted.copy(alpha = 0.5f)) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = HighlightSoftCyan,
+                                unfocusedBorderColor = BorderGrey,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().testTag("input_method_detail_expense")
+                        )
+                    }
+                }
+
                 // Pilihan Tanggal
                 Column {
                     Text(
@@ -3733,6 +3907,10 @@ fun AddExpenseDialogLocal(
                                 errorMessage = "Nominal harus berupa angka lebih besar dari 0!"
                                 return@Button
                             }
+                            if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isEmpty()) {
+                                errorMessage = "Keterangan metode pembayaran wajib diisi!"
+                                return@Button
+                            }
                             if (selectedCategory == "Lainnya" && notesStr.trim().isEmpty()) {
                                 errorMessage = "Catatan wajib diisi untuk kategori Lainnya!"
                                 return@Button
@@ -3744,11 +3922,18 @@ fun AddExpenseDialogLocal(
                                 if (notesStr.trim().isNotEmpty()) notesStr.trim() else "Pengeluaran $selectedCategory"
                             }
 
+                            val finalPm = if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isNotEmpty()) {
+                                "Lainnya (${methodDetailStr.trim()})"
+                            } else {
+                                selectedPaymentMethod
+                            }
+
                             viewModel.addExpense(
                                 category = selectedCategory,
                                 amount = amountVal,
                                 date = dateSelected,
-                                notes = finalNotes
+                                notes = finalNotes,
+                                paymentMethod = finalPm
                             )
                             Toast.makeText(context, "Pengeluaran berhasil dicatat.", Toast.LENGTH_SHORT).show()
                             onDismiss()
@@ -3946,7 +4131,7 @@ fun TrashedItemCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Kategori: ${item.category} • Operator: ${item.user}",
+                        text = "Kategori: ${item.category}",
                         fontSize = 11.sp,
                         color = TextMuted
                     )

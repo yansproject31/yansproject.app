@@ -329,7 +329,7 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
         }
     }
 
-    fun addStockInvoice(invoice: Invoice, dpAmount: Double = 0.0, dpMethod: String = "TUNAI") {
+    fun addStockInvoice(invoice: Invoice, dpAmount: Double = 0.0, dpMethod: String = "CASH") {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val db = AppDatabase.getDatabase(getApplication())

@@ -189,13 +189,16 @@ fun RiwayatScreen(
         }.sortedByDescending { it.issueDate }
     }
 
-    // Single Source of Truth KPI Metrics
-    val totalGrossValue = remember(filteredInvoices) { filteredInvoices.sumOf { it.totalAmount } }
-    val totalPaidValue = remember(filteredInvoices) { filteredInvoices.sumOf { it.paidAmount } }
-    val totalRemainingValue = remember(filteredInvoices) { filteredInvoices.sumOf { (it.totalAmount - it.paidAmount).coerceAtLeast(0.0) } }
-    val totalItemQuantity = remember(filteredInvoices) {
+    // Single Source of Truth KPI Metrics (Excludes Canceled/Batal Invoices)
+    val activeInvoices = remember(filteredInvoices) {
+        filteredInvoices.filter { !it.status.equals("BATAL", ignoreCase = true) && !it.status.equals("CANCELLED", ignoreCase = true) }
+    }
+    val totalGrossValue = remember(activeInvoices) { activeInvoices.sumOf { it.totalAmount } }
+    val totalPaidValue = remember(activeInvoices) { activeInvoices.sumOf { it.paidAmount } }
+    val totalRemainingValue = remember(activeInvoices) { activeInvoices.sumOf { (it.totalAmount - it.paidAmount).coerceAtLeast(0.0) } }
+    val totalItemQuantity = remember(activeInvoices) {
         val converters = AppTypeConverters()
-        filteredInvoices.sumOf { inv ->
+        activeInvoices.sumOf { inv ->
             val items = converters.toInvoiceItemList(inv.itemsJson)
             items.filter { !it.description.startsWith("__") }.sumOf { it.quantity }
         }
@@ -911,7 +914,7 @@ fun DetailRiwayatBottomSheet(
     var showQuickPaymentDialog by remember { mutableStateOf(false) }
 
     val currentAddress = remember(invoiceItems) {
-        invoiceItems.find { it.description.startsWith("__ADDRESS__:") }?.description?.removePrefix("__ADDRESS__:") ?: "Jl. Raya Yans No. 31"
+        invoiceItems.find { it.description.startsWith("__ADDRESS__:") }?.description?.removePrefix("__ADDRESS__:") ?: "-"
     }
 
     val isProject = invoice.projectId != null
@@ -1440,7 +1443,8 @@ fun QuickPaymentDialog(
 ) {
     val remaining = (invoice.totalAmount - invoice.paidAmount).coerceAtLeast(0.0)
     var amountInput by remember { mutableStateOf(remaining.toInt().toString()) }
-    var selectedMethod by remember { mutableStateOf("Transfer Bank") }
+    var selectedMethod by remember { mutableStateOf("Cash") }
+    var methodDetailInput by remember { mutableStateOf("") }
     var notesInput by remember { mutableStateOf("Pelunasan riwayat transaksi ${invoice.invoiceNumber}") }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -1506,7 +1510,7 @@ fun QuickPaymentDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    listOf("Transfer Bank", "Cash", "QRIS").forEach { method ->
+                    listOf("Cash", "Transfer", "Lainnya").forEach { method ->
                         val isSel = selectedMethod == method
                         Box(
                             modifier = Modifier
@@ -1526,6 +1530,22 @@ fun QuickPaymentDialog(
                             )
                         }
                     }
+                }
+
+                if (selectedMethod == "Lainnya") {
+                    OutlinedTextField(
+                        value = methodDetailInput,
+                        onValueChange = { methodDetailInput = it },
+                        label = { Text("Keterangan Metode (Wajib)", fontSize = 11.sp, color = TextMuted) },
+                        placeholder = { Text("DANA, QRIS, SPAY, SEABANK", fontSize = 11.sp, color = TextMuted.copy(alpha = 0.5f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AgedGold,
+                            unfocusedBorderColor = BorderGrey
+                        ),
+                        singleLine = true
+                    )
                 }
 
                 OutlinedTextField(
@@ -1559,7 +1579,8 @@ fun QuickPaymentDialog(
                         onClick = {
                             val parsedAmount = amountInput.toDoubleOrNull() ?: 0.0
                             if (parsedAmount > 0) {
-                                onConfirm(parsedAmount, selectedMethod, notesInput)
+                                val finalMethod = if (selectedMethod == "Lainnya" && methodDetailInput.isNotBlank()) methodDetailInput.trim() else selectedMethod
+                                onConfirm(parsedAmount, finalMethod, notesInput)
                             }
                         },
                         modifier = Modifier.weight(1.2f).height(40.dp),
@@ -1582,7 +1603,7 @@ fun shareToWhatsApp(
     sleeveName: String,
     totalQty: Int
 ) {
-    val address = items.find { it.description.startsWith("__ADDRESS__:") }?.description?.removePrefix("__ADDRESS__:") ?: "Jl. Raya Yans No. 31"
+    val address = items.find { it.description.startsWith("__ADDRESS__:") }?.description?.removePrefix("__ADDRESS__:") ?: "-"
     val statusText = when (invoice.status) {
         "LUNAS" -> "LUNAS ✅"
         "DP" -> "DP 🔸"

@@ -88,7 +88,7 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.color = Color.WHITE
             paint.textSize = 9.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            canvas.drawText("Specialist Apparel, Custom Screen Printing & Digital Ecosystem", 105f, 58f, paint)
+            canvas.drawText("Luxury Visual Identity & Custom Merch", 105f, 58f, paint)
 
             paint.color = Color.parseColor("#4FD1C5") // Soft Cyan
             paint.textSize = 8.5f
@@ -151,13 +151,11 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             canvas.drawText("NO. INVOICE  :", 55f, cardTop + 22f, paint)
             canvas.drawText("TANGGAL      :", 55f, cardTop + 42f, paint)
-            canvas.drawText("JATUH TEMPO  :", 55f, cardTop + 62f, paint)
 
             paint.color = Color.parseColor("#222222")
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             canvas.drawText(invoice.invoiceNumber, 145f, cardTop + 22f, paint)
             canvas.drawText(formatDate(invoice.issueDate), 145f, cardTop + 42f, paint)
-            canvas.drawText(formatDate(invoice.dueDate), 145f, cardTop + 62f, paint)
 
             // Right Client Info
             paint.color = Color.parseColor("#0F3D3E")
@@ -358,7 +356,7 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.color = Color.WHITE
             paint.textSize = 20f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            canvas.drawText("Specialist Apparel, Custom Screen Printing & Digital Ecosystem", 200f, 135f, paint)
+            canvas.drawText("Luxury Visual Identity & Custom Merch", 200f, 135f, paint)
 
             paint.color = Color.parseColor("#4FD1C5")
             paint.textSize = 17f
@@ -434,13 +432,11 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             canvas.drawText("NO. INVOICE", cardLeft + 60f, curY + 50f, paint)
             canvas.drawText("TANGGAL", cardLeft + 60f, curY + 95f, paint)
-            canvas.drawText("JATUH TEMPO", cardLeft + 60f, curY + 135f, paint)
 
             paint.color = Color.WHITE
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             canvas.drawText(": ${invoice.invoiceNumber}", cardLeft + 230f, curY + 50f, paint)
             canvas.drawText(": ${formatDate(invoice.issueDate)}", cardLeft + 230f, curY + 95f, paint)
-            canvas.drawText(": ${formatDate(invoice.dueDate)}", cardLeft + 230f, curY + 135f, paint)
 
             // Client Info Column
             canvas.drawText("PELANGGAN", cardLeft + 540f, curY + 50f, paint)

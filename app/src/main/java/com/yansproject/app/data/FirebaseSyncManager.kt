@@ -1521,6 +1521,40 @@ object FirebaseSyncManager {
         }
     }
 
+    fun deleteNotificationsForInvoiceFromCloud(invoiceNumber: String, invoiceId: Int? = null, orderId: Int? = null) {
+        if (!isFirebaseActive) return
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val invNumClean = invoiceNumber.trim().lowercase()
+                val invIdStr = invoiceId?.takeIf { it != 0 }?.toString()
+                val ordIdStr = orderId?.takeIf { it != 0 }?.toString()
+
+                if (invNumClean.isEmpty() && invIdStr == null && ordIdStr == null) return@launch
+
+                firestore?.collection("notifications")?.get()?.addOnSuccessListener { snapshot ->
+                    if (snapshot != null) {
+                        for (doc in snapshot.documents) {
+                            val title = (doc.getString("title") ?: "").lowercase()
+                            val desc = (doc.getString("description") ?: doc.getString("message") ?: "").lowercase()
+                            val docId = doc.id.lowercase()
+
+                            val matchesInvNum = invNumClean.isNotEmpty() && (desc.contains(invNumClean) || title.contains(invNumClean) || docId.contains(invNumClean))
+                            val matchesInvId = invIdStr != null && (desc.contains("invoice #$invIdStr") || desc.contains("invoice id: $invIdStr") || docId.contains("inv_$invIdStr"))
+                            val matchesOrdId = ordIdStr != null && (desc.contains("pesanan #$ordIdStr") || desc.contains("order #$ordIdStr") || desc.contains("order id: $ordIdStr") || docId.contains("ord_$ordIdStr"))
+
+                            if (matchesInvNum || matchesInvId || matchesOrdId) {
+                                doc.reference.delete()
+                                Log.d(TAG, "Deleted notification from cloud for invoice/order: ${doc.id}")
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting notifications for invoice from cloud: ${e.message}")
+            }
+        }
+    }
+
     fun logEvent(name: String, params: android.os.Bundle? = null) {
         if (!isFirebaseActive) return
         try {

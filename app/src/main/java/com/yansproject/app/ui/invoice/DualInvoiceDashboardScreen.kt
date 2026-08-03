@@ -57,7 +57,7 @@ fun DualInvoiceDashboardScreen(
 
     // Pill Filter state
     var selectedFilter by remember { mutableStateOf("All") }
-    val filters = listOf("All", "Unpaid", "Overdue", "Paid", "Partially Paid")
+    val filters = listOf("All", "Unpaid", "Paid", "Partially Paid")
 
     // Modal state
     var showActionHubByInvoiceId by remember { mutableStateOf<String?>(null) }
@@ -465,7 +465,7 @@ fun InvoiceCard(
 ) {
     val balanceDue = (totalAmount - paidAmount).coerceAtLeast(0.0)
     val formattedDate = remember(dateLong) {
-        val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
+        val sdf = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
         sdf.format(Date(dateLong))
     }
 

@@ -253,7 +253,7 @@ fun ProfessionalInvoiceDetailScreen(
                             ) {
                                 Column {
                                     Text("Termin #${index + 1}: ${payment.description}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                    Text("Metode: ${payment.paymentMethod}", color = Color.Gray, fontSize = 11.sp)
+                                    Text("Metode: ${FormatUtils.formatPaymentMethod(payment.paymentMethod)}", color = Color.Gray, fontSize = 11.sp)
                                 }
                                 Text(
                                     text = IdrAccountingEngine.formatRupiah(payment.amount),
@@ -276,7 +276,8 @@ fun ProfessionalInvoiceDetailScreen(
     if (showPaymentDialog) {
         var paymentAmount by remember { mutableStateOf("") }
         var paymentNotes by remember { mutableStateOf("") }
-        var selectedMethod by remember { mutableStateOf("TRANSFER BANK") }
+        var selectedMethod by remember { mutableStateOf("CASH") }
+        var methodDetail by remember { mutableStateOf("") }
 
         AlertDialog(
             onDismissRequest = { showPaymentDialog = false },
@@ -301,7 +302,7 @@ fun ProfessionalInvoiceDetailScreen(
                     // Method Selector
                     Text("Metode Pembayaran", color = Color.Gray, fontSize = 11.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("TUNAI", "TRANSFER BANK", "EDC KARTU").forEach { method ->
+                        listOf("CASH", "TRANSFER", "LAINNYA").forEach { method ->
                             val active = selectedMethod == method
                             Box(
                                 modifier = Modifier
@@ -314,6 +315,16 @@ fun ProfessionalInvoiceDetailScreen(
                             }
                         }
                     }
+
+                    if (selectedMethod == "LAINNYA") {
+                        OutlinedTextField(
+                            value = methodDetail,
+                            onValueChange = { methodDetail = it },
+                            label = { Text("Keterangan Metode Pembayaran (Wajib)") },
+                            placeholder = { Text("DANA, QRIS, SPAY, SEABANK") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -324,11 +335,20 @@ fun ProfessionalInvoiceDetailScreen(
                             Toast.makeText(context, "Jumlah nominal harus valid!", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
+                        if (selectedMethod == "LAINNYA" && methodDetail.trim().isEmpty()) {
+                            Toast.makeText(context, "Keterangan metode pembayaran wajib diisi!", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        val finalMethod = if (selectedMethod == "LAINNYA" && methodDetail.trim().isNotEmpty()) {
+                            methodDetail.trim()
+                        } else {
+                            selectedMethod
+                        }
                         val newPayment = CustomStagedPayment(
                             id = UUID.randomUUID().toString(),
                             amount = amount,
                             description = paymentNotes.ifEmpty { "Pembayaran Termin" },
-                            paymentMethod = selectedMethod,
+                            paymentMethod = finalMethod,
                             isVerified = true
                         )
                         projectViewModel.addStagedPayment(projectId, newPayment)

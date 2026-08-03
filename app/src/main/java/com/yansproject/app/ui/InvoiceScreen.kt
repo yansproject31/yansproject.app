@@ -399,8 +399,8 @@ fun InvoiceScreen(
                 masterStocks = masterStocks,
                 varians = varians,
                 onDismiss = { showAddSaleDialog = false },
-                onSaveSale = { name: String, phone: String, selectedItems: List<Pair<com.yansproject.app.data.StockItem, Int>>, paidAmount: Double, priceType: String ->
-                    viewModel.addOrder(name, phone, selectedItems, paidAmount, "Completed", priceType)
+                onSaveSale = { name: String, phone: String, address: String, selectedItems: List<Pair<com.yansproject.app.data.StockItem, Int>>, paidAmount: Double, priceType: String, paymentMethod: String ->
+                    viewModel.addOrder(name, phone, address, selectedItems, paidAmount, "Completed", priceType, paymentMethod)
                     showAddSaleDialog = false
                     Toast.makeText(context, "Transaksi Penjualan AJIBQOBUL Berhasil Dicatat!", Toast.LENGTH_LONG).show()
                 }
@@ -875,7 +875,7 @@ fun InvoiceDetailDialog(
                             letterSpacing = 0.5.sp
                         )
                         Text(
-                            text = "YANSPROJECT.ID • Premium Luxury Record",
+                            text = "YANSPROJECT.ID • AJIBQOBUL SERIES",
                             fontSize = 10.sp,
                             color = TextMuted
                         )
@@ -975,7 +975,7 @@ fun InvoiceDetailDialog(
                                     }
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text(text = "Alamat", fontSize = 12.sp, color = TextMuted)
-                                        Text(text = currentAddress.ifEmpty { "Jl. Raya Yans No. 31" }, fontSize = 12.sp, color = TextLight, textAlign = TextAlign.End)
+                                        Text(text = currentAddress.ifEmpty { "-" }, fontSize = 12.sp, color = TextLight, textAlign = TextAlign.End)
                                     }
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -1373,7 +1373,7 @@ fun InvoiceDetailDialog(
                                                             fontWeight = FontWeight.Bold,
                                                             color = AlertGreen
                                                         )
-                                                        val df = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+                                                        val df = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
                                                         Text(
                                                             text = df.format(java.util.Date(payment.date)),
                                                             fontSize = 10.sp,
@@ -1408,7 +1408,7 @@ fun InvoiceDetailDialog(
                                                 Row(modifier = Modifier.fillMaxWidth()) {
                                                     Text(text = "Metode: ", fontSize = 11.sp, color = TextMuted)
                                                     Text(
-                                                        text = if (payment.paymentMethod == "LAINNYA") "LAINNYA (${payment.methodDetail})" else payment.paymentMethod,
+                                                        text = FormatUtils.formatPaymentMethod(payment.paymentMethod, payment.methodDetail),
                                                         fontSize = 11.sp,
                                                         color = TextLight,
                                                         fontWeight = FontWeight.SemiBold
@@ -1420,10 +1420,7 @@ fun InvoiceDetailDialog(
                                                         Text(text = payment.notes, fontSize = 11.sp, color = TextLight)
                                                     }
                                                 }
-                                                Row(modifier = Modifier.fillMaxWidth()) {
-                                                    Text(text = "Input Oleh: ", fontSize = 11.sp, color = TextMuted)
-                                                    Text(text = "${payment.inputBy}", fontSize = 11.sp, color = AgedGold)
-                                                }
+
                                             }
                                         }
                                     }
@@ -1826,7 +1823,7 @@ fun InvoiceDetailDialog(
         var paymentDateStr by remember { mutableStateOf(currentSdfDate) }
         var showDatePickerDialog by remember { mutableStateOf(false) }
 
-        val paymentMethods = listOf("CASH", "TRANSFER BRI", "DANA", "TRANSFER BANK LAIN", "LAINNYA")
+        val paymentMethods = listOf("CASH", "TRANSFER", "LAINNYA")
         var dropdownExpanded by remember { mutableStateOf(false) }
 
         if (showDatePickerDialog) {
@@ -1944,7 +1941,7 @@ fun InvoiceDetailDialog(
                                     onClick = {
                                         selectedMethod = method
                                         dropdownExpanded = false
-                                        if (method != "LAINNYA" && method != "TRANSFER BANK LAIN") {
+                                        if (method != "LAINNYA") {
                                             methodDetail = ""
                                         }
                                     }
@@ -1953,12 +1950,12 @@ fun InvoiceDetailDialog(
                         }
                     }
                     
-                    if (selectedMethod == "LAINNYA" || selectedMethod == "TRANSFER BANK LAIN") {
+                    if (selectedMethod == "LAINNYA") {
                         OutlinedTextField(
                             value = methodDetail,
                             onValueChange = { methodDetail = it },
-                            label = { Text(if (selectedMethod == "LAINNYA") "Keterangan Metode (Wajib)" else "Detail Bank (Wajib)") },
-                            placeholder = { Text(if (selectedMethod == "LAINNYA") "Sebutkan metode lainnya" else "Contoh: BNI, Mandiri, BCA") },
+                            label = { Text("Keterangan Metode (Wajib)") },
+                            placeholder = { Text("DANA, QRIS, SPAY, SEABANK") },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = AgedGold,
@@ -1997,7 +1994,7 @@ fun InvoiceDetailDialog(
                             errorMessage = "Total pembayaran (${FormatUtils.formatRupiah(totalPaid)}) melebihi Grand Total (${FormatUtils.formatRupiah(invoice.totalAmount)})!"
                             return@Button
                         }
-                        if ((selectedMethod == "LAINNYA" || selectedMethod == "TRANSFER BANK LAIN") && methodDetail.isBlank()) {
+                        if (selectedMethod == "LAINNYA" && methodDetail.isBlank()) {
                             errorMessage = "Keterangan wajib diisi!"
                             return@Button
                         }
@@ -2051,7 +2048,7 @@ fun InvoiceDetailDialog(
         var paymentDateStr by remember(payment) { mutableStateOf(originalSdfDate) }
         var showDatePickerDialog by remember { mutableStateOf(false) }
 
-        val paymentMethods = listOf("CASH", "TRANSFER BRI", "DANA", "TRANSFER BANK LAIN", "LAINNYA")
+        val paymentMethods = listOf("CASH", "TRANSFER", "LAINNYA")
         var dropdownExpanded by remember { mutableStateOf(false) }
 
         if (showDatePickerDialog) {
@@ -2166,7 +2163,7 @@ fun InvoiceDetailDialog(
                                     onClick = {
                                         selectedMethod = method
                                         dropdownExpanded = false
-                                        if (method != "LAINNYA" && method != "TRANSFER BANK LAIN") {
+                                        if (method != "LAINNYA") {
                                             methodDetail = ""
                                         }
                                     }
@@ -2175,12 +2172,12 @@ fun InvoiceDetailDialog(
                         }
                     }
                     
-                    if (selectedMethod == "LAINNYA" || selectedMethod == "TRANSFER BANK LAIN") {
+                    if (selectedMethod == "LAINNYA") {
                         OutlinedTextField(
                             value = methodDetail,
                             onValueChange = { methodDetail = it },
-                            label = { Text(if (selectedMethod == "LAINNYA") "Keterangan Metode (Wajib)" else "Detail Bank (Wajib)") },
-                            placeholder = { Text(if (selectedMethod == "LAINNYA") "Sebutkan metode lainnya" else "Contoh: BNI, Mandiri, BCA") },
+                            label = { Text("Keterangan Metode (Wajib)") },
+                            placeholder = { Text("DANA, QRIS, SPAY, SEABANK") },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = AgedGold,
@@ -2219,7 +2216,7 @@ fun InvoiceDetailDialog(
                             errorMessage = "Total pembayaran (${FormatUtils.formatRupiah(totalPaid)}) melebihi Grand Total (${FormatUtils.formatRupiah(invoice.totalAmount)})!"
                             return@Button
                         }
-                        if ((selectedMethod == "LAINNYA" || selectedMethod == "TRANSFER BANK LAIN") && methodDetail.isBlank()) {
+                        if (selectedMethod == "LAINNYA" && methodDetail.isBlank()) {
                             errorMessage = "Keterangan wajib diisi!"
                             return@Button
                         }
@@ -2585,13 +2582,16 @@ fun AddSaleDialog(
     masterStocks: List<com.yansproject.app.data.MasterStock> = emptyList(),
     varians: List<com.yansproject.app.data.MasterVarianWarna> = emptyList(),
     onDismiss: () -> Unit,
-    onSaveSale: (clientName: String, clientPhone: String, selectedItems: List<Pair<com.yansproject.app.data.StockItem, Int>>, paidAmount: Double, priceType: String) -> Unit
+    onSaveSale: (clientName: String, clientPhone: String, clientAddress: String, selectedItems: List<Pair<com.yansproject.app.data.StockItem, Int>>, paidAmount: Double, priceType: String, paymentMethod: String) -> Unit
 ) {
     val context = LocalContext.current
     var clientName by remember { mutableStateOf("") }
     var clientPhone by remember { mutableStateOf("") }
+    var clientAddress by remember { mutableStateOf("") }
     var paidAmountStr by remember { mutableStateOf("") }
     var selectedPriceType by remember { mutableStateOf("Retail") } // Retail, Member, Reseller, Custom
+    var selectedPaymentMethod by remember { mutableStateOf("CASH") }
+    var methodDetailInput by remember { mutableStateOf("") }
 
     val registeredMembers = remember { AppSettings.getMembers(context).toList() }
     val matchedMember = remember(clientName) {
@@ -2606,8 +2606,13 @@ fun AddSaleDialog(
             val tier = AppSettings.getMemberPriceCategory(context, matchedMember)
             selectedPriceType = tier
             val detail = AppSettings.getMemberDetail(context, matchedMember)
-            if (detail != null && clientPhone.isBlank() && detail.whatsapp.isNotBlank()) {
-                clientPhone = detail.whatsapp
+            if (detail != null) {
+                if (clientPhone.isBlank() && detail.whatsapp.isNotBlank()) {
+                    clientPhone = detail.whatsapp
+                }
+                if (clientAddress.isBlank() && detail.address.isNotBlank()) {
+                    clientAddress = detail.address
+                }
             }
         }
     }
@@ -2734,7 +2739,7 @@ fun AddSaleDialog(
         getCalculatedUnitPrice(mStock, parsed.size, parsed.sleeve, selectedPriceType) * qty
     }
 
-    val paidAmount = paidAmountStr.toDoubleOrNull() ?: grandTotal
+    val paidAmount = paidAmountStr.toDoubleOrNull() ?: 0.0
     val remainingPayment = (grandTotal - paidAmount).coerceAtLeast(0.0)
 
     Dialog(
@@ -2868,98 +2873,15 @@ fun AddSaleDialog(
 
                     // 1. Customer Info
                     item {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0x2A0F3D3E)),
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, HighlightSoftCyan.copy(alpha = 0.4f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Box(modifier = Modifier.width(3.dp).height(12.dp).background(AgedGold, RoundedCornerShape(2.dp)))
-                                    Text(text = "1. DATA PELANGGAN / MEMBER", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
-                                }
-                                OutlinedTextField(
-                                    value = clientName,
-                                    onValueChange = { clientName = it },
-                                    label = { Text("Nama Customer / Member", color = Color(0xFFA0AEC0)) },
-                                    placeholder = { Text("Masukkan nama pelanggan...", color = TextMuted) },
-                                    modifier = Modifier.fillMaxWidth().testTag("sale_client_name"),
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = Color(0x44319795))
-                                )
-
-                                if (registeredMembers.isNotEmpty()) {
-                                    Text("Pilih Pelanggan Terdaftar:", color = AgedGold.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    LazyRow(
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                                    ) {
-                                        items(registeredMembers) { memberName ->
-                                            val isSelected = clientName.equals(memberName, ignoreCase = true)
-                                            FilterChip(
-                                                selected = isSelected,
-                                                onClick = {
-                                                    if (isSelected) {
-                                                        clientName = ""
-                                                    } else {
-                                                        clientName = memberName
-                                                        val detail = AppSettings.getMemberDetail(context, memberName)
-                                                        if (detail != null && detail.whatsapp.isNotBlank()) {
-                                                            clientPhone = detail.whatsapp
-                                                        }
-                                                    }
-                                                },
-                                                label = { Text(memberName, fontSize = 11.sp, color = if (isSelected) ShadowBlack else TextLight) },
-                                                colors = FilterChipDefaults.filterChipColors(
-                                                    selectedContainerColor = AgedGold,
-                                                    containerColor = PrimaryDarkTeal
-                                                ),
-                                                border = FilterChipDefaults.filterChipBorder(
-                                                    enabled = true,
-                                                    selected = isSelected,
-                                                    borderColor = BorderGrey,
-                                                    selectedBorderColor = AgedGold
-                                                )
-                                            )
-                                        }
-                                    }
-                                }
-
-                                if (matchedMemberDetail != null) {
-                                    Surface(
-                                        color = AlertGreen.copy(alpha = 0.15f),
-                                        border = BorderStroke(1.dp, AlertGreen.copy(alpha = 0.4f)),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Icon(Icons.Default.Check, contentDescription = null, tint = AlertGreen, modifier = Modifier.size(14.dp))
-                                            Text(
-                                                text = "AKUN MEMBER TERDAFTAR • Otomatis Tier: ${matchedMemberDetail.priceCategory}",
-                                                color = AlertGreen,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
-
-                                OutlinedTextField(
-                                    value = clientPhone,
-                                    onValueChange = { clientPhone = it.filter { char -> char.isDigit() || char == '+' } },
-                                    label = { Text("No. WhatsApp (Opsional)", color = Color(0xFFA0AEC0)) },
-                                    placeholder = { Text("Contoh: 08123456789", color = TextMuted) },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                    modifier = Modifier.fillMaxWidth().testTag("sale_client_phone"),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
-                                )
-                            }
-                        }
+                        com.yansproject.app.ui.components.CustomerSelectionSection(
+                            clientName = clientName,
+                            onClientNameChange = { clientName = it },
+                            clientPhone = clientPhone,
+                            onClientPhoneChange = { clientPhone = it },
+                            clientAddress = clientAddress,
+                            onClientAddressChange = { clientAddress = it },
+                            onPriceTypeSelect = { selectedPriceType = it }
+                        )
                     }
 
                     // 2. Price Type Selection
@@ -3180,12 +3102,27 @@ fun AddSaleDialog(
                                         )
                                     }
 
-                                    Text(
-                                        text = "MATRIKS INPUT UKURAN & STOK (${selectedCatalog?.nama_catalog ?: "-"} - ${selectedVarian?.nama_warna ?: "-"})",
-                                        fontSize = 11.sp,
-                                        color = AgedGold,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "MATRIKS INPUT UKURAN & STOK (${selectedCatalog?.nama_catalog ?: "-"} - ${selectedVarian?.nama_warna ?: "-"})",
+                                            fontSize = 11.sp,
+                                            color = AgedGold,
+                                            fontWeight = FontWeight.Bold
+                                        )
+
+                                        if (matrixQtyState.values.any { it > 0 }) {
+                                            TextButton(
+                                                onClick = { matrixQtyState.clear() },
+                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text("Reset Matriks", fontSize = 10.sp, color = AlertRed, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
 
                                     // Dual Sleeve Matrices: Lengan Pendek & Lengan Panjang
                                     listOf("Pendek", "Panjang").forEach { sleeve ->
@@ -3212,14 +3149,15 @@ fun AddSaleDialog(
                                                     val unitPrice = getCalculatedUnitPrice(currentMasterStock, sz, sleeve, selectedPriceType)
                                                     val key = "${selectedCatalog?.id_catalog}_${selectedVarian?.id_varian}_${sz}_${sleeve}"
                                                     val currentQty = matrixQtyState[key] ?: 0
+                                                    var textInput by remember(currentQty) { mutableStateOf(if (currentQty > 0) currentQty.toString() else "") }
 
                                                     Column(
                                                         modifier = Modifier
-                                                            .width(72.dp)
-                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .width(96.dp)
+                                                            .clip(RoundedCornerShape(8.dp))
                                                             .background(SecondaryShadowBlackTeal)
-                                                            .border(1.dp, if (currentQty > 0) AgedGold else BorderGrey, RoundedCornerShape(6.dp))
-                                                            .padding(4.dp),
+                                                            .border(1.dp, if (currentQty > 0) AgedGold else BorderGrey.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                                            .padding(vertical = 6.dp, horizontal = 5.dp),
                                                         horizontalAlignment = Alignment.CenterHorizontally,
                                                         verticalArrangement = Arrangement.spacedBy(2.dp)
                                                     ) {
@@ -3235,50 +3173,90 @@ fun AddSaleDialog(
                                                             color = TextMuted
                                                         )
 
+                                                        Spacer(modifier = Modifier.height(2.dp))
+
                                                         Row(
                                                             verticalAlignment = Alignment.CenterVertically,
                                                             horizontalArrangement = Arrangement.Center,
-                                                            modifier = Modifier.fillMaxWidth()
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .height(26.dp)
+                                                                .clip(RoundedCornerShape(6.dp))
+                                                                .background(DarkTeal.copy(alpha = 0.6f))
+                                                                .border(0.8.dp, if (currentQty > 0) AgedGold.copy(alpha = 0.7f) else BorderGrey.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                                                .padding(horizontal = 2.dp)
                                                         ) {
                                                             Box(
                                                                 modifier = Modifier
-                                                                    .size(20.dp)
+                                                                    .size(22.dp)
                                                                     .clip(RoundedCornerShape(4.dp))
-                                                                    .background(DarkTeal)
+                                                                    .background(if (currentQty > 0) AgedGold.copy(alpha = 0.2f) else DarkTeal)
                                                                     .clickable {
                                                                         if (currentQty > 0) {
-                                                                            matrixQtyState[key] = currentQty - 1
+                                                                            val next = currentQty - 1
+                                                                            matrixQtyState[key] = next
                                                                         }
                                                                     },
                                                                 contentAlignment = Alignment.Center
                                                             ) {
-                                                                Text("-", color = AgedGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                                Text("-", color = AgedGold, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                                                             }
 
-                                                            Spacer(modifier = Modifier.width(4.dp))
-                                                            Text(
-                                                                text = "$currentQty",
-                                                                fontSize = 11.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                color = if (currentQty > 0) AgedGold else TextLight
+                                                            androidx.compose.foundation.text.BasicTextField(
+                                                                value = textInput,
+                                                                onValueChange = { input ->
+                                                                    val filtered = input.filter { it.isDigit() }
+                                                                    textInput = filtered
+                                                                    val parsed = filtered.toIntOrNull() ?: 0
+                                                                    if (availStock > 0 && parsed > availStock) {
+                                                                        matrixQtyState[key] = availStock
+                                                                        textInput = availStock.toString()
+                                                                        Toast.makeText(context, "Mencapai batas stok ($availStock Pcs)!", Toast.LENGTH_SHORT).show()
+                                                                    } else {
+                                                                        matrixQtyState[key] = parsed
+                                                                    }
+                                                                },
+                                                                textStyle = androidx.compose.ui.text.TextStyle(
+                                                                    color = if (currentQty > 0) AgedGold else TextLight,
+                                                                    fontWeight = FontWeight.ExtraBold,
+                                                                    fontSize = 11.5.sp,
+                                                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                                                ),
+                                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                                singleLine = true,
+                                                                decorationBox = { innerTextField ->
+                                                                    Box(
+                                                                        modifier = Modifier.fillMaxSize(),
+                                                                        contentAlignment = Alignment.Center
+                                                                    ) {
+                                                                        if (textInput.isEmpty()) {
+                                                                            Text("0", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Normal)
+                                                                        }
+                                                                        innerTextField()
+                                                                    }
+                                                                },
+                                                                modifier = Modifier
+                                                                    .weight(1f)
+                                                                    .fillMaxHeight()
+                                                                    .testTag("matrix_input_$key")
                                                             )
-                                                            Spacer(modifier = Modifier.width(4.dp))
 
                                                             Box(
                                                                 modifier = Modifier
-                                                                    .size(20.dp)
+                                                                    .size(22.dp)
                                                                     .clip(RoundedCornerShape(4.dp))
                                                                     .background(DarkTeal)
                                                                     .clickable {
-                                                                        if (currentQty < availStock) {
-                                                                            matrixQtyState[key] = currentQty + 1
+                                                                        if (availStock <= 0 || currentQty < availStock) {
+                                                                            val next = currentQty + 1
+                                                                            matrixQtyState[key] = next
                                                                         } else {
                                                                             Toast.makeText(context, "Stok maksimal terlampaui (Tersedia $availStock Pcs)", Toast.LENGTH_SHORT).show()
                                                                         }
                                                                     },
                                                                 contentAlignment = Alignment.Center
                                                             ) {
-                                                                Text("+", color = AgedGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                                Text("+", color = AgedGold, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                                                             }
                                                         }
                                                     }
@@ -3451,12 +3429,53 @@ fun AddSaleDialog(
                                     value = paidAmountStr,
                                     onValueChange = { paidAmountStr = it.filter { c -> c.isDigit() } },
                                     label = { Text("Jumlah Pembayaran / Uang Muka DP (Rp)") },
-                                    placeholder = { Text("Kosongkan / Isi ${grandTotal.toInt()} untuk lunas") },
+                                    placeholder = { Text("Kosongkan jika belum ada pembayaran DP") },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     modifier = Modifier.fillMaxWidth().testTag("sale_paid_amount"),
                                     shape = RoundedCornerShape(8.dp),
                                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
                                 )
+
+                                if (paidAmount > 0) {
+                                    Text(text = "Metode Pembayaran DP/Lunas:", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.SemiBold)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        listOf("CASH", "TRANSFER", "LAINNYA").forEach { method ->
+                                            val selected = selectedPaymentMethod.equals(method, ignoreCase = true)
+                                            FilterChip(
+                                                selected = selected,
+                                                onClick = { selectedPaymentMethod = method },
+                                                label = { Text(method, fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
+                                                colors = FilterChipDefaults.filterChipColors(
+                                                    selectedContainerColor = AgedGold,
+                                                    selectedLabelColor = ShadowBlack,
+                                                    containerColor = Color(0xFF163536),
+                                                    labelColor = TextLight
+                                                ),
+                                                border = FilterChipDefaults.filterChipBorder(
+                                                    borderColor = BorderGrey,
+                                                    selectedBorderColor = AgedGold,
+                                                    enabled = true,
+                                                    selected = selected
+                                                )
+                                            )
+                                        }
+                                    }
+                                    if (selectedPaymentMethod.equals("LAINNYA", ignoreCase = true)) {
+                                        OutlinedTextField(
+                                            value = methodDetailInput,
+                                            onValueChange = { methodDetailInput = it },
+                                            label = { Text("Keterangan Metode Pembayaran (Wajib)") },
+                                            placeholder = { Text("DANA, QRIS, SPAY, SEABANK") },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth().testTag("sale_method_detail_input"),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AgedGold, unfocusedBorderColor = BorderGrey)
+                                        )
+                                    }
+                                }
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -3562,7 +3581,11 @@ fun AddSaleDialog(
                                         clipboard.setPrimaryClip(clip)
                                     }
 
-                                    onSaveSale(clientName.trim(), clientPhone.trim(), cartList.toList(), paidAmount, selectedPriceType)
+                                    val finalMethod = if (selectedPaymentMethod.equals("LAINNYA", ignoreCase = true) && methodDetailInput.isNotBlank()) {
+                                        methodDetailInput.trim()
+                                    } else selectedPaymentMethod
+
+                                    onSaveSale(clientName.trim(), clientPhone.trim(), clientAddress.trim(), cartList.toList(), paidAmount, selectedPriceType, finalMethod)
                                 }
                             }
                         },

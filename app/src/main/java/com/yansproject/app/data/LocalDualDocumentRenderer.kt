@@ -85,7 +85,7 @@ object LocalDualDocumentRenderer {
         paint.textSize = 15f
         paint.color = 0xFFFFFFFF.toInt()
         paint.isFakeBoldText = false
-        canvas.drawText("Specialist Apparel, Custom Screen Printing & Digital Ecosystem", 130f, 78f, paint)
+        canvas.drawText("Luxury Visual Identity & Custom Merch", 130f, 78f, paint)
 
         paint.textSize = 13f
         paint.color = 0xFF4FD1C5.toInt()

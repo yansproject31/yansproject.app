@@ -300,7 +300,7 @@ fun DualApparelMatrixInputComponent(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.width(90.dp)) { Text("Lengan", color = TextNonActive, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
                             adultSizes.forEach { size ->
-                                Box(modifier = Modifier.width(55.dp), contentAlignment = Alignment.Center) {
+                                Box(modifier = Modifier.width(62.dp), contentAlignment = Alignment.Center) {
                                     Text(size, color = AccentAgedGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
@@ -409,7 +409,7 @@ fun DualApparelMatrixInputComponent(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.width(90.dp)) { Text("Lengan", color = TextNonActive, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
                             activeSizes.forEach { size ->
-                                Box(modifier = Modifier.width(55.dp), contentAlignment = Alignment.Center) {
+                                Box(modifier = Modifier.width(62.dp), contentAlignment = Alignment.Center) {
                                     Text(size, color = AccentAgedGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
@@ -576,7 +576,7 @@ fun MatrixQtyInputField(
     val isFilled = value.isNotBlank() && value != "0"
     Box(
         modifier = Modifier
-            .width(55.dp)
+            .width(62.dp)
             .height(38.dp)
             .padding(horizontal = 2.dp)
             .clip(RoundedCornerShape(6.dp))
@@ -592,7 +592,7 @@ fun MatrixQtyInputField(
             onValueChange = { input ->
                 if (input.all { it.isDigit() }) onValueChange(input)
             },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 color = if (isFilled) HighlightSoftCyan else AccentAgedGold,
                 textAlign = TextAlign.Center,

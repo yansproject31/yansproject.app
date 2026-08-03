@@ -4,9 +4,9 @@ import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -26,9 +26,12 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -40,6 +43,8 @@ import androidx.compose.ui.unit.sp
 import com.yansproject.app.ui.theme.*
 import com.yansproject.app.ui.components.ManuscriptDropCap
 import com.yansproject.app.ui.components.ManuscriptQuoteBlock
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 private val FastLuxuryEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f)
@@ -101,6 +106,7 @@ fun KitabDigitalScreen(
         return
     }
 
+    var showGatewayIntro by remember { mutableStateOf(true) }
     var selectedBookId by remember { mutableStateOf("kitab_01") }
     val currentBook = remember(selectedBookId, books) {
         books.find { it.id == selectedBookId } ?: books.first()
@@ -406,6 +412,10 @@ fun KitabDigitalScreen(
     }
 
     BackHandler(enabled = true) {
+        if (showGatewayIntro) {
+            onBack()
+            return@BackHandler
+        }
         when {
             selectedQuoteToShare != null -> {
                 selectedQuoteToShare = null
@@ -434,11 +444,30 @@ fun KitabDigitalScreen(
         }
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(shadowBlack)
-    ) {
+    AnimatedContent(
+        targetState = showGatewayIntro,
+        transitionSpec = {
+            if (initialState && !targetState) {
+                (fadeIn(animationSpec = tween(550, easing = FastLuxuryEasing)) + scaleIn(initialScale = 0.94f, animationSpec = tween(550, easing = FastLuxuryEasing)))
+                    .togetherWith(
+                        fadeOut(animationSpec = tween(550, easing = FastLuxuryEasing)) + scaleOut(targetScale = 1.08f, animationSpec = tween(550, easing = FastLuxuryEasing))
+                    )
+            } else {
+                fadeIn(tween(300)).togetherWith(fadeOut(tween(300)))
+            }
+        },
+        label = "GatewayIntroTransition"
+    ) { isIntro ->
+        if (isIntro) {
+            KitabDigitalGatewayIntro(
+                onDismiss = { showGatewayIntro = false }
+            )
+        } else {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(shadowBlack)
+            ) {
         AnimatedContent(
             targetState = currentJuzView,
             transitionSpec = {
@@ -2141,6 +2170,307 @@ fun KitabDigitalScreen(
                         }
                     }
                 }
+            )
+        }
+        }
+        }
+        }
+    }
+
+@Composable
+fun KitabDigitalGatewayIntro(
+    onDismiss: () -> Unit
+) {
+    val logoScale = remember { Animatable(0.55f) }
+    val contentAlpha = remember { Animatable(0f) }
+    val textSlideY = remember { Animatable(28f) }
+    val beamProgress = remember { Animatable(0f) }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "PortalHaloTransition")
+    val haloRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(12000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "HaloRotation"
+    )
+    val haloPulse by infiniteTransition.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "HaloPulse"
+    )
+
+    LaunchedEffect(Unit) {
+        try {
+            launch {
+                logoScale.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                )
+            }
+            launch {
+                contentAlpha.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(650, easing = LinearOutSlowInEasing)
+                )
+            }
+            launch {
+                textSlideY.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(700, easing = FastLuxuryEasing)
+                )
+            }
+            beamProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(1250, easing = CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f))
+            )
+            delay(150)
+            onDismiss()
+        } catch (e: Exception) {
+            onDismiss()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(YansCanvasGradient)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        // Outer Glowing Portal Aura
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val c = this.center
+            val maxR = size.minDimension * 0.45f
+            
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        AgedGold.copy(alpha = 0.28f * contentAlpha.value),
+                        HighlightSoftCyan.copy(alpha = 0.16f * contentAlpha.value),
+                        DarkTeal.copy(alpha = 0.08f * contentAlpha.value),
+                        Color.Transparent
+                    ),
+                    center = c,
+                    radius = maxR * haloPulse
+                ),
+                center = c,
+                radius = maxR * haloPulse
+            )
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .padding(32.dp)
+                .graphicsLayer {
+                    alpha = contentAlpha.value
+                    translationY = textSlideY.value
+                }
+        ) {
+            // Central Logo with Rotating Cyber Emerald & Aged Gold Gateway Frame
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(165.dp)
+            ) {
+                // Rotating Dashed Gateway Ring
+                Box(
+                    modifier = Modifier
+                        .size(155.dp)
+                        .graphicsLayer {
+                            rotationZ = haloRotation
+                            scaleX = haloPulse
+                            scaleY = haloPulse
+                        }
+                        .drawBehind {
+                            val strokeWidth = 1.6.dp.toPx()
+                            drawCircle(
+                                brush = Brush.sweepGradient(
+                                    colors = listOf(
+                                        AgedGold,
+                                        Color.Transparent,
+                                        HighlightSoftCyan,
+                                        Color.Transparent,
+                                        AgedGold
+                                    )
+                                ),
+                                style = Stroke(
+                                    width = strokeWidth,
+                                    pathEffect = PathEffect.dashPathEffect(
+                                        floatArrayOf(32f, 22f), 0f
+                                    )
+                                )
+                            )
+                        }
+                )
+
+                // Inner Glassmorphic Frame
+                Box(
+                    modifier = Modifier
+                        .size(122.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    DarkTeal.copy(alpha = 0.95f),
+                                    ShadowBlack.copy(alpha = 0.98f)
+                                )
+                            )
+                        )
+                        .border(
+                            width = 1.2.dp,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(AgedGold, HighlightSoftCyan.copy(alpha = 0.5f))
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = com.yansproject.app.R.drawable.ic_logo),
+                        contentDescription = "YANSPROJECT.ID Logo",
+                        tint = AgedGold,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .graphicsLayer {
+                                scaleX = logoScale.value
+                                scaleY = logoScale.value
+                            }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // BRAND TITLE
+            Text(
+                text = "YANSPROJECT.ID",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = AgedGold,
+                letterSpacing = 3.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // DECORATIVE DIVIDER WITH DIAMOND
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.width(230.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(Color.Transparent, AgedGold.copy(alpha = 0.85f))
+                            )
+                        )
+                )
+                Text(
+                    text = " ✦ ",
+                    fontSize = 11.sp,
+                    color = AgedGold
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(AgedGold.copy(alpha = 0.85f), Color.Transparent)
+                            )
+                        )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // GATEWAY ARCHIVE TITLE
+            Text(
+                text = "DIGITAL MANUSCRIPT ARCHIVE",
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = HighlightSoftCyan,
+                letterSpacing = 2.5.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // SUBTITLE CAPTION
+            Text(
+                text = "Arsip resmi manuskrip digital sejarah perjalanan YANSPROJECT.ID",
+                fontSize = 11.sp,
+                color = TextMuted,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                lineHeight = 16.sp,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(36.dp))
+
+            // PROGRESS / ENERGY BEAM CONTAINER
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.width(210.dp)
+            ) {
+                Text(
+                    text = "MEMBUKA HALAMAN KITAB DIGITAL...",
+                    fontSize = 9.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AgedGold.copy(alpha = 0.85f),
+                    letterSpacing = 1.5.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Beam Track
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(DarkTeal.copy(alpha = 0.8f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(beamProgress.value)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(AgedGold, HighlightSoftCyan)
+                                )
+                            )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(
+                text = "Ketuk layar untuk melewati • Tap to enter",
+                fontSize = 10.sp,
+                color = TextMuted.copy(alpha = 0.6f),
+                fontWeight = FontWeight.Normal
             )
         }
     }

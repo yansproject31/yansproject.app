@@ -241,113 +241,13 @@ fun CustomProjectFormScreen(
                         singleLine = true
                     )
 
-                    // Nama Customer (Opsional)
-                    YansGlowingTextField(
-                        value = clientName,
-                        onValueChange = { clientName = it },
-                        label = "Nama Customer (Opsional)",
-                        placeholder = "Contoh: Bpk. Hendra",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("form_client_name"),
-                        singleLine = true
-                    )
-
-                    // Quick Member Selection Chips
-                    val registeredMembers = remember { AppSettings.getMembers(context).toList() }
-                    val matchedMemberDetail = remember(clientName) {
-                        if (clientName.isNotBlank()) AppSettings.getMemberDetail(context, clientName) else null
-                    }
-
-                    LaunchedEffect(matchedMemberDetail) {
-                        if (matchedMemberDetail != null && clientPhone.isBlank() && matchedMemberDetail.whatsapp.isNotBlank()) {
-                            clientPhone = matchedMemberDetail.whatsapp
-                        }
-                    }
-
-                    if (registeredMembers.isNotEmpty()) {
-                        Text("Pilih Dari Pelanggan Terdaftar:", color = AccentAgedGold.copy(alpha = 0.7f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                        ) {
-                            items(registeredMembers) { memberName ->
-                                val isSelected = clientName.equals(memberName, ignoreCase = true)
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = {
-                                        if (isSelected) {
-                                            clientName = ""
-                                        } else {
-                                            clientName = memberName
-                                            val detail = AppSettings.getMemberDetail(context, memberName)
-                                            if (detail != null && detail.whatsapp.isNotBlank()) {
-                                                clientPhone = detail.whatsapp
-                                            }
-                                        }
-                                    },
-                                    label = { Text(memberName, fontSize = 11.sp, color = if (isSelected) ShadowBlack else TextLight) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = AccentAgedGold,
-                                        containerColor = PrimaryDarkTeal
-                                    ),
-                                    border = FilterChipDefaults.filterChipBorder(
-                                        enabled = true,
-                                        selected = isSelected,
-                                        borderColor = DividerDarkCyanGray,
-                                        selectedBorderColor = AccentAgedGold
-                                    )
-                                )
-                            }
-                        }
-                    }
-
-                    if (matchedMemberDetail != null) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Surface(
-                            color = AlertGreen.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, AlertGreen.copy(alpha = 0.4f)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = AlertGreen, modifier = Modifier.size(14.dp))
-                                Text(
-                                    text = "AKUN MEMBER TERDAFTAR • Tier: ${matchedMemberDetail.priceCategory}",
-                                    color = AlertGreen,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    // No. WhatsApp
-                    YansGlowingTextField(
-                        value = clientPhone,
-                        onValueChange = { clientPhone = it.filter { char -> char.isDigit() || char == '+' } },
-                        label = "No. WhatsApp",
-                        placeholder = "Contoh: 08123456789",
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("form_client_phone"),
-                        singleLine = true
-                    )
-
-                    // Alamat
-                    YansGlowingTextField(
-                        value = deliveryAddress,
-                        onValueChange = { deliveryAddress = it },
-                        label = "Alamat Pengiriman",
-                        placeholder = "Masukkan alamat lengkap customer...",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("form_delivery_address"),
-                        singleLine = false
+                    com.yansproject.app.ui.components.CustomerSelectionSection(
+                        clientName = clientName,
+                        onClientNameChange = { clientName = it },
+                        clientPhone = clientPhone,
+                        onClientPhoneChange = { clientPhone = it },
+                        clientAddress = deliveryAddress,
+                        onClientAddressChange = { deliveryAddress = it }
                     )
 
                     // Target Estimasi Pengerjaan (Deadline)

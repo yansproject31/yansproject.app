@@ -967,10 +967,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun addOrder(
         clientName: String,
         clientPhone: String,
+        clientAddress: String = "",
         selectedItems: List<Pair<StockItem, Int>>,
         paidAmount: Double,
         status: String,
-        priceType: String = "Retail"
+        priceType: String = "Retail",
+        paymentMethod: String = "CASH"
     ) {
         viewModelScope.launch {
             val orderItems = selectedItems.map { (item, qty) ->
@@ -1001,7 +1003,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             val prefix = AppSettings.getInvoicePrefix(getApplication())
             val invoiceNum = repository.generateInvoiceNumber(prefix, order.orderDate)
-            repository.createOrder(order, orderItems, prefix)
+            repository.createOrder(order, orderItems, prefix, paymentMethod, clientAddress)
 
             // 1. ORDER_NEW Notification for Owner
             triggerNotification(
@@ -1092,8 +1094,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val invoices = allInvoices.value
             val linkedInvoice = invoices.find { it.orderId == order.id }
             
-            repository.deleteOrder(order)
+            repository.deleteOrder(order, getApplication())
             
+            val invNum = linkedInvoice?.invoiceNumber ?: ""
+            val invId = linkedInvoice?.id
+            AppSettings.deleteNotificationsForInvoice(getApplication(), invNum, invId, order.id, order.clientName)
+            _notifications.value = AppSettings.getNotifications(getApplication())
+
             FirebaseSyncManager.deleteItemFromCloud("orders", order.id.toString())
             if (linkedInvoice != null) {
                 FirebaseSyncManager.deleteItemFromCloud("invoices", linkedInvoice.id.toString())
@@ -1266,7 +1273,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteInvoice(invoice: Invoice) {
         viewModelScope.launch {
-            repository.deleteInvoice(invoice)
+            repository.deleteInvoice(invoice, getApplication())
+            AppSettings.deleteNotificationsForInvoice(getApplication(), invoice.invoiceNumber, invoice.id, invoice.orderId, invoice.clientName)
+            _notifications.value = AppSettings.getNotifications(getApplication())
             addAuditLog(
                 "Hapus Invoice",
                 "Invoice '${invoice.invoiceNumber}' untuk customer ${invoice.clientName} berhasil dihapus."
@@ -1277,7 +1286,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cancelInvoice(invoiceId: Int) {
         viewModelScope.launch {
-            repository.cancelInvoice(invoiceId)
+            val invoice = allInvoices.value.find { it.id == invoiceId }
+            repository.cancelInvoice(invoiceId, getApplication())
+            if (invoice != null) {
+                AppSettings.deleteNotificationsForInvoice(getApplication(), invoice.invoiceNumber, invoice.id, invoice.orderId, invoice.clientName)
+            } else {
+                AppSettings.deleteNotificationsForInvoice(getApplication(), "", invoiceId, null, null)
+            }
+            _notifications.value = AppSettings.getNotifications(getApplication())
             addAuditLog(
                 "Batal Invoice",
                 "Invoice ID: $invoiceId telah dibatalkan."
@@ -1326,7 +1342,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val user = FirebaseSyncManager.currentUser.value
             val userName = user?.displayName ?: "Owner"
-            val success = repository.rejectSalesOrder(invoiceId, userName)
+            val invoice = allInvoices.value.find { it.id == invoiceId }
+            val success = repository.rejectSalesOrder(invoiceId, userName, getApplication())
+            if (invoice != null) {
+                AppSettings.deleteNotificationsForInvoice(getApplication(), invoice.invoiceNumber, invoice.id, invoice.orderId, invoice.clientName)
+            } else {
+                AppSettings.deleteNotificationsForInvoice(getApplication(), "", invoiceId, null, null)
+            }
+            _notifications.value = AppSettings.getNotifications(getApplication())
             callback(success)
             if (success) {
                 AppFeedbackManager.triggerSuccess()
@@ -1341,12 +1364,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val user = FirebaseSyncManager.currentUser.value
             val userName = user?.displayName ?: "Owner"
+            val normalizedPm = when {
+                paymentMethod.isBlank() || paymentMethod.equals("Tunai", ignoreCase = true) -> "Cash"
+                else -> paymentMethod
+            }
             val expense = Expense(
                 category = category,
                 amount = amount,
                 date = date,
                 notes = notes,
-                paymentMethod = paymentMethod,
+                paymentMethod = normalizedPm,
                 createdBy = userName,
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis()
@@ -1368,7 +1395,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateExpense(expense: Expense) {
         viewModelScope.launch {
+            val normalizedPm = when {
+                expense.paymentMethod.isBlank() || expense.paymentMethod.equals("Tunai", ignoreCase = true) -> "Cash"
+                else -> expense.paymentMethod
+            }
             val updated = expense.copy(
+                paymentMethod = normalizedPm,
                 updatedAt = System.currentTimeMillis()
             )
             repository.updateExpense(updated)
@@ -1744,7 +1776,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteInvoicePermanently(invoice: Invoice) {
         viewModelScope.launch {
             if (!isCurrentUserOwner()) return@launch
-            repository.deleteInvoicePermanently(invoice)
+            repository.deleteInvoicePermanently(invoice, getApplication())
+            AppSettings.deleteNotificationsForInvoice(getApplication(), invoice.invoiceNumber, invoice.id, invoice.orderId, invoice.clientName)
+            _notifications.value = AppSettings.getNotifications(getApplication())
             FirebaseSyncManager.deleteItemFromCloud("invoices", invoice.id.toString())
             addAuditLog("Hapus Permanen Invoice", "Invoice '${invoice.invoiceNumber}' dihapus secara permanen.")
             AppFeedbackManager.triggerWarning()

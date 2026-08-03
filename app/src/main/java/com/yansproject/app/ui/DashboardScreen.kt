@@ -1993,6 +1993,8 @@ fun DashboardScreen(
     // --- FORM DIALOG TAMBAH PENGELUARAN (ALERT DIALOG MODEREN) ---
     if (showAddExpenseDialog) {
         var selectedCategory by remember { mutableStateOf("Operasional") }
+        var selectedPaymentMethod by remember { mutableStateOf("Cash") }
+        var methodDetailStr by remember { mutableStateOf("") }
         var nominalStr by remember { mutableStateOf("") }
         var dateSelected by remember { mutableStateOf(System.currentTimeMillis()) }
         var notesStr by remember { mutableStateOf("") }
@@ -2090,6 +2092,57 @@ fun DashboardScreen(
                                 text = "Kategori Aksesories mencakup Packing, Ziplock, Hang Tag, Label, Sticker, dll.",
                                 fontSize = 10.sp,
                                 color = TextMuted
+                            )
+                        }
+                    }
+
+                    // Pilihan Metode Pembayaran
+                    Column {
+                        Text(
+                            text = "Metode Pembayaran",
+                            fontSize = 12.sp,
+                            color = TextMuted,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val paymentMethods = listOf("Cash", "Transfer", "Lainnya")
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            paymentMethods.forEach { pm ->
+                                val isPmSelected = selectedPaymentMethod == pm
+                                FilterChip(
+                                    selected = isPmSelected,
+                                    onClick = { selectedPaymentMethod = pm },
+                                    label = { Text(pm, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = HighlightSoftCyan,
+                                        selectedLabelColor = ShadowBlack,
+                                        containerColor = CardGrey,
+                                        labelColor = TextLight
+                                    ),
+                                    modifier = Modifier.testTag("chip_pm_$pm")
+                                )
+                            }
+                        }
+                        if (selectedPaymentMethod == "Lainnya") {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = methodDetailStr,
+                                onValueChange = { methodDetailStr = it },
+                                label = { Text("Keterangan Metode Pembayaran (Wajib)", color = TextMuted) },
+                                placeholder = { Text("DANA, QRIS, SPAY, SEABANK", color = TextMuted.copy(alpha = 0.5f)) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = HighlightSoftCyan,
+                                    unfocusedBorderColor = BorderGrey,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                ),
+                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("input_method_detail_expense")
                             )
                         }
                     }
@@ -2197,15 +2250,23 @@ fun DashboardScreen(
                         val amountVal = nominalStr.toDoubleOrNull()
                         if (amountVal == null || amountVal <= 0.0) {
                             errorMessage = "Nominal harus berupa angka lebih besar dari 0!"
+                        } else if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isEmpty()) {
+                            errorMessage = "Keterangan metode pembayaran wajib diisi!"
                         } else if (notesStr.trim().isEmpty()) {
                             errorMessage = "Catatan tidak boleh kosong!"
                         } else {
+                            val finalPm = if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isNotEmpty()) {
+                                "Lainnya (${methodDetailStr.trim()})"
+                            } else {
+                                selectedPaymentMethod
+                            }
                             // Masukkan ke ViewModel reaktif
                             viewModel.addExpense(
                                 category = selectedCategory,
                                 amount = amountVal,
                                 date = dateSelected,
-                                notes = notesStr.trim()
+                                notes = notesStr.trim(),
+                                paymentMethod = finalPm
                             )
                             showAddExpenseDialog = false
                         }
@@ -2255,8 +2316,8 @@ fun DashboardScreen(
     if (showAddInflowDialog) {
         AddInflowDialog(
             onDismiss = { showAddInflowDialog = false },
-            onSave = { category, amount, date, notes, photoUrl ->
-                viewModel.addInflow(category, amount, date, notes, photoUrl)
+            onSave = { category, amount, date, notes, paymentMethod ->
+                viewModel.addInflow(category = category, amount = amount, date = date, notes = notes, photoUrl = "", paymentMethod = paymentMethod)
                 showAddInflowDialog = false
             }
         )
@@ -2748,9 +2809,11 @@ fun LowStockDetailsDialog(
 @Composable
 fun AddInflowDialog(
     onDismiss: () -> Unit,
-    onSave: (category: String, amount: Double, date: Long, notes: String, photoUrl: String) -> Unit
+    onSave: (category: String, amount: Double, date: Long, notes: String, paymentMethod: String) -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf("Modal") }
+    var selectedPaymentMethod by remember { mutableStateOf("Cash") }
+    var methodDetailStr by remember { mutableStateOf("") }
     var nominalStr by remember { mutableStateOf("") }
     var dateSelected by remember { mutableStateOf(System.currentTimeMillis()) }
     var notesStr by remember { mutableStateOf("") }
@@ -2819,6 +2882,57 @@ fun AddInflowDialog(
                                 modifier = Modifier.testTag("chip_cat_inflow_$cat")
                             )
                         }
+                    }
+                }
+
+                // Pilihan Metode Pembayaran
+                Column {
+                    Text(
+                        text = "Metode Pembayaran",
+                        fontSize = 12.sp,
+                        color = TextMuted,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val paymentMethods = listOf("Cash", "Transfer", "Lainnya")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        paymentMethods.forEach { pm ->
+                            val isPmSelected = selectedPaymentMethod == pm
+                            FilterChip(
+                                selected = isPmSelected,
+                                onClick = { selectedPaymentMethod = pm },
+                                label = { Text(pm, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = HighlightSoftCyan,
+                                    selectedLabelColor = ShadowBlack,
+                                    containerColor = CardGrey,
+                                    labelColor = TextLight
+                                ),
+                                modifier = Modifier.testTag("chip_pm_inflow_$pm")
+                            )
+                        }
+                    }
+                    if (selectedPaymentMethod == "Lainnya") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = methodDetailStr,
+                            onValueChange = { methodDetailStr = it },
+                            label = { Text("Keterangan Metode Pembayaran (Wajib)", color = TextMuted) },
+                            placeholder = { Text("Contoh: DANA, QRIS, Voucher, dll.", color = TextMuted.copy(alpha = 0.5f)) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = HighlightSoftCyan,
+                                unfocusedBorderColor = BorderGrey,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("input_method_detail_inflow")
+                        )
                     }
                 }
 
@@ -2924,10 +3038,17 @@ fun AddInflowDialog(
                     val amountVal = nominalStr.toDoubleOrNull()
                     if (amountVal == null || amountVal <= 0.0) {
                         errorMessage = "Nominal harus berupa angka lebih besar dari 0!"
+                    } else if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isEmpty()) {
+                        errorMessage = "Keterangan metode pembayaran wajib diisi!"
                     } else if (notesStr.trim().isEmpty()) {
                         errorMessage = "Catatan tidak boleh kosong!"
                     } else {
-                        onSave(selectedCategory, amountVal, dateSelected, notesStr.trim(), "")
+                        val finalPm = if (selectedPaymentMethod == "Lainnya" && methodDetailStr.trim().isNotEmpty()) {
+                            "Lainnya (${methodDetailStr.trim()})"
+                        } else {
+                            selectedPaymentMethod
+                        }
+                        onSave(selectedCategory, amountVal, dateSelected, notesStr.trim(), finalPm)
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = AgedGold),
