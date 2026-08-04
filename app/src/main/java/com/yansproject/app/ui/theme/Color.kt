@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Color
 import kotlin.jvm.JvmName
 
 // ==========================================
-// OFFICIAL YANSPROJECT.ID COLOR SYSTEM (VERSI 1.3.0)
+// OFFICIAL YANSPROJECT.ID COLOR SYSTEM (VERSI 1.3.1)
 // ==========================================
 // Static base defaults for non-composable initializations
 val StaticDarkTealBase = Color(0xFF071516)

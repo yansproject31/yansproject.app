@@ -28,6 +28,50 @@ object NotificationHandler {
     const val CHANNEL_BROADCAST_NAME = "YANSPROJECT.ID Owner Broadcast Priority"
 
     /**
+     * Pre-initializes Android Notification Channels at app launch
+     */
+    fun initNotificationChannels(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val broadcastChannel = NotificationChannel(
+                CHANNEL_BROADCAST_ID,
+                CHANNEL_BROADCAST_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Channel Saluran Siaran Langsung Owner YANSPROJECT.ID"
+                enableLights(true)
+                enableVibration(true)
+                setShowBadge(true)
+                setBypassDnd(true)
+                val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                setSound(
+                    soundUri,
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+            }
+
+            val standardChannel = NotificationChannel(
+                CHANNEL_STANDARD_ID,
+                CHANNEL_STANDARD_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Pemberitahuan Realtime YANSPROJECT.ID ERP"
+                enableLights(true)
+                enableVibration(true)
+                setShowBadge(true)
+            }
+
+            notificationManager.createNotificationChannel(broadcastChannel)
+            notificationManager.createNotificationChannel(standardChannel)
+            Log.d(TAG, "Notification channels pre-initialized successfully.")
+        }
+    }
+
+    /**
      * Entry point for processing FCM RemoteMessage payloads
      */
     fun handleIncomingFcmMessage(context: Context, remoteMessage: RemoteMessage) {
@@ -113,12 +157,12 @@ object NotificationHandler {
                     )
                 } else {
                     // Broadcasts, Stock alerts, System announcements
-                    (roleTarget.uppercase() in setOf("ALL", "MEMBER")) &&
+                    (roleTarget.uppercase() in setOf("ALL", "MEMBER", "BROADCAST")) &&
                     (targetUserClean == "all" || targetUserClean == savedEmail || targetUserClean == savedName)
                 }
             } else {
                 // Owner role gets Owner, System, and ALL broadcasts
-                roleTarget.uppercase() in setOf("ALL", "OWNER") || targetUserClean == "all"
+                roleTarget.uppercase() in setOf("ALL", "OWNER", "BROADCAST") || targetUserClean == "all"
             }
 
             if (!isPermittedForUser) {

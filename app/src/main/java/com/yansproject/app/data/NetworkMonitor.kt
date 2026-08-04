@@ -58,7 +58,8 @@ class NetworkMonitor(private val context: Context) {
                 .build()
             connectivityManager.registerNetworkCallback(request, networkCallback)
         } catch (e: Exception) {
-            _isOnline.value = true
+            android.util.Log.e("NetworkMonitor", "Failed to register network callback: ${e.message}", e)
+            _isOnline.value = checkCurrentConnection()
         }
     }
 

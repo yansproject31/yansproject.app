@@ -51,13 +51,24 @@ fun PermissionGuard(
         )
     }
 
+    var userBypassedPrompt by remember { mutableStateOf(false) }
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         isPermissionGranted = isGranted
+        if (!isGranted) {
+            userBypassedPrompt = true
+        }
     }
 
-    if (isPermissionGranted) {
+    LaunchedEffect(Unit) {
+        if (isPermissionRequired && !isPermissionGranted) {
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    if (isPermissionGranted || userBypassedPrompt) {
         content()
     } else {
         Box(
@@ -146,7 +157,7 @@ fun PermissionGuard(
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     TextButton(
-                        onClick = { isPermissionGranted = true },
+                        onClick = { userBypassedPrompt = true },
                         modifier = Modifier.testTag("skip_permission_button")
                     ) {
                         Text(

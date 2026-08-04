@@ -125,7 +125,7 @@ object EnterpriseBootstrapEngine {
                             for (doc in docs) {
                                 try {
                                     val email = doc.getString("email") ?: doc.get("email")?.toString() ?: doc.id
-                                    val passwordOrPin = doc.getString("passwordOrPin") ?: doc.get("passwordOrPin")?.toString() ?: "1234"
+                                    val passwordOrPin = doc.getString("passwordOrPin") ?: doc.get("passwordOrPin")?.toString() ?: BusinessIdentityProvider.getSecureProvisionedPin(email)
                                     val displayName = doc.getString("displayName") ?: doc.get("displayName")?.toString() ?: email
                                     val role = doc.getString("role") ?: doc.get("role")?.toString() ?: "MEMBER"
                                     val priceCategory = doc.getString("priceCategory") ?: doc.get("priceCategory")?.toString() ?: "Retail"

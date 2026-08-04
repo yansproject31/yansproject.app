@@ -3,6 +3,7 @@ package com.yansproject.app.ui
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import android.util.Log
 import android.widget.Toast
 import com.yansproject.app.data.*
 import kotlinx.coroutines.CoroutineScope
@@ -298,11 +299,12 @@ object DataImportExportHelper {
                             val name = parts[0].removeSurrounding("\"").trim()
                             if (name.isNotEmpty()) {
                                 AppSettings.addMember(context, name)
+                                val memberEmail = "${name.lowercase().replace(" ", "")}@yansproject.id"
                                 // Also create in firestore if cloud is active
                                 FirebaseSyncManager.registerMemberOnCloud(
                                     context = context,
-                                    email = "${name.lowercase().replace(" ", "")}@yansproject.id",
-                                    passwordOrPin = "member123",
+                                    email = memberEmail,
+                                    passwordOrPin = com.yansproject.app.data.BusinessIdentityProvider.getSecureProvisionedPin(memberEmail),
                                     displayName = name,
                                     priceCategory = "Member"
                                 )
@@ -315,7 +317,7 @@ object DataImportExportHelper {
                     onComplete(count)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("DataImportExportHelper", "Failed importing members CSV: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     onComplete(-1)
                 }

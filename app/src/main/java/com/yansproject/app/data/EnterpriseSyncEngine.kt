@@ -109,7 +109,9 @@ object EnterpriseSyncEngine {
                                             try {
                                                 val repo = BusinessRepository(db)
                                                 repo.updateSummariesForInvoice(item)
-                                            } catch (_: Exception) {}
+                                            } catch (summaryEx: Exception) {
+                                                Log.w(TAG, "Failed updating summaries for invoice ${item.invoiceNumber}: ${summaryEx.message}")
+                                            }
                                         }
                                         "invoice_payments" -> {
                                             val item = doc.toObject(InvoicePayment::class.java) ?: return@launch

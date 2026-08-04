@@ -5,7 +5,6 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.util.Log
 import java.io.OutputStream
-import java.nio.charset.Charset
 import java.util.UUID
 
 /**
@@ -31,9 +30,22 @@ object ExtendedThermalPrinterManager {
     private val ESC_FEED_LINES_4 = byteArrayOf(0x1B, 0x64, 0x04)
 
     /**
-     * Connects to a paired bluetooth device and streams the formatted invoice commands.
+     * Structured result for thermal printer operation states
      */
-    fun printInvoiceBluetooth(
+    sealed class PrinterResult {
+        object Success : PrinterResult()
+        object AdapterUnavailable : PrinterResult()
+        object BluetoothDisabled : PrinterResult()
+        data class DeviceNotFound(val address: String) : PrinterResult()
+        data class ConnectionFailed(val message: String) : PrinterResult()
+        data class ConnectionTimeout(val message: String) : PrinterResult()
+        data class PrintFailed(val error: String) : PrinterResult()
+    }
+
+    /**
+     * Connects to a paired bluetooth device and streams the formatted invoice commands with detailed PrinterResult.
+     */
+    fun printInvoiceBluetoothDetailed(
         deviceAddress: String,
         projectName: String,
         clientName: String,
@@ -42,17 +54,48 @@ object ExtendedThermalPrinterManager {
         remainingBalance: Double,
         status: String,
         isPaper80mm: Boolean = false
-    ): Boolean {
-        val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter() ?: return false
-        if (!bluetoothAdapter.isEnabled) return false
+    ): PrinterResult {
+        val bluetoothAdapter = try {
+            BluetoothAdapter.getDefaultAdapter()
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Bluetooth security permission missing: ${e.message}", e)
+            return PrinterResult.AdapterUnavailable
+        } ?: return PrinterResult.AdapterUnavailable
+
+        if (!bluetoothAdapter.isEnabled) {
+            Log.w(TAG, "Bluetooth hardware adapter is disabled")
+            return PrinterResult.BluetoothDisabled
+        }
+
+        if (deviceAddress.isBlank()) {
+            Log.w(TAG, "Printer MAC device address is blank")
+            return PrinterResult.DeviceNotFound(deviceAddress)
+        }
 
         var socket: BluetoothSocket? = null
         var outputStream: OutputStream? = null
 
         return try {
-            val device: BluetoothDevice = bluetoothAdapter.getRemoteDevice(deviceAddress)
+            val device: BluetoothDevice = try {
+                bluetoothAdapter.getRemoteDevice(deviceAddress)
+            } catch (e: Exception) {
+                Log.e(TAG, "Invalid printer device address: $deviceAddress", e)
+                return PrinterResult.DeviceNotFound(deviceAddress)
+            }
+
             socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
-            socket.connect()
+            try {
+                socket.connect()
+            } catch (e: java.io.IOException) {
+                val errMsg = e.message ?: "IO Socket Exception"
+                if (errMsg.lowercase().contains("timeout")) {
+                    Log.e(TAG, "Printer connection timeout to $deviceAddress", e)
+                    return PrinterResult.ConnectionTimeout(errMsg)
+                }
+                Log.e(TAG, "Failed connecting RFCOMM socket to $deviceAddress: $errMsg", e)
+                return PrinterResult.ConnectionFailed(errMsg)
+            }
+
             outputStream = socket.outputStream
 
             // 1. Initialize printer and alignments
@@ -76,7 +119,7 @@ object ExtendedThermalPrinterManager {
 
             // 4. Details (Left Aligned)
             outputStream.write(ESC_ALIGN_LEFT)
-            outputStream.write("No. Invoice: INV-PRJ-${System.currentTimeMillis().toString().substring(6)}\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("No. Invoice: INV-PRJ-${System.currentTimeMillis().toString().takeLast(6)}\n".toByteArray(Charsets.US_ASCII))
             outputStream.write("Project    : $projectName\n".toByteArray(Charsets.US_ASCII))
             outputStream.write("Pelanggan  : $clientName\n".toByteArray(Charsets.US_ASCII))
             outputStream.write("Status     : $status\n".toByteArray(Charsets.US_ASCII))
@@ -99,18 +142,38 @@ object ExtendedThermalPrinterManager {
             // Feed and Cut paper commands
             outputStream.write(ESC_FEED_LINES_4)
             outputStream.flush()
-            true
+            Log.d(TAG, "Thermal receipt printed successfully to $deviceAddress")
+            PrinterResult.Success
         } catch (e: Exception) {
-            Log.e(TAG, "Bluetooth ESC/POS printing failed", e)
-            false
+            val errorMsg = e.localizedMessage ?: e.message ?: "Unknown Printing Exception"
+            Log.e(TAG, "Bluetooth ESC/POS printing failed: $errorMsg", e)
+            PrinterResult.PrintFailed(errorMsg)
         } finally {
             try {
                 outputStream?.close()
                 socket?.close()
             } catch (ex: Exception) {
-                Log.e(TAG, "Failed closing Bluetooth socket streams", ex)
+                Log.e(TAG, "Failed closing Bluetooth socket streams: ${ex.message}", ex)
             }
         }
+    }
+
+    /**
+     * Backward-compatible boolean wrapper for printInvoiceBluetooth
+     */
+    fun printInvoiceBluetooth(
+        deviceAddress: String,
+        projectName: String,
+        clientName: String,
+        totalAmount: Double,
+        paidAmount: Double,
+        remainingBalance: Double,
+        status: String,
+        isPaper80mm: Boolean = false
+    ): Boolean {
+        return printInvoiceBluetoothDetailed(
+            deviceAddress, projectName, clientName, totalAmount, paidAmount, remainingBalance, status, isPaper80mm
+        ) is PrinterResult.Success
     }
 
     /**

@@ -3961,7 +3961,7 @@ fun renderNestedSubScreen(
                     val folderPairs = subFolderNames.map { sub ->
                         val folder = File(rootDir, sub)
                         if (!folder.exists()) {
-                            try { folder.mkdirs() } catch (_: Exception) {}
+                            try { folder.mkdirs() } catch (e: Exception) { android.util.Log.e("SettingsScreen", "Failed to create directory ${folder.path}: ${e.message}") }
                         }
                         val files = (folder.listFiles() ?: emptyArray()).sortedByDescending { it.lastModified() }
                         Pair(folder, files)
@@ -4880,9 +4880,9 @@ fun AboutYansScreen(onBack: () -> Unit) {
     val versionName = remember(context) {
         try {
             val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "1.0.0"
+            pInfo.versionName ?: "1.3.1"
         } catch (e: Exception) {
-            "1.0.0"
+            "1.3.1"
         }
     }
 

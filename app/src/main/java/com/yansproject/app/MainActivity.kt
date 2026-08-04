@@ -73,7 +73,9 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                   val tab = AppTab.valueOf(target)
                   viewModel.setTab(tab)
                   activity.intent.removeExtra("TARGET_TAB")
-                } catch (e: Exception) {}
+                } catch (e: Exception) {
+                  android.util.Log.e("MainActivity", "Error parsing TARGET_TAB value '$target': ${e.message}", e)
+                }
               }
             }
           }
@@ -131,10 +133,12 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                     SessionTimeoutWrapper(
                       isLoggedIn = true
                     ) {
-                      MainAppContainer(
-                        viewModel = viewModel,
-                        currentTab = currentTab
-                      )
+                      com.yansproject.app.ui.PermissionGuard {
+                        MainAppContainer(
+                          viewModel = viewModel,
+                          currentTab = currentTab
+                        )
+                      }
                     }
                   }
                 }

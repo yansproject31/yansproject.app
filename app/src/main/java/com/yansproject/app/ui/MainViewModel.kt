@@ -395,7 +395,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (isDuplicate) return
 
-        FirebaseSyncManager.sendPushNotification(title, message)
+        FirebaseSyncManager.sendPushNotification(
+            context = getApplication(),
+            title = title,
+            body = message,
+            category = category,
+            targetTab = targetTab ?: "INVOICE",
+            roleTarget = roleTarget,
+            userId = userId
+        )
         
         val notificationId = java.util.UUID.randomUUID().toString()
         val appNotification = AppSettings.AppNotification(

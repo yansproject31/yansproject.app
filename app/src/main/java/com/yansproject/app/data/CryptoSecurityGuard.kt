@@ -66,6 +66,7 @@ class CryptoSecurityGuard {
 
             Base64.encodeToString(packed, Base64.NO_WRAP)
         } catch (e: Exception) {
+            android.util.Log.e("CryptoSecurityGuard", "Encryption operation failed: ${e.message}", e)
             ""
         }
     }
@@ -94,6 +95,7 @@ class CryptoSecurityGuard {
             val decryptedBytes = cipher.doFinal(encryptedBytes)
             String(decryptedBytes, Charsets.UTF_8)
         } catch (e: Exception) {
+            android.util.Log.e("CryptoSecurityGuard", "Decryption operation failed: ${e.message}", e)
             ""
         }
     }

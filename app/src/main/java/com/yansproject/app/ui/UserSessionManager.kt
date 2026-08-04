@@ -8,15 +8,17 @@ import androidx.compose.ui.Modifier
 
 object UserSessionManager {
     private var lastActivityTime = SystemClock.elapsedRealtime()
+    // Default 24-hour idle timeout threshold (in milliseconds), 0L disables timeout for persistent sessions
+    var sessionTimeoutMs: Long = 0L
 
     fun updateActivity() {
         lastActivityTime = SystemClock.elapsedRealtime()
     }
 
     fun isSessionExpired(): Boolean {
-        // Persistent session: Session NEVER expires automatically.
-        // User remains logged in permanently until explicit manual logout.
-        return false
+        if (sessionTimeoutMs <= 0L) return false
+        val elapsed = SystemClock.elapsedRealtime() - lastActivityTime
+        return elapsed > sessionTimeoutMs
     }
 
     fun resetSession() {

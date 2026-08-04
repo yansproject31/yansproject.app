@@ -157,10 +157,8 @@ object FirebaseSyncManager {
                 uid = savedUid
             )
             
-            // Subscribe Owner to notifications if relevant
-            if (role.hasFullERPChainAccess()) {
-                subscribeOwnerToNotifications()
-            }
+            // Subscribe User (Member and Owner) to relevant FCM topics and register token
+            subscribeUserToFcmTopics(context, role.name)
 
             // Start real-time snapshot listeners for immediate sync
             startRealtimeSyncListeners(context)
@@ -216,9 +214,7 @@ object FirebaseSyncManager {
             uid = uid
         )
         
-        if (role.hasFullERPChainAccess()) {
-            subscribeOwnerToNotifications()
-        }
+        subscribeUserToFcmTopics(context, role.name)
 
         // Start real-time snapshot listeners for immediate sync
         startRealtimeSyncListeners(context)
@@ -306,8 +302,8 @@ object FirebaseSyncManager {
             // Local-only check for other members defined in AppSettings
             val members = AppSettings.getMembers(context)
             if (members.contains(emailOrUsername.trim())) {
-                // If it's a known member, allow local-only login with standard member PIN/pass
-                if (passwordOrPin == "member123") {
+                val expectedPin = BusinessIdentityProvider.getSecureProvisionedPin(emailOrUsername.trim())
+                if (passwordOrPin == expectedPin || (localCred != null && localCred.passwordOrPin == passwordOrPin)) {
                     val wa = localCred?.whatsapp ?: ""
                     val addr = localCred?.address ?: ""
                     saveSession(context, targetEmail, UserRole.MEMBER, emailOrUsername.trim(), "Member", wa, addr)
@@ -322,7 +318,7 @@ object FirebaseSyncManager {
             val result = auth?.signInWithEmailAndPassword(targetEmail, firebasePassword)?.await()
             if (result != null) {
                 // Fetch details from Firestore "users" collection safely
-                val isHardcodedOwner = targetEmail.lowercase() == "yansart31@gmail.com"
+                val isHardcodedOwner = BusinessIdentityProvider.isOwnerEmail(targetEmail, context)
                 var roleStr = if (isHardcodedOwner) "OWNER" else "MEMBER"
                 var displayName = if (isHardcodedOwner) "Yans Art" else emailOrUsername.trim()
                 var priceCategory = if (isHardcodedOwner) "Retail" else "Member"
@@ -341,13 +337,12 @@ object FirebaseSyncManager {
                         if (docWa.isNotBlank()) whatsapp = docWa
                         if (docAddr.isNotBlank()) address = docAddr
                     } else if (isHardcodedOwner) {
-                        // Create Firestore document if missing for hardcoded owner
+                        // Create Firestore document if missing for owner
                         val adminData = hashMapOf(
                             "email" to targetEmail,
                             "role" to "OWNER",
                             "displayName" to displayName,
                             "priceCategory" to "Retail",
-                            "passwordOrPin" to passwordOrPin,
                             "whatsapp" to "",
                             "address" to "",
                             "created_at" to System.currentTimeMillis()
@@ -407,7 +402,8 @@ object FirebaseSyncManager {
                 true
             } else {
                 val members = AppSettings.getMembers(context)
-                if (members.contains(emailOrUsername.trim()) && passwordOrPin == "member123") {
+                val expectedPin = BusinessIdentityProvider.getSecureProvisionedPin(emailOrUsername.trim())
+                if (members.contains(emailOrUsername.trim()) && passwordOrPin == expectedPin) {
                     saveSession(context, targetEmail, UserRole.MEMBER, emailOrUsername.trim(), "Member", "", "", "")
                     true
                 } else {
@@ -1326,24 +1322,141 @@ object FirebaseSyncManager {
     }
 
     // --- Firebase Cloud Messaging (FCM) & Push Handler ---
-    private fun subscribeOwnerToNotifications() {
+    fun subscribeUserToFcmTopics(context: Context, userRole: String = "MEMBER") {
         if (!isFirebaseActive) return
         try {
-            messaging?.subscribeToTopic("yans_owners")
-                ?.addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        Log.d(TAG, "Subscribed successfully to Owner Notification Channel.")
-                    }
+            val msg = messaging ?: com.google.firebase.messaging.FirebaseMessaging.getInstance()
+
+            msg.subscribeToTopic("yans_broadcast")
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) Log.d(TAG, "Subscribed successfully to 'yans_broadcast' FCM topic.")
                 }
+            msg.subscribeToTopic("yans_all")
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) Log.d(TAG, "Subscribed successfully to 'yans_all' FCM topic.")
+                }
+            msg.subscribeToTopic("yans_members")
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) Log.d(TAG, "Subscribed successfully to 'yans_members' FCM topic.")
+                }
+
+            if (userRole.equals("OWNER", ignoreCase = true) || userRole.equals("ADMIN", ignoreCase = true)) {
+                msg.subscribeToTopic("yans_owners")
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) Log.d(TAG, "Subscribed successfully to 'yans_owners' FCM topic.")
+                    }
+            }
+
+            msg.token.addOnCompleteListener { task ->
+                if (task.isSuccessful && task.result != null) {
+                    val token = task.result
+                    Log.d(TAG, "FCM Registration Token retrieved: $token")
+                    updateFcmTokenInCloud(context, token)
+                }
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Error subscribing to notifications: ${e.message}")
+            Log.e(TAG, "Error in subscribeUserToFcmTopics: ${e.message}", e)
+        }
+    }
+
+    fun updateFcmTokenInCloud(context: Context, token: String) {
+        if (!isFirebaseActive) return
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
+                val savedEmail = authPrefs.getString("saved_email", "")?.trim()?.lowercase() ?: ""
+                val savedName = authPrefs.getString("saved_name", "")?.trim() ?: ""
+                val userRole = authPrefs.getString("user_role", "MEMBER") ?: "MEMBER"
+
+                authPrefs.edit().putString("fcm_token", token).apply()
+
+                if (savedEmail.isNotBlank()) {
+                    val tokenDoc = hashMapOf(
+                        "email" to savedEmail,
+                        "name" to savedName,
+                        "role" to userRole,
+                        "fcmToken" to token,
+                        "lastUpdated" to System.currentTimeMillis()
+                    )
+
+                    firestore?.collection("fcm_tokens")
+                        ?.document(savedEmail)
+                        ?.set(tokenDoc, com.google.firebase.firestore.SetOptions.merge())
+                        ?.addOnSuccessListener {
+                            Log.d(TAG, "FCM Token registered in Cloud for $savedEmail")
+                        }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update FCM token in Cloud: ${e.message}")
+            }
+        }
+    }
+
+    fun sendPushNotification(
+        context: Context,
+        title: String,
+        body: String,
+        category: String = "Broadcast",
+        targetTab: String = "INVOICE",
+        roleTarget: String = "MEMBER",
+        userId: String = "ALL"
+    ) {
+        Log.d(TAG, "PUSH BROADCAST DISPATCHED: [$title] -> $body to Target [$roleTarget / $userId]")
+
+        // 1. Dispatch locally on current device as well
+        com.yansproject.app.util.NotificationHandler.processAndDispatchNotification(
+            context = context,
+            id = java.util.UUID.randomUUID().toString(),
+            title = title,
+            message = body,
+            category = category,
+            targetTab = targetTab,
+            roleTarget = roleTarget,
+            userId = userId
+        )
+
+        // 2. Dispatch payload asynchronously to n8n webhook / FCM push gateway
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val prefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
+                val rawN8nUrl = prefs.getString("n8n_url", "https://primary-production.shared.n8n.cloud") ?: "https://primary-production.shared.n8n.cloud"
+                val n8nBase = if (rawN8nUrl.startsWith("http")) rawN8nUrl else "https://$rawN8nUrl"
+                val pushEndpoint = "$n8nBase/webhook/yans-broadcast-push"
+
+                val payload = org.json.JSONObject().apply {
+                    put("title", title)
+                    put("body", body)
+                    put("category", category)
+                    put("targetTab", targetTab)
+                    put("roleTarget", roleTarget)
+                    put("userId", userId)
+                    put("topic", "yans_broadcast")
+                    put("timestamp", System.currentTimeMillis())
+                }
+
+                val url = java.net.URL(pushEndpoint)
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                conn.doOutput = true
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+
+                conn.outputStream.use { os ->
+                    os.write(payload.toString().toByteArray(Charsets.UTF_8))
+                }
+
+                val responseCode = conn.responseCode
+                Log.d(TAG, "Broadcast push webhook returned HTTP status $responseCode")
+                conn.disconnect()
+            } catch (e: Exception) {
+                Log.w(TAG, "Push webhook dispatch info: ${e.message}")
+            }
         }
     }
 
     fun sendPushNotification(title: String, body: String) {
         Log.d(TAG, "PUSH DISPATCHED: [$title] -> $body")
-        // In local/fallback environment we trigger system notify, or log it cleanly.
-        // For real-world FCM, the push token triggers are delivered via cloud functions.
     }
 
     fun writeNotificationToCloud(notification: AppSettings.AppNotification) {

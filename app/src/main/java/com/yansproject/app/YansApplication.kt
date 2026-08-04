@@ -7,6 +7,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.yansproject.app.data.FirebaseSyncManager
 import com.yansproject.app.data.LocalDatabaseBackupWorker
+import com.yansproject.app.data.RealtimeNotificationWorker
 import com.yansproject.app.ui.AppFeedbackManager
 import com.yansproject.app.util.LaunchGuardian
 import kotlinx.coroutines.CoroutineScope
@@ -56,16 +57,37 @@ class YansApplication : Application() {
 
             try {
                 FirebaseSyncManager.initialize(this@YansApplication)
+                com.yansproject.app.util.NotificationHandler.initNotificationChannels(this@YansApplication)
+                val authPrefs = getSharedPreferences("yans_auth_prefs", MODE_PRIVATE)
+                val currentRole = authPrefs.getString("user_role", "MEMBER") ?: "MEMBER"
+                FirebaseSyncManager.subscribeUserToFcmTopics(this@YansApplication, currentRole)
             } catch (e: Exception) {
-                Log.e("YansApplication", "Failed to initialize Firebase: ${e.message}")
+                Log.e("YansApplication", "Failed to initialize Firebase and notifications: ${e.message}")
             }
 
             try {
                 schedulePeriodicBackups()
+                scheduleNotificationSyncWorker()
             } catch (e: Exception) {
-                Log.e("YansApplication", "Failed to schedule periodic database backups: ${e.message}")
+                Log.e("YansApplication", "Failed to schedule background workers: ${e.message}")
             }
         }
+    }
+
+    private fun scheduleNotificationSyncWorker() {
+        val syncRequest = androidx.work.PeriodicWorkRequest.Builder(
+            RealtimeNotificationWorker::class.java,
+            15, TimeUnit.MINUTES
+        )
+            .addTag("yans_notif_sync")
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            RealtimeNotificationWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            syncRequest
+        )
+        Log.i("YansApplication", "Periodic Realtime Notification Sync worker scheduled successfully.")
     }
 
     private fun schedulePeriodicBackups() {

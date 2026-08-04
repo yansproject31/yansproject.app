@@ -182,7 +182,8 @@ class MemberRepository(private val context: Context) {
             com.yansproject.app.ui.AppSettings.saveMemberPriceCategory(context, newDisplayName, newTier)
             com.yansproject.app.ui.AppSettings.addMember(context, newDisplayName)
             val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
-            val existingPass = prefs.getString("pass_$targetEmail", "1234") ?: "1234"
+            val secureFallback = BusinessIdentityProvider.getSecureProvisionedPin(targetEmail)
+            val existingPass = prefs.getString("pass_$targetEmail", secureFallback) ?: secureFallback
             val existingRole = prefs.getString("role_$targetEmail", "MEMBER") ?: "MEMBER"
 
             com.yansproject.app.ui.AppSettings.saveLocalUserCredential(

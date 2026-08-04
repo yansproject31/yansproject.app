@@ -1,5 +1,7 @@
 package com.yansproject.app.util
 
+import android.content.Context
+import com.yansproject.app.data.BusinessIdentityProvider
 import com.yansproject.app.data.Invoice
 import com.yansproject.app.data.InvoiceItemDetail
 import com.yansproject.app.data.OperationalInvoice
@@ -21,11 +23,11 @@ object WhatsAppInvoiceFormatter {
     private const val DIVIDER_DOUBLE = "══════════════════════════════════"
     private const val DIVIDER_SINGLE = "----------------------------------"
     private const val BRAND_FOOTER = "_Akad Jual-Beli (Ajib & Qobul) Sah, Halal & Terverifikasi Sistem ERP YANSPROJECT.ID._\n_Hatur Tengkyu telah menjadi bagian perjalanan YANSPROJECT.ID._"
-    private const val SUPPORT_CONTACT = "📞 *LAYANAN DUKUNGAN CS & LOKASI*\n• *WhatsApp CS* : +62 877-7739-8813\n• *Email Support*: yansart31@gmail.com"
 
     fun buildWhatsAppText(
         invoice: OperationalInvoice,
-        items: List<InvoiceItemDetail>
+        items: List<InvoiceItemDetail>,
+        context: Context? = null
     ): String {
         val sdf = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
         val remaining = (invoice.totalAmount - invoice.paidAmount - invoice.discount).coerceAtLeast(0.0)
@@ -36,19 +38,27 @@ object WhatsAppInvoiceFormatter {
 
         val filteredItems = InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
 
+        val supportEmail = if (context != null) BusinessIdentityProvider.getSupportEmail(context) else BusinessIdentityProvider.DEFAULT_SUPPORT_EMAIL
+        val supportPhone = if (context != null) BusinessIdentityProvider.getSupportWhatsApp(context) else BusinessIdentityProvider.DEFAULT_SUPPORT_WHATSAPP
+        val supportContactText = "📞 *LAYANAN DUKUNGAN CS & LOKASI*\n• *WhatsApp CS* : $supportPhone\n• *Email Support*: $supportEmail"
+
         val sb = StringBuilder()
         sb.append(BRAND_HEADER).append("\n")
         sb.append(BRAND_SUBTITLE).append("\n")
         sb.append(BRAND_SLOGAN).append("\n")
         sb.append(DIVIDER_DOUBLE).append("\n\n")
 
+        val displayInvNumber = if (invoice.invoiceNumber.isNotBlank()) invoice.invoiceNumber else "INV-PENDING"
+        val issueTime = if (invoice.issueDate > 0) invoice.issueDate else System.currentTimeMillis()
+
         sb.append("📋 *INFORMASI TRANSAKSI*\n")
-        sb.append("• *No. Invoice*  : ").append(invoice.invoiceNumber).append("\n")
-        sb.append("• *Tanggal*       : ").append(sdf.format(Date(invoice.issueDate))).append("\n")
+        sb.append("• *No. Invoice*  : ").append(displayInvNumber).append("\n")
+        sb.append("• *Tanggal*       : ").append(sdf.format(Date(issueTime))).append("\n")
         sb.append("• *Status*        : ").append(statusEmoji).append(" ").append(statusText).append("\n\n")
 
+        val clientDisplayName = if (invoice.clientName.isNotBlank()) invoice.clientName else "Pelanggan General"
         sb.append("👤 *INFORMASI PELANGGAN*\n")
-        sb.append("• *Nama Klien*    : ").append(invoice.clientName).append("\n")
+        sb.append("• *Nama Klien*    : ").append(clientDisplayName).append("\n")
         val phoneStr = if (invoice.clientPhone.isNotBlank()) invoice.clientPhone else "-"
         sb.append("• *No. HP/WA*     : ").append(phoneStr).append("\n\n")
 
@@ -57,9 +67,10 @@ object WhatsAppInvoiceFormatter {
             sb.append("• 1x Custom Project Order - ").append(FormatUtils.formatRupiah(invoice.totalAmount)).append("\n")
         } else {
             filteredItems.forEachIndexed { idx, item ->
-                val subtotal = item.price * item.quantity
+                val qty = if (item.quantity > 0) item.quantity else 1
+                val subtotal = item.price * qty
                 sb.append("${idx + 1}. *${item.description}*\n")
-                sb.append("   └ ${item.quantity} Pcs @ ${FormatUtils.formatRupiah(item.price)} = *${FormatUtils.formatRupiah(subtotal)}*\n")
+                sb.append("   └ $qty Pcs @ ${FormatUtils.formatRupiah(item.price)} = *${FormatUtils.formatRupiah(subtotal)}*\n")
             }
         }
         sb.append("\n").append(DIVIDER_DOUBLE).append("\n")
@@ -80,8 +91,8 @@ object WhatsAppInvoiceFormatter {
         sb.append("🤝 *AKAD SYAR'I & KETERANGAN*\n")
         sb.append(BRAND_FOOTER).append("\n\n")
 
-        sb.append(SUPPORT_CONTACT).append("\n")
-        sb.append("• *Link Verifikasi*: https://yansproject.id/verify/").append(invoice.invoiceNumber)
+        sb.append(supportContactText).append("\n")
+        sb.append("• *Link Verifikasi*: https://yansproject.id/verify/").append(displayInvNumber)
 
         return sb.toString()
     }
@@ -104,6 +115,6 @@ object WhatsAppInvoiceFormatter {
             dpAmount = invoice.dpAmount,
             itemsJson = invoice.itemsJson
         )
-        return buildWhatsAppText(opInvoice, items)
+        return buildWhatsAppText(opInvoice, items, null)
     }
 }

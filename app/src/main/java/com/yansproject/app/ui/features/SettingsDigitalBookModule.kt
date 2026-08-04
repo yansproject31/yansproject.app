@@ -158,7 +158,9 @@ class SettingsViewModel : ViewModel() {
                 val prefs = context.getSharedPreferences("stock_drafts", Context.MODE_PRIVATE)
                 prefs.edit().clear().apply()
                 prefsCleared = true
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("SettingsDigitalBookModule", "Failed clearing stock_drafts prefs: ${e.message}")
+            }
 
             withContext(Dispatchers.Main) {
                 if (dbCleared || prefsCleared) {

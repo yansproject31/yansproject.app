@@ -18,6 +18,8 @@ class MutationQueue private constructor(private val context: Context) {
     private val moshi: Moshi by lazy { Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build() }
 
     companion object {
+        private const val MAX_RETRY_COUNT = 5
+
         @Volatile
         private var INSTANCE: MutationQueue? = null
 
@@ -37,7 +39,7 @@ class MutationQueue private constructor(private val context: Context) {
 
             val existing = secureDb.offlineActionDao().getAllActions()
             if (existing.any { it.targetCollection == collectionPath && it.additionalMeta == id && it.stringPayload == payload }) {
-                Log.d(TAG, "Duplicate offline write action detected. Skipping...")
+                Log.d(TAG, "Duplicate offline write action detected for $collectionPath ID $id. Skipping enqueue.")
                 return
             }
 
@@ -49,9 +51,9 @@ class MutationQueue private constructor(private val context: Context) {
                 additionalMeta = id
             )
             secureDb.offlineActionDao().insertAction(action)
-            Log.d(TAG, "Successfully enqueued offline write action for $collectionPath ID $id")
+            Log.i(TAG, "Successfully enqueued offline write action for $collectionPath ID $id")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to enqueue offline write action: ${e.message}", e)
+            Log.e(TAG, "Failed to enqueue offline write action for $collectionPath ID $id: ${e.message}", e)
         }
     }
 
@@ -68,9 +70,9 @@ class MutationQueue private constructor(private val context: Context) {
                 additionalMeta = id
             )
             secureDb.offlineActionDao().insertAction(action)
-            Log.d(TAG, "Successfully enqueued offline soft delete action for $collectionPath ID $id")
+            Log.i(TAG, "Successfully enqueued offline soft delete action for $collectionPath ID $id")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to enqueue offline soft delete: ${e.message}", e)
+            Log.e(TAG, "Failed to enqueue offline soft delete for $collectionPath ID $id: ${e.message}", e)
         }
     }
 
@@ -79,21 +81,23 @@ class MutationQueue private constructor(private val context: Context) {
         val firestore = try {
             FirebaseFirestore.getInstance()
         } catch (e: Exception) {
-            Log.w(TAG, "Firestore not available, skipping queue processing.")
+            Log.w(TAG, "Firestore service unavailable (${e.message}), skipping queue processing cycle.")
             return
         }
 
         val actions = secureDb.offlineActionDao().getAllActions()
-        if (actions.isEmpty()) return
+        if (actions.isEmpty()) {
+            Log.d(TAG, "Offline action queue is empty. Sync state verified clean.")
+            return
+        }
 
-        Log.d(TAG, "Processing ${actions.size} offline actions in FIFO order...")
+        Log.i(TAG, "Starting queue processing cycle for ${actions.size} actions in FIFO sequence...")
 
         for (action in actions) {
             try {
                 val docRef = firestore.collection(action.targetCollection).document(action.additionalMeta)
                 
                 if (action.stringPayload.contains("\"isDeleted\":true") || action.stringPayload.contains("\"is_deleted\":true")) {
-                    // Soft delete operation: set merge
                     val updates = hashMapOf<String, Any>(
                         "isDeleted" to true,
                         "is_deleted" to true,
@@ -103,27 +107,41 @@ class MutationQueue private constructor(private val context: Context) {
                     )
                     docRef.set(updates, com.google.firebase.firestore.SetOptions.merge()).await()
                 } else {
-                    // Write operation: parse payload to Map and write to Firestore
                     val parser = moshi.adapter(Map::class.java)
                     val map = parser.fromJson(action.stringPayload) as? Map<String, Any>
                     if (map != null) {
                         docRef.set(map, com.google.firebase.firestore.SetOptions.merge()).await()
+                    } else {
+                        Log.e(TAG, "Permanent Error: Invalid payload structure for action ID ${action.id}. Removing from queue.")
+                        secureDb.offlineActionDao().deleteAction(action)
+                        continue
                     }
                 }
 
-                // Success: remove action from queue
+                // Success: purge action from database queue
                 secureDb.offlineActionDao().deleteAction(action)
-                Log.d(TAG, "Successfully processed offline action for ${action.targetCollection} ID ${action.additionalMeta}")
+                Log.i(TAG, "Successfully synced action ID ${action.id} [${action.targetCollection} / ${action.additionalMeta}] to Cloud.")
             } catch (e: Exception) {
-                // If it is a permission denied or invalid request (not a transient network error), we delete it to avoid blocking the queue
                 val msg = e.message ?: ""
-                if (msg.contains("PERMISSION_DENIED") || msg.contains("invalid") || msg.contains("not found")) {
-                    Log.e(TAG, "Irrecoverable error for action ID ${action.id}, removing from queue: $msg")
+                val isPermanentError = msg.contains("PERMISSION_DENIED", ignoreCase = true) ||
+                        msg.contains("invalid", ignoreCase = true) ||
+                        msg.contains("not found", ignoreCase = true) ||
+                        msg.contains("ALREADY_EXISTS", ignoreCase = true)
+
+                if (isPermanentError) {
+                    Log.e(TAG, "Permanent Non-Retryable Error for action ID ${action.id} (${action.targetCollection}/${action.additionalMeta}): $msg. Purging action.")
                     secureDb.offlineActionDao().deleteAction(action)
                 } else {
-                    // Network or transient error: HALT queue processing to maintain FIFO and transactional integrity!
-                    Log.w(TAG, "Transient network error during queue processing: $msg. Halting queue processing.")
-                    break
+                    val newRetryCount = action.retryCount + 1
+                    if (newRetryCount >= MAX_RETRY_COUNT) {
+                        Log.e(TAG, "Exceeded maximum retries ($MAX_RETRY_COUNT) for action ID ${action.id}. Dropping action to prevent queue deadlock.")
+                        secureDb.offlineActionDao().deleteAction(action)
+                    } else {
+                        val updatedAction = action.copy(retryCount = newRetryCount)
+                        secureDb.offlineActionDao().updateAction(updatedAction)
+                        Log.w(TAG, "Transient network error for action ID ${action.id} (Attempt $newRetryCount/$MAX_RETRY_COUNT): $msg. Halting queue cycle for exponential backoff.")
+                        break
+                    }
                 }
             }
         }

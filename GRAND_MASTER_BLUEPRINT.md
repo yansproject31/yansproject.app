@@ -2,12 +2,12 @@
 
 > **DOKUMEN INDUK REGULASI, ARSITEKTUR, TEMA, & SPESIFIKASI PENGEMBANGAN APLIKASI**  
 > *Sistem: YANSPROJECT.ID Enterprise Resource Planning (ERP) & Financial Intelligence System*  
-> *Versi: 2.1 (Grand Master Release Update)*  
+> *Versi: 1.3.1 (Grand Master Release Update - Security, Official Identity & Cloud Sync Optimization)*  
 > *Status: AKTIF, MENJADI ACUAN MUTLAK & HUKUM TERTINGGI BASIS KODE*
 
 ---
 
-## 1. PROLOG & IDENTITAS SISTEM
+## 1. PROLOG & IDENTITAS RESMI PERUSAHAAN
 
 **YANSPROJECT.ID** adalah platform *Enterprise Resource Planning* (ERP) dan Manajemen Keuangan Cyber-Industrial tingkat tinggi yang dirancang khusus untuk mengelola:
 1. **Manufaktur Custom Apparel & Konveksi**: Pakaian, Seragam, Printing, Sablon, Matriks Ukuran (Size x Sleeve Costing).
@@ -16,6 +16,14 @@
 4. **Penagihan & Pembayaran Multi-Payment**: Dual Invoice Engine (Direct Stock Sale & Custom Project), Uang Muka (DP), Cicilan, Pelunasan.
 5. **Konsolidasi Arus Kas & Keuangan Global**: Cash Inflow, Cash Outflow, Sub-Ledger Kas/Bank, Profitability Analysis (Gross/Net Profit).
 6. **Sistem Akses Terisolasi Multi-Role**: Role Owner, Admin, Member, dan Non-Member / Public.
+
+### 1.1 Standard Identitas Resmi (Official Business Identity)
+Seluruh cetakan thermal, ekspor PDF/PNG, footer WhatsApp, watermark invoice, dan layar profil/setelan **WAJIB MENGIKUTI STANDAR RESMI**:
+- **Company Name**: `YANSPROJECT.ID`
+- **Support Email**: `yansart31@gmail.com`
+- **Support WhatsApp**: `+62 877-7739-8813`
+- **Address / Alamat**: `Tangerang, Banten`
+- **Tagline**: `Luxury Visual Identity & Custom Merch`
 
 Seluruh pembaruan, penambahan fitur, pembenahan bug (*bugfix*), *refactoring*, dan modifikasi kode pada aplikasi ini **WAJIB MENGIKUTI DENGAN PATUH DAN KETAT** setiap spesifikasi, DNA warna, hierarki visual, arsitektur otorisasi, dan aturan pengembangan yang tertera di dalam dokumen Grand Master Blueprint ini.
 
@@ -201,11 +209,15 @@ Setiap form pembuatan proyek custom maupun invoice wajib memanfaatkan komponen s
 
 ## 6. SISTEM SINKRONISASI REAL-TIME & KETAHANAN DATA
 
-### 6.1 Arsitektur Dual Persistence Engine
-- **Local Persistence**: Menggunakan **Room Database** (`AppDatabase.kt`, `RoomDao.kt`) sebagai penyimpanan utama *offline-first* agar aplikasi dapat beroperasi tanpa kendala saat koneksi internet terputus.
-- **Cloud Real-time Sync**: Menggunakan **Firebase Firestore** via `FirebaseSyncManager.kt` & `EnterpriseSyncEngine.kt` untuk sinkronisasi multi-device & multi-user secara instan.
+### 6.1 Arsitektur Dual Persistence Engine (Offline-First)
+- **Local Persistence**: Menggunakan **Room Database** (`AppDatabase.kt`, `RoomDao.kt`) sebagai penyimpanan utama *offline-first* agar aplikasi dapat beroperasi tanpa kendala dengan kecepatan respon 0ms saat koneksi internet terputus.
+- **Cloud Real-time Sync**: Menggunakan **Firebase Firestore** via `FirebaseSyncManager.kt` & `EnterpriseSyncEngine.kt` untuk sinkronisasi multi-device & multi-user secara instan di background thread (`Dispatchers.IO`).
 
-### 6.2 Deduplikasi & Rekonsilasi Otomatis
+### 6.2 Cloud Listener Optimization & Cost Control
+- Firestore Real-time Listener hanya diaktifkan saat layar/screen berstatus active (`Lifecycle.State.STARTED` / `STARTED`), mencegah quota read Firebase membengkak dan menghemat pemakaian baterai perangkat.
+- Seluruh sinkronisasi data antar-layar menggunakan Single-Source-of-Truth Flow dari Room SQLite sehingga tidak terjadi duplikasi query cloud.
+
+### 6.3 Deduplikasi & Rekonsiliasi State Otomatis
 - Fungsi `deduplicateInvoicesInLocalDb()` secara berkala membersihkan duplikasi invoice berdasarkan nomor invoice unik.
 - Perhitungan ulang `paidAmount` dan `status` invoice dilakukan secara otomatis dari agregasi daftar `InvoicePayment` unik.
 
@@ -215,12 +227,14 @@ Setiap form pembuatan proyek custom maupun invoice wajib memanfaatkan komponen s
 
 Setiap pengembang atau AI Agent yang melakukan modifikasi pada basis kode aplikasi **WAJIB MEMATUHI PERATURAN BERIKUT**:
 
-1. **PATUH PALET WARNA RESMI**: Dilarang merusak atau mengubah warna dasar DNA aplikasi (`AgedGold`, `ShadowBlack`, `DeepTeal`, `AlertGreen`, `AlertRed`).
-2. **SURFACE INTEGRITY**: Dilarang menambahkan efek background blur atau radial gradient buram yang merusak keterbacaan teks. Gunakan permukaan solid alpha dengan border tegas.
-3. **ZERO CLIPPING BADGE**: Wajib menjaga presisi overlay badge agar selalu tampil utuh di luar batas ikon tanpa terpotong (`Box(modifier = Modifier.wrapContentSize())`).
-4. **CLEAN LEDGER DETAIL PRESENTATION**: Pada tampilan detail Ledger & pembayaran Invoice, jangan sertakan keterangan "Operator", "Oleh: Owner/Lainnya", atau komponen "Jam/HH:mm" yang tidak valid; cukup tampilkan tanggal transaksi yang bersih (`dd MMMM yyyy`).
-5. **ISOLASI DATA MEMBER**: Pastikan seluruh query/filter data untuk pengguna bertipe MEMBER selalu menyaring secara tepat berdasarkan identitas personal pengguna (Nama, Email, WhatsApp).
-6. **VERIFIKASI KOMPILASI MUTLAK**: Sebelum menyelesaikan setiap sesi pengerjaan, wajib menjalankan verifikasi kompilasi `compile_applet` dan memastikan build **100% SUCCESS** tanpa sekelibat kesalahan sintetis/kompilasi.
+1. **STANDAR IDENTITAS RESMI**: Dilarang memasukkan alamat, email, atau kontak placeholder/fiktif. Selalu referensikan `BusinessIdentityProvider` (`Tangerang, Banten`, `yansart31@gmail.com`, `+62 877-7739-8813`, `Luxury Visual Identity & Custom Merch`).
+2. **PATUH PALET WARNA RESMI**: Dilarang merusak atau mengubah warna dasar DNA aplikasi (`AgedGold`, `ShadowBlack`, `DeepTeal`, `AlertGreen`, `AlertRed`).
+3. **SURFACE INTEGRITY**: Dilarang menambahkan efek background blur atau radial gradient buram yang merusak keterbacaan teks. Gunakan permukaan solid alpha dengan border tegas.
+4. **ZERO CLIPPING BADGE**: Wajib menjaga presisi overlay badge agar selalu tampil utuh di luar batas ikon tanpa terpotong (`Box(modifier = Modifier.wrapContentSize())`).
+5. **CLEAN LEDGER DETAIL PRESENTATION**: Pada tampilan detail Ledger & pembayaran Invoice, jangan sertakan keterangan "Operator", "Oleh: Owner/Lainnya", atau komponen "Jam/HH:mm" yang tidak valid; cukup tampilkan tanggal transaksi yang bersih (`dd MMMM yyyy`).
+6. **THREAD ISOLATION & NULL SAFETY**: Operasi I/O berat (file export PDF, cetak Bluetooth thermal, query database) Wajib berjalan di `Dispatchers.IO`. Seluruh parsial string dan numerical casting wajib terlindungi null-safety (`orEmpty()`, `toDoubleOrNull()`).
+7. **ISOLASI DATA MEMBER**: Pastikan seluruh query/filter data untuk pengguna bertipe MEMBER selalu menyaring secara tepat berdasarkan identitas personal pengguna (Nama, Email, WhatsApp).
+8. **VERIFIKASI KOMPILASI MUTLAK**: Sebelum menyelesaikan setiap sesi pengerjaan, wajib menjalankan verifikasi kompilasi `compile_applet` dan memastikan build **100% SUCCESS** tanpa sekelibat kesalahan sintetis/kompilasi.
 
 ---
 *YANSPROJECT.ID ENTERPRISE SYSTEM — High-Precision Engineering & Industrial Financial Intelligence.*

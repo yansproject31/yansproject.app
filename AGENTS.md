@@ -1,16 +1,24 @@
 # MASTER BLUEPRINT & REGULASI PENGEMBANGAN: YANSPROJECT.ID ERP SYSTEM
 
 > **DOKUMEN INDUK REGULASI & BLUEPRINT PENGEMBANGAN APLIKASI**  
-> *Versi: 2.1 (Master Release Update)*  
+> *Versi: 1.3.1 (Master Release Update - Security, Official Identity & Cloud Sync Optimization)*  
 > *Sistem: YANSPROJECT.ID Enterprise Resource Planning & Financial Management System*  
 > *Status: AKTIF & MENJADI ACUAN MUTLAK KODE BASE*  
 > *Referensi Utama: `/GRAND_MASTER_BLUEPRINT.md`*
 
 ---
 
-## 1. PROLOG & IDENTITAS SISTEM
+## 1. PROLOG & IDENTITAS RESMI PERUSAHAAN
 
 **YANSPROJECT.ID** adalah platform Enterprise Resource Planning (ERP) & Manajemen Keuangan Cyber-Industrial tingkat tinggi yang dirancang khusus untuk manajemen proyek cetak, manufaktur custom, persediaan stok, faktur penagihan, serta histori transaksi multi-channel secara real-time.
+
+### 1.1 Standard Identitas Resmi (Official Identity Data)
+Setiap dokumen, invoice, cetak thermal, PDF/PNG export, footer WhatsApp, dan layar pengaturan **WAJIB MENGGUNAKAN DATA RESMI BERIKUT**:
+- **Company Name**: `YANSPROJECT.ID`
+- **Support Email**: `yansart31@gmail.com`
+- **Support WhatsApp**: `+62 877-7739-8813`
+- **Address / Alamat**: `Tangerang, Banten`
+- **Tagline**: `Luxury Visual Identity & Custom Merch`
 
 Seluruh pembaruan, penambahan fitur, bugfix, dan modifikasi kode pada aplikasi ini **WAJIB MENGIKUTI DENGAN PATUH** setiap spesifikasi, DNA warna, hierarki visual, dan aturan arsitektur yang tertera di dalam dokumen Master Blueprint ini.
 
@@ -76,14 +84,22 @@ Sistem menggunakan tema **Cyber Emerald & High-Contrast Industrial Dark Canvas**
 
 ---
 
-## 6. REGULASI PENGEMBANGAN & ATURAN INTEGRITAS (DEVELOPER MANDATES)
+## 6. FIREBASE CLOUD REALTIME SYNC & OPTIMASI EFISIENSI
+1. **Offline-First Room Database**: Seluruh operasi simpan/update/hapus mengeksekusi Room SQLite secara langsung (0ms latency), lalu menyinkronkan ke Firestore secara asinkron via `Dispatchers.IO`.
+2. **Efisiensi Cloud Listener**: Realtime listener Firestore hanya aktif saat screen berstatus active/foreground untuk menghemat quota read & daya baterai.
+3. **Rekonsiliasi & Anti-Duplikasi State**: Sinkronisasi reaktif antar-halaman (Single-Source-of-Truth) via Room Flow untuk memastikan data di Dashboard, Sub-Ledger, Invoice, dan Project selalu identik secara real-time.
 
-1. **JANGAN PERNAH** merusak atau mengubah skema warna dasar `AgedGold`, `ShadowBlack`, `DeepTeal`, `AlertGreen`, dan `AlertRed`.
-2. **JANGAN PERNAH** menambahkan kembali efek `radialGradient` kotor atau background blur yang menutupi konten visual.
-3. **WAJIB MENJAGA** presisi overlay badge agar selalu tampil utuh di luar batas kotak ikon tanpa terpotong (zero clipping).
-4. **CLEAN LEDGER DISPLAY**: Pada detail tampilan Ledger dan pembayaran Invoice, hapus keterangan "Operator" / "Oleh" serta bagian "Jam/HH:mm" yang tidak valid, cukup tampilkan tanggal bersih (`dd MMMM yyyy`).
-5. **SETIAP MODUL BARU** harus menggunakan komponen standar M3 yang sudah disESuaikan dengan `YansDesignSystem.kt` dan mendukung responsive scaling.
-6. **VERIFIKASI KOMPILASI**: Setiap perubahan kode harus terverifikasi sukses melalui `compile_applet` tanpa warning fatal atau break pada build script.
+---
+
+## 7. REGULASI PENGEMBANGAN & ATURAN INTEGRITAS (DEVELOPER MANDATES)
+
+1. **DATA RESMI PERUSAHAAN**: Jangan pernah menggunakan alamat, email, atau kontak fiktif/placeholder. Selalu referensikan `BusinessIdentityProvider` dan `AppSettings`.
+2. **JANGAN PERNAH** merusak atau mengubah skema warna dasar `AgedGold`, `ShadowBlack`, `DeepTeal`, `AlertGreen`, dan `AlertRed`.
+3. **JANGAN PERNAH** menambahkan kembali efek `radialGradient` kotor atau background blur yang menutupi konten visual.
+4. **WAJIB MENJAGA** presisi overlay badge agar selalu tampil utuh di luar batas kotak ikon tanpa terpotong (zero clipping).
+5. **CLEAN LEDGER DISPLAY**: Pada detail tampilan Ledger dan pembayaran Invoice, hapus keterangan "Operator" / "Oleh" serta bagian "Jam/HH:mm" yang tidak valid, cukup tampilkan tanggal bersih (`dd MMMM yyyy`).
+6. **SETIAP MODUL BARU** harus menggunakan komponen standar M3 yang sudah disesuaikan dengan `YansDesignSystem.kt` dan mendukung responsive scaling.
+7. **VERIFIKASI KOMPILASI**: Setiap perubahan kode harus terverifikasi sukses melalui `compile_applet` tanpa warning fatal atau break pada build script.
 
 ---
 *YANSPROJECT.ID ERP — High-Precision Engineering & Industrial Financial Intelligence.*

@@ -1,5 +1,6 @@
 package com.yansproject.app.data
 
+import android.util.Log
 import androidx.room.TypeConverter
 import org.json.JSONArray
 import org.json.JSONObject
@@ -39,7 +40,7 @@ class AppTypeConverters {
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("Converters", "Failed converting JSON array to OrderItemList: ${e.message}")
         }
         return list
     }
@@ -76,7 +77,7 @@ class AppTypeConverters {
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("Converters", "Failed converting JSON array to InvoiceItemList: ${e.message}")
         }
         return list
     }
@@ -113,7 +114,7 @@ class AppTypeConverters {
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("Converters", "Failed converting JSON array to TimelineEntryList: ${e.message}")
         }
         return list
     }
