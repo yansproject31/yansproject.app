@@ -1,6 +1,7 @@
 package com.yansproject.app.ui
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Environment
 import com.yansproject.app.data.AppDatabase
@@ -29,7 +30,7 @@ object AppSettings {
         getPrefs(context).edit().putString(KEY_LAST_SYNC, value).apply()
 
     fun getStoreName(context: Context): String =
-        getPrefs(context).getString("store_name", "YANSPROJECT.ID") ?: "YANSPROJECT.ID"
+        getPrefs(context).getString("store_name", com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_COMPANY_NAME) ?: com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_COMPANY_NAME
 
     fun setStoreName(context: Context, value: String) =
         getPrefs(context).edit().putString("store_name", value).apply()
@@ -41,19 +42,19 @@ object AppSettings {
         getPrefs(context).edit().putString("store_logo", value).apply()
 
     fun getAddress(context: Context): String =
-        getPrefs(context).getString("store_address", "TANGERANG, BANTEN") ?: "TANGERANG, BANTEN"
+        getPrefs(context).getString("store_address", com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_STORE_ADDRESS) ?: com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_STORE_ADDRESS
 
     fun setAddress(context: Context, value: String) =
         getPrefs(context).edit().putString("store_address", value).apply()
 
     fun getWhatsApp(context: Context): String =
-        getPrefs(context).getString("store_whatsapp", "+62 877-7739-8813") ?: "+62 877-7739-8813"
+        getPrefs(context).getString("store_whatsapp", com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_SUPPORT_WHATSAPP) ?: com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_SUPPORT_WHATSAPP
 
     fun setWhatsApp(context: Context, value: String) =
         getPrefs(context).edit().putString("store_whatsapp", value).apply()
 
     fun getEmail(context: Context): String =
-        getPrefs(context).getString("store_email", "yansart31@gmail.com") ?: "yansart31@gmail.com"
+        getPrefs(context).getString("store_email", com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_SUPPORT_EMAIL) ?: com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_SUPPORT_EMAIL
 
     fun setEmail(context: Context, value: String) =
         getPrefs(context).edit().putString("store_email", value).apply()
@@ -197,6 +198,16 @@ object AppSettings {
     fun setCustomSleeveLongPrice(context: Context, value: Double) =
         getPrefs(context).edit().putFloat("custom_sleeve_long_price", value.toFloat()).apply()
 
+    fun getCustomKidsBasePrice(context: Context): Double =
+        getPrefs(context).getFloat("custom_kids_base_price", 65000f).toDouble()
+    fun setCustomKidsBasePrice(context: Context, value: Double) =
+        getPrefs(context).edit().putFloat("custom_kids_base_price", value.toFloat()).apply()
+
+    fun getCustomKidsSleeveLongPrice(context: Context): Double =
+        getPrefs(context).getFloat("custom_kids_sleeve_long_price", 5000f).toDouble()
+    fun setCustomKidsSleeveLongPrice(context: Context, value: Double) =
+        getPrefs(context).edit().putFloat("custom_kids_sleeve_long_price", value.toFloat()).apply()
+
     // --- CUSTOM PROJECT HPP ERP CONFIG ---
     fun getCustomHppRegulerPendek(context: Context): Double =
         getPrefs(context).getFloat("custom_hpp_reguler_pendek", 67000f).toDouble()
@@ -265,8 +276,26 @@ object AppSettings {
         val priceCategory: String = "Member"
     )
 
+    private fun getSecureCredentialPrefs(context: Context): SharedPreferences {
+        return try {
+            val masterKey = androidx.security.crypto.MasterKey.Builder(context)
+                .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            androidx.security.crypto.EncryptedSharedPreferences.create(
+                context,
+                "yans_local_credentials_enc",
+                masterKey,
+                androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("AppSettings", "Failed initializing EncryptedSharedPreferences: ${e.message}")
+            context.getSharedPreferences("yans_local_credentials_fallback", Context.MODE_PRIVATE)
+        }
+    }
+
     fun getMemberDetail(context: Context, displayName: String): MemberDetail? {
-        val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+        val prefs = getSecureCredentialPrefs(context)
         val allEntries = prefs.all
         val targetName = displayName.trim()
         if (targetName.isBlank()) return null
@@ -335,7 +364,7 @@ object AppSettings {
         whatsapp: String = "",
         address: String = ""
     ) {
-        val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+        val prefs = getSecureCredentialPrefs(context)
         val cleanEmail = email.trim().lowercase()
         val editor = prefs.edit()
             .putString("pass_$cleanEmail", passwordOrPin)
@@ -352,9 +381,37 @@ object AppSettings {
     }
 
     fun getLocalUserCredential(context: Context, email: String): LocalUserCredential? {
-        val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+        val prefs = getSecureCredentialPrefs(context)
         val cleanEmail = email.trim().lowercase()
-        val password = prefs.getString("pass_$cleanEmail", null) ?: return null
+        var password = prefs.getString("pass_$cleanEmail", null)
+        
+        if (password == null) {
+            // Attempt migration from unencrypted legacy prefs if present
+            val legacyPrefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+            val legacyPass = legacyPrefs.getString("pass_$cleanEmail", null)
+            if (legacyPass != null) {
+                val legacyName = legacyPrefs.getString("name_$cleanEmail", "") ?: ""
+                val legacyRole = legacyPrefs.getString("role_$cleanEmail", "MEMBER") ?: "MEMBER"
+                val legacyPrice = legacyPrefs.getString("price_$cleanEmail", "Member") ?: "Member"
+                val legacyWa = legacyPrefs.getString("wa_$cleanEmail", "") ?: ""
+                val legacyAddr = legacyPrefs.getString("address_$cleanEmail", "") ?: ""
+                
+                // Save to EncryptedSharedPreferences and purge from unencrypted legacy
+                saveLocalUserCredential(context, cleanEmail, legacyPass, legacyName, legacyRole, legacyPrice, legacyWa, legacyAddr)
+                legacyPrefs.edit()
+                    .remove("pass_$cleanEmail")
+                    .remove("name_$cleanEmail")
+                    .remove("role_$cleanEmail")
+                    .remove("price_$cleanEmail")
+                    .remove("wa_$cleanEmail")
+                    .remove("address_$cleanEmail")
+                    .apply()
+                password = legacyPass
+            } else {
+                return null
+            }
+        }
+
         val name = prefs.getString("name_$cleanEmail", "") ?: ""
         val role = prefs.getString("role_$cleanEmail", "MEMBER") ?: "MEMBER"
         val priceDefault = if (role == "OWNER") "Retail" else "Member"
@@ -365,7 +422,7 @@ object AppSettings {
     }
 
     fun getMemberPriceCategory(context: Context, displayName: String): String {
-        val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+        val prefs = getSecureCredentialPrefs(context)
         val allEntries = prefs.all
         for ((key, value) in allEntries) {
             if (key.startsWith("name_") && value is String && value.equals(displayName.trim(), ignoreCase = true)) {
@@ -377,7 +434,7 @@ object AppSettings {
     }
 
     fun saveMemberPriceCategory(context: Context, displayName: String, newCategory: String) {
-        val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+        val prefs = getSecureCredentialPrefs(context)
         val allEntries = prefs.all
         for ((key, value) in allEntries) {
             if (key.startsWith("name_") && value is String && value.equals(displayName.trim(), ignoreCase = true)) {
@@ -402,6 +459,24 @@ object AppSettings {
 
     fun setDeveloperMode(context: Context, value: Boolean) =
         getPrefs(context).edit().putBoolean("developer_mode", value).apply()
+
+    fun isNotificationEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean("notification_enabled", true)
+
+    fun setNotificationEnabled(context: Context, value: Boolean) =
+        getPrefs(context).edit().putBoolean("notification_enabled", value).apply()
+
+    fun isBiometricsEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean("biometrics_enabled", false)
+
+    fun setBiometricsEnabled(context: Context, value: Boolean) =
+        getPrefs(context).edit().putBoolean("biometrics_enabled", value).apply()
+
+    fun getSelectedLanguage(context: Context): String =
+        getPrefs(context).getString("selected_language", "Bahasa Indonesia") ?: "Bahasa Indonesia"
+
+    fun setSelectedLanguage(context: Context, value: String) =
+        getPrefs(context).edit().putString("selected_language", value).apply()
 
     // App Notification Center
     data class AppNotification(
@@ -465,7 +540,7 @@ object AppSettings {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("AppSettings", "Error parsing app notifications: ${e.message}", e)
         }
         return list.sortedByDescending { it.timestamp }
     }
@@ -495,7 +570,7 @@ object AppSettings {
             }
             getPrefs(context).edit().putString("app_notifications", array.toString()).apply()
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("AppSettings", "Error saving app notifications: ${e.message}", e)
         }
     }
 

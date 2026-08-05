@@ -31,77 +31,56 @@ class MemberViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
+                val repository = com.yansproject.app.data.MemberRepository(context)
+                val localMemberNames = AppSettings.getMembers(context)
                 val mapByName = mutableMapOf<String, MemberModel>()
 
-                // 1. Instantly populate with saved local credentials and emit to UI
-                val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
-                val allEntries = prefs.all
-                for ((key, value) in allEntries) {
-                    if (key.startsWith("name_") && value is String && value.isNotBlank()) {
-                        val emailKey = key.substring("name_".length).lowercase().trim()
-                        val pass = prefs.getString("pass_$emailKey", "") ?: ""
-                        val role = prefs.getString("role_$emailKey", "MEMBER") ?: "MEMBER"
-                        val price = prefs.getString("price_$emailKey", "Member") ?: "Member"
-                        val whatsapp = prefs.getString("wa_$emailKey", "") ?: ""
-                        val address = prefs.getString("address_$emailKey", "") ?: ""
-                        val createdAt = prefs.getLong("created_at_$emailKey", 0L)
-                        val statusAkun = prefs.getString("status_akun_$emailKey", "Aktif") ?: "Aktif"
-                        val statusVerifikasi = prefs.getString("status_verifikasi_$emailKey", "Terverifikasi") ?: "Terverifikasi"
-                        val lastLogin = prefs.getLong("last_login_$emailKey", 0L)
+                // Populate with AppSettings member names
+                for (name in localMemberNames) {
+                    val detail = AppSettings.getMemberDetail(context, name)
+                    val email = detail?.email ?: ""
+                    val isOwner = com.yansproject.app.data.BusinessIdentityProvider.isOwnerEmail(email, context) ||
+                            name.contains("Owner", ignoreCase = true) ||
+                            name.equals("YANSPROJECT.ID", ignoreCase = true)
 
-                        val displayName = value.trim()
-                        val isOwner = role.equals("OWNER", ignoreCase = true) ||
-                                role.equals("ADMIN", ignoreCase = true) ||
-                                displayName.contains("Owner", ignoreCase = true) ||
-                                displayName.equals("YANSPROJECT.ID", ignoreCase = true) ||
-                                emailKey.equals("admin@yansproject.id", ignoreCase = true) ||
-                                emailKey.equals("yansart31@gmail.com", ignoreCase = true)
-
-                        if (!isOwner) {
-                            val normalizedName = displayName.lowercase()
-                            if (!mapByName.containsKey(normalizedName)) {
-                                mapByName[normalizedName] = MemberModel(
-                                    email = emailKey,
-                                    displayName = displayName,
-                                    role = "MEMBER",
-                                    priceCategory = price,
-                                    passwordOrPin = pass,
-                                    whatsapp = whatsapp,
-                                    address = address,
-                                    createdAt = createdAt,
-                                    lastLogin = lastLogin,
-                                    statusAkun = statusAkun,
-                                    statusVerifikasi = statusVerifikasi
-                                )
-                            }
-                        }
+                    if (!isOwner) {
+                        val norm = name.lowercase().trim()
+                        mapByName[norm] = MemberModel(
+                            email = email,
+                            displayName = name,
+                            role = "MEMBER",
+                            priceCategory = detail?.priceCategory ?: "Member",
+                            passwordOrPin = "••••", // Do not expose plaintext PINs in member listings
+                            whatsapp = detail?.whatsapp ?: "",
+                            address = detail?.address ?: "",
+                            statusAkun = "Aktif",
+                            statusVerifikasi = "Terverifikasi"
+                        )
                     }
                 }
 
-                val filtered = mapByName.values.toList()
-                _members.value = filtered
-                _isLoading.value = false
+                _members.value = mapByName.values.toList()
 
-                // 2. Start Real-Time Flow Observation
+                // Start Real-Time Flow Observation
                 if (!isObservingRealtime && FirebaseSyncManager.isFirebaseActive) {
                     isObservingRealtime = true
-                    val repository = com.yansproject.app.data.MemberRepository(context)
                     repository.observeMembersRealtime().collect { observedMembers ->
                         val cleanObserved = observedMembers.filter { m ->
                             val isOwner = m.role.equals("OWNER", ignoreCase = true) ||
                                     m.role.equals("ADMIN", ignoreCase = true) ||
+                                    com.yansproject.app.data.BusinessIdentityProvider.isOwnerEmail(m.email, context) ||
                                     m.displayName.contains("Owner", ignoreCase = true) ||
-                                    m.displayName.equals("YANSPROJECT.ID", ignoreCase = true) ||
-                                    m.email.equals("admin@yansproject.id", ignoreCase = true) ||
-                                    m.email.equals("yansart31@gmail.com", ignoreCase = true)
+                                    m.displayName.equals("YANSPROJECT.ID", ignoreCase = true)
                             !isOwner
+                        }.map { m ->
+                            m.copy(passwordOrPin = "••••") // Mask credentials
                         }.distinctBy { it.displayName.lowercase().trim() }
 
                         _members.value = cleanObserved
                     }
                 }
             } catch (e: Exception) {
-                Log.e("MemberViewModel", "Error loading or observing members: ${e.message}")
+                Log.e("MemberViewModel", "Error loading or observing members: ${e.message}", e)
             } finally {
                 _isLoading.value = false
             }

@@ -234,7 +234,14 @@ data class AuditLog(
     @get:PropertyName("timestamp") @set:PropertyName("timestamp") var timestamp: Long = System.currentTimeMillis(),
     @get:PropertyName("activity") @set:PropertyName("activity") var activity: String = "",
     @get:PropertyName("details") @set:PropertyName("details") var details: String = "",
-    @get:PropertyName("adminName") @set:PropertyName("adminName") var adminName: String = "admin"
+    @get:PropertyName("adminName") @set:PropertyName("adminName") var adminName: String = "admin",
+    @get:PropertyName("actorId") @set:PropertyName("actorId") var actorId: String = "",
+    @get:PropertyName("correlationId") @set:PropertyName("correlationId") var correlationId: String = "",
+    @get:PropertyName("objectId") @set:PropertyName("objectId") var objectId: String = "",
+    @get:PropertyName("utcTimestamp") @set:PropertyName("utcTimestamp") var utcTimestamp: String = "",
+    @get:PropertyName("action") @set:PropertyName("action") var action: String = "",
+    @get:PropertyName("beforeStateJson") @set:PropertyName("beforeStateJson") var beforeStateJson: String = "",
+    @get:PropertyName("afterStateJson") @set:PropertyName("afterStateJson") var afterStateJson: String = ""
 )
 
 @Keep

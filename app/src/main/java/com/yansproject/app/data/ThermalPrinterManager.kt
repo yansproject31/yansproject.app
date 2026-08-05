@@ -41,8 +41,11 @@ class ThermalPrinterManager(private val context: Context) {
             val paired = bluetoothAdapter?.bondedDevices
             if (paired != null) {
                 for (device in paired) {
-                    val name = device.name.lowercase()
-                    if (name.contains("printer") || name.contains("thermal") || name.contains("pos") || name.contains("58") || name.contains("80")) {
+                    val name = try { device.name?.lowercase() ?: "" } catch (e: SecurityException) { "" }
+                    val deviceClass = try { device.bluetoothClass?.deviceClass ?: 0 } catch (e: SecurityException) { 0 }
+                    val majorClass = try { device.bluetoothClass?.majorDeviceClass ?: 0 } catch (e: SecurityException) { 0 }
+                    val isPrinterClass = majorClass == android.bluetooth.BluetoothClass.Device.Major.IMAGING || deviceClass == 1664
+                    if (isPrinterClass || name.contains("printer") || name.contains("thermal") || name.contains("pos") || name.contains("58") || name.contains("80") || name.contains("rpt") || name.contains("mpt")) {
                         printers.add(device)
                     }
                 }
@@ -75,9 +78,13 @@ class ThermalPrinterManager(private val context: Context) {
         } finally {
             try {
                 outputStream?.close()
+            } catch (e: Exception) {
+                Log.e("ThermalPrinterManager", "Failed to close outputStream: ${e.message}", e)
+            }
+            try {
                 socket?.close()
             } catch (e: Exception) {
-                // Ignore closing exceptions
+                Log.e("ThermalPrinterManager", "Failed to close socket: ${e.message}", e)
             }
         }
     }
@@ -92,8 +99,14 @@ class ThermalPrinterManager(private val context: Context) {
             bytes.addAll(arr.toList())
         }
 
+        val gbkCharset = try {
+            Charset.forName("GBK")
+        } catch (e: Exception) {
+            Charsets.UTF_8
+        }
+
         fun addString(str: String) {
-            bytes.addAll(str.toByteArray(Charset.forName("GBK")).toList())
+            bytes.addAll(str.toByteArray(gbkCharset).toList())
         }
 
         // Initialize printer
@@ -103,12 +116,14 @@ class ThermalPrinterManager(private val context: Context) {
         addBytes(ESC_ALIGN_CENTER)
         addBytes(ESC_BOLD_ON)
         addBytes(ESC_DOUBLE_HEIGHT_ON)
-        addString("YANSPROJECT.ID\n")
+        val storeName = BusinessIdentityProvider.getCompanyName(context)
+        val csWa = BusinessIdentityProvider.getSupportWhatsApp(context)
+        addString("$storeName\n")
         addBytes(ESC_FONT_NORMAL)
         addBytes(ESC_BOLD_OFF)
-        addString("Luxury Visual Identity & Custom Merch\n")
+        addString("${BusinessIdentityProvider.DEFAULT_STORE_TAGLINE}\n")
         addString("Makna Sebelum Estetika\n")
-        addString("CS WA: +62 877-7739-8813\n")
+        addString("CS WA: $csWa\n")
         addString("================================\n")
 
         // Metadata - Left aligned

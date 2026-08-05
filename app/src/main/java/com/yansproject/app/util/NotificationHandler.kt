@@ -111,63 +111,65 @@ object NotificationHandler {
     ) {
         try {
             val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
-            val currentUserRole = authPrefs.getString("user_role", "MEMBER")?.uppercase() ?: "MEMBER"
-            val savedEmail = authPrefs.getString("saved_email", "")?.trim()?.lowercase() ?: ""
-            val savedName = authPrefs.getString("saved_name", "")?.trim()?.lowercase() ?: ""
+            val liveUser = com.yansproject.app.data.FirebaseSyncManager.currentUser.value
+            val activeEmail = (liveUser?.email ?: authPrefs.getString("saved_email", ""))?.trim()?.lowercase() ?: ""
+            val activeName = (liveUser?.displayName ?: authPrefs.getString("saved_name", ""))?.trim()?.lowercase() ?: ""
+            val activeRole = (liveUser?.role?.name ?: authPrefs.getString("user_role", "MEMBER"))?.uppercase() ?: "MEMBER"
 
             // Check if notification ID was deleted locally
             val deletedIds = AppSettings.getDeletedNotificationIds(context)
             if (deletedIds.contains(id)) {
-                Log.d(TAG, "Notification $id was deleted by user. Skipping dispatch.")
+                Log.i(TAG, "Notification $id suppressed (deleted by user locally). Skipping dispatch.")
                 return
             }
 
-            // Category preference check
-            val catLower = category.trim().lowercase()
-            val isCategoryEnabled = when {
-                catLower.contains("broadcast") || catLower.contains("promo") || catLower.contains("sistem") ->
+            // Category preference check (explicit rules)
+            val catUpper = category.trim().uppercase()
+            val isCategoryEnabled = when (catUpper) {
+                "BROADCAST", "PROMO", "SISTEM", "SYSTEM" ->
                     authPrefs.getBoolean("broadcast_notify", true) && authPrefs.getBoolean("system_notify", true)
-                catLower.contains("stock") || catLower.contains("stok") ->
+                "STOCK", "STOK", "INVENTORY" ->
                     authPrefs.getBoolean("stock_notify", true)
-                catLower.contains("invoice") || catLower.contains("order") || catLower.contains("pesanan") ->
+                "INVOICE", "ORDER", "PESANAN" ->
                     authPrefs.getBoolean("invoice_notify", true)
-                catLower.contains("pembayaran") || catLower.contains("payment") || catLower.contains("keuangan") ->
+                "PEMBAYARAN", "PAYMENT", "KEUANGAN", "FINANCE" ->
                     authPrefs.getBoolean("finance_notify", true)
                 else -> true
             }
 
             if (!isCategoryEnabled) {
-                Log.d(TAG, "Notification disabled by category preference: $category")
+                Log.i(TAG, "Notification $id suppressed by user category preference: $category")
                 return
             }
 
             // Strict Role & Target Filtering
-            val isMemberRole = currentUserRole == "MEMBER"
+            val isMemberRole = activeRole == "MEMBER"
             val targetUserClean = userId.trim().lowercase()
-            val catUpper = category.trim().uppercase()
 
             val isPermittedForUser = if (isMemberRole) {
                 val isInvoiceOrOrder = catUpper in setOf("INVOICE", "ORDER", "PESANAN", "PEMBAYARAN", "PAYMENT")
                 if (isInvoiceOrOrder) {
-                    // Members ONLY see invoices/orders/payments that explicitly belong to them!
+                    // Members ONLY see invoices/orders/payments that explicitly match their identity!
                     targetUserClean != "all" && (
-                        targetUserClean == savedEmail ||
-                        targetUserClean == savedName ||
-                        targetUserClean.contains(savedName)
+                        targetUserClean == activeEmail ||
+                        targetUserClean == activeName ||
+                        (activeEmail.isNotBlank() && targetUserClean.contains(activeEmail))
                     )
                 } else {
                     // Broadcasts, Stock alerts, System announcements
                     (roleTarget.uppercase() in setOf("ALL", "MEMBER", "BROADCAST")) &&
-                    (targetUserClean == "all" || targetUserClean == savedEmail || targetUserClean == savedName)
+                    (targetUserClean == "all" || targetUserClean == activeEmail || targetUserClean == activeName)
                 }
             } else {
-                // Owner role gets Owner, System, and ALL broadcasts
-                roleTarget.uppercase() in setOf("ALL", "OWNER", "BROADCAST") || targetUserClean == "all"
+                // Owner / Admin role gets Owner, Admin, System, and ALL broadcasts
+                roleTarget.uppercase() in setOf("ALL", "OWNER", "ADMIN", "BROADCAST") || targetUserClean == "all"
             }
 
             if (!isPermittedForUser) {
-                Log.d(TAG, "Notification $id filtered out for user scope [$currentUserRole, $savedEmail]")
+                Log.i(TAG, "Notification $id [category=$category, roleTarget=$roleTarget, target=$userId] filtered out for active session [$activeEmail, role=$activeRole]")
                 return
+            } else {
+                Log.i(TAG, "Notification $id [category=$category, target=$userId] validated and permitted for active session [$activeEmail, role=$activeRole]")
             }
 
             // Save to Local AppSettings / In-App Notification Center
@@ -183,7 +185,7 @@ object NotificationHandler {
             )
 
             // Determine if this is an Owner Broadcast (Global Priority Channel)
-            val isOwnerBroadcast = catLower.contains("broadcast") || catLower.contains("promo") || roleTarget.uppercase() == "BROADCAST"
+            val isOwnerBroadcast = catUpper == "BROADCAST" || catUpper == "PROMO" || roleTarget.uppercase() == "BROADCAST"
 
             postAndroidNotification(
                 context = context,

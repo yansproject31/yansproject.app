@@ -34,41 +34,57 @@ fun PermissionGuard(
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    
-    // Check if permission is needed (Android 13+ / API 33+)
-    val isPermissionRequired = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-    
-    var isPermissionGranted by remember {
-        mutableStateOf(
-            if (isPermissionRequired) {
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-            } else {
-                true
-            }
-        )
+
+    // Build list of required runtime permissions based on Android API Level
+    val requiredPermissions = remember {
+        val list = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            list.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            list.add(Manifest.permission.BLUETOOTH_CONNECT)
+            list.add(Manifest.permission.BLUETOOTH_SCAN)
+        }
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
+            list.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        list.toTypedArray()
+    }
+
+    fun checkAllGranted(ctx: Context, permissions: Array<String>): Boolean {
+        return permissions.all { perm ->
+            ContextCompat.checkSelfPermission(ctx, perm) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    var isAllPermissionsGranted by remember {
+        mutableStateOf(checkAllGranted(context, requiredPermissions))
     }
 
     var userBypassedPrompt by remember { mutableStateOf(false) }
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        isPermissionGranted = isGranted
-        if (!isGranted) {
+    val multiplePermissionsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        val notifGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            result[Manifest.permission.POST_NOTIFICATIONS] ?: false
+        } else {
+            true
+        }
+
+        isAllPermissionsGranted = checkAllGranted(context, requiredPermissions)
+        if (!notifGranted && !isAllPermissionsGranted) {
             userBypassedPrompt = true
         }
     }
 
     LaunchedEffect(Unit) {
-        if (isPermissionRequired && !isPermissionGranted) {
-            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        if (!isAllPermissionsGranted && requiredPermissions.isNotEmpty()) {
+            multiplePermissionsLauncher.launch(requiredPermissions)
         }
     }
 
-    if (isPermissionGranted || userBypassedPrompt) {
+    if (isAllPermissionsGranted || userBypassedPrompt || requiredPermissions.isEmpty()) {
         content()
     } else {
         Box(
@@ -108,33 +124,33 @@ fun PermissionGuard(
                             modifier = Modifier.size(32.dp)
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(20.dp))
-                    
+
                     Text(
-                        text = "Izin Notifikasi Diperlukan",
+                        text = "Izin Sistem & Notifikasi Diperlukan",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
                         textAlign = TextAlign.Center
                     )
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Text(
-                        text = "Aplikasi YANSPROJECT.ID ERP membutuhkan izin notifikasi untuk mengirimkan update realtime pembayaran Paper.id, status pesanan AJIBQOBUL, dan log audit sistem.",
+                        text = "Aplikasi YANSPROJECT.ID ERP membutuhkan izin notifikasi untuk mengirimkan siaran broadcast Owner, pembaruan real-time status pesanan, serta integrasi printer thermal secara optimal.",
                         fontSize = 13.sp,
                         color = TextMuted,
                         textAlign = TextAlign.Center,
                         lineHeight = 18.sp
                     )
-                    
+
                     Spacer(modifier = Modifier.height(24.dp))
-                    
+
                     Button(
                         onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            if (requiredPermissions.isNotEmpty()) {
+                                multiplePermissionsLauncher.launch(requiredPermissions)
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
@@ -148,14 +164,14 @@ fun PermissionGuard(
                             .testTag("request_permission_button")
                     ) {
                         Text(
-                            text = "Aktifkan Notifikasi",
+                            text = "Aktifkan Izin & Notifikasi",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     TextButton(
                         onClick = { userBypassedPrompt = true },
                         modifier = Modifier.testTag("skip_permission_button")

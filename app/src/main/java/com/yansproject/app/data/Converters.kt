@@ -32,15 +32,15 @@ class AppTypeConverters {
                 val obj = array.getJSONObject(i)
                 list.add(
                     OrderItemDetail(
-                        stockItemId = obj.getInt("stockItemId"),
-                        name = obj.getString("name"),
-                        quantity = obj.getInt("quantity"),
-                        price = obj.getDouble("price")
+                        stockItemId = obj.optInt("stockItemId", obj.optInt("id", 0)),
+                        name = obj.optString("name", obj.optString("itemName", "")),
+                        quantity = obj.optInt("quantity", obj.optInt("qty", 1)),
+                        price = obj.optDouble("price", obj.optDouble("unitPrice", 0.0))
                     )
                 )
             }
         } catch (e: Exception) {
-            Log.e("Converters", "Failed converting JSON array to OrderItemList: ${e.message}")
+            Log.e("Converters", "Failed converting JSON array string '$value' to OrderItemList: ${e.message}", e)
         }
         return list
     }
@@ -70,14 +70,14 @@ class AppTypeConverters {
                 val obj = array.getJSONObject(i)
                 list.add(
                     InvoiceItemDetail(
-                        description = obj.getString("description"),
-                        quantity = obj.getInt("quantity"),
-                        price = obj.getDouble("price")
+                        description = obj.optString("description", obj.optString("name", "")),
+                        quantity = obj.optInt("quantity", obj.optInt("qty", 1)),
+                        price = obj.optDouble("price", obj.optDouble("unitPrice", 0.0))
                     )
                 )
             }
         } catch (e: Exception) {
-            Log.e("Converters", "Failed converting JSON array to InvoiceItemList: ${e.message}")
+            Log.e("Converters", "Failed converting JSON array string '$value' to InvoiceItemList: ${e.message}", e)
         }
         return list
     }
@@ -107,14 +107,14 @@ class AppTypeConverters {
                 val obj = array.getJSONObject(i)
                 list.add(
                     ProjectTimelineEntry(
-                        timestamp = obj.getLong("timestamp"),
-                        statusText = obj.getString("statusText"),
-                        note = obj.getString("note")
+                        timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+                        statusText = obj.optString("statusText", obj.optString("status", "")),
+                        note = obj.optString("note", obj.optString("notes", ""))
                     )
                 )
             }
         } catch (e: Exception) {
-            Log.e("Converters", "Failed converting JSON array to TimelineEntryList: ${e.message}")
+            Log.e("Converters", "Failed converting JSON array string '$value' to TimelineEntryList: ${e.message}", e)
         }
         return list
     }

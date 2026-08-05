@@ -25,15 +25,20 @@ object BitmapMemoryRecycler {
         if (bitmap == null) return
         try {
             if (!bitmap.isRecycled) {
-                // Add to reusable cache if eligible for re-use before recycling
-                if (bitmap.isMutable) {
-                    reusableBitmaps.add(WeakReference(bitmap))
+                // Remove reference from reusable cache if present
+                val iterator = reusableBitmaps.iterator()
+                while (iterator.hasNext()) {
+                    val ref = iterator.next()
+                    val candidate = ref.get()
+                    if (candidate == null || candidate === bitmap || candidate.isRecycled) {
+                        iterator.remove()
+                    }
                 }
                 bitmap.recycle()
                 Log.d(TAG, "Successfully recycled bitmap size: ${bitmap.width}x${bitmap.height}")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to recycle bitmap safely", e)
+            Log.e(TAG, "Failed to recycle bitmap safely: ${e.message}", e)
         }
     }
 
@@ -58,20 +63,15 @@ object BitmapMemoryRecycler {
 
     /**
      * Creates or reuses a Bitmap with precise dimensions and configuration.
-     * Implements inBitmap reuse coordination to prevent GC thrashing.
      */
     @Synchronized
     fun createSafeBitmap(width: Int, height: Int, config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap {
-        // Attempt to find a suitable bitmap from our pool
+        // Attempt to find a suitable un-recycled mutable bitmap from our pool
         val iterator = reusableBitmaps.iterator()
         while (iterator.hasNext()) {
             val ref = iterator.next()
             val candidate = ref.get()
-            if (candidate == null) {
-                iterator.remove()
-                continue
-            }
-            if (candidate.isRecycled) {
+            if (candidate == null || candidate.isRecycled) {
                 iterator.remove()
                 continue
             }
@@ -83,23 +83,11 @@ object BitmapMemoryRecycler {
             }
         }
 
-        // Defensive allocation check based on remaining JVM memory
-        val runtime = Runtime.getRuntime()
-        val freeMemory = runtime.freeMemory()
-        val neededBytes = width * height * 4 // Assuming 4 bytes per pixel for ARGB_8888
-        
-        if (freeMemory < neededBytes * 2L) {
-            Log.w(TAG, "Low system heap memory! Triggering aggressive GC and clean-up before allocation.")
-            System.gc()
-        }
-
         return try {
             Bitmap.createBitmap(width, height, config)
         } catch (oom: OutOfMemoryError) {
-            Log.e(TAG, "Critical: OutOfMemory while creating safe bitmap. Purging all caches.", oom)
+            Log.e(TAG, "OutOfMemory while creating bitmap (${width}x${height}). Purging reusable pool.", oom)
             clearReusablePool()
-            System.gc()
-            // Last-ditch attempt
             Bitmap.createBitmap(width, height, config)
         }
     }

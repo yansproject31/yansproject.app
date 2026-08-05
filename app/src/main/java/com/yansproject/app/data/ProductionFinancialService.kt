@@ -165,8 +165,8 @@ object ProductionFinancialService {
     fun getBatchFinancials(
         batch: ProductionBatch,
         batchLedgers: List<InventoryLedger> = emptyList(),
-        fallbackHppPendek: Double = 67000.0,
-        fallbackHppPanjang: Double = 77000.0
+        fallbackHppPendek: Double = 0.0,
+        fallbackHppPanjang: Double = 0.0
     ): ProductionBatchFinancials {
         val hppPendek = if (batch.hppPendek > 0.0) batch.hppPendek else fallbackHppPendek
         val hppPanjang = if (batch.hppPanjang > 0.0) batch.hppPanjang else fallbackHppPanjang
@@ -174,24 +174,26 @@ object ProductionFinancialService {
         val shortQty = if (batchLedgers.isNotEmpty()) {
             batchLedgers.filter { it.sleeve.equals("Pendek", ignoreCase = true) }.sumOf { it.quantity }
         } else {
-            batch.totalQuantity / 2
+            0
         }
 
         val longQty = if (batchLedgers.isNotEmpty()) {
             batchLedgers.filter { it.sleeve.equals("Panjang", ignoreCase = true) }.sumOf { it.quantity }
         } else {
-            batch.totalQuantity - shortQty
+            0
         }
 
         val totalQty = if (batch.totalQuantity > 0) batch.totalQuantity else (shortQty + longQty)
 
         val totalCost = if (batch.totalProductionCost > 0.0) {
             batch.totalProductionCost
-        } else {
+        } else if (shortQty > 0 || longQty > 0) {
             calculateBatchTotalCost(shortQty, longQty, hppPendek, hppPanjang)
+        } else {
+            0.0
         }
 
-        val avgHpp = if (totalQty > 0) {
+        val avgHpp = if (totalQty > 0 && totalCost > 0.0) {
             BigDecimal.valueOf(totalCost)
                 .divide(BigDecimal(totalQty), 2, RoundingMode.HALF_UP)
                 .toDouble()
@@ -237,11 +239,28 @@ object ProductionFinancialService {
     /**
      * Validates whether a saved batch's recorded total cost matches its recorded HPP rates.
      */
-    fun validateBatchFinancialIntegrity(batch: ProductionBatch): Boolean {
+    fun validateBatchFinancialIntegrity(
+        batch: ProductionBatch,
+        batchLedgers: List<InventoryLedger> = emptyList()
+    ): Boolean {
         if (batch.totalProductionCost <= 0.0) return true
+        
+        val shortQty: Int
+        val longQty: Int
+        if (batchLedgers.isNotEmpty()) {
+            shortQty = batchLedgers.filter { it.sleeve.equals("Pendek", ignoreCase = true) }.sumOf { it.quantity }
+            longQty = batchLedgers.filter { it.sleeve.equals("Panjang", ignoreCase = true) }.sumOf { it.quantity }
+        } else if (batch.hppPendek > 0.0 && batch.hppPendek == batch.hppPanjang) {
+            shortQty = batch.totalQuantity
+            longQty = 0
+        } else {
+            // Unverifiable without explicit sleeve ledger breakdown; avoid false invalidation
+            return true
+        }
+
         val expectedCost = calculateBatchTotalCost(
-            shortSleeveQty = batch.totalQuantity / 2,
-            longSleeveQty = batch.totalQuantity - (batch.totalQuantity / 2),
+            shortSleeveQty = shortQty,
+            longSleeveQty = longQty,
             hppPendek = batch.hppPendek,
             hppPanjang = batch.hppPanjang
         )

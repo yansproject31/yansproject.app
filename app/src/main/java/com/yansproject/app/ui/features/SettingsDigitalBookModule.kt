@@ -79,17 +79,16 @@ class SettingsViewModel : ViewModel() {
     fun triggerBluetoothScanning(context: Context) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isScanning = true)
-            // Simulating high-frequency bluetooth scanning of ESC/POS printers
-            kotlinx.coroutines.delay(2000)
+            kotlinx.coroutines.delay(1500)
             _state.value = _state.value.copy(
                 isScanning = false,
                 scannedDevices = listOf(
-                    BluetoothDevice("00:11:22:33:44:55", "Rongta RP80 Thermal Printer", -65, isConnected = true),
-                    BluetoothDevice("AA:BB:CC:DD:EE:FF", "Paperang P2 Pocket Printer", -82),
-                    BluetoothDevice("12:34:56:78:90:AB", "Epson TM-T88VI Printer", -55)
+                    BluetoothDevice("00:11:22:33:44:55", "[DEMO] Rongta RP80 Thermal Printer", -65, isConnected = true),
+                    BluetoothDevice("AA:BB:CC:DD:EE:FF", "[DEMO] Paperang P2 Pocket Printer", -82),
+                    BluetoothDevice("12:34:56:78:90:AB", "[DEMO] Epson TM-T88VI Printer", -55)
                 )
             )
-            com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Bluetooth Scanning Selesai!")
+            com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Pemindaian Bluetooth Selesai (Demo Devices).")
         }
     }
 
@@ -211,18 +210,19 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isFirebaseChecking = true)
             withContext(Dispatchers.IO) {
-                kotlinx.coroutines.delay(1000) // Aesthetic delay for cloud ping feedback
                 try {
                     val db = FirebaseFirestore.getInstance()
-                    db.collection("settings").document("connection_test").get()
+                    val task = db.collection("settings").document("connection_test").get(com.google.firebase.firestore.Source.SERVER)
+                    com.google.android.gms.tasks.Tasks.await(task, 4, java.util.concurrent.TimeUnit.SECONDS)
                     withContext(Dispatchers.Main) {
                         _state.value = _state.value.copy(isFirebaseChecking = false)
                         com.yansproject.app.ui.util.FeedbackManager.triggerSuccess(context, "Status Cloud: Terhubung (Cloud Active)")
                     }
                 } catch (e: Exception) {
+                    android.util.Log.w("SettingsViewModel", "Firebase connection check failed or timed out: ${e.message}")
                     withContext(Dispatchers.Main) {
                         _state.value = _state.value.copy(isFirebaseChecking = false)
-                        com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Status Cloud: Offline (Mode Transaksi Lokal Aktif)")
+                        com.yansproject.app.ui.util.FeedbackManager.triggerWarning(context, "Status Cloud: Offline / Unreachable (Mode Transaksi Lokal Aktif)")
                     }
                 }
             }

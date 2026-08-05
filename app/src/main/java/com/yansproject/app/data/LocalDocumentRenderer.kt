@@ -95,10 +95,12 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.ITALIC)
             canvas.drawText("MAKNA SEBELUM ESTETIKA", 105f, 72f, paint)
 
+            val wa = BusinessIdentityProvider.getSupportWhatsApp(context)
+            val email = BusinessIdentityProvider.getSupportEmail(context)
             paint.color = Color.parseColor("#E0E0E0")
             paint.textSize = 8f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            canvas.drawText("WA Support: +62 877-7739-8813 | Email: yansart31@gmail.com", 105f, 88f, paint)
+            canvas.drawText("WA Support: $wa | Email: $email", 105f, 88f, paint)
 
             // Right side Header Badge: FAKTUR INVOICE RESMI
             paint.color = Color.parseColor("#112B2C")
@@ -363,10 +365,12 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.ITALIC)
             canvas.drawText("MAKNA SEBELUM ESTETIKA", 200f, 170f, paint)
 
+            val waBig = BusinessIdentityProvider.getSupportWhatsApp(context)
+            val emailBig = BusinessIdentityProvider.getSupportEmail(context)
             paint.color = Color.parseColor("#A0A0A0")
             paint.textSize = 15f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            canvas.drawText("WA Support: +62 877-7739-8813 | Email: yansart31@gmail.com", 200f, 202f, paint)
+            canvas.drawText("WA Support: $waBig | Email: $emailBig", 200f, 202f, paint)
 
             // Main Card Surface Frame
             val cardLeft = 45f

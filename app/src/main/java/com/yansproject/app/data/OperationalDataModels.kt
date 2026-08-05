@@ -39,7 +39,13 @@ data class OperationalInvoice(
     val ownerId: String = "",
     val stagedPayments: List<StagedPayment> = emptyList()
 ) : Serializable {
-    val remainingBalance: Double get() = totalAmount - paidAmount - discount
+    val effectivePaidAmount: Double
+        get() {
+            val paidStagedSum = stagedPayments.filter { it.status == "PAID" }.sumOf { it.amount }
+            return maxOf(paidAmount, paidStagedSum)
+        }
+
+    val remainingBalance: Double get() = maxOf(0.0, totalAmount - effectivePaidAmount - discount)
 }
 
 data class OperationalStockItem(
@@ -80,7 +86,7 @@ data class OperationalCustomProject(
     val clientPhone: String = "",
     val description: String = "",
     val startDate: Long = System.currentTimeMillis(),
-    val endDate: Long = System.currentTimeMillis(),
+    val endDate: Long = System.currentTimeMillis() + (86400000L * 14L),
     val totalCost: Double = 0.0,
     val paidAmount: Double = 0.0,
     val status: String = "Planning", // "Planning", "In Progress", "Completed", "Cancelled"

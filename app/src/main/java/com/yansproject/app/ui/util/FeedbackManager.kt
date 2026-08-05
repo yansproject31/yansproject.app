@@ -1,6 +1,7 @@
 package com.yansproject.app.ui.util
 
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import com.yansproject.app.ui.AppFeedbackManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +13,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * Provides unified snackbar, audio, haptic, and loading state management.
  */
 object FeedbackManager {
+    private const val TAG = "FeedbackManager"
+
     private val _globalLoading = MutableStateFlow(false)
     val globalLoading: StateFlow<Boolean> = _globalLoading.asStateFlow()
 
@@ -34,7 +37,7 @@ object FeedbackManager {
         try {
             AppFeedbackManager.triggerSuccess()
         } catch (e: Exception) {
-            // Safe fallback
+            Log.e(TAG, "Failed to dispatch success haptic/sound feedback: ${e.message}", e)
         }
         message?.let {
             Toast.makeText(context.applicationContext, it, Toast.LENGTH_SHORT).show()
@@ -46,7 +49,7 @@ object FeedbackManager {
         try {
             AppFeedbackManager.triggerWarning()
         } catch (e: Exception) {
-            // Safe fallback
+            Log.e(TAG, "Failed to dispatch warning haptic/sound feedback: ${e.message}", e)
         }
         message?.let {
             Toast.makeText(context.applicationContext, it, Toast.LENGTH_SHORT).show()
@@ -58,7 +61,7 @@ object FeedbackManager {
         try {
             AppFeedbackManager.triggerError()
         } catch (e: Exception) {
-            // Safe fallback
+            Log.e(TAG, "Failed to dispatch error haptic/sound feedback: ${e.message}", e)
         }
         message?.let {
             Toast.makeText(context.applicationContext, it, Toast.LENGTH_LONG).show()

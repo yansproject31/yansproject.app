@@ -49,7 +49,12 @@ class ShippingLabelCompiler {
         }
 
         fun addString(str: String) {
-            bytes.addAll(str.toByteArray(Charset.forName("GBK")).toList())
+            val charset = try {
+                Charset.forName("UTF-8")
+            } catch (e: Exception) {
+                Charset.defaultCharset()
+            }
+            bytes.addAll(str.toByteArray(charset).toList())
         }
 
         fun addNewLine() {
@@ -94,17 +99,21 @@ class ShippingLabelCompiler {
         addNewLine()
 
         // Receiver Details
+        val clientNameDisplay = manifest.clientName.ifBlank { "[NAMA PELANGGAN KOSONG]" }
+        val clientPhoneDisplay = manifest.clientPhone.ifBlank { "[TELEPON KOSONG]" }
+        val clientAddressDisplay = manifest.clientAddress.ifBlank { "[ALAMAT PENGIRIMAN KOSONG]" }
+
         addBytes(ESC_ALIGN_LEFT)
         addString("--------------------------------\n")
         addBytes(ESC_BOLD_ON)
         addString("PENERIMA (CUSTOMER):\n")
         addBytes(FONT_SIZE_MEDIUM)
-        addString("${manifest.clientName}\n")
+        addString("$clientNameDisplay\n")
         addBytes(FONT_SIZE_NORMAL)
-        addString("Telp/WA: ${manifest.clientPhone}\n")
+        addString("Telp/WA: $clientPhoneDisplay\n")
         addBytes(ESC_BOLD_OFF)
         addString("Alamat Kirim:\n")
-        addString("${manifest.clientAddress}\n")
+        addString("$clientAddressDisplay\n")
         addString("--------------------------------\n")
         addNewLine()
 

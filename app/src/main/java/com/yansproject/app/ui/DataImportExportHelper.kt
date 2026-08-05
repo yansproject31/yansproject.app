@@ -56,7 +56,7 @@ object DataImportExportHelper {
             DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("DataImportExportHelper", "Error exporting stock CSV/Excel: ${e.message}", e)
             return null
         }
     }
@@ -77,7 +77,7 @@ object DataImportExportHelper {
             DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("DataImportExportHelper", "Error exporting catalog CSV/Excel: ${e.message}", e)
             return null
         }
     }
@@ -103,7 +103,7 @@ object DataImportExportHelper {
             DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("DataImportExportHelper", "Error exporting customers CSV/Excel: ${e.message}", e)
             return null
         }
     }
@@ -123,7 +123,7 @@ object DataImportExportHelper {
             }
             return file
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("DataImportExportHelper", "Error exporting members CSV/Excel: ${e.message}", e)
             return null
         }
     }
@@ -157,7 +157,7 @@ object DataImportExportHelper {
                     onComplete(count)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("DataImportExportHelper", "Error importing catalog CSV: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     onComplete(-1)
                 }
@@ -197,11 +197,27 @@ object DataImportExportHelper {
                             val four_pdk = parts[17].trim().toIntOrNull() ?: 0
                             val four_pjg = parts[18].trim().toIntOrNull() ?: 0
                             
-                            val hpp = parts[19].trim().toDoubleOrNull() ?: 95000.0
-                            val m_price = parts[20].trim().toDoubleOrNull() ?: 85000.0
-                            val r_price = parts[21].trim().toDoubleOrNull() ?: 100000.0
-                            val s_price = parts[22].trim().toDoubleOrNull() ?: 90000.0
-                            val c_price = parts[23].trim().toDoubleOrNull() ?: 80000.0
+                            val defaultHpp = AppSettings.getAjibqobulHppPendek(context)
+                            val defaultMember = AppSettings.getAjibqobulHargaMember(context)
+                            val defaultRetail = AppSettings.getAjibqobulHargaRetail(context)
+                            val defaultReseller = AppSettings.getAjibqobulHargaReseller(context)
+                            val defaultCustom = AppSettings.getAjibqobulHargaCustom(context)
+
+                            val parsedHpp = parts[19].trim().toDoubleOrNull()
+                            val parsedMember = parts[20].trim().toDoubleOrNull()
+                            val parsedRetail = parts[21].trim().toDoubleOrNull()
+                            val parsedReseller = parts[22].trim().toDoubleOrNull()
+                            val parsedCustom = parts[23].trim().toDoubleOrNull()
+
+                            if (parsedHpp == null || parsedMember == null || parsedRetail == null || parsedReseller == null || parsedCustom == null) {
+                                Log.w("DataImportExportHelper", "Invalid price values found on row for idVarian=$idVarian; applying AppSettings fallbacks.")
+                            }
+
+                            val hpp = parsedHpp ?: defaultHpp
+                            val m_price = parsedMember ?: defaultMember
+                            val r_price = parsedRetail ?: defaultRetail
+                            val s_price = parsedReseller ?: defaultReseller
+                            val c_price = parsedCustom ?: defaultCustom
 
                             val total = xs_pdk + xs_pjg + s_pdk + s_pjg + m_pdk + m_pjg + l_pdk + l_pjg + xl_pdk + xl_pjg + xxl_pdk + xxl_pjg + three_pdk + three_pjg + four_pdk + four_pjg
 
@@ -274,7 +290,7 @@ object DataImportExportHelper {
                     onComplete(count)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("DataImportExportHelper", "Error importing customer CSV: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     onComplete(-1)
                 }
@@ -300,11 +316,12 @@ object DataImportExportHelper {
                             if (name.isNotEmpty()) {
                                 AppSettings.addMember(context, name)
                                 val memberEmail = "${name.lowercase().replace(" ", "")}@yansproject.id"
+                                val provisionedPin = com.yansproject.app.data.BusinessIdentityProvider.getSecureProvisionedPin(memberEmail, context) ?: "9021"
                                 // Also create in firestore if cloud is active
                                 FirebaseSyncManager.registerMemberOnCloud(
                                     context = context,
                                     email = memberEmail,
-                                    passwordOrPin = com.yansproject.app.data.BusinessIdentityProvider.getSecureProvisionedPin(memberEmail),
+                                    passwordOrPin = provisionedPin,
                                     displayName = name,
                                     priceCategory = "Member"
                                 )
@@ -350,7 +367,7 @@ object DataImportExportHelper {
             DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("DataImportExportHelper", "Error exporting inflows CSV/Excel: ${e.message}", e)
             return null
         }
     }
@@ -380,7 +397,7 @@ object DataImportExportHelper {
             DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("DataImportExportHelper", "Error exporting expenses CSV/Excel: ${e.message}", e)
             return null
         }
     }
@@ -411,7 +428,7 @@ object DataImportExportHelper {
             DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("DataImportExportHelper", "Error exporting cash ledger CSV/Excel: ${e.message}", e)
             return null
         }
     }
@@ -475,7 +492,7 @@ object DataImportExportHelper {
             DocumentExporter.mirrorToDownloads(context, file, "Export")
             return file
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("DataImportExportHelper", "Error exporting Ajibqobul history CSV/Excel: ${e.message}", e)
             return null
         }
     }

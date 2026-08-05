@@ -1885,51 +1885,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addSampleProductionItem(series: String, code: String, color: String, status: String, qty: Int) {
-        viewModelScope.launch {
-            try {
-                val dbRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                val id = dbRef.collection("production").document().id
-                val sampleItem = DomainProduction(
-                    id = id,
-                    seriesName = series,
-                    code = code,
-                    color = color,
-                    stockStatus = status,
-                    quantity = qty,
-                    timestamp = System.currentTimeMillis()
-                )
-                dbRef.collection("production").document(id).set(sampleItem)
-                showGlobalSnackbar("Sukses menambahkan item produksi ke Firestore!")
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "Gagal menambahkan item produksi", e)
-                showGlobalSnackbar("Error: ${e.localizedMessage}")
-            }
+        if (!isDeveloperMode.value) {
+            showGlobalSnackbar("Fitur data sampel dinonaktifkan di lingkungan produksi live.")
+            return
         }
+        showGlobalSnackbar("Mode Developer: Penambahan sampel diisolasi dari Firestore produksi.")
     }
 
     fun populateSampleProductionData() {
-        val samples = listOf(
-            DomainProduction("", "AJIBQOBUL RAHASIA REALITA", "AQ-RR-01", "Dark Teal", "Dalam Produksi", 150),
-            DomainProduction("", "AJIBQOBUL HINA MULIA", "AQ-HM-02", "Shadow Black", "Selesai QC", 220),
-            DomainProduction("", "AJIBQOBUL AKAD SAH", "AQ-AS-03", "Aged Gold", "Menunggu Produksi", 80),
-            DomainProduction("", "AJIBQOBUL RAHASIA REALITA", "AQ-RR-04", "Soft Cyan", "Dalam Produksi", 110),
-            DomainProduction("", "AJIBQOBUL KHIDMAH", "AQ-KD-05", "Dark Teal Surface", "Packing", 300),
-            DomainProduction("", "AJIBQOBUL HINA MULIA", "AQ-HM-06", "Aged Gold", "Selesai QC", 180)
-        )
-        viewModelScope.launch {
-            try {
-                val dbRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                for (item in samples) {
-                    val id = dbRef.collection("production").document().id
-                    val itemWithId = item.copy(id = id, timestamp = System.currentTimeMillis() - (samples.indexOf(item) * 60000))
-                    dbRef.collection("production").document(id).set(itemWithId)
-                }
-                showGlobalSnackbar("Berhasil mempopulasi 6 sample data produksi ke Firestore!")
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "Gagal mempopulasi sample data", e)
-                showGlobalSnackbar("Gagal: ${e.localizedMessage}")
-            }
+        if (!isDeveloperMode.value) {
+            showGlobalSnackbar("Populasi data sampel dinonaktifkan di lingkungan produksi live.")
+            return
         }
+        showGlobalSnackbar("Mode Developer: Populasi data sampel diisolasi dari Firestore produksi.")
     }
 }
 

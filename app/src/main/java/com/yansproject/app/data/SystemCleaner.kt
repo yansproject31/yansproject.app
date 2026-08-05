@@ -24,7 +24,7 @@ class SystemCleaner(
         var success = true
 
         try {
-            // 1. Delete cache files
+            // 1. Delete temporary cache files, avoiding core database/WAL/SHM shards
             context.cacheDir?.let {
                 totalBytesCleared += deleteDirectoryAndReturnSize(it)
             }
@@ -32,26 +32,47 @@ class SystemCleaner(
                 totalBytesCleared += deleteDirectoryAndReturnSize(it)
             }
         } catch (e: Exception) {
-            Log.e("SystemCleaner", "Cache cleaning failed", e)
+            Log.e("SystemCleaner", "Cache cleaning failed: ${e.message}", e)
             success = false
         }
 
         try {
-            // 2. Delete offline action queue rows older than 30 days (30L * 24 * 3600 * 1000)
-            val thirtyDaysAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000L)
-            offlinePurged = offlineActionDao.deleteOldActions(thirtyDaysAgo)
+            // 2. Only prune obsolete sync actions older than 60 days if they are already completed (retryCount < 0) or max retried (retryCount > 10).
+            // Active pending unsynced offline queue items (retryCount in 0..10) must NEVER be deleted.
+            val sixtyDaysAgo = System.currentTimeMillis() - (60L * 24 * 60 * 60 * 1000L)
+            val allActions = offlineActionDao.getAllActions()
+            val deletableActions = allActions.filter { action ->
+                action.timestamp < sixtyDaysAgo && (action.retryCount < 0 || action.retryCount > 10)
+            }
+            deletableActions.forEach { action ->
+                offlineActionDao.deleteActionById(action.id)
+            }
+            offlinePurged = deletableActions.size
+            Log.i("SystemCleaner", "Purged $offlinePurged synced/abandoned offline actions older than 60 days (preserved ${allActions.size - offlinePurged} pending actions)")
         } catch (e: Exception) {
-            Log.e("SystemCleaner", "Offline actions pruning failed", e)
+            Log.e("SystemCleaner", "Offline actions pruning failed: ${e.message}", e)
             success = false
         }
 
         try {
-            // 3. Delete logs older than 30 days
-            val thirtyDaysAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000L)
-            logsPurged = appDatabase.auditLogDao().deleteLogsOlderThan(thirtyDaysAgo)
+            // 3. Delete old audit logs older than 90 days to retain recent operational history
+            val ninetyDaysAgo = System.currentTimeMillis() - (90L * 24 * 60 * 60 * 1000L)
+            logsPurged = appDatabase.auditLogDao().deleteLogsOlderThan(ninetyDaysAgo)
         } catch (e: Exception) {
-            Log.e("SystemCleaner", "Logs pruning failed", e)
+            Log.e("SystemCleaner", "Logs pruning failed: ${e.message}", e)
             success = false
+        }
+
+        // Record maintenance result into system audit log
+        try {
+            appDatabase.auditLogDao().insertLog(
+                AuditLog(
+                    activity = "SYSTEM_MAINTENANCE_EXECUTED",
+                    details = "Smart maintenance completed. Cleared $totalBytesCleared bytes. Purged $offlinePurged old actions & $logsPurged old logs. Success: $success"
+                )
+            )
+        } catch (e: Exception) {
+            Log.e("SystemCleaner", "Failed writing maintenance audit log: ${e.message}")
         }
 
         return MaintenanceResult(
@@ -64,6 +85,12 @@ class SystemCleaner(
 
     private fun deleteDirectoryAndReturnSize(fileOrDir: File): Long {
         var size = 0L
+        // Never touch database files or active journal files inside cache
+        val fileName = fileOrDir.name.lowercase()
+        if (fileName.endsWith(".db") || fileName.endsWith(".wal") || fileName.endsWith(".shm") || fileName.contains("database")) {
+            return 0L
+        }
+
         if (fileOrDir.isDirectory) {
             val children = fileOrDir.listFiles()
             if (children != null) {
@@ -73,7 +100,7 @@ class SystemCleaner(
             }
         }
         size += fileOrDir.length()
-        // Never delete the parent directories (cacheDir / externalCacheDir) themselves, only their children
+        // Never delete parent cache roots
         if (fileOrDir != context.cacheDir && fileOrDir != context.externalCacheDir) {
             fileOrDir.delete()
         }

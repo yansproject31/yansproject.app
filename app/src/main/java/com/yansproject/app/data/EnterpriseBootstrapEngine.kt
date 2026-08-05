@@ -74,6 +74,7 @@ object EnterpriseBootstrapEngine {
 
             // Step 1: Download all data into memory
             val downloadedData = mutableMapOf<CollectionRegistry, List<com.google.firebase.firestore.DocumentSnapshot>>()
+            val failedCollections = mutableListOf<String>()
 
             for ((index, registry) in registryItems.withIndex()) {
                 val progressVal = (index / totalSteps) * 0.5f // Download takes up to 50%
@@ -89,8 +90,18 @@ object EnterpriseBootstrapEngine {
                     val snapshot = firestore.collection(registry.collectionName).get().await()
                     downloadedData[registry] = snapshot.documents
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to download collection ${registry.collectionName} (falling back to empty list): ${e.message}")
-                    downloadedData[registry] = emptyList()
+                    Log.e(TAG, "Failed to download collection ${registry.collectionName}: ${e.message}", e)
+                    failedCollections.add(registry.collectionName)
+                }
+            }
+
+            if (failedCollections.isNotEmpty()) {
+                val criticalCollections = setOf("users", "projects", "orders", "invoices", "master_catalog")
+                val hasCriticalFailure = failedCollections.any { it.lowercase() in criticalCollections }
+                if (hasCriticalFailure || failedCollections.size == registryItems.size) {
+                    throw IllegalStateException("Gagal mengunduh koleksi utama dari cloud: [${failedCollections.joinToString(", ")}]")
+                } else {
+                    Log.w(TAG, "Bootstrap continuing with partial collections. Failed: ${failedCollections.joinToString(", ")}")
                 }
             }
 
@@ -118,6 +129,8 @@ object EnterpriseBootstrapEngine {
                 db.inventorySummaryDao().clearAll()
                 db.invoicePaymentDao().clearAllPayments()
 
+                val activeUserEmail = FirebaseSyncManager.currentUser.value?.email?.trim()?.lowercase() ?: ""
+
                 for ((registry, docs) in downloadedData) {
                     Log.d(TAG, "Inserting ${docs.size} elements for ${registry.collectionName} to local database...")
                     when (registry) {
@@ -125,17 +138,25 @@ object EnterpriseBootstrapEngine {
                             for (doc in docs) {
                                 try {
                                     val email = doc.getString("email") ?: doc.get("email")?.toString() ?: doc.id
-                                    val passwordOrPin = doc.getString("passwordOrPin") ?: doc.get("passwordOrPin")?.toString() ?: BusinessIdentityProvider.getSecureProvisionedPin(email)
-                                    val displayName = doc.getString("displayName") ?: doc.get("displayName")?.toString() ?: email
+                                    val displayName = doc.getString("displayName") ?: doc.get("displayName")?.toString()
+                                    if (displayName.isNullOrBlank()) {
+                                        Log.w(TAG, "USER doc ${doc.id} missing displayName, skipping unsafe user import")
+                                        continue
+                                    }
                                     val role = doc.getString("role") ?: doc.get("role")?.toString() ?: "MEMBER"
                                     val priceCategory = doc.getString("priceCategory") ?: doc.get("priceCategory")?.toString() ?: "Retail"
 
-                                    AppSettings.saveLocalUserCredential(context, email, passwordOrPin, displayName, role, priceCategory)
                                     if (role.equals("MEMBER", ignoreCase = true)) {
                                         AppSettings.addMember(context, displayName)
+                                        AppSettings.saveMemberPriceCategory(context, displayName, priceCategory)
+                                    }
+                                    // Only update local credentials if this document belongs to current active session user
+                                    if (email.isNotBlank() && email.trim().lowercase() == activeUserEmail) {
+                                        val passwordOrPin = doc.getString("passwordOrPin") ?: doc.get("passwordOrPin")?.toString() ?: (BusinessIdentityProvider.getSecureProvisionedPin(email, context) ?: "9021")
+                                        AppSettings.saveLocalUserCredential(context, email, passwordOrPin, displayName, role, priceCategory)
                                     }
                                 } catch (e: Exception) {
-                                    Log.e(TAG, "Error parsing USER doc ${doc.id}: ${e.message}")
+                                    Log.e(TAG, "Error parsing USER doc ${doc.id}: ${e.message}", e)
                                 }
                             }
                         }
@@ -418,17 +439,28 @@ object EnterpriseBootstrapEngine {
                 }
             }
 
-            metadataManager.setState(BootstrapState.FINISHED)
-            metadataManager.setProgress(1.0f)
-            metadataManager.setProgressText("Bootstrap selesai dengan sukses!")
-            metadataManager.setLastSyncTimestamp(System.currentTimeMillis())
-            EnterpriseSyncEngine.startRealtimeSyncListeners(context)
-            onProgress("Bootstrap selesai dengan sukses!", 1.0f)
-            Log.d(TAG, "Enterprise Bootstrap COMPLETED and VERIFIED.")
+            if (failedCollections.isNotEmpty()) {
+                metadataManager.setState(BootstrapState.PARTIAL)
+                metadataManager.setProgress(1.0f)
+                val msg = "Bootstrap selesai sebagian (${failedCollections.size} koleksi gagal)"
+                metadataManager.setProgressText(msg)
+                metadataManager.setLastSyncTimestamp(System.currentTimeMillis())
+                EnterpriseSyncEngine.startRealtimeSyncListeners(context)
+                onProgress(msg, 1.0f)
+                Log.w(TAG, "Enterprise Bootstrap COMPLETED WITH PARTIAL FAILURES: ${failedCollections.joinToString(", ")}")
+            } else {
+                metadataManager.setState(BootstrapState.FINISHED)
+                metadataManager.setProgress(1.0f)
+                metadataManager.setProgressText("Bootstrap selesai dengan sukses!")
+                metadataManager.setLastSyncTimestamp(System.currentTimeMillis())
+                EnterpriseSyncEngine.startRealtimeSyncListeners(context)
+                onProgress("Bootstrap selesai dengan sukses!", 1.0f)
+                Log.d(TAG, "Enterprise Bootstrap COMPLETED and VERIFIED.")
+            }
 
         } catch (e: Exception) {
             Log.e(TAG, "FATAL ERROR during Enterprise Bootstrap: ${e.message}", e)
-            metadataManager.setState(BootstrapState.NOT_STARTED)
+            metadataManager.setState(BootstrapState.FAILED)
             metadataManager.setProgress(0.0f)
             metadataManager.setProgressText("Bootstrap gagal: ${e.localizedMessage}")
             onProgress("Sinkronisasi gagal: ${e.localizedMessage}", 0.0f)

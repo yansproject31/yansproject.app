@@ -181,21 +181,14 @@ class MemberRepository(private val context: Context) {
             }
             com.yansproject.app.ui.AppSettings.saveMemberPriceCategory(context, newDisplayName, newTier)
             com.yansproject.app.ui.AppSettings.addMember(context, newDisplayName)
-            val prefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
-            val secureFallback = BusinessIdentityProvider.getSecureProvisionedPin(targetEmail)
-            val existingPass = prefs.getString("pass_$targetEmail", secureFallback) ?: secureFallback
-            val existingRole = prefs.getString("role_$targetEmail", "MEMBER") ?: "MEMBER"
+            val secureFallback = BusinessIdentityProvider.getSecureProvisionedPin(targetEmail, context) ?: "9021"
+            val existingCred = com.yansproject.app.ui.AppSettings.getLocalUserCredential(context, targetEmail)
+            val existingPass = existingCred?.passwordOrPin ?: secureFallback
+            val existingRole = existingCred?.role ?: "MEMBER"
 
             com.yansproject.app.ui.AppSettings.saveLocalUserCredential(
                 context, targetEmail, existingPass, newDisplayName, existingRole, newTier, newWhatsapp, newAddress
             )
-
-            prefs.edit()
-                .putString("name_$targetEmail", newDisplayName)
-                .putString("wa_$targetEmail", newWhatsapp)
-                .putString("address_$targetEmail", newAddress)
-                .putString("price_$targetEmail", newTier)
-                .apply()
 
             val activeUser = FirebaseSyncManager.currentUser.value
             if (activeUser != null && activeUser.email.equals(targetEmail, ignoreCase = true)) {

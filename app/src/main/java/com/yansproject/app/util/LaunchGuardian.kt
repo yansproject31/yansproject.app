@@ -80,36 +80,78 @@ object LaunchGuardian {
     private fun verifyAndRepairDatabase(context: Context) {
         try {
             Log.d(TAG, "Database initialization verification...")
-            AppDatabase.getDatabase(context)
-            Log.i(TAG, "Database verified operational.")
+            val db = AppDatabase.getDatabase(context)
+            val isOpen = db.openHelper.writableDatabase.isOpen
+            if (isOpen) {
+                db.openHelper.writableDatabase.query("PRAGMA quick_check").use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val result = cursor.getString(0)
+                        if (!result.equals("ok", ignoreCase = true)) {
+                            Log.e(TAG, "Database integrity check failed: $result")
+                            handleDatabaseCorruption(context)
+                        } else {
+                            Log.i(TAG, "Database integrity verified (PRAGMA quick_check: ok).")
+                        }
+                    }
+                }
+            }
+        } catch (e: SQLiteDatabaseCorruptException) {
+            Log.e(TAG, "Database corruption detected: ${e.message}", e)
+            handleDatabaseCorruption(context)
         } catch (t: Throwable) {
-            Log.e(TAG, "Database verification notice: ${t.message}")
+            Log.w(TAG, "Database verification notice: ${t.message}")
         }
     }
 
 
     /**
-     * Safe Reset Fallback: Deletes physical database files to prevent loop crashes,
-     * builds a clean schema, and logs the restoration event.
+     * Safe Reset Fallback: Backs up database files before deleting to prevent loop crashes,
+     * builds a clean schema, and logs the restoration event with audit trail.
      */
     private fun handleDatabaseCorruption(context: Context) {
         val dbName = AppDatabase.DATABASE_NAME
-        Log.w(TAG, "FORCE HEALING: Safe deleting corrupted database files...")
+        Log.w(TAG, "SAFE HEALING: Initiating database corruption recovery policy...")
 
         val dbFile = context.getDatabasePath(dbName)
         val dbJournal = File(dbFile.absolutePath + "-journal")
         val dbShm = File(dbFile.absolutePath + "-shm")
         val dbWal = File(dbFile.absolutePath + "-wal")
 
+        val timestamp = System.currentTimeMillis()
+        val recoveryPrefs = context.getSharedPreferences("yans_recovery_audit", Context.MODE_PRIVATE)
+
         try {
             // Close database instance if possible
             try {
                 AppDatabase.getDatabase(context).close()
             } catch (t: Throwable) {
-                Log.w(TAG, "Failed closing database instance prior to deletion: ${t.message}")
+                Log.w(TAG, "Failed closing database instance prior to recovery: ${t.message}")
             }
 
-            // Perform hard deletion on all database shards
+            // Create non-destructive backup before deletion
+            var backupSuccess = false
+            if (dbFile.exists() && dbFile.length() > 0) {
+                try {
+                    val backupFile = File(context.filesDir, "${dbName}_backup_$timestamp.db")
+                    dbFile.copyTo(backupFile, overwrite = true)
+                    backupSuccess = backupFile.exists() && backupFile.length() > 0
+                    Log.i(TAG, "Database backup created before recovery: ${backupFile.absolutePath} (Success: $backupSuccess)")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed creating DB backup before recovery: ${e.message}", e)
+                }
+            } else {
+                Log.i(TAG, "No existing DB file to backup or zero bytes length.")
+                backupSuccess = true
+            }
+
+            // Record audit trail of recovery event
+            recoveryPrefs.edit()
+                .putLong("last_recovery_timestamp", timestamp)
+                .putBoolean("backup_created", backupSuccess)
+                .putString("recovery_status", "DB_CORRUPTION_HEALED_SAFE")
+                .apply()
+
+            // Perform deletion on database shards only after backup policy execution
             deleteFileObject(dbFile)
             deleteFileObject(dbJournal)
             deleteFileObject(dbShm)
@@ -124,7 +166,7 @@ object LaunchGuardian {
                     cleanDb.auditLogDao().insertLog(
                         AuditLog(
                             activity = "DB_CORRUPTION_HEALED",
-                            details = "Database was recovered automatically from critical SQLiteDatabaseCorruptException. Resynced with cloud."
+                            details = "Database was recovered automatically from SQLiteDatabaseCorruptException. Backup status: $backupSuccess. Resynced with cloud."
                         )
                     )
                     Log.i(TAG, "Logged recovery event successfully in new clean database.")
@@ -133,6 +175,10 @@ object LaunchGuardian {
                 }
             }
         } catch (e: Exception) {
+            recoveryPrefs.edit()
+                .putLong("last_recovery_timestamp", timestamp)
+                .putString("recovery_status", "RECOVERY_FAILED: ${e.message}")
+                .apply()
             Log.e(TAG, "Fatal failure in self-healing database protocol", e)
         }
     }

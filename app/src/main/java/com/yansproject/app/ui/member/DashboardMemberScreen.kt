@@ -82,6 +82,7 @@ fun DashboardMemberScreen(
             try {
                 converter.toInvoiceItemList(inv.itemsJson).sumOf { it.quantity }
             } catch (e: Exception) {
+                android.util.Log.e("DashboardMemberScreen", "JSON parse failure for invoice ${inv.invoiceNumber} itemsJson: ${e.message}")
                 0
             }
         }
@@ -649,7 +650,12 @@ fun DaftarPesananMemberDialog(
                         ) {
                             items(filteredInvoices) { inv ->
                                 val converters = AppTypeConverters()
-                                val rawItems = try { converters.toInvoiceItemList(inv.itemsJson) } catch (e: Exception) { emptyList() }
+                                val rawItems = try { 
+                                    converters.toInvoiceItemList(inv.itemsJson) 
+                                } catch (e: Exception) { 
+                                    android.util.Log.e("DashboardMemberScreen", "DaftarPesanan JSON parse failure for ${inv.invoiceNumber}: ${e.message}")
+                                    emptyList() 
+                                }
                                 val visibleItems = rawItems.filter { !it.description.startsWith("__") }
                                 val totalPcs = visibleItems.sumOf { it.quantity }
 
@@ -756,6 +762,7 @@ fun RincianPesananMemberDialog(
         try {
             converters.toInvoiceItemList(invoice.itemsJson)
         } catch (e: Exception) {
+            android.util.Log.e("DashboardMemberScreen", "RincianPesanan JSON parse failure for ${invoice.invoiceNumber}: ${e.message}")
             emptyList()
         }
     }

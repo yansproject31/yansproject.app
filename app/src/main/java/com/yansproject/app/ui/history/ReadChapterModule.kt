@@ -33,14 +33,17 @@ fun ReadChapterScreen(
     onNavigateToDaftarIsi: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val prefs = remember(context) { context.getSharedPreferences("kitab_prefs", Context.MODE_PRIVATE) }
+    val activeUserId = com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState().value?.uid?.takeIf { it.isNotBlank() } ?: "guest"
+    val prefs = remember(context, activeUserId) { context.getSharedPreferences("kitab_prefs_$activeUserId", Context.MODE_PRIVATE) }
     
     // Simulasikan ID bab yang sedang dibaca untuk integrasi progress baca
     val currentBabId = "bab_01_sunyi"
 
     // PREMIUM STATES
     var currentFontSize by remember { mutableStateOf(16.sp) }
-    var isBookmarked by remember { mutableStateOf(prefs.getBoolean("${currentBabId}_bookmarked", false)) }
+    var isBookmarked by remember(activeUserId, currentBabId) {
+        mutableStateOf(prefs.getBoolean("bm_${activeUserId}_${currentBabId}", prefs.getBoolean("${currentBabId}_bookmarked", false)))
+    }
     var showPlaylistSheet by remember { mutableStateOf(false) }
     var showSearchDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -130,7 +133,10 @@ fun ReadChapterScreen(
                     IconButton(
                         onClick = {
                             isBookmarked = !isBookmarked
-                            prefs.edit().putBoolean("${currentBabId}_bookmarked", isBookmarked).apply()
+                            prefs.edit()
+                                .putBoolean("bm_${activeUserId}_${currentBabId}", isBookmarked)
+                                .putBoolean("${currentBabId}_bookmarked", isBookmarked)
+                                .apply()
                             val msg = if (isBookmarked) "Halaman ditambahkan ke Bookmark!" else "Bookmark dihapus!"
                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                         }

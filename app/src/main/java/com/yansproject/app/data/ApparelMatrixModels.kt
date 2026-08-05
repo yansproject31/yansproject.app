@@ -57,7 +57,7 @@ data class CustomStagedPayment(
     val description: String,
     val dateTimestamp: Long = System.currentTimeMillis(),
     val paymentMethod: String = "CASH",
-    val isVerified: Boolean = true
+    val isVerified: Boolean = false
 ) : Serializable
 
 /**
@@ -102,4 +102,13 @@ data class CustomProject(
     val stagedPayments: List<CustomStagedPayment> = emptyList(),
     val issueDate: Long = System.currentTimeMillis(),
     val ownerId: String = ""
-) : Serializable
+) : Serializable {
+    val computedPaidAmount: Double
+        get() {
+            val verifiedStagedSum = stagedPayments.filter { it.isVerified }.sumOf { it.amount }
+            return if (verifiedStagedSum > 0.0) verifiedStagedSum else paidAmount
+        }
+
+    val computedRemainingBalance: Double
+        get() = maxOf(0.0, grandTotal - computedPaidAmount)
+}

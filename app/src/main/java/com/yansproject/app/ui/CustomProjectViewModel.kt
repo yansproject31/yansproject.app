@@ -124,7 +124,7 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
                 )
                 repository.createProject(entity, "PRJ", discountNominal = project.discountNominal)
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("CustomProjectViewModel", "Error saving project to database: ${e.message}", e)
             }
         }
     }
@@ -149,7 +149,7 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
                         db.projectDao().updateProject(project.copy(status = dbStatus))
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    android.util.Log.e("CustomProjectViewModel", "Error transitioning status for $projectId: ${e.message}", e)
                 }
             }
         }
@@ -163,7 +163,10 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
         if (rawId != null) {
             viewModelScope.launch {
                 try {
-                    val db = AppDatabase.getDatabase(getApplication())
+                    val context = getApplication<Application>()
+                    val adminName = AppSettings.getStoreName(context).ifBlank { "System" }
+                    val adminUid = AppSettings.getEmail(context).ifBlank { "sys_user" }
+                    val db = AppDatabase.getDatabase(context)
                     val invoices = db.invoiceDao().getInvoicesList()
                     val linkedInvoice = invoices.find { it.projectId == rawId }
                     if (linkedInvoice != null) {
@@ -173,8 +176,8 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
                             method = if (payment.paymentMethod.isBlank()) "Transfer" else payment.paymentMethod,
                             methodDetail = "Tahapan Project Custom",
                             notes = if (payment.description.isBlank()) "Pembayaran Tahapan Project Custom" else payment.description,
-                            adminName = "Owner",
-                            adminUid = "owner_sys",
+                            adminName = adminName,
+                            adminUid = adminUid,
                             customDate = payment.dateTimestamp
                         )
                     } else {
@@ -188,7 +191,7 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
                         }
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    android.util.Log.e("CustomProjectViewModel", "Error adding staged payment for $projectId: ${e.message}", e)
                 }
             }
         }
@@ -209,7 +212,7 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
                         repository.deleteProject(entity)
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    android.util.Log.e("CustomProjectViewModel", "Error deleting project $rawId: ${e.message}", e)
                 }
             }
         }

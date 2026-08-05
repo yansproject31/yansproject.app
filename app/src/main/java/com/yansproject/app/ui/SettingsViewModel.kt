@@ -56,8 +56,8 @@ class SettingsViewModel : ViewModel() {
             val code = connection.responseCode
             code in 200..399
         } catch (e: Exception) {
-            // Fallback mock check if unreachable in sandbox environment to maintain active UI
-            (1..2).random() == 1
+            // Deterministic offline response when endpoint is unreachable or network throws
+            false
         }
     }
 

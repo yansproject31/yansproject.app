@@ -112,7 +112,8 @@ fun KitabDigitalScreen(
         books.find { it.id == selectedBookId } ?: books.first()
     }
 
-    val prefs = remember(context) { context.getSharedPreferences("kitab_prefs", Context.MODE_PRIVATE) }
+    val activeUserId = com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState().value?.uid ?: "guest"
+    val prefs = remember(context, activeUserId) { context.getSharedPreferences("kitab_prefs_$activeUserId", Context.MODE_PRIVATE) }
     var bookmarkedBabs by remember { mutableStateOf(prefs.getStringSet("bookmarks", emptySet()) ?: emptySet()) }
     var completedBabs by remember { mutableStateOf(prefs.getStringSet("completed", emptySet()) ?: emptySet()) }
     var lastOpenedBabTitle by remember { mutableStateOf(prefs.getString("last_opened_title_new", "Belum dibaca") ?: "Belum dibaca") }

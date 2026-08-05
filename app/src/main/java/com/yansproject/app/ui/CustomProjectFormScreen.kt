@@ -59,14 +59,14 @@ fun CustomProjectFormScreen(
     // 2. Pricing & Cost States (Owner Manual Input for Base Prices)
     val defaultCustomBase = com.yansproject.app.ui.AppSettings.getCustomBasePrice(context).toInt().let { if (it > 0) it else 85000 }
     val defaultCustomLongAdd = com.yansproject.app.ui.AppSettings.getCustomSleeveLongPrice(context).toInt().let { if (it > 0) it else 10000 }
+    val defaultKidsBase = com.yansproject.app.ui.AppSettings.getCustomKidsBasePrice(context).toInt().let { if (it > 0) it else 65000 }
+    val kidsLongAddon = com.yansproject.app.ui.AppSettings.getCustomKidsSleeveLongPrice(context)
 
     var adultPriceShort by remember { mutableStateOf(defaultCustomBase.toString()) }
     var adultPriceLong by remember { mutableStateOf((defaultCustomBase + defaultCustomLongAdd).toString()) }
 
-    var kidsPriceShort by remember { mutableStateOf("65000") }
-    // Kids Long sleeve is FIXED (+) Rp 5.000 default setting
-    val kidsLongAddon = 5000.0
-    val kidsPriceLongComputed = (kidsPriceShort.toDoubleOrNull() ?: 65000.0) + kidsLongAddon
+    var kidsPriceShort by remember { mutableStateOf(defaultKidsBase.toString()) }
+    val kidsPriceLongComputed = (kidsPriceShort.toDoubleOrNull() ?: defaultKidsBase.toDouble()) + kidsLongAddon
 
     // ERP Upsize Configurations for Reguler
     val upsizeXxlPrice = remember(context) { com.yansproject.app.ui.AppSettings.getCustomUpsizeXXL(context) }
@@ -82,9 +82,9 @@ fun CustomProjectFormScreen(
     // Item Price Calculations
     fun calculateRegulerPrice(size: String, sleeve: String): Double {
         val base = if (sleeve.equals("Panjang", ignoreCase = true)) {
-            adultPriceLong.toDoubleOrNull() ?: 95000.0
+            adultPriceLong.toDoubleOrNull() ?: (defaultCustomBase + defaultCustomLongAdd).toDouble()
         } else {
-            adultPriceShort.toDoubleOrNull() ?: 85000.0
+            adultPriceShort.toDoubleOrNull() ?: defaultCustomBase.toDouble()
         }
         val upsizeCharge = when (size.uppercase()) {
             "XXL" -> upsizeXxlPrice
@@ -96,7 +96,7 @@ fun CustomProjectFormScreen(
     }
 
     fun calculateKidsPrice(size: String, sleeve: String): Double {
-        val kidsBase = kidsPriceShort.toDoubleOrNull() ?: 65000.0
+        val kidsBase = kidsPriceShort.toDoubleOrNull() ?: defaultKidsBase.toDouble()
         val base = if (sleeve.equals("Panjang", ignoreCase = true)) {
             kidsBase + kidsLongAddon
         } else {
@@ -353,7 +353,7 @@ fun CustomProjectFormScreen(
                                 value = kidsPriceShort,
                                 onValueChange = { kidsPriceShort = it.filter { c -> c.isDigit() } },
                                 label = "Harga Kids Pendek (Rp)",
-                                placeholder = "65000",
+                                placeholder = defaultKidsBase.toString(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f).testTag("input_kids_short_price")
                             )
@@ -832,9 +832,9 @@ fun CustomProjectFormScreen(
                         deliveryAddress = deliveryAddress,
                         specialNotes = combinedDescription,
                         status = "PENDING",
-                        adultPriceShort = adultPriceShort.toDoubleOrNull() ?: 85000.0,
-                        adultPriceLong = adultPriceLong.toDoubleOrNull() ?: 95000.0,
-                        kidsPriceShort = kidsPriceShort.toDoubleOrNull() ?: 65000.0,
+                        adultPriceShort = adultPriceShort.toDoubleOrNull() ?: defaultCustomBase.toDouble(),
+                        adultPriceLong = adultPriceLong.toDoubleOrNull() ?: (defaultCustomBase + defaultCustomLongAdd).toDouble(),
+                        kidsPriceShort = kidsPriceShort.toDoubleOrNull() ?: defaultKidsBase.toDouble(),
                         kidsPriceLong = kidsPriceLongComputed,
                         adultHppShort = hppRegPendek,
                         adultHppLong = hppRegPanjang,

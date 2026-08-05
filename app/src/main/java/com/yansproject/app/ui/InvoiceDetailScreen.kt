@@ -1,5 +1,6 @@
 package com.yansproject.app.ui
 
+import android.util.Log
 import android.bluetooth.BluetoothDevice
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -139,17 +140,33 @@ fun InvoiceDetailScreen(
                     )
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("InvoiceDetailScreen", "Error parsing item descriptions for invoice ${invoice.invoiceNumber}: ${e.message}", e)
             }
         }
-        list.sortedWith(
-            compareBy<OrderItemParsed> { com.yansproject.app.ui.InvoiceItemSorter.getSleeveIndex(it.sleeve) }
-                .thenBy { com.yansproject.app.ui.InvoiceItemSorter.getSizeIndex(it.size) }
-        )
+        try {
+            list.sortedWith(
+                compareBy<OrderItemParsed> { com.yansproject.app.ui.InvoiceItemSorter.getSleeveIndex(it.sleeve) }
+                    .thenBy { com.yansproject.app.ui.InvoiceItemSorter.getSizeIndex(it.size) }
+            )
+        } catch (e: Exception) {
+            Log.e("InvoiceDetailScreen", "Error sorting parsed order items: ${e.message}", e)
+            list
+        }
     }
 
     val invoiceItems = remember(invoice.itemsJson) {
-        converters.toInvoiceItemList(invoice.itemsJson)
+        try {
+            converters.toInvoiceItemList(invoice.itemsJson)
+        } catch (e: Exception) {
+            Log.e("InvoiceDetailScreen", "Error converting invoice itemsJson for ${invoice.invoiceNumber}: ${e.message}", e)
+            val repaired = SchemaDriftRepairGuard.repairInvoiceJson(invoice.itemsJson)
+            try {
+                converters.toInvoiceItemList(repaired)
+            } catch (e2: Exception) {
+                Log.e("InvoiceDetailScreen", "Failed parsing even after drift repair: ${e2.message}", e2)
+                emptyList()
+            }
+        }
     }
 
     // Dynamic state trackers for reactive updates

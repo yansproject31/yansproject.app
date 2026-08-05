@@ -56,12 +56,24 @@ class AjibqobulStockViewModel(application: Application) : AndroidViewModel(appli
                 for (color in series.allowedColors) {
                     for (sleeve in SleeveType.values()) {
                         for (size in ApparelSize.values()) {
-                            // Assign realistic default values
-                            val baseCost = if (sleeve == SleeveType.PANJANG) 95000.0 else 85000.0
-                            val retail = if (sleeve == SleeveType.PANJANG) 165000.0 else 150000.0
-                            val member = if (sleeve == SleeveType.PANJANG) 135000.0 else 120000.0
-                            val reseller = if (sleeve == SleeveType.PANJANG) 125000.0 else 110000.0
-                            val custom = if (sleeve == SleeveType.PANJANG) 175000.0 else 160000.0
+                            // Default matrix pricing loaded from AppSettings or fallback defaults
+                            val context = getApplication<Application>()
+                            val defaultBaseCostShort = AppSettings.getAjibqobulHppPendek(context)
+                            val defaultBaseCostLong = AppSettings.getAjibqobulHppPanjang(context)
+                            val defaultRetailShort = AppSettings.getAjibqobulHargaRetail(context)
+                            val defaultRetailLong = defaultRetailShort + AppSettings.getAjibqobulSleeveLongPrice(context)
+                            val defaultMemberShort = AppSettings.getAjibqobulHargaMember(context)
+                            val defaultMemberLong = defaultMemberShort + AppSettings.getAjibqobulSleeveLongPrice(context)
+                            val defaultResellerShort = AppSettings.getAjibqobulHargaReseller(context)
+                            val defaultResellerLong = defaultResellerShort + AppSettings.getAjibqobulSleeveLongPrice(context)
+                            val defaultCustomShort = AppSettings.getAjibqobulHargaCustom(context)
+                            val defaultCustomLong = defaultCustomShort + AppSettings.getAjibqobulSleeveLongPrice(context)
+
+                            val baseCost = if (sleeve == SleeveType.PANJANG) defaultBaseCostLong else defaultBaseCostShort
+                            val retail = if (sleeve == SleeveType.PANJANG) defaultRetailLong else defaultRetailShort
+                            val member = if (sleeve == SleeveType.PANJANG) defaultMemberLong else defaultMemberShort
+                            val reseller = if (sleeve == SleeveType.PANJANG) defaultResellerLong else defaultResellerShort
+                            val custom = if (sleeve == SleeveType.PANJANG) defaultCustomLong else defaultCustomShort
 
                             // Starting stock is initialized to 0 for production-ready state
                             val seedStock = 0

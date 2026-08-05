@@ -1031,7 +1031,35 @@ fun MemberEnterpriseCard(
     isRefreshing: Boolean
 ) {
     val context = LocalContext.current
-    val memberInvoices = invoices.filter { !it.isDeleted && it.clientName.equals(member.displayName, ignoreCase = true) }
+    val memberInvoices = remember(invoices, member) {
+        val name = member.displayName.trim()
+        val email = member.email.trim().lowercase()
+        val wa = member.whatsapp.replace("+", "").trim()
+        invoices.filter { inv ->
+            if (inv.isDeleted) return@filter false
+            
+            // 1. Stable Identity Match: Exact Email match
+            val matchesEmail = email.isNotBlank() && (
+                inv.itemsJson.lowercase().contains("__email__:$email") ||
+                inv.clientName.trim().lowercase() == email
+            )
+            if (matchesEmail) return@filter true
+
+            // 2. Stable Identity Match: Exact Phone / WhatsApp match
+            val invPhone = inv.clientPhone.replace("+", "").trim()
+            val matchesPhone = wa.isNotBlank() && invPhone.isNotBlank() && (
+                invPhone == wa || invPhone.endsWith(wa) || wa.endsWith(invPhone)
+            )
+            if (matchesPhone) return@filter true
+
+            // 3. Fallback Identity Match: Exact Name match (case-insensitive)
+            if (name.isNotBlank() && inv.clientName.trim().equals(name, ignoreCase = true)) {
+                return@filter true
+            }
+
+            false
+        }
+    }
     val totalInvoiceCount = memberInvoices.size
     val totalNilaiPembelian = memberInvoices.sumOf { it.totalAmount }
     val totalTerbayar = memberInvoices.sumOf { it.paidAmount }
@@ -1042,14 +1070,18 @@ fun MemberEnterpriseCard(
         try {
             converters.toInvoiceItemList(inv.itemsJson).sumOf { it.quantity }
         } catch (e: Exception) {
+            Log.e("MemberCard", "Error parsing item JSON for invoice ${inv.invoiceNumber}: ${e.message}")
             0
         }
     }
 
     val joinDateStr = remember(member.createdAt) {
-        if (member.createdAt <= 0L) "20 Jul 2026" else try {
+        if (member.createdAt <= 0L) "- (Belum Terdata)" else try {
             SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")).format(Date(member.createdAt))
-        } catch (e: Exception) { "20 Jul 2026" }
+        } catch (e: Exception) {
+            Log.e("MemberCard", "Error formatting createdAt timestamp ${member.createdAt}: ${e.message}")
+            "- (Tanggal Tidak Valid)"
+        }
     }
 
     val lastOrder = remember(memberInvoices) {
@@ -1280,11 +1312,28 @@ fun MemberDetailAnalyticsSheet(
         val email = member.email.trim().lowercase()
         val wa = member.whatsapp.replace("+", "").trim()
         invoices.filter { inv ->
-            !inv.isDeleted && (
-                (name.isNotBlank() && (inv.clientName.contains(name, ignoreCase = true) || name.contains(inv.clientName, ignoreCase = true))) ||
-                (email.isNotBlank() && (inv.clientName.lowercase().contains(email) || inv.itemsJson.lowercase().contains("__email__:$email") || inv.itemsJson.lowercase().contains(email))) ||
-                (wa.isNotBlank() && inv.clientPhone.replace("+", "").trim().let { p -> p.contains(wa) || wa.contains(p) })
+            if (inv.isDeleted) return@filter false
+            
+            // 1. Stable Identity Match: Exact Email match
+            val matchesEmail = email.isNotBlank() && (
+                inv.itemsJson.lowercase().contains("__email__:$email") ||
+                inv.clientName.trim().lowercase() == email
             )
+            if (matchesEmail) return@filter true
+
+            // 2. Stable Identity Match: Exact Phone / WhatsApp match
+            val invPhone = inv.clientPhone.replace("+", "").trim()
+            val matchesPhone = wa.isNotBlank() && invPhone.isNotBlank() && (
+                invPhone == wa || invPhone.endsWith(wa) || wa.endsWith(invPhone)
+            )
+            if (matchesPhone) return@filter true
+
+            // 3. Fallback Identity Match: Exact Name match (case-insensitive)
+            if (name.isNotBlank() && inv.clientName.trim().equals(name, ignoreCase = true)) {
+                return@filter true
+            }
+
+            false
         }
     }
 
@@ -1328,7 +1377,7 @@ fun MemberDetailAnalyticsSheet(
                     }
                 }
             } catch (e: Exception) {
-                Log.e("MemberDetail", "Error parsing item JSON: ${e.message}")
+                Log.e("MemberDetail", "Error parsing item JSON for invoice ${inv.invoiceNumber}: ${e.message}", e)
             }
         }
 
@@ -1364,9 +1413,12 @@ fun MemberDetailAnalyticsSheet(
         )
     }
 
-    val joinDateStr = if (member.createdAt <= 0L) "20 Jul 2026" else try {
+    val joinDateStr = if (member.createdAt <= 0L) "- (Belum Terdata)" else try {
         SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")).format(Date(member.createdAt))
-    } catch (e: Exception) { "20 Jul 2026" }
+    } catch (e: Exception) {
+        Log.e("MemberDetail", "Error formatting member createdAt timestamp ${member.createdAt}: ${e.message}")
+        "- (Tanggal Tidak Valid)"
+    }
 
     val firstOrderStr = if (analytics.firstOrderDate <= 0L) "-" else try {
         SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")).format(Date(analytics.firstOrderDate))

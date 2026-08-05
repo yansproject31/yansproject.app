@@ -66,16 +66,27 @@ class DebtReminderManager(private val context: Context) {
 
         // 2. Load Endpoint URL
         val prefs = context.getSharedPreferences("api_health_prefs", Context.MODE_PRIVATE)
-        val rawN8nUrl = prefs.getString("n8n_url", "https://primary-production.shared.n8n.cloud") ?: "https://primary-production.shared.n8n.cloud"
-        val n8nBase = if (rawN8nUrl.startsWith("http")) rawN8nUrl else "https://$rawN8nUrl"
-        
-        // Append specific debt path or trigger endpoint
+        val rawN8nUrl = prefs.getString("n8n_url", "https://primary-production.shared.n8n.cloud")?.trim() ?: "https://primary-production.shared.n8n.cloud"
+        if (rawN8nUrl.isBlank()) {
+            val failureDetail = "Configuration failure: Empty n8n webhook URL setting."
+            Log.e(TAG, failureDetail)
+            appDb.auditLogDao().insertLog(
+                AuditLog(
+                    activity = "DEBT_COLLECTOR_FAILED",
+                    details = "Failed triggering WhatsApp reminder for Invoice ${invoice.invoiceNumber}. $failureDetail"
+                )
+            )
+            return@withContext false
+        }
+
+        val n8nBase = if (rawN8nUrl.startsWith("http://") || rawN8nUrl.startsWith("https://")) rawN8nUrl else "https://$rawN8nUrl"
         val reminderWebhookUrl = "$n8nBase/webhook/yans-debt-reminder"
 
         Log.d(TAG, "Triggering WhatsApp Reminder Webhook -> $reminderWebhookUrl")
 
-        // 3. Post asynchronoulsy to n8n Webhook
+        // 3. Post asynchronously to n8n Webhook
         var connection: HttpURLConnection? = null
+        var failureReason: String? = null
         val success = try {
             val url = URL(reminderWebhookUrl)
             connection = url.openConnection() as HttpURLConnection
@@ -106,10 +117,25 @@ class DebtReminderManager(private val context: Context) {
             }
 
             val code = connection.responseCode
-            Log.d(TAG, "Debt Reminder trigger responded with HTTP Code: $code")
-            code in 200..299
+            if (code in 200..299) {
+                Log.d(TAG, "Debt Reminder trigger succeeded with HTTP Code: $code")
+                true
+            } else {
+                failureReason = "HTTP failure with response code $code"
+                Log.e(TAG, "Debt Reminder trigger failed: $failureReason")
+                false
+            }
+        } catch (e: java.net.MalformedURLException) {
+            failureReason = "Configuration failure: Malformed URL $reminderWebhookUrl (${e.message})"
+            Log.e(TAG, failureReason, e)
+            false
+        } catch (e: java.io.IOException) {
+            failureReason = "Transport/Network failure connecting to $reminderWebhookUrl (${e.message})"
+            Log.e(TAG, failureReason, e)
+            false
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to shoot reminder webhook", e)
+            failureReason = "Unexpected failure (${e.javaClass.simpleName}): ${e.message}"
+            Log.e(TAG, failureReason, e)
             false
         } finally {
             connection?.disconnect()
@@ -127,7 +153,7 @@ class DebtReminderManager(private val context: Context) {
             appDb.auditLogDao().insertLog(
                 AuditLog(
                     activity = "DEBT_COLLECTOR_FAILED",
-                    details = "Failed triggering WhatsApp reminder for Invoice ${invoice.invoiceNumber}. Checked offline payload status."
+                    details = "Failed triggering WhatsApp reminder for Invoice ${invoice.invoiceNumber}. Reason: ${failureReason ?: "Unknown"}"
                 )
             )
         }

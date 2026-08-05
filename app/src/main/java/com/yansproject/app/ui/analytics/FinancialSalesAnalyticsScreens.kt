@@ -725,6 +725,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                     .filter { !it.description.startsWith("__") && it.quantity > 0 }
                     .sumOf { it.quantity }
             } catch (e: Exception) {
+                android.util.Log.e("FinancialAnalytics", "Parse failure in invoice items for inv ${inv.id}: ${e.message}")
                 0
             }
         }
@@ -737,6 +738,7 @@ fun AnalisisPenjualanAjibqobulScreen(
                     .filter { it.quantity > 0 }
                     .sumOf { it.quantity }
             } catch (e: Exception) {
+                android.util.Log.e("FinancialAnalytics", "Parse failure in order items for order ${ord.id}: ${e.message}")
                 0
             }
         }
@@ -789,7 +791,10 @@ fun AnalisisPenjualanAjibqobulScreen(
                 converters.toInvoiceItemList(inv.itemsJson ?: "[]")
                     .filter { !it.description.startsWith("__") && it.quantity > 0 }
                     .sumOf { it.quantity }
-            } catch (e: Exception) { 0 }
+            } catch (e: Exception) {
+                android.util.Log.e("FinancialAnalytics", "Parse failure in member invoice items for inv ${inv.id}: ${e.message}")
+                0
+            }
         }
     }
     val memberOrderQty = remember(memberStandaloneOrders) {
@@ -798,7 +803,10 @@ fun AnalisisPenjualanAjibqobulScreen(
                 converters.toOrderItemList(ord.itemsJson ?: "[]")
                     .filter { it.quantity > 0 }
                     .sumOf { it.quantity }
-            } catch (e: Exception) { 0 }
+            } catch (e: Exception) {
+                android.util.Log.e("FinancialAnalytics", "Parse failure in member order items for order ${ord.id}: ${e.message}")
+                0
+            }
         }
     }
     val memberQty = memberInvoiceQty + memberOrderQty

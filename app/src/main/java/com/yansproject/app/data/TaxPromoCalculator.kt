@@ -26,7 +26,7 @@ object TaxPromoCalculator {
      * @param discountPercent Tiered percentage discount (e.g. 10.0 for 10%).
      * @param discountNominal Additional direct nominal deduction in IDR.
      * @param taxPercent Dynamic tax percentage (e.g. 11.0 for 11% PPN).
-     * @param gatewayFeePercent Paper.id credit card/QRIS processing percentage (e.g. 1.5 for 1.5%).
+     * @param gatewayFeePercent Payment gateway processing percentage (e.g. 1.5 for 1.5%).
      * @param paidAmount Amount already paid by customer.
      */
     fun calculate(
@@ -63,7 +63,7 @@ object TaxPromoCalculator {
         // 5. Total with tax (base for PG fee)
         val amountWithTax = subtotalAfterDiscount.add(taxAmount)
 
-        // 6. Calculate payment gateway admin fee (Paper.id)
+        // 6. Calculate payment gateway processing fee
         val gatewayFee = amountWithTax.multiply(feePctDec.divide(BigDecimal("100"), 4, RoundingMode.HALF_UP))
 
         // 7. Calculate final grand total

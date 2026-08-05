@@ -121,22 +121,29 @@ fun RiwayatScreen(
 
     val filteredInvoices = remember(invoices, searchQuery, selectedFilter, selectedCategory, currentUser) {
         val memberName = (currentUser?.displayName ?: "").trim()
-        val memberPhone = (currentUser?.whatsapp ?: "").replace("+", "").trim()
+        val memberPhone = (currentUser?.whatsapp ?: "").replace("+", "").replace("-", "").trim()
         val memberEmail = (currentUser?.email ?: "").trim().lowercase()
+        val memberUid = (currentUser?.uid ?: "").trim()
 
         invoices.filter { invoice ->
             val converters = AppTypeConverters()
             val items = converters.toInvoiceItemList(invoice.itemsJson)
 
-            // If Member, verify ownership by name, phone, or email marker
+            // If Member, verify ownership by uid marker, name, phone, or email
             if (!isOwner) {
+                val matchesUid = memberUid.isNotBlank() && (
+                    (invoice.itemsJson ?: "").contains("__uid__:$memberUid") ||
+                    (invoice.itemsJson ?: "").contains("__user__:$memberUid")
+                )
                 val matchesName = memberName.isNotBlank() && (
+                    (invoice.clientName ?: "").equals(memberName, ignoreCase = true) ||
                     (invoice.clientName ?: "").contains(memberName, ignoreCase = true) ||
                     memberName.contains(invoice.clientName ?: "", ignoreCase = true)
                 )
-                val cleanInvPhone = (invoice.clientPhone ?: "").replace("+", "").trim()
-                val matchesPhone = memberPhone.isNotBlank() && cleanInvPhone.isNotBlank() && (
-                    cleanInvPhone.contains(memberPhone) || memberPhone.contains(cleanInvPhone)
+                val cleanInvPhone = (invoice.clientPhone ?: "").replace("+", "").replace("-", "").replace(" ", "").trim()
+                val cleanMemPhone = memberPhone.replace(" ", "")
+                val matchesPhone = cleanMemPhone.isNotBlank() && cleanInvPhone.isNotBlank() && (
+                    cleanInvPhone.contains(cleanMemPhone) || cleanMemPhone.contains(cleanInvPhone)
                 )
                 val matchesEmail = memberEmail.isNotBlank() && (
                     (invoice.clientName ?: "").lowercase().contains(memberEmail) ||
@@ -144,7 +151,7 @@ fun RiwayatScreen(
                     (invoice.itemsJson ?: "").lowercase().contains(memberEmail) ||
                     items.any { (it.description ?: "").lowercase().contains(memberEmail) }
                 )
-                if (!matchesName && !matchesPhone && !matchesEmail) return@filter false
+                if (!matchesUid && !matchesName && !matchesPhone && !matchesEmail) return@filter false
             }
 
             // Category Filter (Single Source of Truth)
@@ -1320,7 +1327,8 @@ fun DetailRiwayatBottomSheet(
                                     try {
                                         context.startActivity(intent)
                                     } catch (e: Exception) {
-                                        Toast.makeText(context, "Gagal membuka WhatsApp: ${e.message}", Toast.LENGTH_LONG).show()
+                                        android.util.Log.e("RiwayatScreen", "Failed to contact admin via WhatsApp: ${e.message}", e)
+                                        Toast.makeText(context, "Aplikasi WhatsApp tidak ditemukan di perangkat ini.", Toast.LENGTH_LONG).show()
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth().height(40.dp),
@@ -1646,11 +1654,17 @@ fun shareToWhatsApp(
         }
         context.startActivity(intent)
     } catch (e: Exception) {
-        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(android.content.Intent.EXTRA_TEXT, text)
+        android.util.Log.w("RiwayatScreen", "WhatsApp direct share failed, attempting system chooser: ${e.message}")
+        try {
+            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_TEXT, text)
+            }
+            context.startActivity(android.content.Intent.createChooser(intent, "Bagikan via"))
+        } catch (err: Exception) {
+            android.util.Log.e("RiwayatScreen", "Failed to share text content: ${err.message}", err)
+            Toast.makeText(context, "Gagal membagikan invoice.", Toast.LENGTH_SHORT).show()
         }
-        context.startActivity(android.content.Intent.createChooser(intent, "Bagikan via"))
     }
 }
 
@@ -1702,9 +1716,14 @@ fun printInvoicePdf(context: Context, invoice: Invoice) {
                         }
                         callback?.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
                     } catch (e: Exception) {
+                        android.util.Log.e("RiwayatScreen", "Error writing PDF bytes for print: ${e.message}", e)
                         callback?.onWriteFailed(e.message)
                     } finally {
-                        pdfFileDescriptor?.close()
+                        try {
+                            pdfFileDescriptor?.close()
+                        } catch (closeErr: Exception) {
+                            android.util.Log.e("RiwayatScreen", "Error closing pdfFileDescriptor: ${closeErr.message}", closeErr)
+                        }
                     }
                 }
             }
@@ -1713,7 +1732,8 @@ fun printInvoicePdf(context: Context, invoice: Invoice) {
             Toast.makeText(context, "Fitur cetak tidak didukung di perangkat ini.", Toast.LENGTH_SHORT).show()
         }
     } catch (e: Exception) {
-        Toast.makeText(context, "Gagal mencetak: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        android.util.Log.e("RiwayatScreen", "Failed to print invoice PDF: ${e.message}", e)
+        Toast.makeText(context, "Gagal mencetak Invoice.", Toast.LENGTH_SHORT).show()
     }
 }
 

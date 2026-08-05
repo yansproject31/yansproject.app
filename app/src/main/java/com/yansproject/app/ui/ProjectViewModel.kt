@@ -31,14 +31,18 @@ class ProjectViewModel(application: Application) : AndroidViewModel(application)
     val errorEvent: StateFlow<String?> = _errorEvent.asStateFlow()
 
     init {
-        loadMockProjects()
+        // Production initialization starts clean
+        _projectsState.value = emptyList()
     }
 
-    private fun loadMockProjects() {
+    /**
+     * Isolated demo loader for testing scenarios.
+     */
+    fun loadDemoProjectsForTesting() {
         _projectsState.value = listOf(
             DomainProject(
-                id = "proj_001",
-                projectName = "Jersey Futsal Al-Fatih",
+                id = "proj_001_demo",
+                projectName = "Jersey Futsal Al-Fatih (DEMO)",
                 clientName = "Ahmad Sobari",
                 clientPhone = "08123456789",
                 description = "Jersey printing microfibe full sublim",
@@ -49,8 +53,8 @@ class ProjectViewModel(application: Application) : AndroidViewModel(application)
                 qtyXS = 0, qtyS = 2, qtyM = 10, qtyL = 15, qtyXL = 5, qtyXXL = 3, qty3XL = 0, qty4XL = 0
             ),
             DomainProject(
-                id = "proj_002",
-                projectName = "Kaos Reuni SMA 1 Yogyakara",
+                id = "proj_002_demo",
+                projectName = "Kaos Reuni SMA 1 Yogyakara (DEMO)",
                 clientName = "Dewi Lestari",
                 clientPhone = "08771234567",
                 description = "Bahan Cotton Combed 30s Sablon Plastisol",

@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yansproject.app.data.UserRole
 import com.yansproject.app.ui.theme.AlertOrange
+import com.yansproject.app.ui.theme.AlertRed
+import com.yansproject.app.ui.theme.ShadowBlack
 import com.yansproject.app.ui.theme.TextMuted
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -56,9 +58,7 @@ fun YansNavHost(
     val userRole = currentUser?.role
 
     val context = androidx.compose.ui.platform.LocalContext.current
-    val isAlreadyBootstrapped = androidx.compose.runtime.remember {
-        com.yansproject.app.data.SyncMetadataManager.getInstance(context).getState() == com.yansproject.app.data.BootstrapState.FINISHED
-    }
+    val isAlreadyBootstrapped = com.yansproject.app.data.SyncMetadataManager.getInstance(context).getState() == com.yansproject.app.data.BootstrapState.FINISHED
     val initialRoute = if (isAlreadyBootstrapped) Routes.Dashboard else Routes.Startup
 
     NavHost(
@@ -434,16 +434,34 @@ fun YansNavHost(
         composable(Routes.CustomProjectMain) {
             CustomProjectScreen(
                 onNavigateToCreate = { navController.navigate(Routes.AddProject) },
-                onNavigateToDetail = { id -> navController.navigate("custom_project_detail/$id") }
+                onNavigateToDetail = { id -> 
+                    if (!id.isNullOrBlank()) {
+                        navController.navigate("custom_project_detail/$id")
+                    }
+                }
             )
         }
         
         composable(Routes.CustomProjectDetail) { backStackEntry ->
-            val id = backStackEntry.arguments?.getString("projectId") ?: ""
-            ProfessionalInvoiceDetailScreen(
-                projectId = id,
-                onNavigateBack = { navController.popBackStack() }
-            )
+            val id = backStackEntry.arguments?.getString("projectId")?.trim() ?: ""
+            if (id.isBlank()) {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(ShadowBlack),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "ID Project Tidak Valid atau Kosong",
+                        color = AlertRed,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else {
+                ProfessionalInvoiceDetailScreen(
+                    projectId = id,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
         }
         
         composable(Routes.InstantCheckout) {

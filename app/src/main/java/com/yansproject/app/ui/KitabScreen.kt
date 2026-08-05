@@ -148,8 +148,9 @@ fun KitabScreen(viewModel: MainViewModel) {
         books.find { it.id == selectedBookId } ?: books.first()
     }
 
-    // --- SHARED PREFERENCES LOCAL STORAGE ---
-    val prefs = remember(context) { context.getSharedPreferences("kitab_prefs", Context.MODE_PRIVATE) }
+    // --- SHARED PREFERENCES LOCAL STORAGE (USER SCOPED) ---
+    val activeUserId = com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState().value?.uid ?: "guest"
+    val prefs = remember(context, activeUserId) { context.getSharedPreferences("kitab_prefs_$activeUserId", Context.MODE_PRIVATE) }
     
     var bookmarkedBabs by remember {
         mutableStateOf(prefs.getStringSet("bookmarks", emptySet()) ?: emptySet())
@@ -866,7 +867,8 @@ fun ReaderPage(
     onBackToCover: () -> Unit
 ) {
     val context = LocalContext.current
-    val prefs = remember(context) { context.getSharedPreferences("kitab_prefs", Context.MODE_PRIVATE) }
+    val activeUserId = com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState().value?.uid ?: "guest"
+    val prefs = remember(context, activeUserId) { context.getSharedPreferences("kitab_prefs_$activeUserId", Context.MODE_PRIVATE) }
     val scrollState = rememberScrollState()
 
     // Restore scroll position when babId changes

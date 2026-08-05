@@ -76,20 +76,24 @@ object LocalDualDocumentRenderer {
         }
 
         // Header Title
+        val companyTitle = if (context != null) BusinessIdentityProvider.getCompanyName(context) else BusinessIdentityProvider.DEFAULT_COMPANY_NAME
+        val tagline = BusinessIdentityProvider.DEFAULT_STORE_TAGLINE
+        val supportWa = if (context != null) BusinessIdentityProvider.getSupportWhatsApp(context) else BusinessIdentityProvider.DEFAULT_SUPPORT_WHATSAPP
+
         paint.color = accentColor
         paint.textSize = 30f
         paint.isFakeBoldText = true
-        canvas.drawText("YANSPROJECT.ID", 130f, 55f, paint)
+        canvas.drawText(companyTitle, 130f, 55f, paint)
 
         // Subtitle Branding
         paint.textSize = 15f
         paint.color = 0xFFFFFFFF.toInt()
         paint.isFakeBoldText = false
-        canvas.drawText("Luxury Visual Identity & Custom Merch", 130f, 78f, paint)
+        canvas.drawText(tagline, 130f, 78f, paint)
 
         paint.textSize = 13f
         paint.color = 0xFF4FD1C5.toInt()
-        canvas.drawText("MAKNA SEBELUM ESTETIKA • CS: +62 877-7739-8813", 130f, 100f, paint)
+        canvas.drawText("MAKNA SEBELUM ESTETIKA • CS: $supportWa", 130f, 100f, paint)
 
         // Draw Card Container Area
         paint.color = cardColor
@@ -145,9 +149,9 @@ object LocalDualDocumentRenderer {
      */
     fun saveToPicturesGallery(context: Context, projectName: String, bitmap: Bitmap): File? {
         return try {
-            val picturesDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "YansProjectID")
-            if (!picturesDir.exists()) {
-                picturesDir.mkdirs()
+            var picturesDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "YansProjectID")
+            if (!picturesDir.exists() && !picturesDir.mkdirs()) {
+                picturesDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES) ?: context.filesDir
             }
             val fileName = "INV_CUSTOM_${System.currentTimeMillis()}.png"
             val file = File(picturesDir, fileName)
@@ -158,8 +162,19 @@ object LocalDualDocumentRenderer {
             Log.d(TAG, "Successfully exported digital invoice PNG to: ${file.absolutePath}")
             file
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to save digital invoice into pictures gallery", e)
-            null
+            Log.e(TAG, "Failed to save digital invoice into pictures gallery, attempting app internal files", e)
+            try {
+                val fallbackDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES) ?: context.filesDir
+                val file = File(fallbackDir, "INV_CUSTOM_${System.currentTimeMillis()}.png")
+                val outputStream = FileOutputStream(file)
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                outputStream.flush()
+                outputStream.close()
+                file
+            } catch (fallbackEx: Exception) {
+                Log.e(TAG, "Fallback save also failed", fallbackEx)
+                null
+            }
         }
     }
 
@@ -190,9 +205,9 @@ object LocalDualDocumentRenderer {
         document.finishPage(page)
 
         return try {
-            val downloadDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "YansProjectID")
-            if (!downloadDir.exists()) {
-                downloadDir.mkdirs()
+            var downloadDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "YansProjectID")
+            if (!downloadDir.exists() && !downloadDir.mkdirs()) {
+                downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
             }
             val fileName = "INV_PRINT_${System.currentTimeMillis()}.pdf"
             val file = File(downloadDir, fileName)
@@ -204,8 +219,18 @@ object LocalDualDocumentRenderer {
             file
         } catch (e: Exception) {
             Log.e(TAG, "Failed to write PDF file to downloads", e)
-            document.close()
-            null
+            try {
+                val fallbackDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+                val file = File(fallbackDir, "INV_PRINT_${System.currentTimeMillis()}.pdf")
+                val outputStream = FileOutputStream(file)
+                document.writeTo(outputStream)
+                outputStream.close()
+                document.close()
+                file
+            } catch (fallbackEx: Exception) {
+                document.close()
+                null
+            }
         } finally {
             BitmapMemoryRecycler.recycle(invertedBitmap)
         }

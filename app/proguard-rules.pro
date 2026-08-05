@@ -72,6 +72,14 @@
 -keep class androidx.work.** { *; }
 -dontwarn androidx.work.**
 
-# 8. YANSPROJECT.ID ALL APPLICATION PACKAGES (MENCEGAH R8 MENGAPUS UTIL & SECURITY)
--keep class com.yansproject.app.** { *; }
--keepclassmembers class com.yansproject.app.** { *; }
+# 8. YANSPROJECT.ID TARGETED MODEL & REFLECTION RULES (HARDENED R8 OBFUSCATION)
+-keep @androidx.annotation.Keep class * { *; }
+-keepclassmembers class * {
+    @androidx.annotation.Keep *;
+}
+
+-keep class com.yansproject.app.data.** { *; }
+-keepclassmembers class com.yansproject.app.data.** { *; }
+
+-keep class com.yansproject.app.ui.**ViewModel { *; }
+-keep class * extends androidx.work.ListenableWorker { *; }

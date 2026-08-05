@@ -119,7 +119,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
         cells.forEach { cell ->
             totalQty += cell.quantity
-            val basePrice = priceMap[cell.size] ?: 99000.0
+            val basePrice = priceMap[cell.size] ?: AppSettings.getAjibqobulHargaRetail(getApplication())
             
             // Upsize calculations
             val extraCharge = when (cell.size) {
@@ -155,12 +155,20 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun checkoutCart(context: Context, onCheckoutSuccess: () -> Unit) {
-        if (_state.value.cart.isEmpty()) return
+        if (_state.value.cart.isEmpty()) {
+            Toast.makeText(context, "Keranjang belanja kosong!", Toast.LENGTH_SHORT).show()
+            return
+        }
         viewModelScope.launch {
-            kotlinx.coroutines.delay(800) // Transaksi POS Engine
-            Toast.makeText(context, "POS CHECKOUT BERHASIL! Invoice Tergenerate.", Toast.LENGTH_LONG).show()
-            _state.value = _state.value.copy(cart = emptyList())
-            onCheckoutSuccess()
+            try {
+                kotlinx.coroutines.delay(800) // Transaksi POS Engine
+                Toast.makeText(context, "POS CHECKOUT BERHASIL! Invoice Tergenerate.", Toast.LENGTH_LONG).show()
+                _state.value = _state.value.copy(cart = emptyList())
+                onCheckoutSuccess()
+            } catch (e: Exception) {
+                Log.e("MatrixViewModel", "Checkout failed: ${e.message}", e)
+                Toast.makeText(context, "Gagal checkout POS: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -178,23 +186,28 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch {
-            val returLog = com.yansproject.app.data.ReturLogistik(
-                itemName = s.returnItemName,
-                quantity = qty,
-                reason = s.returnReason,
-                timestamp = System.currentTimeMillis()
-            )
+            try {
+                val returLog = com.yansproject.app.data.ReturLogistik(
+                    itemName = s.returnItemName,
+                    quantity = qty,
+                    reason = s.returnReason,
+                    timestamp = System.currentTimeMillis()
+                )
 
-            withContext(Dispatchers.IO) {
-                returDao.insertRetur(returLog)
+                withContext(Dispatchers.IO) {
+                    returDao.insertRetur(returLog)
+                }
+
+                _state.value = s.copy(
+                    returnItemName = "",
+                    returnReason = "",
+                    returnQuantity = ""
+                )
+                Toast.makeText(context, "Retur logistik terdaftar. Stok available dialihkan ke damaged.", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("MatrixViewModel", "Failed to submit logistics return: ${e.message}", e)
+                Toast.makeText(context, "Gagal menyimpan retur logistik: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             }
-
-            _state.value = s.copy(
-                returnItemName = "",
-                returnReason = "",
-                returnQuantity = ""
-            )
-            Toast.makeText(context, "Retur logistik terdaftar. Stok available dialihkan ke damaged.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -240,7 +253,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val skuCode = "AJIB_${name.uppercase().replace(" ", "_")}_${cell.size}_${cell.sleeve.name}"
 
                 val existing = allStockItems.value.find { it.sku == skuCode }
-                val price = priceMap[cell.size] ?: 99000.0
+                val price = priceMap[cell.size] ?: AppSettings.getAjibqobulHargaRetail(getApplication())
 
                 val itemToSave = if (existing != null) {
                     existing.copy(

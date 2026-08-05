@@ -1,5 +1,6 @@
 package com.yansproject.app.ui
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
  * Restores original state and reports errors via a snackbar channel in case of failure.
  */
 abstract class BaseViewModel<T : Any> : ViewModel() {
+    private val TAG = "BaseViewModel"
 
     protected val _itemsState = MutableStateFlow<List<T>>(emptyList())
     val itemsState: StateFlow<List<T>> = _itemsState.asStateFlow()
@@ -43,10 +45,23 @@ abstract class BaseViewModel<T : Any> : ViewModel() {
             try {
                 remoteAction()
                 _snackbarMessage.value = "Data berhasil dihapus dari sistem."
+            } catch (e: IllegalArgumentException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Validation error during optimistic delete: ${e.message}", e)
+                _snackbarMessage.value = "Gagal hapus (validasi): ${e.localizedMessage}"
+            } catch (e: IllegalStateException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "State error during optimistic delete: ${e.message}", e)
+                _snackbarMessage.value = "Gagal hapus (status tidak valid): ${e.localizedMessage}"
+            } catch (e: java.io.IOException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Network error during optimistic delete sync: ${e.message}", e)
+                _snackbarMessage.value = "Gagal sinkronisasi hapus ke cloud (masalah jaringan). Data dikembalikan."
             } catch (e: Exception) {
                 // Rollback state if background sync fails
                 _itemsState.value = originalList
-                _snackbarMessage.value = "Gagal sinkronisasi data ke cloud: ${e.localizedMessage}"
+                Log.e(TAG, "Unexpected error during optimistic delete: ${e.message}", e)
+                _snackbarMessage.value = "Gagal sinkronisasi hapus data ke cloud: ${e.localizedMessage}"
             }
         }
     }
@@ -66,8 +81,17 @@ abstract class BaseViewModel<T : Any> : ViewModel() {
             try {
                 remoteAction()
                 _snackbarMessage.value = "Data berhasil ditambahkan ke sistem."
+            } catch (e: IllegalArgumentException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Validation error during optimistic add: ${e.message}", e)
+                _snackbarMessage.value = "Gagal tambah (validasi): ${e.localizedMessage}"
+            } catch (e: java.io.IOException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Network error during optimistic add sync: ${e.message}", e)
+                _snackbarMessage.value = "Gagal sinkronisasi tambah ke cloud (masalah jaringan). Data dikembalikan."
             } catch (e: Exception) {
                 _itemsState.value = originalList
+                Log.e(TAG, "Unexpected error during optimistic add: ${e.message}", e)
                 _snackbarMessage.value = "Gagal menambahkan data ke cloud: ${e.localizedMessage}"
             }
         }
@@ -89,8 +113,17 @@ abstract class BaseViewModel<T : Any> : ViewModel() {
             try {
                 remoteAction()
                 _snackbarMessage.value = "Perubahan data berhasil disimpan."
+            } catch (e: IllegalArgumentException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Validation error during optimistic update: ${e.message}", e)
+                _snackbarMessage.value = "Gagal ubah (validasi): ${e.localizedMessage}"
+            } catch (e: java.io.IOException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Network error during optimistic update sync: ${e.message}", e)
+                _snackbarMessage.value = "Gagal sinkronisasi ubah ke cloud (masalah jaringan). Data dikembalikan."
             } catch (e: Exception) {
                 _itemsState.value = originalList
+                Log.e(TAG, "Unexpected error during optimistic update: ${e.message}", e)
                 _snackbarMessage.value = "Gagal menyimpan perubahan ke cloud: ${e.localizedMessage}"
             }
         }

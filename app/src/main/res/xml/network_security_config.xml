@@ -1,19 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Strict HTTPS enforcement for Firebase and Paper.id -->
+    <!-- Strict HTTPS enforcement for Firebase, Paper.id, and webhook endpoints -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">firebaseio.com</domain>
         <domain includeSubdomains="true">googleapis.com</domain>
         <domain includeSubdomains="true">paper.id</domain>
         <domain includeSubdomains="true">firebase.google.com</domain>
+        <domain includeSubdomains="true">shared.n8n.cloud</domain>
     </domain-config>
 
-    <!-- Permissive Cleartext only for Local Dev/Testing IP addresses and Mock Server Hooks -->
+    <!-- Debug overrides for local development emulator loopback only -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+
+    <!-- Permissive Cleartext restricted to local emulator/dev loopback IP addresses only -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
-        <domain includeSubdomains="true">shared.n8n.cloud</domain>
     </domain-config>
 
     <!-- High security default config -->

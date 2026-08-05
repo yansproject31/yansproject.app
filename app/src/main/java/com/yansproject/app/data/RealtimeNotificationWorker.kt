@@ -22,13 +22,23 @@ class RealtimeNotificationWorker(
     override suspend fun doWork(): Result {
         return try {
             val context = applicationContext
+            val currentUser = FirebaseSyncManager.currentUser.value
             val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
-            val userEmail = authPrefs.getString("saved_email", "")?.trim()?.lowercase() ?: ""
-            val userRole = authPrefs.getString("user_role", "MEMBER")?.uppercase() ?: "MEMBER"
-            val savedName = authPrefs.getString("saved_name", "")?.trim()?.lowercase() ?: ""
 
-            // Must have logged-in user or active session
-            if (userEmail.isBlank() && userRole != "OWNER") {
+            val isLoggedIn = authPrefs.getBoolean("is_logged_in", false) ||
+                    authPrefs.getString("saved_email", "")?.isNotBlank() == true ||
+                    currentUser != null
+
+            val userEmail = (currentUser?.email ?: authPrefs.getString("saved_email", ""))?.trim()?.lowercase() ?: ""
+            val userRole = (currentUser?.role?.name ?: authPrefs.getString("user_role", "MEMBER"))?.uppercase() ?: "MEMBER"
+            val savedName = (currentUser?.displayName ?: authPrefs.getString("saved_name", ""))?.trim()?.lowercase() ?: ""
+
+            val notifPrefsKey = currentUser?.uid ?: userEmail.ifBlank { "logged_in_user" }
+            val notifPrefs = context.getSharedPreferences("yans_notif_prefs_$notifPrefsKey", Context.MODE_PRIVATE)
+
+            // Must have a logged-in user session
+            if (!isLoggedIn && userEmail.isBlank()) {
+                Log.d(TAG, "No active logged-in session in RealtimeNotificationWorker. Skipping.")
                 return Result.success()
             }
 
@@ -38,18 +48,18 @@ class RealtimeNotificationWorker(
             // Re-subscribe to FCM topics for current user role
             FirebaseSyncManager.subscribeUserToFcmTopics(context, userRole)
 
-            // Query Firestore for notifications created in last 24 hours
+            // Query Firestore for notifications created in last 48 hours
             val db = FirebaseFirestore.getInstance()
-            val twentyFourHoursAgo = System.currentTimeMillis() - (24 * 60 * 60 * 1000)
+            val fortyEightHoursAgo = System.currentTimeMillis() - (48 * 60 * 60 * 1000)
 
             val snapshot = db.collection("notifications")
-                .whereGreaterThan("timestamp", twentyFourHoursAgo)
+                .whereGreaterThan("timestamp", fortyEightHoursAgo)
                 .get()
                 .await()
 
             if (!snapshot.isEmpty) {
                 val deletedIds = AppSettings.getDeletedNotificationIds(context)
-                val shownIds = authPrefs.getStringSet("shown_system_notif_ids", emptySet()) ?: emptySet()
+                val shownIds = notifPrefs.getStringSet("shown_system_notif_ids", emptySet()) ?: emptySet()
 
                 for (doc in snapshot.documents) {
                     val id = doc.id
@@ -57,7 +67,7 @@ class RealtimeNotificationWorker(
 
                     val title = doc.getString("title") ?: ""
                     val message = doc.getString("description") ?: doc.getString("message") ?: ""
-                    val category = doc.getString("category") ?: "SYSTEM"
+                    val category = doc.getString("category") ?: "BROADCAST"
                     val targetTab = doc.getString("actionRoute") ?: doc.getString("targetTab") ?: "INVOICE"
                     val roleTarget = doc.getString("roleTarget") ?: "ALL"
                     val userId = doc.getString("userId") ?: "ALL"
@@ -75,14 +85,14 @@ class RealtimeNotificationWorker(
                             cleanTargetUser != "all" && (
                                 cleanTargetUser == userEmail ||
                                 cleanTargetUser == savedName ||
-                                cleanTargetUser.contains(savedName)
+                                (userEmail.isNotBlank() && cleanTargetUser.contains(userEmail))
                             )
                         } else {
-                            (roleTarget.uppercase() in setOf("ALL", "MEMBER", "BROADCAST")) &&
-                            (userId == "ALL" || cleanTargetUser == userEmail || cleanTargetUser == savedName)
+                            (roleTarget.uppercase() in setOf("ALL", "MEMBER", "BROADCAST", "PROMO")) &&
+                            (cleanTargetUser == "all" || cleanTargetUser == userEmail || cleanTargetUser == savedName || cleanTargetUser.isBlank())
                         }
                     } else {
-                        roleTarget.uppercase() in setOf("ALL", "OWNER", "BROADCAST") || userId == "ALL"
+                        roleTarget.uppercase() in setOf("ALL", "OWNER", "ADMIN", "BROADCAST", "PROMO") || cleanTargetUser == "all"
                     }
 
                     if (isForMe && title.isNotBlank()) {
@@ -99,9 +109,9 @@ class RealtimeNotificationWorker(
                         )
 
                         // Record in shown_system_notif_ids
-                        val newShown = (authPrefs.getStringSet("shown_system_notif_ids", emptySet()) ?: emptySet()).toMutableSet()
+                        val newShown = (notifPrefs.getStringSet("shown_system_notif_ids", emptySet()) ?: emptySet()).toMutableSet()
                         newShown.add(id)
-                        authPrefs.edit().putStringSet("shown_system_notif_ids", newShown).apply()
+                        notifPrefs.edit().putStringSet("shown_system_notif_ids", newShown).apply()
                     }
                 }
             }

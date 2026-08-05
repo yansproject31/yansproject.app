@@ -56,10 +56,16 @@ object IdrAccountingEngine {
             }
             is Number -> BigDecimal(value.toString()).setScale(DISPLAY_DECIMAL_PLACES, BANKERS_ROUNDING)
             is String -> {
-                try {
-                    BigDecimal(value.trim()).setScale(DISPLAY_DECIMAL_PLACES, BANKERS_ROUNDING)
-                } catch (e: Exception) {
+                val trimmed = value.trim()
+                if (trimmed.isBlank()) {
                     BigDecimal.ZERO.setScale(DISPLAY_DECIMAL_PLACES, BANKERS_ROUNDING)
+                } else {
+                    try {
+                        BigDecimal(trimmed).setScale(DISPLAY_DECIMAL_PLACES, BANKERS_ROUNDING)
+                    } catch (e: Exception) {
+                        android.util.Log.e("IdrAccountingEngine", "Failed to parse string '$value' to BigDecimal: ${e.message}")
+                        BigDecimal.ZERO.setScale(DISPLAY_DECIMAL_PLACES, BANKERS_ROUNDING)
+                    }
                 }
             }
             else -> BigDecimal.ZERO.setScale(DISPLAY_DECIMAL_PLACES, BANKERS_ROUNDING)
@@ -83,15 +89,33 @@ object IdrAccountingEngine {
     }
 
     /**
-     * Parses a string (like a currency text field) back into a clean Double, stripping currency symbols and dots.
+     * Parses a string (like a currency text field) back into a clean BigDecimal, stripping currency symbols and dots.
      */
     fun parseRupiah(text: String): BigDecimal {
+        if (text.isBlank()) return BigDecimal.ZERO
         val clean = text.replace("[^0-9,-]".toRegex(), "")
             .replace(",", ".") // Convert Indonesian decimal comma to dot
         return try {
             if (clean.isBlank()) BigDecimal.ZERO else BigDecimal(clean)
         } catch (e: Exception) {
+            android.util.Log.e("IdrAccountingEngine", "Invalid currency input '$text' cleaned as '$clean': ${e.message}", e)
             BigDecimal.ZERO
+        }
+    }
+
+    /**
+     * Parses a string into a BigDecimal, or returns null if the input is blank or unparseable.
+     */
+    fun parseRupiahOrNull(text: String): BigDecimal? {
+        if (text.isBlank()) return null
+        val clean = text.replace("[^0-9,-]".toRegex(), "")
+            .replace(",", ".")
+        if (clean.isBlank()) return null
+        return try {
+            BigDecimal(clean)
+        } catch (e: Exception) {
+            android.util.Log.e("IdrAccountingEngine", "Failed parseRupiahOrNull for '$text' cleaned as '$clean': ${e.message}")
+            null
         }
     }
 

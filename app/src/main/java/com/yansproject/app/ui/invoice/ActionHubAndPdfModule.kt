@@ -58,45 +58,39 @@ class InvoiceViewModel : ViewModel() {
         loadInvoicesHistory()
     }
 
-    fun loadInvoicesHistory() {
+    fun loadInvoicesHistory(context: Context? = null) {
         viewModelScope.launch {
-            // High fidelity mock invoices combining POS Retail & Custom Project types
-            val mockInvoices = listOf(
-                com.yansproject.app.data.Invoice(
-                    invoiceNumber = "INV/2026/001",
-                    clientName = "Gading Sakti Mandiri",
-                    clientPhone = "08123456789",
-                    totalAmount = 5200000.0,
-                    paidAmount = 2000000.0,
-                    status = "PARTIAL", // Terminologi DP & Piutang
-                    issueDate = System.currentTimeMillis() - 86400000
-                ),
-                com.yansproject.app.data.Invoice(
-                    invoiceNumber = "INV/2026/002",
-                    clientName = "Sinar Mentari PT",
-                    clientPhone = "087711223344",
-                    totalAmount = 3500000.0,
-                    paidAmount = 0.0,
-                    status = "UNPAID",
-                    issueDate = System.currentTimeMillis() - 172800000
-                ),
-                com.yansproject.app.data.Invoice(
-                    invoiceNumber = "INV/2026/003",
-                    clientName = "Toko Makmur Sentosa",
-                    clientPhone = "085522334455",
-                    totalAmount = 9300000.0,
-                    paidAmount = 9300000.0,
-                    status = "PAID", // POS Retail (Tunai Lunas, Kembalian)
-                    issueDate = System.currentTimeMillis()
-                )
-            )
+            val realInvoices = if (context != null) {
+                withContext(Dispatchers.IO) {
+                    try {
+                        val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
+                        val opInvoices = db.invoiceDao().getInvoicesList()
+                        opInvoices.map { op ->
+                            com.yansproject.app.data.Invoice(
+                                invoiceNumber = op.invoiceNumber,
+                                clientName = op.clientName,
+                                clientPhone = op.clientPhone,
+                                totalAmount = op.totalAmount,
+                                paidAmount = op.paidAmount,
+                                status = op.status,
+                                issueDate = op.issueDate
+                            )
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("InvoiceViewModel", "Error loading real invoices: ${e.message}", e)
+                        emptyList()
+                    }
+                }
+            } else {
+                emptyList()
+            }
 
-            val unpaidTotal = mockInvoices
+            val unpaidTotal = realInvoices
                 .filter { it.status == "UNPAID" || it.status == "PARTIAL" }
-                .sumOf { it.totalAmount - it.paidAmount }
+                .sumOf { (it.totalAmount - it.paidAmount).coerceAtLeast(0.0) }
 
             _state.value = InvoiceState(
-                invoices = mockInvoices,
+                invoices = realInvoices,
                 totalBalanceDue = unpaidTotal
             )
         }
@@ -167,6 +161,10 @@ fun InvoiceHistoryScreen(
     val state by invoiceViewModel.state.collectAsState()
     val context = LocalContext.current
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
+
+    LaunchedEffect(context) {
+        invoiceViewModel.loadInvoicesHistory(context)
+    }
 
     var selectedInvoiceForHub by remember { mutableStateOf<com.yansproject.app.data.Invoice?>(null) }
     var showPaymentDialog by remember { mutableStateOf(false) }

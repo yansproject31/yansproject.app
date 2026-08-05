@@ -83,8 +83,14 @@ fun DualInvoiceEditorScreen(
     val subtotal = remember(addedItems) {
         addedItems.sumOf { item ->
             item.variantCells.sumOf { cell ->
-                val sizeKey = if (cell.size.startsWith("KIDS_")) cell.size else cell.size
-                val singlePrice = item.priceMap[sizeKey] ?: 99000.0
+                val sizeKey = cell.size
+                val singlePrice = item.priceMap[sizeKey]
+                    ?: item.priceMap[sizeKey.uppercase()]
+                    ?: if (item.itemName.contains("AJIBQOBUL", ignoreCase = true)) {
+                        AppSettings.getAjibqobulBasePrice(context)
+                    } else {
+                        AppSettings.getCustomBasePrice(context)
+                    }
                 singlePrice * cell.quantity
             }
         }
@@ -379,7 +385,13 @@ fun DualInvoiceEditorScreen(
                                 item.variantCells.forEach { cell ->
                                     val qty = cell.quantity
                                     if (qty > 0) {
-                                        val price = item.priceMap[cell.size] ?: 0.0
+                                        val price = item.priceMap[cell.size]
+                                            ?: item.priceMap[cell.size.uppercase()]
+                                            ?: if (item.itemName.contains("AJIBQOBUL", ignoreCase = true)) {
+                                                AppSettings.getAjibqobulBasePrice(context)
+                                            } else {
+                                                AppSettings.getCustomBasePrice(context)
+                                            }
                                         val sleeveStr = cell.sleeve.name
                                         val desc = if (isCustomProject) {
                                             "Custom: ${item.itemName} - $sleeveStr - ${cell.size}"

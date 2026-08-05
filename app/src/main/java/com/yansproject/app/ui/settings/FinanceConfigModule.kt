@@ -39,15 +39,15 @@ fun FinanceConfigModule(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Load bank details
+    // Load bank details with BusinessIdentityProvider fallbacks
     val dataBankName = try { AppSettings.getBankName(context).ifBlank { null } } catch (e: Exception) { null }
-    var bankName by remember { mutableStateOf(dataBankName ?: "BRI") }
+    var bankName by remember { mutableStateOf(dataBankName ?: com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_BANK_NAME) }
 
     val dataAccountNumber = try { AppSettings.getAccountNumber(context).ifBlank { null } } catch (e: Exception) { null }
-    var accountNumber by remember { mutableStateOf(dataAccountNumber ?: "736901039928537") }
+    var accountNumber by remember { mutableStateOf(dataAccountNumber ?: com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_ACCOUNT_NUMBER) }
 
     val dataAccountHolder = try { AppSettings.getAccountHolder(context).ifBlank { null } } catch (e: Exception) { null }
-    var accountHolder by remember { mutableStateOf(dataAccountHolder ?: "ACHMAD ROBBIYANSYAH") }
+    var accountHolder by remember { mutableStateOf(dataAccountHolder ?: com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_ACCOUNT_HOLDER) }
 
     // Engine AJIBQOBUL Ready Stock variables
     var ajibqobulHppPanjang by remember {
@@ -133,22 +133,6 @@ fun FinanceConfigModule(
         mutableStateOf(amt)
     }
 
-    // Persist default values if initially empty
-    LaunchedEffect(Unit) {
-        try {
-            if (AppSettings.getBankName(context).isBlank()) {
-                AppSettings.setBankName(context, "BRI")
-            }
-            if (AppSettings.getAccountNumber(context).isBlank()) {
-                AppSettings.setAccountNumber(context, "736901039928537")
-            }
-            if (AppSettings.getAccountHolder(context).isBlank()) {
-                AppSettings.setAccountHolder(context, "ACHMAD ROBBIYANSYAH")
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
 
     var isSaving by remember { mutableStateOf(false) }
 

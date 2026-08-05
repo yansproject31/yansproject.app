@@ -124,16 +124,37 @@ fun SmartFormScreen(
                             
                             // Simple simulation of business rules logic
                             if (isProject) {
-                                viewModel.addAuditLog("Register Project", "Mendaftarkan proyek baru '$field1' untuk client '$field2'.")
-                                viewModel.triggerNotification("Proyek Ditambahkan", "Proyek '$field1' berhasil diregistrasi ke sistem.", "Project", "PROJECT")
+                                val cost = field4.toDoubleOrNull() ?: 0.0
+                                viewModel.addProject(
+                                    projectName = field1,
+                                    clientName = field2,
+                                    clientPhone = "",
+                                    description = field3,
+                                    totalCost = cost,
+                                    paidAmount = 0.0,
+                                    status = "Planning",
+                                    startDate = System.currentTimeMillis(),
+                                    endDate = System.currentTimeMillis() + (86400000L * 14L)
+                                )
+                                Toast.makeText(context, "Proyek '$field1' berhasil disimpan ke database!", Toast.LENGTH_SHORT).show()
                             } else if (isInvoice) {
-                                viewModel.addAuditLog("Buat Invoice", "Membuat invoice baru #$field1 untuk client '$field2'.")
-                                viewModel.triggerNotification("Invoice Dibuat", "Tagihan invoice #$field1 berhasil diterbitkan.", "Invoice", "INVOICE")
+                                val totalVal = field4.toDoubleOrNull() ?: 0.0
+                                viewModel.addOrder(
+                                    clientName = field2,
+                                    clientPhone = "",
+                                    clientAddress = "",
+                                    selectedItems = emptyList(),
+                                    paidAmount = 0.0,
+                                    status = "MENUNGGU PEMBAYARAN",
+                                    priceType = "Retail",
+                                    paymentMethod = "CASH"
+                                )
+                                Toast.makeText(context, "Invoice #$field1 berhasil diterbitkan!", Toast.LENGTH_SHORT).show()
                             } else {
-                                viewModel.addAuditLog("Form Submit", "Menyimpan data formulir universal '$field1'.")
+                                viewModel.addAuditLog("Form Submit", "Memproses formulir universal '$field1' untuk '$field2'.")
+                                Toast.makeText(context, "Formulir berhasil diproses.", Toast.LENGTH_SHORT).show()
                             }
 
-                            Toast.makeText(context, "Data berhasil disimpan ke cloud!", Toast.LENGTH_SHORT).show()
                             navController.popBackStack()
                         },
                         modifier = Modifier

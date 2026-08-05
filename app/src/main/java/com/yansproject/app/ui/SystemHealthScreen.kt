@@ -32,6 +32,8 @@ import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -81,36 +83,44 @@ fun SystemHealthScreen(
     fun performDiagnosticCheck() {
         isChecking = true
         viewModel.addAuditLog("System Health Check", "Diagnostik sistem real-time dipicu oleh Admin.")
-        coroutineScope.launch {
-            delay(1500) // Aesthetic delay for professional diagnostic feel
+        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            // Check Firebase Active Status and measure real local check time
+            val fbStartTime = System.currentTimeMillis()
+            val fbActive = FirebaseSyncManager.isFirebaseActive
+            val fbElapsed = maxOf(1L, System.currentTimeMillis() - fbStartTime)
             
-            // Check Firebase Active Status
-            firebaseStatus = if (FirebaseSyncManager.isFirebaseActive) "ONLINE" else "OFFLINE"
-            firebaseLatency = if (FirebaseSyncManager.isFirebaseActive) "${(30..90).random()} ms" else "N/A"
-
-            // Actual Web Diagnostics (check reachability of n8n & paper.id endpoints asynchronously)
+            // Actual Web Diagnostics with real HTTP response timing
+            val n8nStartTime = System.currentTimeMillis()
             val isN8nReach = runCatching {
                 val connection = URL(n8nWebhookUrl.ifEmpty { "https://n8n.io" }).openConnection() as HttpURLConnection
                 connection.connectTimeout = 3000
                 connection.requestMethod = "GET"
                 connection.responseCode in 200..399
             }.getOrDefault(false)
+            val n8nElapsed = System.currentTimeMillis() - n8nStartTime
 
-            n8nStatus = if (isN8nReach) "ACTIVE" else "TRIAL EXPIRED / UNREACHABLE"
-            n8nLatency = if (isN8nReach) "${(100..250).random()} ms" else "DISCONNECTED"
-
+            val paperStartTime = System.currentTimeMillis()
             val isPaperReach = runCatching {
                 val connection = URL("https://api.paper.id").openConnection() as HttpURLConnection
                 connection.connectTimeout = 3000
                 connection.requestMethod = "GET"
-                connection.responseCode in 200..499 // Accept any standard API gateway response as connected
+                connection.responseCode in 200..499
             }.getOrDefault(false)
+            val paperElapsed = System.currentTimeMillis() - paperStartTime
 
-            paperIdStatus = if (isPaperReach && paperIdApiKey.isNotEmpty()) "CONNECTED" else if (isPaperReach) "CONNECTED (NO API KEY)" else "DISCONNECTED"
-            paperIdLatency = if (isPaperReach) "${(150..300).random()} ms" else "DISCONNECTED"
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                firebaseStatus = if (fbActive) "ONLINE" else "OFFLINE"
+                firebaseLatency = if (fbActive) "$fbElapsed ms" else "N/A"
 
-            isChecking = false
-            Toast.makeText(context, "Sistem & API Diagnostics Selesai!", Toast.LENGTH_SHORT).show()
+                n8nStatus = if (isN8nReach) "ACTIVE" else "TRIAL EXPIRED / UNREACHABLE"
+                n8nLatency = if (isN8nReach) "$n8nElapsed ms" else "DISCONNECTED"
+
+                paperIdStatus = if (isPaperReach && paperIdApiKey.isNotEmpty()) "CONNECTED" else if (isPaperReach) "CONNECTED (NO API KEY)" else "DISCONNECTED"
+                paperIdLatency = if (isPaperReach) "$paperElapsed ms" else "DISCONNECTED"
+
+                isChecking = false
+                Toast.makeText(context, "Sistem & API Diagnostics Selesai!", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

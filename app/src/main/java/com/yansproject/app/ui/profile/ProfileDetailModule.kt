@@ -48,10 +48,10 @@ import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
-private const val OWNER_DEFAULT_NAME = "YANSPROJECT.ID"
-private const val OWNER_DEFAULT_EMAIL = "yansart31@gmail.com"
-private const val OWNER_DEFAULT_WA = "+62 877-7739-8813"
-private const val OWNER_DEFAULT_ADDR = "Tangerang, Banten"
+private val OWNER_DEFAULT_NAME = com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_COMPANY_NAME
+private val OWNER_DEFAULT_EMAIL = com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_SUPPORT_EMAIL
+private val OWNER_DEFAULT_WA = com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_SUPPORT_WHATSAPP
+private val OWNER_DEFAULT_ADDR = com.yansproject.app.data.BusinessIdentityProvider.DEFAULT_STORE_ADDRESS
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,7 +129,7 @@ fun ProfileDetailModule(
             if (AppSettings.getWhatsApp(context).isBlank()) AppSettings.setWhatsApp(context, OWNER_DEFAULT_WA)
             if (AppSettings.getAddress(context).isBlank()) AppSettings.setAddress(context, OWNER_DEFAULT_ADDR)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("ProfileDetailModule", "Error initializing default profile settings: ${e.message}", e)
         }
     }
 

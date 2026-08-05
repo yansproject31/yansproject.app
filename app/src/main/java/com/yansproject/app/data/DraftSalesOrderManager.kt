@@ -1,6 +1,7 @@
 package com.yansproject.app.data
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -24,10 +25,10 @@ class DraftSalesOrderManager(
         scope.launch(Dispatchers.IO) {
             val existing = dao.getDraftSalesOrder()
             if (existing == null) {
-                val prefs = context.getSharedPreferences("yans_settings_prefs", Context.MODE_PRIVATE)
-                val defaultName = prefs.getString("member_customer_name", "") ?: ""
-                val defaultPhone = prefs.getString("member_customer_whatsapp", "") ?: ""
-                val defaultAddress = prefs.getString("member_customer_address", "") ?: ""
+                val activeUser = FirebaseSyncManager.currentUser.value
+                val defaultName = activeUser?.displayName ?: ""
+                val defaultPhone = activeUser?.whatsapp ?: ""
+                val defaultAddress = activeUser?.address ?: ""
                 
                 dao.insertDraftSalesOrder(
                     DraftSalesOrder(
@@ -79,11 +80,12 @@ class DraftSalesOrderManager(
             val json = serializeCartItems(items)
             dao.insertDraftSalesOrder(draft.copy(itemsJson = json, updatedAt = System.currentTimeMillis()))
 
-            // Save user cart persistent backup by user email
-            val currentUserEmail = FirebaseSyncManager.currentUser.value?.email ?: ""
-            if (currentUserEmail.isNotBlank()) {
+            // Save user cart persistent backup by authenticated user ID/email
+            val activeUser = FirebaseSyncManager.currentUser.value
+            val userKey = (activeUser?.uid?.ifEmpty { activeUser.email } ?: activeUser?.email ?: "").trim().lowercase()
+            if (userKey.isNotBlank()) {
                 val userCartPrefs = context.getSharedPreferences("yans_user_cart_prefs", Context.MODE_PRIVATE)
-                userCartPrefs.edit().putString("cart_${currentUserEmail.trim().lowercase()}", json).apply()
+                userCartPrefs.edit().putString("cart_$userKey", json).apply()
             }
         }
     }
@@ -91,10 +93,11 @@ class DraftSalesOrderManager(
     fun clearDraft() {
         scope.launch(Dispatchers.IO) {
             dao.insertDraftSalesOrder(DraftSalesOrder(id = 1))
-            val currentUserEmail = FirebaseSyncManager.currentUser.value?.email ?: ""
-            if (currentUserEmail.isNotBlank()) {
+            val activeUser = FirebaseSyncManager.currentUser.value
+            val userKey = (activeUser?.uid?.ifEmpty { activeUser.email } ?: activeUser?.email ?: "").trim().lowercase()
+            if (userKey.isNotBlank()) {
                 val userCartPrefs = context.getSharedPreferences("yans_user_cart_prefs", Context.MODE_PRIVATE)
-                userCartPrefs.edit().remove("cart_${currentUserEmail.trim().lowercase()}").apply()
+                userCartPrefs.edit().remove("cart_$userKey").apply()
             }
         }
     }
@@ -102,33 +105,26 @@ class DraftSalesOrderManager(
     fun autoPopulateFromAccountCenter(email: String, forceOverwrite: Boolean = false) {
         scope.launch(Dispatchers.IO) {
             val currentDraft = getDraft()
-            val userPrefs = context.getSharedPreferences("yans_user_prefs_${email.trim().lowercase()}", Context.MODE_PRIVATE)
-            val credPrefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+            val activeUser = FirebaseSyncManager.currentUser.value
+            val targetEmail = email.trim().lowercase()
+            val userKey = (activeUser?.uid?.ifEmpty { targetEmail } ?: targetEmail).trim().lowercase()
             
-            val waKey = "wa_${email.trim().lowercase()}"
-            val addressKey = "address_${email.trim().lowercase()}"
+            // Primary identity from active authenticated user session
+            val defaultName = activeUser?.displayName ?: ""
+            val defaultPhone = activeUser?.whatsapp ?: ""
+            val defaultAddress = activeUser?.address ?: ""
             
-            val defaultName = FirebaseSyncManager.currentUser.value?.displayName ?: ""
-            
-            var defaultPhone = userPrefs.getString("user_whatsapp", "") ?: ""
-            if (defaultPhone.isBlank()) {
-                defaultPhone = credPrefs.getString(waKey, "") ?: ""
-            }
-            
-            var defaultAddress = userPrefs.getString("user_address", "") ?: ""
-            if (defaultAddress.isBlank()) {
-                defaultAddress = credPrefs.getString(addressKey, "") ?: ""
-            }
-            
-            val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
-            val lastDraftUserEmail = authPrefs.getString("last_draft_user_email", "") ?: ""
-            val isUserChanged = lastDraftUserEmail.lowercase().trim() != email.lowercase().trim() || forceOverwrite
+            val draftUserPrefs = context.getSharedPreferences("yans_draft_meta_prefs", Context.MODE_PRIVATE)
+            val lastDraftUserKey = draftUserPrefs.getString("last_draft_user_key", "") ?: ""
+            val isUserChanged = lastDraftUserKey != userKey || forceOverwrite
 
             // Restore persistent user cart if user changed or current cart is empty
             val userCartPrefs = context.getSharedPreferences("yans_user_cart_prefs", Context.MODE_PRIVATE)
-            val savedCartJson = userCartPrefs.getString("cart_${email.trim().lowercase()}", "") ?: ""
+            val savedCartJson = userCartPrefs.getString("cart_$userKey", "") ?: ""
             val targetItemsJson = if (savedCartJson.isNotBlank() && (isUserChanged || currentDraft.itemsJson.isBlank() || currentDraft.itemsJson == "[]")) {
                 savedCartJson
+            } else if (isUserChanged) {
+                "[]" // Avoid leaking previous user's cart
             } else {
                 currentDraft.itemsJson
             }
@@ -147,8 +143,8 @@ class DraftSalesOrderManager(
                         updatedAt = System.currentTimeMillis()
                     )
                 )
-                authPrefs.edit().putString("last_draft_user_email", email).apply()
-                android.util.Log.d("DraftSalesOrderManager", "Auto-populated checkout & persistent cart for $email (changed=$isUserChanged)")
+                draftUserPrefs.edit().putString("last_draft_user_key", userKey).apply()
+                Log.i("DraftSalesOrderManager", "Audited auto-populate for user key=$userKey (userChanged=$isUserChanged, items=${deserializeCartItems(targetItemsJson).size})")
             }
         }
     }
@@ -194,7 +190,7 @@ class DraftSalesOrderManager(
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("DraftSalesOrderManager", "Error parsing matrix items: ${e.message}", e)
         }
         return list
     }

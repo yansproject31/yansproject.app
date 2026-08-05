@@ -10,5 +10,10 @@ data class OfflineActionEntity(
     val targetCollection: String,
     val timestamp: Long = System.currentTimeMillis(),
     val retryCount: Int = 0,
-    val additionalMeta: String = ""
+    val additionalMeta: String = "",
+    val idempotencyKey: String = "",
+    val replayHash: String = "",
+    val version: Int = 1,
+    val userId: String = "",
+    val checksum: String = ""
 )

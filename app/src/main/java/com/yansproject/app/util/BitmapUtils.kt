@@ -39,7 +39,7 @@ object BitmapUtils {
         paint.color = android.graphics.Color.rgb(33, 33, 33)
         paint.textSize = 26f
         paint.isFakeBoldText = true
-        canvas.drawText("YANSPROJECT.ID", 60f, 80f, paint)
+        canvas.drawText(com.yansproject.app.data.BusinessIdentityProvider.getCompanyName(context), 60f, 80f, paint)
 
         paint.textSize = 22f
         paint.isFakeBoldText = true
@@ -156,14 +156,14 @@ object BitmapUtils {
         paint.textSize = 12f
         paint.isFakeBoldText = false
         paint.textAlign = Paint.Align.CENTER
-        canvas.drawText("Terima kasih telah mempercayakan kebutuhan apparel Anda kepada YANSPROJECT.ID.", 400f, 1040f, paint)
+        canvas.drawText("Terima kasih telah mempercayakan kebutuhan apparel Anda kepada ${com.yansproject.app.data.BusinessIdentityProvider.getCompanyName(context)}.", 400f, 1040f, paint)
 
         return try {
             val dir = FileUtils.getExportDirectory(context, "invoice")
             val file = File(dir, "Invoice-${invoice.invoiceNumber}.png")
-            val outputStream = FileOutputStream(file)
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            outputStream.close()
+            FileOutputStream(file).use { outputStream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            }
             if (viewModel != null) {
                 viewModel.showGlobalSnackbar("Dokumen berhasil disimpan.", "Buka Folder") {
                     FileUtils.openFolder(context, dir)
@@ -176,6 +176,8 @@ object BitmapUtils {
             Log.e(TAG, "Failed exporting PNG: ${e.message}", e)
             Toast.makeText(context, "Gagal mengekspor Gambar: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             null
+        } finally {
+            try { bitmap.recycle() } catch (_: Exception) {}
         }
     }
 
@@ -199,7 +201,7 @@ object BitmapUtils {
         paint.color = android.graphics.Color.rgb(15, 61, 62)
         paint.textSize = 26f
         paint.isFakeBoldText = true
-        canvas.drawText("YANSPROJECT.ID", 60f, 80f, paint)
+        canvas.drawText(com.yansproject.app.data.BusinessIdentityProvider.getCompanyName(context), 60f, 80f, paint)
 
         paint.textSize = 22f
         canvas.drawText("ORDER SUMMARY", 500f, 80f, paint)
@@ -276,14 +278,14 @@ object BitmapUtils {
         paint.textSize = 12f
         paint.isFakeBoldText = false
         paint.textAlign = Paint.Align.CENTER
-        canvas.drawText("Terima kasih telah melakukan pemesanan melalui YANSPROJECT.ID.", 400f, 1040f, paint)
+        canvas.drawText("Terima kasih telah melakukan pemesanan melalui ${com.yansproject.app.data.BusinessIdentityProvider.getCompanyName(context)}.", 400f, 1040f, paint)
 
         return try {
             val dir = FileUtils.getExportDirectory(context, "image")
             val file = File(dir, "Order-Summary-${System.currentTimeMillis()}.png")
-            val outputStream = FileOutputStream(file)
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            outputStream.close()
+            FileOutputStream(file).use { outputStream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            }
             if (viewModel != null) {
                 viewModel.showGlobalSnackbar("Dokumen berhasil disimpan.", "Buka Folder") {
                     FileUtils.openFolder(context, dir)
@@ -296,6 +298,8 @@ object BitmapUtils {
             Log.e(TAG, "Failed exporting Order Summary PNG: ${e.message}", e)
             Toast.makeText(context, "Gagal mengekspor Gambar: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             null
+        } finally {
+            try { bitmap.recycle() } catch (_: Exception) {}
         }
     }
 }

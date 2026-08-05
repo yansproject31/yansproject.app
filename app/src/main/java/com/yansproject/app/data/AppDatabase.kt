@@ -29,9 +29,10 @@ import java.security.SecureRandom
         InvoicePayment::class,
         ReturLogistik::class,
         DraftSalesOrder::class,
-        ReportCache::class
+        ReportCache::class,
+        CustomerEntity::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = false
 )
 @TypeConverters(AppTypeConverters::class)
@@ -55,46 +56,13 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun returDao(): ReturDao
     abstract fun draftSalesOrderDao(): DraftSalesOrderDao
     abstract fun reportCacheDao(): ReportCacheDao
+    abstract fun customerDao(): CustomerDao
 
     companion object {
         const val DATABASE_NAME = "yans_secure_business_database"
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
-
-        val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
-            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `audit_logs` (" +
-                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                    "`timestamp` INTEGER NOT NULL, " +
-                    "`activity` TEXT NOT NULL, " +
-                    "`details` TEXT NOT NULL, " +
-                    "`adminName` TEXT NOT NULL)"
-                )
-            }
-        }
-
-        val MIGRATION_17_18 = object : androidx.room.migration.Migration(17, 18) {
-            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `report_cache` (" +
-                    "`reportKey` TEXT NOT NULL PRIMARY KEY, " +
-                    "`reportType` TEXT NOT NULL, " +
-                    "`periodName` TEXT NOT NULL, " +
-                    "`totalRevenue` REAL NOT NULL, " +
-                    "`totalExpenses` REAL NOT NULL, " +
-                    "`netProfit` REAL NOT NULL, " +
-                    "`totalProjectValue` REAL NOT NULL, " +
-                    "`activeProjectsCount` INTEGER NOT NULL, " +
-                    "`completedProjectsCount` INTEGER NOT NULL, " +
-                    "`totalReceivables` REAL NOT NULL, " +
-                    "`cachedJsonData` TEXT NOT NULL, " +
-                    "`lastUpdated` INTEGER NOT NULL, " +
-                    "`isOfflineCached` INTEGER NOT NULL)"
-                )
-            }
-        }
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -112,8 +80,7 @@ abstract class AppDatabase : RoomDatabase() {
                     DATABASE_NAME
                 )
                 .openHelperFactory(factory)
-                .addMigrations(MIGRATION_4_5, MIGRATION_17_18)
-                .fallbackToDestructiveMigrationOnDowngrade()
+                .addMigrations(*DatabaseMigration.ALL_MIGRATIONS)
                 .build()
 
                 INSTANCE = instance

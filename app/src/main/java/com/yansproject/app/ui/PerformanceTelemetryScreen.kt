@@ -1,6 +1,7 @@
 package com.yansproject.app.ui
 
 import android.content.Context
+import kotlinx.coroutines.isActive
 import android.os.SystemClock
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -69,7 +70,7 @@ fun PerformanceTelemetryScreen(
 
     // Live update loop for memory tracking
     LaunchedEffect(Unit) {
-        while (true) {
+        while (isActive) {
             val runtime = Runtime.getRuntime()
             maxMemoryMb = runtime.maxMemory() / (1024 * 1024)
             totalAllocatedMb = runtime.totalMemory() / (1024 * 1024)
@@ -85,7 +86,7 @@ fun PerformanceTelemetryScreen(
                     val invoiceDao = AppDatabase.getDatabase(context).invoiceDao()
                     localInvoicesCount = invoiceDao.getInvoicesList().size
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    android.util.Log.e("PerformanceTelemetry", "Error fetching DB telemetry count: ${e.message}")
                 }
             }
 
@@ -103,7 +104,7 @@ fun PerformanceTelemetryScreen(
                     // Force a database fetch from room to benchmark query execution
                     AppDatabase.getDatabase(context).invoiceDao().getInvoicesList()
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    android.util.Log.e("PerformanceTelemetry", "Error running DB benchmark: ${e.message}")
                 }
             }
             val endTime = SystemClock.elapsedRealtimeNanos()

@@ -86,8 +86,18 @@ object CustomerSuggestionHelper {
 
         // 2. Collect Invoices
         val db = AppDatabase.getDatabase(context)
-        val invoices = invoicesList ?: try { db.invoiceDao().getInvoicesList() } catch (e: Exception) { emptyList() }
-        val projects = projectsList ?: try { db.projectDao().getAllProjectsList() } catch (e: Exception) { emptyList() }
+        val invoices = invoicesList ?: try { 
+            db.invoiceDao().getInvoicesList() 
+        } catch (e: Exception) { 
+            android.util.Log.e("CustomerSuggestion", "Query invoices failed: ${e.message}", e)
+            emptyList() 
+        }
+        val projects = projectsList ?: try { 
+            db.projectDao().getAllProjectsList() 
+        } catch (e: Exception) { 
+            android.util.Log.e("CustomerSuggestion", "Query projects failed: ${e.message}", e)
+            emptyList() 
+        }
         val converters = AppTypeConverters()
 
         val nonMemberMap = mutableMapOf<String, CustomerSuggestion>()
@@ -107,7 +117,12 @@ object CustomerSuggestionHelper {
             }
 
             val phone = inv.clientPhone.trim()
-            val items = try { converters.toInvoiceItemList(inv.itemsJson) } catch (e: Exception) { emptyList() }
+            val items = try { 
+                converters.toInvoiceItemList(inv.itemsJson) 
+            } catch (e: Exception) { 
+                android.util.Log.e("CustomerSuggestion", "Invoice itemsJson parse error for ${inv.invoiceNumber}: ${e.message}", e)
+                emptyList() 
+            }
             val address = items.find { it.description.startsWith("__ADDRESS__:") }?.description?.removePrefix("__ADDRESS__:")?.trim() ?: ""
 
             val existing = nonMemberMap[lowerName]

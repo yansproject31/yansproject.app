@@ -79,10 +79,14 @@ class AuthViewModel : ViewModel() {
             if (localCred != null) {
                 if (localCred.passwordOrPin == pin) {
                     _authState.value = AuthState.SUCCESS
-                    val role = try {
-                        UserRole.valueOf(localCred.role.uppercase())
-                    } catch (e: Exception) {
-                        UserRole.MEMBER
+                    val role = if (com.yansproject.app.data.BusinessIdentityProvider.isOwnerEmail(cleanEmail, context)) {
+                        UserRole.OWNER
+                    } else {
+                        try {
+                            UserRole.valueOf(localCred.role.uppercase())
+                        } catch (e: Exception) {
+                            UserRole.MEMBER
+                        }
                     }
                     _userRole.value = role
                     onAuthSuccess(role)
@@ -90,18 +94,18 @@ class AuthViewModel : ViewModel() {
                     _authState.value = AuthState.ERROR
                     _errorMessage.value = "PIN Keamanan tidak cocok!"
                 }
-            } else if (cleanEmail.contains("@") && pin.length >= 4) {
-                // First-time dynamic user registration fallback
-                _authState.value = AuthState.SUCCESS
-                val fallbackRole = if (cleanEmail.startsWith("owner") || cleanEmail.contains("admin")) UserRole.OWNER else UserRole.MEMBER
-                com.yansproject.app.ui.AppSettings.saveLocalUserCredential(
-                    context, cleanEmail, pin, cleanEmail.substringBefore("@").uppercase(), fallbackRole.name, "Retail"
-                )
-                _userRole.value = fallbackRole
-                onAuthSuccess(fallbackRole)
             } else {
-                _authState.value = AuthState.ERROR
-                _errorMessage.value = "Kredensial tidak ditemukan atau format PIN tidak valid!"
+                val fbSuccess = com.yansproject.app.data.FirebaseSyncManager.loginUser(context, cleanEmail, pin)
+                if (fbSuccess) {
+                    _authState.value = AuthState.SUCCESS
+                    val user = com.yansproject.app.data.FirebaseSyncManager.currentUser.value
+                    val role = user?.role ?: UserRole.MEMBER
+                    _userRole.value = role
+                    onAuthSuccess(role)
+                } else {
+                    _authState.value = AuthState.ERROR
+                    _errorMessage.value = "Kredensial akun tidak terdaftar atau PIN salah!"
+                }
             }
         }
     }

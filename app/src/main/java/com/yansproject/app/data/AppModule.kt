@@ -41,17 +41,17 @@ object AppModule {
                     @Suppress("DEPRECATION")
                     val settings = FirebaseFirestoreSettings.Builder()
                         .setPersistenceEnabled(true)
-                        .setCacheSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                        .setCacheSizeBytes(100 * 1024 * 1024L) // 100MB bounded offline cache
                         .build()
                     firestore.firestoreSettings = settings
                     hasInitializedCache = true
                 } catch (e: Exception) {
-                    android.util.Log.w("AppModule", "Firestore settings warning: ${e.message}")
+                    android.util.Log.w("AppModule", "Firestore settings warning: ${e.message}", e)
                 }
             }
             firestore
         } catch (e: Throwable) {
-            android.util.Log.e("AppModule", "Firestore unavailable: ${e.message}")
+            android.util.Log.e("AppModule", "Firestore unavailable: ${e.message}", e)
             null
         }
     }

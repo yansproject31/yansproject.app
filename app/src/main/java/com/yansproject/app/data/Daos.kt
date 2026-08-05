@@ -4,63 +4,6 @@ import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface StockDao {
-    @Query("SELECT * FROM stock_items WHERE isDeleted = 0 ORDER BY name ASC")
-    fun getAllStock(): Flow<List<StockItem>>
-
-    @Query("SELECT * FROM stock_items")
-    suspend fun getAllStockList(): List<StockItem>
-
-    @Query("SELECT * FROM stock_items WHERE isDeleted = 1 ORDER BY name ASC")
-    fun getTrashedStock(): Flow<List<StockItem>>
-
-    @Query("SELECT * FROM stock_items WHERE id = :id")
-    suspend fun getStockById(id: Int): StockItem?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertStock(item: StockItem): Long
-
-    @Update
-    suspend fun updateStock(item: StockItem)
-
-    @Delete
-    suspend fun deleteStock(item: StockItem)
-
-    @Query("DELETE FROM stock_items")
-    suspend fun clearAllStock()
-
-    @Query("UPDATE stock_items SET stockCount = :newCount WHERE id = :id")
-    suspend fun updateStockCount(id: Int, newCount: Int)
-}
-
-@Dao
-interface ProjectDao {
-    @Query("SELECT * FROM projects WHERE isDeleted = 0 ORDER BY startDate DESC")
-    fun getAllProjects(): Flow<List<ProjectCustom>>
-
-    @Query("SELECT * FROM projects")
-    suspend fun getAllProjectsList(): List<ProjectCustom>
-
-    @Query("SELECT * FROM projects WHERE isDeleted = 1 ORDER BY startDate DESC")
-    fun getTrashedProjects(): Flow<List<ProjectCustom>>
-
-    @Query("SELECT * FROM projects WHERE id = :id")
-    suspend fun getProjectById(id: Int): ProjectCustom?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertProject(project: ProjectCustom): Long
-
-    @Update
-    suspend fun updateProject(project: ProjectCustom)
-
-    @Delete
-    suspend fun deleteProject(project: ProjectCustom)
-
-    @Query("DELETE FROM projects")
-    suspend fun clearAllProjects()
-}
-
-@Dao
 interface OrderDao {
     @Query("SELECT * FROM orders ORDER BY orderDate DESC")
     fun getAllOrders(): Flow<List<OrderHistory>>
@@ -79,39 +22,6 @@ interface OrderDao {
 
     @Query("DELETE FROM orders")
     suspend fun clearAllOrders()
-}
-
-@Dao
-interface InvoiceDao {
-    @Query("SELECT * FROM invoices WHERE isDeleted = 0 ORDER BY issueDate DESC")
-    fun getAllInvoices(): Flow<List<Invoice>>
-
-    @Query("SELECT * FROM invoices WHERE isDeleted = 1 ORDER BY issueDate DESC")
-    fun getTrashedInvoices(): Flow<List<Invoice>>
-
-    @Query("SELECT * FROM invoices")
-    suspend fun getInvoicesList(): List<Invoice>
-
-    @Query("SELECT * FROM invoices WHERE id = :id")
-    suspend fun getInvoiceById(id: Int): Invoice?
-
-    @Query("SELECT * FROM invoices WHERE invoiceNumber = :invoiceNumber LIMIT 1")
-    suspend fun getInvoiceByNumber(invoiceNumber: String): Invoice?
-
-    @Query("DELETE FROM invoices WHERE invoiceNumber = :invoiceNumber")
-    suspend fun deleteInvoiceByNumber(invoiceNumber: String)
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertInvoice(invoice: Invoice): Long
-
-    @Update
-    suspend fun updateInvoice(invoice: Invoice)
-
-    @Delete
-    suspend fun deleteInvoice(invoice: Invoice)
-
-    @Query("DELETE FROM invoices")
-    suspend fun clearAllInvoices()
 }
 
 @Dao
@@ -299,6 +209,9 @@ interface InventoryLedgerDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLedger(ledger: InventoryLedger): Long
 
+    @Delete
+    suspend fun deleteLedger(ledger: InventoryLedger)
+
     @Query("DELETE FROM inventory_ledger")
     suspend fun clearAll()
 
@@ -322,6 +235,9 @@ interface ProductionBatchDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBatch(batch: ProductionBatch): Long
+
+    @Delete
+    suspend fun deleteBatch(batch: ProductionBatch)
 
     @Query("DELETE FROM production_batch")
     suspend fun clearAll()

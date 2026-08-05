@@ -30,11 +30,8 @@ import androidx.core.view.WindowCompat
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Typography
 
-private var strongPrefListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
-
 @Composable
 fun MyApplicationTheme(
-    darkTheme: Boolean = true, // Forced Premium Luxury Dark Theme
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -56,13 +53,9 @@ fun MyApplicationTheme(
                 fontScale = p.getFloat("font_scale", 1.0f)
             }
         }
-        strongPrefListener = listener
         prefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose {
             prefs.unregisterOnSharedPreferenceChangeListener(listener)
-            if (strongPrefListener == listener) {
-                strongPrefListener = null
-            }
         }
     }
 

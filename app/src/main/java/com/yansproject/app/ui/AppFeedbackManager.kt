@@ -17,7 +17,13 @@ object AppFeedbackManager {
     private var successSoundId: Int = -1
     private var warningSoundId: Int = -1
     private var errorSoundId: Int = -1
-    private var isLoaded = false
+    
+    @Volatile
+    private var isSuccessLoaded = false
+    @Volatile
+    private var isWarningLoaded = false
+    @Volatile
+    private var isErrorLoaded = false
 
     private var vibrator: Vibrator? = null
 
@@ -33,9 +39,10 @@ object AppFeedbackManager {
                 @Suppress("DEPRECATION")
                 appContext.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
             }
-            Log.d(TAG, "Vibrator initialized: ${vibrator != null}")
+            val hasVib = vibrator?.hasVibrator() == true
+            Log.d(TAG, "Vibrator initialized: servicePresent=${vibrator != null}, hardwarePresent=$hasVib")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize Vibrator: ${e.message}")
+            Log.e(TAG, "Failed to initialize Vibrator: ${e.message}", e)
         }
 
         // 2. Initialize SoundPool
@@ -53,17 +60,21 @@ object AppFeedbackManager {
             soundPool?.let { pool ->
                 pool.setOnLoadCompleteListener { _, sampleId, status ->
                     if (status == 0) {
-                        Log.d(TAG, "Sound pool loaded sample successfully: $sampleId")
+                        Log.d(TAG, "SoundPool sample loaded successfully: sampleId=$sampleId")
+                        when (sampleId) {
+                            successSoundId -> isSuccessLoaded = true
+                            warningSoundId -> isWarningLoaded = true
+                            errorSoundId -> isErrorLoaded = true
+                        }
                     } else {
-                        Log.e(TAG, "Sound pool failed loading sample: $sampleId with status: $status")
+                        Log.e(TAG, "SoundPool sample load failed: sampleId=$sampleId with status=$status")
                     }
                 }
 
                 successSoundId = pool.load(appContext, R.raw.success, 1)
                 warningSoundId = pool.load(appContext, R.raw.warning, 1)
                 errorSoundId = pool.load(appContext, R.raw.error, 1)
-                isLoaded = true
-                Log.d(TAG, "SoundPool loading scheduled for success, warning, error.")
+                Log.d(TAG, "SoundPool sample load requested: successId=$successSoundId, warningId=$warningSoundId, errorId=$errorSoundId")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize SoundPool: ${e.message}", e)
@@ -71,63 +82,109 @@ object AppFeedbackManager {
     }
 
     fun triggerSuccess() {
-        playSuccessSound()
-        vibrateSuccess()
+        val soundOk = playSuccessSound()
+        val vibOk = vibrateSuccess()
+        Log.i(TAG, "Feedback triggered [SUCCESS]: soundPlayed=$soundOk, vibrated=$vibOk")
     }
 
     fun triggerWarning() {
-        playWarningSound()
-        vibrateWarning()
+        val soundOk = playWarningSound()
+        val vibOk = vibrateWarning()
+        Log.i(TAG, "Feedback triggered [WARNING]: soundPlayed=$soundOk, vibrated=$vibOk")
     }
 
     fun triggerError() {
-        playErrorSound()
-        vibrateError()
+        val soundOk = playErrorSound()
+        val vibOk = vibrateError()
+        Log.i(TAG, "Feedback triggered [ERROR]: soundPlayed=$soundOk, vibrated=$vibOk")
     }
 
     // --- SOUND METHODS ---
-    private fun playSuccessSound() {
-        try {
-            soundPool?.let { pool ->
-                if (successSoundId != -1) {
-                    pool.play(successSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
-                }
+    private fun playSuccessSound(): Boolean {
+        val pool = soundPool
+        if (pool == null) {
+            Log.w(TAG, "playSuccessSound skipped: SoundPool not initialized")
+            return false
+        }
+        if (successSoundId == -1 || !isSuccessLoaded) {
+            Log.w(TAG, "playSuccessSound skipped: sample not loaded yet (id=$successSoundId, loaded=$isSuccessLoaded)")
+            return false
+        }
+        return try {
+            val streamId = pool.play(successSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
+            if (streamId == 0) {
+                Log.w(TAG, "playSuccessSound failed: SoundPool returned streamId 0")
+                false
+            } else {
+                true
             }
         } catch (e: Throwable) {
-            Log.e(TAG, "playSuccessSound error: ${e.message}")
+            Log.e(TAG, "playSuccessSound error: ${e.message}", e)
+            false
         }
     }
 
-    private fun playWarningSound() {
-        try {
-            soundPool?.let { pool ->
-                if (warningSoundId != -1) {
-                    pool.play(warningSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
-                }
+    private fun playWarningSound(): Boolean {
+        val pool = soundPool
+        if (pool == null) {
+            Log.w(TAG, "playWarningSound skipped: SoundPool not initialized")
+            return false
+        }
+        if (warningSoundId == -1 || !isWarningLoaded) {
+            Log.w(TAG, "playWarningSound skipped: sample not loaded yet (id=$warningSoundId, loaded=$isWarningLoaded)")
+            return false
+        }
+        return try {
+            val streamId = pool.play(warningSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
+            if (streamId == 0) {
+                Log.w(TAG, "playWarningSound failed: SoundPool returned streamId 0")
+                false
+            } else {
+                true
             }
         } catch (e: Throwable) {
-            Log.e(TAG, "playWarningSound error: ${e.message}")
+            Log.e(TAG, "playWarningSound error: ${e.message}", e)
+            false
         }
     }
 
-    private fun playErrorSound() {
-        try {
-            soundPool?.let { pool ->
-                if (errorSoundId != -1) {
-                    pool.play(errorSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
-                }
+    private fun playErrorSound(): Boolean {
+        val pool = soundPool
+        if (pool == null) {
+            Log.w(TAG, "playErrorSound skipped: SoundPool not initialized")
+            return false
+        }
+        if (errorSoundId == -1 || !isErrorLoaded) {
+            Log.w(TAG, "playErrorSound skipped: sample not loaded yet (id=$errorSoundId, loaded=$isErrorLoaded)")
+            return false
+        }
+        return try {
+            val streamId = pool.play(errorSoundId, 1.0f, 1.0f, 0, 0, 1.0f)
+            if (streamId == 0) {
+                Log.w(TAG, "playErrorSound failed: SoundPool returned streamId 0")
+                false
+            } else {
+                true
             }
         } catch (e: Throwable) {
-            Log.e(TAG, "playErrorSound error: ${e.message}")
+            Log.e(TAG, "playErrorSound error: ${e.message}", e)
+            false
         }
     }
 
     // --- VIBRATION METHODS ---
-    private fun vibrateSuccess() {
-        val vib = vibrator ?: return
-        try {
+    private fun vibrateSuccess(): Boolean {
+        val vib = vibrator
+        if (vib == null) {
+            Log.w(TAG, "vibrateSuccess skipped: Vibrator service unavailable")
+            return false
+        }
+        if (!vib.hasVibrator()) {
+            Log.w(TAG, "vibrateSuccess skipped: Device lacks vibration hardware")
+            return false
+        }
+        return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Success is a light double pulse (quick tap)
                 val timings = longArrayOf(0, 30, 40, 30)
                 val amplitudes = intArrayOf(0, 180, 0, 220)
                 vib.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
@@ -135,35 +192,55 @@ object AppFeedbackManager {
                 @Suppress("DEPRECATION")
                 vib.vibrate(longArrayOf(0, 30, 40, 30), -1)
             }
+            true
         } catch (e: SecurityException) {
-            Log.e(TAG, "Vibrate permission missing: ${e.message}")
+            Log.e(TAG, "Vibrate permission missing: ${e.message}", e)
+            false
         } catch (e: Exception) {
-            Log.e(TAG, "Vibration failed: ${e.message}")
+            Log.e(TAG, "vibrateSuccess failed: ${e.message}", e)
+            false
         }
     }
 
-    private fun vibrateWarning() {
-        val vib = vibrator ?: return
-        try {
+    private fun vibrateWarning(): Boolean {
+        val vib = vibrator
+        if (vib == null) {
+            Log.w(TAG, "vibrateWarning skipped: Vibrator service unavailable")
+            return false
+        }
+        if (!vib.hasVibrator()) {
+            Log.w(TAG, "vibrateWarning skipped: Device lacks vibration hardware")
+            return false
+        }
+        return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Warning is a single medium-duration warning pulse
                 vib.vibrate(VibrationEffect.createOneShot(120, 180))
             } else {
                 @Suppress("DEPRECATION")
                 vib.vibrate(120)
             }
+            true
         } catch (e: SecurityException) {
-            Log.e(TAG, "Vibrate permission missing: ${e.message}")
+            Log.e(TAG, "Vibrate permission missing: ${e.message}", e)
+            false
         } catch (e: Exception) {
-            Log.e(TAG, "Vibration failed: ${e.message}")
+            Log.e(TAG, "vibrateWarning failed: ${e.message}", e)
+            false
         }
     }
 
-    private fun vibrateError() {
-        val vib = vibrator ?: return
-        try {
+    private fun vibrateError(): Boolean {
+        val vib = vibrator
+        if (vib == null) {
+            Log.w(TAG, "vibrateError skipped: Vibrator service unavailable")
+            return false
+        }
+        if (!vib.hasVibrator()) {
+            Log.w(TAG, "vibrateError skipped: Device lacks vibration hardware")
+            return false
+        }
+        return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Error is three heavy urgent pulses
                 val timings = longArrayOf(0, 100, 80, 100, 80, 150)
                 val amplitudes = intArrayOf(0, 255, 0, 255, 0, 255)
                 vib.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
@@ -171,10 +248,13 @@ object AppFeedbackManager {
                 @Suppress("DEPRECATION")
                 vib.vibrate(longArrayOf(0, 100, 80, 100, 80, 150), -1)
             }
+            true
         } catch (e: SecurityException) {
-            Log.e(TAG, "Vibrate permission missing: ${e.message}")
+            Log.e(TAG, "Vibrate permission missing: ${e.message}", e)
+            false
         } catch (e: Exception) {
-            Log.e(TAG, "Vibration failed: ${e.message}")
+            Log.e(TAG, "vibrateError failed: ${e.message}", e)
+            false
         }
     }
 }

@@ -417,9 +417,9 @@ fun MainAppContainer(
         viewModel.triggerNotification(
           title = title,
           message = msg,
-          category = "Sistem",
+          category = "BROADCAST",
           targetTab = "INVOICE",
-          roleTarget = "MEMBER",
+          roleTarget = "BROADCAST",
           userId = "ALL",
           priority = "HIGH",
           createdBy = currentUser?.email ?: "OWNER"
@@ -753,32 +753,15 @@ fun GlobalSearchDialog(
               )
             }
 
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.spacedBy(8.dp),
-              verticalAlignment = Alignment.CenterVertically
+            Button(
+              onClick = { viewModel.clearProductionFilters() },
+              colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray, contentColor = Color.White),
+              shape = RoundedCornerShape(8.dp),
+              modifier = Modifier.fillMaxWidth().testTag("prod_filter_clear")
             ) {
-              Button(
-                onClick = { viewModel.clearProductionFilters() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray, contentColor = Color.White),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.weight(1f).testTag("prod_filter_clear")
-              ) {
-                Icon(imageVector = Icons.Outlined.DeleteSweep, contentDescription = "Clear", modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Reset Filter", fontSize = 12.sp)
-              }
-
-              Button(
-                onClick = { viewModel.populateSampleProductionData() },
-                colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.weight(1f).testTag("prod_populate_btn")
-              ) {
-                Icon(imageVector = Icons.Outlined.CloudDownload, contentDescription = "Populate", modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Populasi Data", fontSize = 12.sp)
-              }
+              Icon(imageVector = Icons.Outlined.DeleteSweep, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(6.dp))
+              Text("Reset Filter", fontSize = 12.sp)
             }
           }
 

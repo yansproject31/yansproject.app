@@ -263,7 +263,42 @@ class DataConflictResolver(private val context: Context) {
                 offlineActionDao.deleteAction(action)
                 
             } catch (e: Exception) {
-                Log.e(TAG, "Failed resolving sync action ID ${action.id}", e)
+                val isPermanentError = e is org.json.JSONException ||
+                    (e is com.google.firebase.firestore.FirebaseFirestoreException &&
+                        (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                         e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.INVALID_ARGUMENT))
+
+                val isNetworkError = e is java.io.IOException ||
+                    e is java.net.UnknownHostException ||
+                    (e is com.google.firebase.firestore.FirebaseFirestoreException &&
+                        (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE ||
+                         e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.DEADLINE_EXCEEDED))
+
+                val errorCategory = when {
+                    isPermanentError -> "PERMANENT_CORRUPT_OR_AUTH_ERROR"
+                    isNetworkError -> "TEMPORARY_NETWORK_ERROR"
+                    else -> "UNHANDLED_SYNC_EXCEPTION"
+                }
+
+                Log.e(TAG, "Failed resolving sync action ID ${action.id} ($errorCategory): ${e.message}", e)
+
+                // Log error event to database audit trail
+                try {
+                    appDatabase.auditLogDao().insertLog(
+                        AuditLog(
+                            activity = "SYNC_ACTION_FAILED",
+                            details = "Offline action ID ${action.id} ($collection) failed. Category: $errorCategory. Details: ${e.message}"
+                        )
+                    )
+                } catch (logErr: Exception) {
+                    Log.e(TAG, "Failed inserting conflict error audit log: ${logErr.message}")
+                }
+
+                // If permanent corrupt payload or auth error, discard or flag to prevent infinite blocking loop
+                if (isPermanentError) {
+                    Log.w(TAG, "Purging unrecoverable permanent sync action ID ${action.id} from queue.")
+                    offlineActionDao.deleteAction(action)
+                }
             }
         }
         

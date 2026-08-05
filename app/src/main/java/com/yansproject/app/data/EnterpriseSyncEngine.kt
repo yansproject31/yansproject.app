@@ -9,6 +9,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,16 +21,18 @@ import java.util.Locale
 @Keep
 object EnterpriseSyncEngine {
     private const val TAG = "EnterpriseSyncEngine"
-    private val listenerRegistrations = mutableListOf<ListenerRegistration>()
+    private val listenerRegistrations = java.util.Collections.synchronizedList(mutableListOf<ListenerRegistration>())
+    private val engineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     private val _syncStatus = MutableStateFlow<String>("Offline / Terhubung Lokal")
     val syncStatus: StateFlow<String> = _syncStatus.asStateFlow()
 
+    @Synchronized
     fun startRealtimeSyncListeners(context: Context) {
         val metadataManager = SyncMetadataManager.getInstance(context)
         if (metadataManager.getState() != BootstrapState.FINISHED) {
             val db = AppDatabase.getDatabase(context)
-            CoroutineScope(Dispatchers.IO).launch {
+            engineScope.launch {
                 try {
                     val isDbPopulated = db.catalogDao().getCatalogsList().isNotEmpty() ||
                                         db.invoiceDao().getInvoicesList().isNotEmpty() ||
@@ -41,7 +44,7 @@ object EnterpriseSyncEngine {
                         _syncStatus.value = "Menunggu penyelesaian bootstrap..."
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error checking DB population: ${e.message}")
+                    Log.e(TAG, "Error checking DB population: ${e.message}", e)
                 }
             }
             return
@@ -50,26 +53,29 @@ object EnterpriseSyncEngine {
         val firestore = try {
             FirebaseFirestore.getInstance()
         } catch (e: Throwable) {
-            Log.e(TAG, "Firestore unavailable for sync listeners: ${e.message}")
+            Log.e(TAG, "Firestore unavailable for sync listeners: ${e.message}", e)
             _syncStatus.value = "Modus Offline (Firebase tidak aktif)"
             return
         }
         val db = AppDatabase.getDatabase(context)
-        val scope = CoroutineScope(Dispatchers.IO)
 
         stopRealtimeSyncListeners()
 
         val collections = listOf("stock_items", "projects", "invoices", "invoice_payments", "orders", "expenses", "inflows", "master_catalog", "master_varian_warna", "master_stock", "stock_history", "audit_logs", "inventory_ledger", "production_batch", "inventory_summary")
+        val failedListeners = mutableListOf<String>()
 
         for (col in collections) {
             try {
                 val registration = firestore.collection(col)
                     .addSnapshotListener { snapshots, e ->
-                        if (e != null || snapshots == null) return@addSnapshotListener
+                        if (e != null || snapshots == null) {
+                            if (e != null) Log.w(TAG, "Snapshot error for collection $col: ${e.message}")
+                            return@addSnapshotListener
+                        }
                         for (change in snapshots.documentChanges) {
                             val doc = change.document
                             val isRemove = change.type == com.google.firebase.firestore.DocumentChange.Type.REMOVED
-                            scope.launch {
+                            engineScope.launch {
                                 try {
                                     when (col) {
                                         "stock_items" -> {
@@ -193,21 +199,43 @@ object EnterpriseSyncEngine {
                                             else db.inventorySummaryDao().insertSummary(item)
                                         }
                                     }
-                                } catch (ex: Exception) { Log.e(TAG, "Sync error col $col: ${ex.message}") }
+                                } catch (ex: Exception) { Log.e(TAG, "Sync error col $col: ${ex.message}", ex) }
                             }
                         }
                         val formattedTime = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date())
                         _syncStatus.value = "Tersinkronisasi Realtime: $formattedTime"
                     }
-                registration?.let { listenerRegistrations.add(it) }
-            } catch (ex: Exception) { Log.e(TAG, "Listener col $col setup fail: ${ex.message}") }
+                if (registration != null) {
+                    listenerRegistrations.add(registration)
+                } else {
+                    failedListeners.add(col)
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Listener col $col setup fail: ${ex.message}", ex)
+                failedListeners.add(col)
+            }
+        }
+
+        if (failedListeners.isNotEmpty()) {
+            Log.w(TAG, "Partial listener registration failures for collections: ${failedListeners.joinToString()}")
+            _syncStatus.value = "Peringatan Sync: ${failedListeners.size} listener gagal terhubung"
         }
     }
 
+    @Synchronized
     fun stopRealtimeSyncListeners() {
-        listenerRegistrations.forEach { it.remove() }
-        listenerRegistrations.clear()
+        synchronized(listenerRegistrations) {
+            listenerRegistrations.forEach { 
+                try {
+                    it.remove()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error removing listener registration: ${e.message}")
+                }
+            }
+            listenerRegistrations.clear()
+        }
         _syncStatus.value = "Sync listeners dinonaktifkan."
+        Log.i(TAG, "All realtime sync listeners successfully detached.")
     }
 
     fun <T : Any> syncItemToCloud(context: Context, colPath: String, id: String, item: T) {
@@ -216,7 +244,7 @@ object EnterpriseSyncEngine {
                 .addOnSuccessListener { Log.d(TAG, "Sync SUCCESS: $colPath ID $id") }
                 .addOnFailureListener { enqueueOfflineAction(context, colPath, id, item) }
         } catch (e: Throwable) {
-            Log.e(TAG, "syncItemToCloud error: ${e.message}")
+            Log.e(TAG, "syncItemToCloud error: ${e.message}", e)
             enqueueOfflineAction(context, colPath, id, item)
         }
     }
@@ -229,35 +257,36 @@ object EnterpriseSyncEngine {
                 .addOnFailureListener {
                     try {
                         FirebaseFirestore.getInstance().collection(colPath).document(id).set(updates, com.google.firebase.firestore.SetOptions.merge())
-                            .addOnFailureListener { CoroutineScope(Dispatchers.IO).launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) } }
+                            .addOnFailureListener { engineScope.launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) } }
                     } catch (e: Throwable) {
-                        CoroutineScope(Dispatchers.IO).launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) }
+                        engineScope.launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) }
                     }
                 }
         } catch (e: Throwable) {
-            Log.e(TAG, "deleteItemFromCloud error: ${e.message}")
-            CoroutineScope(Dispatchers.IO).launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) }
+            Log.e(TAG, "deleteItemFromCloud error: ${e.message}", e)
+            engineScope.launch { MutationQueue.getInstance(context).enqueueSoftDelete(colPath, id) }
         }
     }
 
     private fun <T : Any> enqueueOfflineAction(context: Context, colPath: String, id: String, item: T) {
-        CoroutineScope(Dispatchers.IO).launch {
+        engineScope.launch {
             try {
                 val db = YansRoomDatabase.getDatabase(context)
                 val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
                 val payload = moshi.adapter(item.javaClass).toJson(item)
                 if (db.offlineActionDao().getAllActions().any { it.targetCollection == colPath && it.additionalMeta == id }) return@launch
                 db.offlineActionDao().insertAction(OfflineActionEntity(stringPayload = payload, targetCollection = colPath, timestamp = System.currentTimeMillis(), retryCount = 0, additionalMeta = id))
-            } catch (e: Exception) { Log.e(TAG, "Error queuing action: ${e.message}") }
+                Log.i(TAG, "Successfully enqueued offline action for collection=$colPath, id=$id")
+            } catch (e: Exception) { Log.e(TAG, "Error queuing action for collection=$colPath, id=$id: ${e.message}", e) }
         }
     }
 
     fun triggerOfflineQueueSync(context: Context) {
         if (SyncMetadataManager.getInstance(context).getState() != BootstrapState.FINISHED) return
-        CoroutineScope(Dispatchers.IO).launch {
+        engineScope.launch {
             try {
                 DataConflictResolver(context).resolveAndSyncQueue(AppDatabase.getDatabase(context), YansRoomDatabase.getDatabase(context).offlineActionDao())
-            } catch (e: Exception) { Log.e(TAG, "Queue sync fail: ${e.message}") }
+            } catch (e: Exception) { Log.e(TAG, "Queue sync fail: ${e.message}", e) }
         }
     }
 }

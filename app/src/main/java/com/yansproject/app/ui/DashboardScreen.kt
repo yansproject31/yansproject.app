@@ -1,6 +1,9 @@
 package com.yansproject.app.ui
 
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
 import androidx.activity.compose.BackHandler
+import kotlinx.coroutines.isActive
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -1031,24 +1034,22 @@ fun DashboardScreen(
 
 
 
-    // Jam & Tanggal Real-Time Ticking Clock (Berdetik setiap detik)
-    var currentTimeMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            currentTimeMillis = System.currentTimeMillis()
-            kotlinx.coroutines.delay(1000)
+    // Jam & Tanggal Real-Time Ticking Clock (Lifecycle-safe, pause saat inactive)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val currentTimeMillis by produceState(initialValue = System.currentTimeMillis(), lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                value = System.currentTimeMillis()
+                kotlinx.coroutines.delay(1000)
+            }
         }
     }
 
     // Format Jam dan Tanggal Bahasa Indonesia (Menggunakan Locale.forLanguageTag agar tidak deprecated)
-    val clockString = remember(currentTimeMillis) {
-        val sdf = SimpleDateFormat("HH:mm:ss", Locale.forLanguageTag("id-ID"))
-        sdf.format(Date(currentTimeMillis))
-    }
-    val dateString = remember(currentTimeMillis) {
-        val sdf = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.forLanguageTag("id-ID"))
-        sdf.format(Date(currentTimeMillis))
-    }
+    val clockFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.forLanguageTag("id-ID")) }
+    val dateFormat = remember { SimpleDateFormat("EEEE, d MMMM yyyy", Locale.forLanguageTag("id-ID")) }
+    val clockString = remember(currentTimeMillis) { clockFormat.format(Date(currentTimeMillis)) }
+    val dateString = remember(currentTimeMillis) { dateFormat.format(Date(currentTimeMillis)) }
 
     // Fungsi utilitas lokal untuk menyaring rentang tanggal transaksi
     fun isTimestampInFilter(timestamp: Long, filter: String): Boolean {

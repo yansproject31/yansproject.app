@@ -2,6 +2,7 @@ package com.yansproject.app.ui.settings
 
 import android.content.Context
 import android.widget.Toast
+import com.yansproject.app.data.BusinessIdentityProvider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,19 +45,19 @@ fun BusinessIdentityModule(
 
     // 1. Initialize states with Offline-First defaults if local storage is empty
     val dataStoreName = try { AppSettings.getStoreName(context).ifBlank { null } } catch (e: Exception) { null }
-    val storeNameDefaultValue = "YANSPROJECT.ID"
+    val storeNameDefaultValue = BusinessIdentityProvider.DEFAULT_COMPANY_NAME
     var storeName by remember { mutableStateOf(dataStoreName ?: storeNameDefaultValue) }
 
     val dataAddress = try { AppSettings.getAddress(context).ifBlank { null } } catch (e: Exception) { null }
-    val addressDefaultValue = "Tangerang, Banten"
+    val addressDefaultValue = BusinessIdentityProvider.DEFAULT_STORE_ADDRESS
     var address by remember { mutableStateOf(dataAddress ?: addressDefaultValue) }
 
     val dataWhatsApp = try { AppSettings.getWhatsApp(context).ifBlank { null } } catch (e: Exception) { null }
-    val whatsappDefaultValue = "+62 877-7739-8813"
+    val whatsappDefaultValue = BusinessIdentityProvider.DEFAULT_SUPPORT_WHATSAPP
     var whatsapp by remember { mutableStateOf(dataWhatsApp ?: whatsappDefaultValue) }
 
     val dataEmail = try { AppSettings.getEmail(context).ifBlank { null } } catch (e: Exception) { null }
-    val emailDefaultValue = "yansart31@gmail.com"
+    val emailDefaultValue = BusinessIdentityProvider.DEFAULT_SUPPORT_EMAIL
     var email by remember { mutableStateOf(dataEmail ?: emailDefaultValue) }
 
     val dataWebsite = try { AppSettings.getWebsite(context).ifBlank { null } } catch (e: Exception) { null }
@@ -67,19 +68,19 @@ fun BusinessIdentityModule(
     LaunchedEffect(Unit) {
         try {
             if (AppSettings.getStoreName(context).isBlank()) {
-                AppSettings.setStoreName(context, "YANSPROJECT.ID")
+                AppSettings.setStoreName(context, BusinessIdentityProvider.DEFAULT_COMPANY_NAME)
             }
             if (AppSettings.getAddress(context).isBlank()) {
-                AppSettings.setAddress(context, "Tangerang, Banten")
+                AppSettings.setAddress(context, BusinessIdentityProvider.DEFAULT_STORE_ADDRESS)
             }
             if (AppSettings.getWhatsApp(context).isBlank()) {
-                AppSettings.setWhatsApp(context, "+62 877-7739-8813")
+                AppSettings.setWhatsApp(context, BusinessIdentityProvider.DEFAULT_SUPPORT_WHATSAPP)
             }
             if (AppSettings.getEmail(context).isBlank()) {
-                AppSettings.setEmail(context, "yansart31@gmail.com")
+                AppSettings.setEmail(context, BusinessIdentityProvider.DEFAULT_SUPPORT_EMAIL)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("BusinessIdentityModule", "Error initializing defaults: ${e.message}", e)
         }
     }
 

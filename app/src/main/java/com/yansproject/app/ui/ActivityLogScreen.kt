@@ -36,12 +36,14 @@ fun ActivityLogScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     var isAuthorized by remember { mutableStateOf(false) }
 
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         com.yansproject.app.ui.security.BiometricAuthManager.authenticateWithBiometrics(
             context = context,
             onSuccess = {
                 isAuthorized = true
-                viewModel.addAuditLog("Akses Audit Log", "Owner sukses verifikasi sidik jari untuk mengakses Audit Log Aktivitas Sistem.")
+                viewModel.addAuditLog("Akses Audit Log", "Administrator sukses verifikasi sidik jari untuk mengakses Audit Log Aktivitas Sistem.")
             },
             onError = { errString ->
                 Toast.makeText(context, "Verifikasi Sidik Jari Gagal/Dibatalkan.", Toast.LENGTH_LONG).show()
@@ -51,7 +53,6 @@ fun ActivityLogScreen(
     }
 
     val auditLogs by viewModel.allAuditLogs.collectAsState()
-    val listState = remember { auditLogs }
 
     if (!isAuthorized) {
         Box(
@@ -65,15 +66,43 @@ fun ActivityLogScreen(
         return
     }
 
-    // Pre-populate if empty, so the user always sees real security events that reside in Room!
-    LaunchedEffect(auditLogs) {
-        if (auditLogs.isEmpty()) {
-            viewModel.addAuditLog("Login Owner Berhasil", "Admin authenticated via main portal successfully on device.")
-            viewModel.addAuditLog("Percobaan Akses Tidak Sah", "MEMBER attempted to edit critical pricing in product catalog.")
-            viewModel.addAuditLog("Backup Database Sukses", "Automated daily sqlite dump backed up to Firebase Cloud Storage.")
-            viewModel.addAuditLog("Gagal Verifikasi PIN", "MEMBER failed security code verification inside Settings panel.")
-            viewModel.addAuditLog("Developer Mode Aktif", "Diagnostic portal initialized by OWNER via tap trigger.")
-        }
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            title = {
+                Text(
+                    text = "HAPUS SELURUH AUDIT LOG?",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AgedGold
+                )
+            },
+            text = {
+                Text(
+                    text = "Tindakan ini akan menghapus semua riwayat catatan keamanan dari database lokal secara permanen. Apakah Anda yakin?",
+                    fontSize = 13.sp,
+                    color = TextWhite
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearConfirmDialog = false
+                        viewModel.clearAuditLogs()
+                        Toast.makeText(context, "Seluruh Audit Log telah dibersihkan", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text("HAPUS PERMANEN", color = AlertRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmDialog = false }) {
+                    Text("BATALAN", color = TextMuted)
+                }
+            },
+            containerColor = SurfaceDarkTeal,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 
     androidx.activity.compose.BackHandler(enabled = true) {
@@ -97,7 +126,7 @@ fun ActivityLogScreen(
                 },
                 actions = {
                     Surface(
-                        onClick = { viewModel.clearAuditLogs() },
+                        onClick = { showClearConfirmDialog = true },
                         modifier = Modifier.size(40.dp),
                         shape = RoundedCornerShape(12.dp),
                         color = SurfaceDarkTeal.copy(alpha = 0.85f),

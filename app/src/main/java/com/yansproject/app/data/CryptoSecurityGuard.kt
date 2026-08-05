@@ -9,6 +9,12 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
+data class CryptoResult(
+    val isSuccess: Boolean,
+    val data: String,
+    val error: Throwable? = null
+)
+
 class CryptoSecurityGuard {
 
     private val providerName = "AndroidKeyStore"
@@ -49,9 +55,10 @@ class CryptoSecurityGuard {
 
     /**
      * Encrypts the raw text using hardware-backed AES-GCM and returns a combined Base64 string of [IV + EncryptedPayload].
+     * Throws SecurityException on encryption failure.
      */
-    fun encrypt(rawText: String): String {
-        return try {
+    fun encryptOrThrow(rawText: String): String {
+        try {
             val secretKey = getOrCreateSecretKey()
             val cipher = Cipher.getInstance(transformation)
             cipher.init(Cipher.ENCRYPT_MODE, secretKey)
@@ -59,28 +66,45 @@ class CryptoSecurityGuard {
             val encryptedBytes = cipher.doFinal(rawText.toByteArray(Charsets.UTF_8))
             val iv = cipher.iv
 
-            // Pack IV and Encrypted Bytes together to simplify local shared preference persistence
             val packed = ByteArray(iv.size + encryptedBytes.size)
             System.arraycopy(iv, 0, packed, 0, iv.size)
             System.arraycopy(encryptedBytes, 0, packed, iv.size, encryptedBytes.size)
 
-            Base64.encodeToString(packed, Base64.NO_WRAP)
+            return Base64.encodeToString(packed, Base64.NO_WRAP)
         } catch (e: Exception) {
-            android.util.Log.e("CryptoSecurityGuard", "Encryption operation failed: ${e.message}", e)
+            android.util.Log.e("CryptoSecurityGuard", "Encryption operation failed explicitly: ${e.message}", e)
+            throw SecurityException("Encryption operation failed: ${e.message}", e)
+        }
+    }
+
+    fun encryptResult(rawText: String): CryptoResult {
+        return try {
+            CryptoResult(isSuccess = true, data = encryptOrThrow(rawText))
+        } catch (e: Exception) {
+            CryptoResult(isSuccess = false, data = "", error = e)
+        }
+    }
+
+    fun encrypt(rawText: String): String {
+        return try {
+            encryptOrThrow(rawText)
+        } catch (e: Exception) {
             ""
         }
     }
 
     /**
      * Decrypts the cipher text packed as [IV + EncryptedPayload] using hardware-backed AES-GCM.
+     * Throws SecurityException on decryption failure.
      */
-    fun decrypt(cipherText: String): String {
-        return try {
+    fun decryptOrThrow(cipherText: String): String {
+        try {
+            if (cipherText.isBlank()) return ""
             val secretKey = getOrCreateSecretKey()
             val packed = Base64.decode(cipherText, Base64.NO_WRAP)
             
             val ivSize = 12 // Standard GCM IV length is 12 bytes
-            if (packed.size <= ivSize) return ""
+            if (packed.size <= ivSize) throw SecurityException("Ciphertext payload too short for GCM IV")
 
             val iv = ByteArray(ivSize)
             val encryptedBytes = ByteArray(packed.size - ivSize)
@@ -93,9 +117,25 @@ class CryptoSecurityGuard {
             cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
 
             val decryptedBytes = cipher.doFinal(encryptedBytes)
-            String(decryptedBytes, Charsets.UTF_8)
+            return String(decryptedBytes, Charsets.UTF_8)
         } catch (e: Exception) {
-            android.util.Log.e("CryptoSecurityGuard", "Decryption operation failed: ${e.message}", e)
+            android.util.Log.e("CryptoSecurityGuard", "Decryption operation failed explicitly: ${e.message}", e)
+            throw SecurityException("Decryption operation failed: ${e.message}", e)
+        }
+    }
+
+    fun decryptResult(cipherText: String): CryptoResult {
+        return try {
+            CryptoResult(isSuccess = true, data = decryptOrThrow(cipherText))
+        } catch (e: Exception) {
+            CryptoResult(isSuccess = false, data = "", error = e)
+        }
+    }
+
+    fun decrypt(cipherText: String): String {
+        return try {
+            decryptOrThrow(cipherText)
+        } catch (e: Exception) {
             ""
         }
     }

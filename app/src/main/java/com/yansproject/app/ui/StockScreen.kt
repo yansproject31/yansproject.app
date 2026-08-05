@@ -544,6 +544,7 @@ fun StockScreen(
                                                         .filter { !it.description.startsWith("__") }
                                                         .sumOf { it.quantity }
                                                 } catch (e: Exception) {
+                                                    android.util.Log.e("StockScreen", "Failed to parse itemsJson for invoice ${inv.invoiceNumber}: ${e.message}", e)
                                                     0
                                                 }
                                             }
@@ -556,6 +557,7 @@ fun StockScreen(
                                                 try {
                                                     converters.toOrderItemList(ord.itemsJson).sumOf { it.quantity }
                                                 } catch (e: Exception) {
+                                                    android.util.Log.e("StockScreen", "Failed to parse itemsJson for order ${ord.id}: ${e.message}", e)
                                                     0
                                                 }
                                             }
@@ -3124,7 +3126,10 @@ fun MemberDetailStockView(
         invoices.forEach { invoice ->
             if (invoice.status.equals("MENUNGGU PERSETUJUAN", ignoreCase = true) || 
                 invoice.status.equals("MENUNGGU PERSETUJUAN OWNER", ignoreCase = true)) {
-                val items = try { converters.toInvoiceItemList(invoice.itemsJson) } catch (e: Exception) { emptyList() }
+                val items = try { converters.toInvoiceItemList(invoice.itemsJson) } catch (e: Exception) { 
+                    android.util.Log.e("StockScreen", "calculateReservedQty failed to parse itemsJson for invoice ${invoice.invoiceNumber}: ${e.message}", e)
+                    emptyList() 
+                }
                 items.forEach { item ->
                     val desc = item.description
                     if (desc.contains(catalog.nama_catalog, ignoreCase = true) &&
@@ -4692,6 +4697,7 @@ fun TotalTerjualDetailDialog(
             val items = try {
                 converters.toInvoiceItemList(inv.itemsJson).filter { !it.description.startsWith("__") }
             } catch (e: Exception) {
+                android.util.Log.e("StockScreen", "Failed to parse itemsJson for invoice ${inv.invoiceNumber}: ${e.message}", e)
                 emptyList()
             }
             val effectivePaid = if (inv.paidAmount > 0.0) {
@@ -4714,6 +4720,7 @@ fun TotalTerjualDetailDialog(
             val items = try {
                 converters.toOrderItemList(ord.itemsJson)
             } catch (e: Exception) {
+                android.util.Log.e("StockScreen", "Failed to parse itemsJson for order ${ord.id}: ${e.message}", e)
                 emptyList()
             }
             val effectivePaid = if (ord.paidAmount > 0.0) {

@@ -34,14 +34,18 @@ class InventoryProjectViewModel(application: Application) : AndroidViewModel(app
     val syncMessage: StateFlow<String?> = _syncMessage.asStateFlow()
 
     init {
-        loadMockBindings()
+        // Production initialization starts clean
+        _bindingsState.value = emptyList()
     }
 
-    private fun loadMockBindings() {
+    /**
+     * Isolated demo binding loader for testing environments.
+     */
+    fun loadDemoBindingsForTesting() {
         _bindingsState.value = listOf(
-            ProjectMaterialBinding("proj_001", "A-01", 50, 50),
-            ProjectMaterialBinding("proj_001", "A-02", 30, 20),
-            ProjectMaterialBinding("proj_002", "A-03", 100, 100)
+            ProjectMaterialBinding("proj_001_demo", "A-01-DEMO", 50, 50),
+            ProjectMaterialBinding("proj_001_demo", "A-02-DEMO", 30, 20),
+            ProjectMaterialBinding("proj_002_demo", "A-03-DEMO", 100, 100)
         )
     }
 

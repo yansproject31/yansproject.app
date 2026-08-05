@@ -172,26 +172,25 @@ object PdfUtils {
             val safeNum = invoice.invoiceNumber.replace("/", "_").replace("\\", "_")
             val dir = FileUtils.getExportDirectory(context, "invoice")
             val file = File(dir, "Invoice-${safeNum}.pdf")
-            val outputStream = FileOutputStream(file)
-            pdfDocument.writeTo(outputStream)
+            FileOutputStream(file).use { outputStream ->
+                pdfDocument.writeTo(outputStream)
+            }
             pdfDocument.close()
-            outputStream.close()
 
-            try {
-                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                if (!downloadsDir.exists()) downloadsDir.mkdirs()
-                val downloadFile = File(downloadsDir, "Invoice-${safeNum}.pdf")
-                file.copyTo(downloadFile, overwrite = true)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed writing to public Downloads folder: ${e.message}")
+            // Separate mirror copy to public Downloads folder using FileUtils
+            val mirroredFile = FileUtils.mirrorToDownloads(context, file, "Invoice")
+            if (mirroredFile != null) {
+                Log.i(TAG, "Invoice PDF successfully mirrored to public Downloads: ${mirroredFile.absolutePath}")
+            } else {
+                Log.w(TAG, "Primary Invoice PDF saved at ${file.absolutePath}, but public Downloads mirror skipped or failed.")
             }
 
             if (viewModel != null) {
-                viewModel.showGlobalSnackbar("Ringkasan PDF Invoice-${safeNum} berhasil diunduh.", "Buka Folder") {
+                viewModel.showGlobalSnackbar("Ringkasan PDF Invoice-${safeNum} berhasil disimpan.", "Buka Folder") {
                     FileUtils.openFolder(context, dir)
                 }
             } else {
-                Toast.makeText(context, "Ringkasan PDF Invoice-${safeNum} berhasil diunduh!", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Ringkasan PDF Invoice-${safeNum} berhasil disimpan!", Toast.LENGTH_LONG).show()
             }
 
             val params = android.os.Bundle().apply {
@@ -200,6 +199,10 @@ object PdfUtils {
             }
             FirebaseSyncManager.logEvent("export_pdf", params)
             file
+        } catch (e: java.io.IOException) {
+            Log.e(TAG, "I/O Error exporting PDF Invoice: ${e.message}", e)
+            Toast.makeText(context, "Gagal mengekspor PDF Invoice: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            null
         } catch (e: Exception) {
             Log.e(TAG, "Failed exporting PDF: ${e.message}", e)
             Toast.makeText(context, "Gagal mengekspor PDF: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()

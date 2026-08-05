@@ -69,11 +69,11 @@ class RiwayatViewModel(application: Application) : AndroidViewModel(application)
                     }
                 } else {
                     _isLastPageReached.value = true
-                    loadMockLocalHistory()
+                    _paginatedInvoices.value = emptyList()
                 }
             } catch (e: Exception) {
                 FirebaseCrashlytics.getInstance().recordException(e)
-                loadMockLocalHistory()
+                _paginatedInvoices.value = emptyList()
                 _isLastPageReached.value = true
             } finally {
                 _isLoadingPage.value = false
@@ -126,21 +126,21 @@ class RiwayatViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * Local cached mock history fallback for presentation state consistency.
+     * Isolated demo history loader for explicit testing environments.
      */
-    private fun loadMockLocalHistory() {
+    fun loadDemoHistoryForTesting() {
         val baseTime = System.currentTimeMillis()
         val dayMs = 24 * 60 * 60 * 1000L
         _paginatedInvoices.value = List(25) { index ->
             DomainInvoice(
-                id = "hist_inv_$index",
+                id = "hist_inv_${index}_demo",
                 invoiceNumber = "INV-2026-${1000 + index}",
-                clientName = if (index % 2 == 0) "Koko Customer A$index" else "Custom Order B$index",
+                clientName = if (index % 2 == 0) "Koko Customer A$index (DEMO)" else "Custom Order B$index (DEMO)",
                 clientPhone = "08123456789",
                 issueDate = baseTime - (index * dayMs),
                 totalAmount = 100000.0 * (index + 1),
                 paidAmount = if (index % 3 == 0) 100000.0 * (index + 1) else 0.0,
-                status = if (index % 3 == 0) "LUNAS" else "BELUM LUNAS"
+                status = if (index % 3 == 0) "LUNAS (DEMO)" else "BELUM LUNAS (DEMO)"
             )
         }
     }

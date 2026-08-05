@@ -1,5 +1,6 @@
 package com.yansproject.app.ui.history
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +37,19 @@ fun HistoryDashboardScreen(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val activeUserId = com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState().value?.uid?.takeIf { it.isNotBlank() } ?: "guest"
+    val prefs = remember(context, activeUserId) { context.getSharedPreferences("kitab_prefs_$activeUserId", Context.MODE_PRIVATE) }
+    val completedSet = remember(activeUserId, prefs) { prefs.getStringSet("completed", emptySet()) ?: emptySet() }
+
+    // Dynamically calculate user reading progress for Juz I published chapters (3 chapters)
+    val totalPublishedChapters = 3
+    val userCompletedCount = completedSet.size.coerceAtMost(totalPublishedChapters)
+    val statusBacaText = if (userCompletedCount >= totalPublishedChapters) {
+        "100% Selesai"
+    } else {
+        "${((userCompletedCount.toDouble() / totalPublishedChapters) * 100).toInt()}% ($userCompletedCount/$totalPublishedChapters Bab)"
+    }
 
     Column(
         modifier = modifier
@@ -136,8 +151,8 @@ fun HistoryDashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "100% Selesai",
-                        fontSize = 18.sp,
+                        text = statusBacaText,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF00E5FF)
                     )

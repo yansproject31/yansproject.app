@@ -45,22 +45,6 @@ fun DocumentFormatModule(
     val dataInvoicePrefix = try { AppSettings.getInvoicePrefix(context).ifBlank { null } } catch (e: Exception) { null }
     var invoicePrefix by remember { mutableStateOf(dataInvoicePrefix ?: "INV") }
 
-    // Persist default values if initially empty
-    LaunchedEffect(Unit) {
-        try {
-            if (AppSettings.getInvoiceFooter(context).isBlank()) {
-                AppSettings.setInvoiceFooter(context, "Hatur Tengkyu")
-            }
-            if (AppSettings.getProjectPrefix(context).isBlank()) {
-                AppSettings.setProjectPrefix(context, "YP")
-            }
-            if (AppSettings.getInvoicePrefix(context).isBlank()) {
-                AppSettings.setInvoicePrefix(context, "INV")
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
 
     var isSaving by remember { mutableStateOf(false) }
 

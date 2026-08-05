@@ -81,8 +81,18 @@ class StockViewModel(application: Application) : BaseViewModel<StockItem>() {
             item = item,
             predicate = { it.id == item.id },
             remoteAction = {
-                repository.deleteStock(item)
-                onCloudSync(item)
+                try {
+                    repository.deleteStock(item)
+                } catch (e: Exception) {
+                    android.util.Log.e("StockViewModel", "Local database delete error for item ${item.id}: ${e.message}", e)
+                    throw e
+                }
+                try {
+                    onCloudSync(item)
+                } catch (e: Exception) {
+                    android.util.Log.e("StockViewModel", "Remote sync failure during delete for item ${item.id}: ${e.message}", e)
+                    throw e
+                }
             }
         )
     }
@@ -94,8 +104,18 @@ class StockViewModel(application: Application) : BaseViewModel<StockItem>() {
         addItemOptimistic(
             item = item,
             remoteAction = {
-                repository.insertStock(item)
-                onCloudSync(item)
+                try {
+                    repository.insertStock(item)
+                } catch (e: Exception) {
+                    android.util.Log.e("StockViewModel", "Local database insert error for item ${item.id}: ${e.message}", e)
+                    throw e
+                }
+                try {
+                    onCloudSync(item)
+                } catch (e: Exception) {
+                    android.util.Log.e("StockViewModel", "Remote sync failure during insert for item ${item.id}: ${e.message}", e)
+                    throw e
+                }
             }
         )
     }
@@ -108,8 +128,18 @@ class StockViewModel(application: Application) : BaseViewModel<StockItem>() {
             updatedItem = item,
             predicate = { it.id == item.id },
             remoteAction = {
-                repository.updateStock(item)
-                onCloudSync(item)
+                try {
+                    repository.updateStock(item)
+                } catch (e: Exception) {
+                    android.util.Log.e("StockViewModel", "Local database update error for item ${item.id}: ${e.message}", e)
+                    throw e
+                }
+                try {
+                    onCloudSync(item)
+                } catch (e: Exception) {
+                    android.util.Log.e("StockViewModel", "Remote sync failure during update for item ${item.id}: ${e.message}", e)
+                    throw e
+                }
             }
         )
     }

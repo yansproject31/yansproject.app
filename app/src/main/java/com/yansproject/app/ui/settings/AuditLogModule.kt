@@ -40,6 +40,7 @@ fun AuditLogModuleScreen(
     
     // Guard audit logs screen with biometric verification
     var isAuthorized by remember { mutableStateOf(false) }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         com.yansproject.app.ui.security.BiometricAuthManager.authenticateWithBiometrics(
@@ -49,7 +50,8 @@ fun AuditLogModuleScreen(
                 viewModel.addAuditLog("Akses Audit Log Sistem", "Owner memverifikasi sidik jari untuk mengakses Audit Log Aktivitas Sistem.")
             },
             onError = { errString ->
-                Toast.makeText(context, "Verifikasi Sidik Jari Gagal/Dibatalkan.", Toast.LENGTH_LONG).show()
+                val msg = if (errString.isNotBlank()) "Verifikasi Sidik Jari Gagal: $errString" else "Verifikasi Sidik Jari Dibatalkan."
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                 navController.popBackStack()
             }
         )
@@ -65,6 +67,48 @@ fun AuditLogModuleScreen(
             CircularProgressIndicator(color = AgedGold)
         }
         return
+    }
+
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Bersihkan Audit Log?",
+                    color = AlertRed,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Tindakan ini akan menghapus semua catatan aktivitas audit log dari database lokal secara permanen. Apakah Anda yakin?",
+                    color = Color.White,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.clearAuditLogs()
+                        viewModel.addAuditLog("Pembersihan Audit Log", "Pemilik sistem menghapus seluruh riwayat audit log lokal.")
+                        Toast.makeText(context, "Seluruh log berhasil dibersihkan dari database lokal.", Toast.LENGTH_SHORT).show()
+                        showClearConfirmDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
+                ) {
+                    Text("Hapus Log", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showClearConfirmDialog = false }
+                ) {
+                    Text("Batal", color = TextMuted)
+                }
+            },
+            containerColor = CardGrey
+        )
     }
 
     Scaffold(
@@ -98,8 +142,7 @@ fun AuditLogModuleScreen(
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = { 
-                    viewModel.clearAuditLogs()
-                    Toast.makeText(context, "Seluruh log berhasil dibersihkan dari database lokal.", Toast.LENGTH_SHORT).show()
+                    showClearConfirmDialog = true
                 }) {
                     Icon(
                         imageVector = Icons.Outlined.DeleteOutline,

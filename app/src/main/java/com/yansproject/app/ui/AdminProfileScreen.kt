@@ -46,7 +46,7 @@ fun AdminProfileScreen(
             context = context,
             onSuccess = {
                 isAuthorized = true
-                viewModel.addAuditLog("Akses Profil Admin", "Owner sukses verifikasi sidik jari untuk mengedit Profil Administrator.")
+                viewModel.addAuditLog("Akses Profil Admin", "Administrator sukses verifikasi sidik jari untuk mengedit Profil Administrator.")
             },
             onError = { errString ->
                 Toast.makeText(context, "Verifikasi Sidik Jari Gagal/Dibatalkan.", Toast.LENGTH_LONG).show()
@@ -279,15 +279,22 @@ fun AdminProfileScreen(
                             success = FirebaseSyncManager.changePasswordOnCloud(password)
                         }
                         if (success) {
-                            val existingPass = AppSettings.getLocalUserCredential(context, email)?.passwordOrPin ?: ""
-                            AppSettings.saveLocalUserCredential(
-                                context,
-                                email,
-                                if (password.isNotEmpty()) password else existingPass,
-                                name,
-                                "OWNER",
-                                "Retail"
-                            )
+                            val userCred = AppSettings.getLocalUserCredential(context, email)
+                            val currentRole = userCred?.role ?: "ADMIN"
+                            val currentPriceType = userCred?.priceCategory ?: "Retail"
+                            val existingPass = userCred?.passwordOrPin ?: ""
+                            val finalPass = if (password.isNotEmpty()) password else existingPass
+
+                            if (userCred != null || password.isNotEmpty()) {
+                                AppSettings.saveLocalUserCredential(
+                                    context,
+                                    email,
+                                    finalPass,
+                                    name,
+                                    currentRole,
+                                    currentPriceType
+                                )
+                            }
                             viewModel.addAuditLog(
                                 "Update Admin Profile",
                                 "Administrator memperbarui profil miliknya ($name)."

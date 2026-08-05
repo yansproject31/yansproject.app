@@ -1,5 +1,6 @@
 package com.yansproject.app.ui
 
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalContext
@@ -501,11 +502,16 @@ fun ProjectItemCard(
 
     SharedPremiumCard(
         onClick = {
-            onOpenDetail()
-            try {
-                navController?.navigate("custom_project_detail/${project.id}")
-            } catch (e: Exception) {
-                e.printStackTrace()
+            if (project.id > 0) {
+                val validId = project.id.toString()
+                onOpenDetail()
+                try {
+                    navController?.navigate("custom_project_detail/$validId")
+                } catch (e: Exception) {
+                    Log.e("ProjectScreen", "Navigation to custom_project_detail failed for ID $validId: ${e.message}", e)
+                }
+            } else {
+                Log.e("ProjectScreen", "Navigation cancelled: Project ID is non-positive (${project.id})")
             }
         },
         borderGlowColor = statusColor.copy(alpha = 0.25f),

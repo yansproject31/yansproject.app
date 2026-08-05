@@ -41,17 +41,20 @@ class LocalDatabaseBackupWorker(
             Log.d(TAG, "Exporting encrypted backup to: ${backupFile.absolutePath}")
 
             // 3. Perform encrypted backup export
-            val success = FileOutputStream(backupFile).use { fos ->
+            val exportSuccess = FileOutputStream(backupFile).use { fos ->
                 backupManager.exportBackup(fos)
             }
 
-            if (success) {
-                Log.i(TAG, "Encrypted backup exported successfully. File size: ${backupFile.length()} bytes.")
+            // 4. Verify backup integrity before marking success and enforcing retention policy
+            val isValidBackup = exportSuccess && backupFile.exists() && backupFile.length() > 16 && verifyBackupHeader(backupFile)
 
-                // 4. Implement a strict Rolling Retention Strategy to prevent storage overflow
-                // Keeps only the last 3 successful backups
+            if (isValidBackup) {
+                Log.i(TAG, "Encrypted backup exported and verified successfully. File size: ${backupFile.length()} bytes.")
+
+                // 5. Implement a strict Rolling Retention Strategy to prevent storage overflow
+                // Keeps only the last 3 verified successful backups
                 val backupFiles = backupDir.listFiles { file ->
-                    file.name.startsWith("yans_db_backup_") && file.name.endsWith(".enc")
+                    file.name.startsWith("yans_db_backup_") && file.name.endsWith(".enc") && file.length() > 16 && verifyBackupHeader(file)
                 }
 
                 if (backupFiles != null && backupFiles.size > 3) {
@@ -70,16 +73,34 @@ class LocalDatabaseBackupWorker(
 
                 Result.success()
             } else {
-                Log.e(TAG, "LocalEncryptedBackupManager export operation failed.")
-                // Purge failed empty file if created
+                Log.e(TAG, "LocalEncryptedBackupManager export or integrity check failed.")
+                // Purge failed or corrupt temporary file if created
                 if (backupFile.exists()) {
-                    backupFile.delete()
+                    val deleted = backupFile.delete()
+                    Log.w(TAG, "Deleted invalid backup attempt file: ${backupFile.name}, deleted=$deleted")
                 }
                 Result.failure()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception occurred during the database backup pipeline: ${e.message}", e)
             Result.failure()
+        }
+    }
+
+    private fun verifyBackupHeader(file: File): Boolean {
+        return try {
+            file.inputStream().use { stream ->
+                val ivSizeBuffer = ByteArray(4)
+                if (stream.read(ivSizeBuffer) != 4) return false
+                val ivLen = ((ivSizeBuffer[0].toInt() and 0xFF) shl 24) or
+                            ((ivSizeBuffer[1].toInt() and 0xFF) shl 16) or
+                            ((ivSizeBuffer[2].toInt() and 0xFF) shl 8) or
+                            (ivSizeBuffer[3].toInt() and 0xFF)
+                ivLen == 12
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Backup header verification failed for ${file.name}: ${e.message}", e)
+            false
         }
     }
 

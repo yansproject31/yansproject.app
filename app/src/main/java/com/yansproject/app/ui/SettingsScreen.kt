@@ -87,16 +87,7 @@ fun SettingsScreen(
 
     val isOwner = currentUser?.role == UserRole.OWNER || currentUser?.role == UserRole.ADMIN
 
-    var isOnline by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            val connectivityManager = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
-            @Suppress("DEPRECATION")
-            val activeNetworkInfo = connectivityManager?.activeNetworkInfo
-            isOnline = activeNetworkInfo != null && activeNetworkInfo.isConnected
-            kotlinx.coroutines.delay(2000)
-        }
-    }
+    val isOnline by viewModel.isOnline.collectAsState()
 
     // App Maintenance states
     var selectedCategory by remember { mutableStateOf(viewModel.settingsSelectedCategory.value ?: SettingsCategory.IDENTITAS) }
@@ -1765,9 +1756,7 @@ fun renderNestedSubScreen(
     onShowRestore: () -> Unit,
     navController: androidx.navigation.NavController? = null
 ) {
-    val connectivityManager = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
-    val activeNetworkInfo = connectivityManager?.activeNetworkInfo
-    val isOnline = activeNetworkInfo != null && activeNetworkInfo.isConnected
+    val isOnline by viewModel.isOnline.collectAsState()
 
     val currentUser by com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState()
     val isOwner = currentUser?.role == com.yansproject.app.data.UserRole.OWNER || currentUser?.role == com.yansproject.app.data.UserRole.ADMIN
@@ -4880,9 +4869,9 @@ fun AboutYansScreen(onBack: () -> Unit) {
     val versionName = remember(context) {
         try {
             val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "1.3.1"
+            pInfo.versionName ?: "1.3.2"
         } catch (e: Exception) {
-            "1.3.1"
+            "1.3.2"
         }
     }
 

@@ -21,6 +21,8 @@ data class StockManagerUiState(
     val returns: List<ReturnTransaction> = emptyList(),
     val damagedLogs: List<DamagedItemLog> = emptyList(),
     val isLoading: Boolean = false,
+    val isError: Boolean = false,
+    val errorMessage: String? = null,
     val totalInventoryValue: Double = 0.0
 )
 
@@ -39,7 +41,7 @@ class StockManagerViewModel(application: Application) : AndroidViewModel(applica
 
     fun loadData() {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isLoading = true, isError = false, errorMessage = null) }
             try {
                 val summariesList = appDb.inventorySummaryDao().getSummariesList()
                 
@@ -56,12 +58,14 @@ class StockManagerViewModel(application: Application) : AndroidViewModel(applica
                         returns = existingReturns,
                         damagedLogs = existingDamaged,
                         totalInventoryValue = totalVal,
-                        isLoading = false
+                        isLoading = false,
+                        isError = false,
+                        errorMessage = null
                     )
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading stock manager data", e)
-                _state.update { it.copy(isLoading = false) }
+                _state.update { it.copy(isLoading = false, isError = true, errorMessage = "Gagal memuat data stok: ${e.localizedMessage}") }
             }
         }
     }
@@ -143,7 +147,7 @@ class StockManagerViewModel(application: Application) : AndroidViewModel(applica
                     sleeve = sleeve,
                     size = size,
                     quantity = returnedQuantity, // Always positive for returns
-                    user = "Owner",
+                    user = BusinessIdentityProvider.getCompanyName(getApplication()),
                     timestamp = System.currentTimeMillis(),
                     notes = notes.ifEmpty { "Retur barang $reason ke $destination" }
                 )

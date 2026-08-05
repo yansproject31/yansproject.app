@@ -4,25 +4,43 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * SchemaDriftRepairGuard: High-reliability micro-engine that dynamically inspects
- * JSON structures stored locally or fetched from Cloud Firestore, repairing missing or
- * drifted schema attributes silently before they reach Presentation or Domain layers.
- */
+data class SchemaRepairResult(
+    val isSuccess: Boolean,
+    val json: String,
+    val wasRepaired: Boolean = false,
+    val errorDetails: String? = null,
+    val auditEvents: List<String> = emptyList()
+)
+
 object SchemaDriftRepairGuard {
     private const val TAG = "SchemaDriftRepairGuard"
+    private val auditLogs = mutableListOf<String>()
+
+    @Synchronized
+    fun getAuditLogs(): List<String> = auditLogs.toList()
+
+    @Synchronized
+    private fun recordAuditEvent(event: String) {
+        val entry = "[${System.currentTimeMillis()}] $event"
+        auditLogs.add(entry)
+        if (auditLogs.size > 100) auditLogs.removeAt(0)
+        Log.w(TAG, "SCHEMA_DRIFT_AUDIT: $event")
+    }
 
     /**
-     * Inspects and repairs an Invoice JSON payload.
-     * Ensures mandatory keys exist with correct datatypes.
+     * Inspects and repairs an Invoice JSON payload with structured audit tracking.
      */
-    fun repairInvoiceJson(rawJson: String): String {
-        if (rawJson.isBlank()) return "{}"
+    fun repairInvoiceJsonWithResult(rawJson: String): SchemaRepairResult {
+        if (rawJson.isBlank()) {
+            recordAuditEvent("INVOICE_REPAIR_FAILED: Raw JSON payload was blank.")
+            return SchemaRepairResult(isSuccess = false, json = rawJson, errorDetails = "Payload is blank")
+        }
+
+        val events = mutableListOf<String>()
         return try {
             val json = JSONObject(rawJson)
             var modified = false
 
-            // Define mandatory fields and their fallbacks
             val mandatoryStringFields = mapOf(
                 "invoiceNumber" to "INV-TEMP-${System.currentTimeMillis()}",
                 "customerName" to "Umum / Non-Member",
@@ -36,7 +54,9 @@ object SchemaDriftRepairGuard {
                 if (!json.has(key) || json.isNull(key)) {
                     json.put(key, fallback)
                     modified = true
-                    Log.w(TAG, "Repairing missing/null Invoice String field '$key' with fallback value '$fallback'")
+                    val msg = "Invoice field '$key' missing -> set default '$fallback'"
+                    events.add(msg)
+                    recordAuditEvent(msg)
                 }
             }
 
@@ -55,15 +75,18 @@ object SchemaDriftRepairGuard {
                 if (!json.has(key) || json.isNull(key)) {
                     json.put(key, fallback)
                     modified = true
-                    Log.w(TAG, "Repairing missing/null Invoice Numeric field '$key' with fallback value '$fallback'")
+                    val msg = "Invoice numeric field '$key' missing -> set default '$fallback'"
+                    events.add(msg)
+                    recordAuditEvent(msg)
                 }
             }
 
-            // Ensure items array exists and each item has its properties verified
             if (!json.has("items") || json.isNull("items")) {
                 json.put("items", JSONArray())
                 modified = true
-                Log.w(TAG, "Repairing missing 'items' array field with default empty array.")
+                val msg = "Invoice 'items' array missing -> set empty array"
+                events.add(msg)
+                recordAuditEvent(msg)
             } else {
                 val itemsArray = json.getJSONArray("items")
                 for (i in 0 until itemsArray.length()) {
@@ -71,35 +94,55 @@ object SchemaDriftRepairGuard {
                     if (!item.has("productName") || item.isNull("productName")) {
                         item.put("productName", "Item Tidak Dikenal")
                         modified = true
+                        events.add("Invoice item[$i] productName missing -> set default")
                     }
                     if (!item.has("quantity") || item.isNull("quantity")) {
                         item.put("quantity", 1)
                         modified = true
+                        events.add("Invoice item[$i] quantity missing -> set 1")
                     }
                     if (!item.has("price") || item.isNull("price")) {
                         item.put("price", 0.0)
                         modified = true
+                        events.add("Invoice item[$i] price missing -> set 0.0")
                     }
                 }
             }
 
-            if (modified) {
-                Log.i(TAG, "Schema drift resolved successfully for Invoice payload.")
-                json.toString()
-            } else {
-                rawJson
-            }
+            SchemaRepairResult(
+                isSuccess = true,
+                json = json.toString(),
+                wasRepaired = modified,
+                auditEvents = events
+            )
         } catch (e: Exception) {
-            Log.e(TAG, "Critical failure during Invoice JSON drift repair. Returning raw payload.", e)
-            rawJson
+            val err = "Invoice JSON parse/repair failure: ${e.message}"
+            recordAuditEvent(err)
+            Log.e(TAG, err, e)
+            SchemaRepairResult(
+                isSuccess = false,
+                json = rawJson,
+                errorDetails = e.message ?: "Invalid JSON syntax",
+                auditEvents = events
+            )
         }
     }
 
+    fun repairInvoiceJson(rawJson: String): String {
+        val result = repairInvoiceJsonWithResult(rawJson)
+        return result.json
+    }
+
     /**
-     * Inspects and repairs a StockItem JSON payload.
+     * Inspects and repairs a StockItem JSON payload with audit tracking.
      */
-    fun repairStockItemJson(rawJson: String): String {
-        if (rawJson.isBlank()) return "{}"
+    fun repairStockItemJsonWithResult(rawJson: String): SchemaRepairResult {
+        if (rawJson.isBlank()) {
+            recordAuditEvent("STOCK_ITEM_REPAIR_FAILED: Payload was blank.")
+            return SchemaRepairResult(isSuccess = false, json = rawJson, errorDetails = "Payload is blank")
+        }
+
+        val events = mutableListOf<String>()
         return try {
             val json = JSONObject(rawJson)
             var modified = false
@@ -114,6 +157,9 @@ object SchemaDriftRepairGuard {
                 if (!json.has(key) || json.isNull(key)) {
                     json.put(key, fallback)
                     modified = true
+                    val msg = "StockItem string field '$key' missing -> set default '$fallback'"
+                    events.add(msg)
+                    recordAuditEvent(msg)
                 }
             }
 
@@ -130,18 +176,32 @@ object SchemaDriftRepairGuard {
                 if (!json.has(key) || json.isNull(key)) {
                     json.put(key, fallback)
                     modified = true
+                    val msg = "StockItem numeric field '$key' missing -> set default '$fallback'"
+                    events.add(msg)
+                    recordAuditEvent(msg)
                 }
             }
 
-            if (modified) {
-                Log.i(TAG, "Schema drift resolved successfully for StockItem payload.")
-                json.toString()
-            } else {
-                rawJson
-            }
+            SchemaRepairResult(
+                isSuccess = true,
+                json = json.toString(),
+                wasRepaired = modified,
+                auditEvents = events
+            )
         } catch (e: Exception) {
-            Log.e(TAG, "Critical failure during StockItem JSON drift repair. Returning raw payload.", e)
-            rawJson
+            val err = "StockItem JSON parse/repair failure: ${e.message}"
+            recordAuditEvent(err)
+            Log.e(TAG, err, e)
+            SchemaRepairResult(
+                isSuccess = false,
+                json = rawJson,
+                errorDetails = e.message ?: "Invalid JSON syntax",
+                auditEvents = events
+            )
         }
+    }
+
+    fun repairStockItemJson(rawJson: String): String {
+        return repairStockItemJsonWithResult(rawJson).json
     }
 }

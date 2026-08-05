@@ -17,7 +17,7 @@ class YansMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d("YansMessagingService", "FCM Token updated: $token")
+        Log.d("YansMessagingService", "FCM Token refreshed (length: ${token.length})")
         FirebaseSyncManager.updateFcmTokenInCloud(this, token)
     }
 

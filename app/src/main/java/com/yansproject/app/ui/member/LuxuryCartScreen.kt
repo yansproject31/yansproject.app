@@ -112,33 +112,24 @@ fun LuxuryCartScreen(
         }
     }
 
-    // Auto populate client information
+    // Auto populate client information scoped strictly to authenticated user profile
     LaunchedEffect(draftSalesOrder, currentUser) {
         val email = currentUser?.email ?: ""
         val cleanEmail = email.trim().lowercase()
         if (cleanEmail.isNotBlank()) {
+            // Source 1: Current Authenticated User Profile (Primary Source of Truth)
+            val authName = currentUser?.displayName ?: ""
+            val authPhone = currentUser?.whatsapp ?: ""
+            val authAddr = currentUser?.address ?: ""
+
+            // Source 2: User-scoped preference fallback (Secondary)
             val userPrefs = context.getSharedPreferences("yans_user_prefs_$cleanEmail", Context.MODE_PRIVATE)
-            val credPrefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
-            val localCred = AppSettings.getLocalUserCredential(context, cleanEmail)
+            val prefPhone = userPrefs.getString("user_whatsapp", "") ?: ""
+            val prefAddr = userPrefs.getString("user_address", "") ?: ""
 
-            val curName = currentUser?.displayName ?: ""
-            val curPhone = currentUser?.whatsapp ?: ""
-            val curAddr = currentUser?.address ?: ""
-
-            val localName = localCred?.displayName ?: ""
-            val localPhone = localCred?.whatsapp ?: ""
-            val localAddr = localCred?.address ?: ""
-
-            val credName = credPrefs.getString("name_$cleanEmail", "") ?: ""
-            val credPhone = credPrefs.getString("wa_$cleanEmail", "") ?: ""
-            val credAddr = credPrefs.getString("address_$cleanEmail", "") ?: ""
-
-            val userPhone = userPrefs.getString("user_whatsapp", "") ?: ""
-            val userAddr = userPrefs.getString("user_address", "") ?: ""
-
-            val defaultName = if (curName.isNotBlank()) curName else if (localName.isNotBlank()) localName else credName
-            val defaultPhone = if (curPhone.isNotBlank()) curPhone else if (localPhone.isNotBlank()) localPhone else if (credPhone.isNotBlank()) credPhone else userPhone
-            val defaultAddress = if (curAddr.isNotBlank()) curAddr else if (localAddr.isNotBlank()) localAddr else if (credAddr.isNotBlank()) credAddr else userAddr
+            val defaultName = authName
+            val defaultPhone = if (authPhone.isNotBlank()) authPhone else prefPhone
+            val defaultAddress = if (authAddr.isNotBlank()) authAddr else prefAddr
 
             val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
             val lastDraftUserEmail = authPrefs.getString("last_draft_user_email", "") ?: ""
@@ -165,7 +156,7 @@ fun LuxuryCartScreen(
             if (isUserChanged) {
                 orderNotes = ""
                 viewModel.updateDraftNotes("")
-                authPrefs.edit().putString("last_draft_user_email", email).apply()
+                authPrefs.edit().putString("last_draft_user_email", cleanEmail).apply()
             } else if (orderNotes.isEmpty() && draftSalesOrder.notes.isNotEmpty()) {
                 orderNotes = draftSalesOrder.notes
             }

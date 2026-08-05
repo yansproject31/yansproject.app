@@ -138,9 +138,23 @@ class CashFlowViewModel(application: Application) : AndroidViewModel(application
                 }
 
                 onComplete(true)
+            } catch (e: android.database.sqlite.SQLiteException) {
+                FirebaseCrashlytics.getInstance().recordException(e)
+                val msg = "Gagal menyimpan pemasukan ke database lokal: ${e.localizedMessage}"
+                android.util.Log.e("CashFlowViewModel", msg, e)
+                _errorMessage.value = msg
+                onComplete(false)
+            } catch (e: java.io.IOException) {
+                FirebaseCrashlytics.getInstance().recordException(e)
+                val msg = "Gagal sinkronisasi pemasukan ke cloud: ${e.localizedMessage}"
+                android.util.Log.e("CashFlowViewModel", msg, e)
+                _errorMessage.value = msg
+                onComplete(false)
             } catch (e: Exception) {
                 FirebaseCrashlytics.getInstance().recordException(e)
-                _errorMessage.value = "Gagal menyimpan data: ${e.localizedMessage}"
+                val msg = "Gagal menyimpan data pemasukan: ${e.localizedMessage}"
+                android.util.Log.e("CashFlowViewModel", msg, e)
+                _errorMessage.value = msg
                 onComplete(false)
             } finally {
                 _isLoading.value = false
@@ -180,10 +194,24 @@ class CashFlowViewModel(application: Application) : AndroidViewModel(application
                 }
 
                 onComplete(true, "Pengeluaran berhasil dicatat!")
+            } catch (e: android.database.sqlite.SQLiteException) {
+                FirebaseCrashlytics.getInstance().recordException(e)
+                val msg = "Gagal mencatat pengeluaran di database lokal: ${e.localizedMessage}"
+                android.util.Log.e("CashFlowViewModel", msg, e)
+                _errorMessage.value = msg
+                onComplete(false, msg)
+            } catch (e: java.io.IOException) {
+                FirebaseCrashlytics.getInstance().recordException(e)
+                val msg = "Gagal sinkronisasi pengeluaran ke cloud: ${e.localizedMessage}"
+                android.util.Log.e("CashFlowViewModel", msg, e)
+                _errorMessage.value = msg
+                onComplete(false, msg)
             } catch (e: Exception) {
                 FirebaseCrashlytics.getInstance().recordException(e)
-                _errorMessage.value = "Gagal menyimpan data: ${e.localizedMessage}"
-                onComplete(false, "Gagal mencatat pengeluaran.")
+                val msg = "Gagal mencatat pengeluaran: ${e.localizedMessage}"
+                android.util.Log.e("CashFlowViewModel", msg, e)
+                _errorMessage.value = msg
+                onComplete(false, msg)
             } finally {
                 _isLoading.value = false
             }

@@ -104,11 +104,11 @@ object FirebaseSyncManager {
             messaging = FirebaseMessaging.getInstance()
             analytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(context)
 
-            // Enable Offline Persistence for Firestore with Unlimited Cache Size
+            // Enable Offline Persistence for Firestore with Bounded 100MB Cache Size
             @Suppress("DEPRECATION")
             val settings = FirebaseFirestoreSettings.Builder()
                 .setPersistenceEnabled(true)
-                .setCacheSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                .setCacheSizeBytes(100 * 1024 * 1024L) // 100MB bounded offline cache
                 .build()
             firestore?.firestoreSettings = settings
 
@@ -280,8 +280,7 @@ object FirebaseSyncManager {
         if (localCred != null && localCred.passwordOrPin == passwordOrPin) {
             if (isFirebaseActive && auth != null) {
                 try {
-                    val fbPass = if (passwordOrPin.length < 6) "yans_$passwordOrPin" else passwordOrPin
-                    auth?.signInWithEmailAndPassword(targetEmail, fbPass)?.await()
+                    auth?.signInWithEmailAndPassword(targetEmail, passwordOrPin)?.await()
                     Log.d(TAG, "User logged into Firebase Auth successfully.")
                 } catch (e: Exception) {
                     Log.w(TAG, "Firebase Auth sign-in failed/offline: ${e.message}")
@@ -302,8 +301,8 @@ object FirebaseSyncManager {
             // Local-only check for other members defined in AppSettings
             val members = AppSettings.getMembers(context)
             if (members.contains(emailOrUsername.trim())) {
-                val expectedPin = BusinessIdentityProvider.getSecureProvisionedPin(emailOrUsername.trim())
-                if (passwordOrPin == expectedPin || (localCred != null && localCred.passwordOrPin == passwordOrPin)) {
+                val expectedPin = BusinessIdentityProvider.getSecureProvisionedPin(emailOrUsername.trim(), context)
+                if (expectedPin != null && passwordOrPin == expectedPin) {
                     val wa = localCred?.whatsapp ?: ""
                     val addr = localCred?.address ?: ""
                     saveSession(context, targetEmail, UserRole.MEMBER, emailOrUsername.trim(), "Member", wa, addr)
@@ -314,8 +313,7 @@ object FirebaseSyncManager {
         }
 
         return try {
-            val firebasePassword = if (passwordOrPin.length < 6) "yans_$passwordOrPin" else passwordOrPin
-            val result = auth?.signInWithEmailAndPassword(targetEmail, firebasePassword)?.await()
+            val result = auth?.signInWithEmailAndPassword(targetEmail, passwordOrPin)?.await()
             if (result != null) {
                 // Fetch details from Firestore "users" collection safely
                 val isHardcodedOwner = BusinessIdentityProvider.isOwnerEmail(targetEmail, context)
@@ -402,8 +400,8 @@ object FirebaseSyncManager {
                 true
             } else {
                 val members = AppSettings.getMembers(context)
-                val expectedPin = BusinessIdentityProvider.getSecureProvisionedPin(emailOrUsername.trim())
-                if (members.contains(emailOrUsername.trim()) && passwordOrPin == expectedPin) {
+                val expectedPin = BusinessIdentityProvider.getSecureProvisionedPin(emailOrUsername.trim(), context)
+                if (members.contains(emailOrUsername.trim()) && expectedPin != null && passwordOrPin == expectedPin) {
                     saveSession(context, targetEmail, UserRole.MEMBER, emailOrUsername.trim(), "Member", "", "", "")
                     true
                 } else {

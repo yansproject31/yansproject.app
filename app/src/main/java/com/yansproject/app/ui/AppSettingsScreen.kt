@@ -33,9 +33,9 @@ fun AppSettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var isNotificationEnabled by remember { mutableStateOf(true) }
-    var isBiometricsEnabled by remember { mutableStateOf(false) }
-    var selectedLanguage by remember { mutableStateOf("Bahasa Indonesia") }
+    var isNotificationEnabled by remember { mutableStateOf(AppSettings.isNotificationEnabled(context)) }
+    var isBiometricsEnabled by remember { mutableStateOf(AppSettings.isBiometricsEnabled(context)) }
+    var selectedLanguage by remember { mutableStateOf(AppSettings.getSelectedLanguage(context)) }
 
     var showLanguageDialog by remember { mutableStateOf(false) }
 
@@ -157,6 +157,7 @@ fun AppSettingsScreen(
                         checked = isNotificationEnabled,
                         onCheckedChange = {
                             isNotificationEnabled = it
+                            AppSettings.setNotificationEnabled(context, it)
                             Toast.makeText(
                                 context,
                                 "Notifikasi ${if (it) "diaktifkan" else "dimatikan"}",
@@ -211,6 +212,7 @@ fun AppSettingsScreen(
                         checked = isBiometricsEnabled,
                         onCheckedChange = {
                             isBiometricsEnabled = it
+                            AppSettings.setBiometricsEnabled(context, it)
                             Toast.makeText(
                                 context,
                                 "Biometrik ${if (it) "diaktifkan" else "dimatikan"}",
@@ -320,6 +322,7 @@ fun AppSettingsScreen(
                                 .fillMaxWidth()
                                 .clickable {
                                     selectedLanguage = lang
+                                    AppSettings.setSelectedLanguage(context, lang)
                                     showLanguageDialog = false
                                     Toast.makeText(context, "Bahasa diubah ke $lang", Toast.LENGTH_SHORT).show()
                                 }

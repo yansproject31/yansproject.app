@@ -3,6 +3,7 @@ package com.yansproject.app.data
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
+import android.content.Context
 import android.util.Log
 import java.io.OutputStream
 import java.util.UUID
@@ -46,6 +47,7 @@ object ExtendedThermalPrinterManager {
      * Connects to a paired bluetooth device and streams the formatted invoice commands with detailed PrinterResult.
      */
     fun printInvoiceBluetoothDetailed(
+        context: Context,
         deviceAddress: String,
         projectName: String,
         clientName: String,
@@ -103,15 +105,17 @@ object ExtendedThermalPrinterManager {
             outputStream.write(ESC_ALIGN_CENTER)
             
             // 2. Double-size Title
+            val storeName = BusinessIdentityProvider.getCompanyName(context)
+            val csWa = BusinessIdentityProvider.getSupportWhatsApp(context)
             outputStream.write(ESC_TEXT_DOUBLE_HEIGHT)
             outputStream.write(ESC_TEXT_DOUBLE_WIDTH)
-            outputStream.write("YANSPROJECT.ID\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("$storeName\n".toByteArray(Charsets.US_ASCII))
             
             // 3. Subtitle / Tagline
             outputStream.write(ESC_TEXT_NORMAL)
-            outputStream.write("Luxury Visual Identity & Custom Merch\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("${BusinessIdentityProvider.DEFAULT_STORE_TAGLINE}\n".toByteArray(Charsets.US_ASCII))
             outputStream.write("Makna Sebelum Estetika\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("CS WA: +62 877-7739-8813\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("CS WA: $csWa\n".toByteArray(Charsets.US_ASCII))
             
             val lineCharLimit = if (isPaper80mm) 48 else 32
             val dividerLine = "=".repeat(lineCharLimit) + "\n"
@@ -162,6 +166,7 @@ object ExtendedThermalPrinterManager {
      * Backward-compatible boolean wrapper for printInvoiceBluetooth
      */
     fun printInvoiceBluetooth(
+        context: Context,
         deviceAddress: String,
         projectName: String,
         clientName: String,
@@ -172,7 +177,7 @@ object ExtendedThermalPrinterManager {
         isPaper80mm: Boolean = false
     ): Boolean {
         return printInvoiceBluetoothDetailed(
-            deviceAddress, projectName, clientName, totalAmount, paidAmount, remainingBalance, status, isPaper80mm
+            context, deviceAddress, projectName, clientName, totalAmount, paidAmount, remainingBalance, status, isPaper80mm
         ) is PrinterResult.Success
     }
 

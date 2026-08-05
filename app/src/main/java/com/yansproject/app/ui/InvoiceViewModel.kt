@@ -33,30 +33,34 @@ class InvoiceViewModel(application: Application) : AndroidViewModel(application)
     val syncLog: StateFlow<String?> = _syncLog.asStateFlow()
 
     init {
-        loadMockInvoices()
+        // Production state starts clean; demo state is isolated and never seeded into live UI by default
+        _invoicesState.value = emptyList()
     }
 
-    private fun loadMockInvoices() {
+    /**
+     * Isolated demo state loader for explicit testing environments.
+     */
+    fun loadDemoInvoicesForTesting() {
         _invoicesState.value = listOf(
             DomainInvoice(
-                id = "inv_001",
+                id = "inv_001_demo",
                 invoiceNumber = "INV-2026-0001",
-                clientName = "Ahmad Sobari",
+                clientName = "Ahmad Sobari (DEMO)",
                 clientPhone = "08123456789",
                 totalAmount = 2500000.0,
                 paidAmount = 1500000.0,
-                status = "BELUM LUNAS",
-                attachmentUrl = "https://paper.id/pay/inv_001_demo"
+                status = "BELUM LUNAS (DEMO)",
+                attachmentUrl = ""
             ),
             DomainInvoice(
-                id = "inv_002",
+                id = "inv_002_demo",
                 invoiceNumber = "INV-2026-0002",
-                clientName = "Dewi Lestari",
+                clientName = "Dewi Lestari (DEMO)",
                 clientPhone = "08771234567",
                 totalAmount = 4500000.0,
                 paidAmount = 4500000.0,
-                status = "LUNAS",
-                attachmentUrl = "https://paper.id/pay/inv_002_demo"
+                status = "LUNAS (DEMO)",
+                attachmentUrl = ""
             )
         )
     }
@@ -88,7 +92,7 @@ class InvoiceViewModel(application: Application) : AndroidViewModel(application)
                 
                 val finalInvoice = tempInvoice.copy(
                     status = "Tersinkronisasi",
-                    attachmentUrl = paperIdUrl ?: "https://paper.id/pay/fallback_manual"
+                    attachmentUrl = paperIdUrl ?: ""
                 )
 
                 // Update Firestore document with final payment URL

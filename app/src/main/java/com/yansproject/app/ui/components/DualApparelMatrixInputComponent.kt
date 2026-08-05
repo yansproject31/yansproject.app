@@ -137,11 +137,15 @@ fun DualApparelMatrixInputComponent(
                     availableSeries.forEach { seriesName ->
                         val isSelected = itemName.contains(seriesName, ignoreCase = true)
                         val matchingItems = stockItemsState.filter {
-                            it.name.contains(seriesName, ignoreCase = true)
+                            val skuTag = seriesName.replace(" ", "_")
+                            it.name.equals(seriesName, ignoreCase = true) ||
+                            it.name.equals("AJIBQOBUL $seriesName", ignoreCase = true) ||
+                            it.name.startsWith("AJIBQOBUL $seriesName", ignoreCase = true) ||
+                            (skuTag.isNotBlank() && it.sku.contains(skuTag, ignoreCase = true))
                         }
-                        val seriesTotalStock = if (matchingItems.isNotEmpty()) matchingItems.sumOf { it.stockCount } else 15
-                        val isLowStock = seriesTotalStock in 1..10
-                        val isOutOfStock = matchingItems.isNotEmpty() && seriesTotalStock <= 0
+                        val seriesTotalStock = if (matchingItems.isNotEmpty()) matchingItems.sumOf { it.stockCount } else 0
+                        val isOutOfStock = matchingItems.isEmpty() || seriesTotalStock <= 0
+                        val isLowStock = !isOutOfStock && seriesTotalStock in 1..10
 
                         val badgeBg = when {
                             isOutOfStock -> StatusDangerRed.copy(alpha = 0.25f)
@@ -191,11 +195,17 @@ fun DualApparelMatrixInputComponent(
 
                 val activeSeriesRawName = itemName.replace("AJIBQOBUL", "", ignoreCase = true).trim()
                 val selectedSeriesMatchingItems = stockItemsState.filter {
-                    activeSeriesRawName.isNotBlank() && it.name.contains(activeSeriesRawName, ignoreCase = true)
+                    if (activeSeriesRawName.isBlank()) false else {
+                        val skuTag = activeSeriesRawName.replace(" ", "_")
+                        it.name.equals(activeSeriesRawName, ignoreCase = true) ||
+                        it.name.equals("AJIBQOBUL $activeSeriesRawName", ignoreCase = true) ||
+                        it.name.startsWith("AJIBQOBUL $activeSeriesRawName", ignoreCase = true) ||
+                        (skuTag.isNotBlank() && it.sku.contains(skuTag, ignoreCase = true))
+                    }
                 }
-                val selectedSeriesStockCount = if (selectedSeriesMatchingItems.isNotEmpty()) selectedSeriesMatchingItems.sumOf { it.stockCount } else 15
-                val isSelectedSeriesLow = selectedSeriesStockCount in 1..10
-                val isSelectedSeriesEmpty = selectedSeriesMatchingItems.isNotEmpty() && selectedSeriesStockCount <= 0
+                val selectedSeriesStockCount = if (selectedSeriesMatchingItems.isNotEmpty()) selectedSeriesMatchingItems.sumOf { it.stockCount } else 0
+                val isSelectedSeriesEmpty = selectedSeriesMatchingItems.isEmpty() || selectedSeriesStockCount <= 0
+                val isSelectedSeriesLow = !isSelectedSeriesEmpty && selectedSeriesStockCount in 1..10
 
                 if (isSelectedSeriesLow || isSelectedSeriesEmpty) {
                     Spacer(modifier = Modifier.height(8.dp))

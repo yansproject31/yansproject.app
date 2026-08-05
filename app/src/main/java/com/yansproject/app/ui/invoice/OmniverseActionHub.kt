@@ -150,30 +150,31 @@ fun ActionHubBottomSheet(
                 }
             } else {
                 // Actions
-                ActionMenuItem(
-                    icon = Icons.Default.PictureAsPdf,
-                    title = "Bagikan Dokumen PDF Resmi (A4)",
-                    description = "Hasilkan format PDF resolusi tinggi berskala A4 (Rendering di latar belakang)",
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        isProcessing = true
-                        coroutineScope.launch {
-                            val success = generateInvoiceBackground(context, invoiceNumber, isCustomProject)
-                            isProcessing = false
-                            if (success) {
-                                Toast.makeText(context, "Dokumen PDF berhasil dirender di memori!", Toast.LENGTH_SHORT).show()
-                                
-                                // n8n webhook asynchronous notification
-                                if (triggerN8nWebhook) {
-                                    triggerN8nAsyncWebhook(context, invoiceNumber)
-                                }
-                                onDismiss()
-                            } else {
-                                Toast.makeText(context, "Gagal membuat dokumen PDF!", Toast.LENGTH_LONG).show()
+            val scope = coroutineScope
+            ActionMenuItem(
+                icon = Icons.Default.PictureAsPdf,
+                title = "Bagikan Dokumen PDF Resmi (A4)",
+                description = "Hasilkan format PDF resolusi tinggi berskala A4 (Rendering di latar belakang)",
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    isProcessing = true
+                    scope.launch {
+                        val success = generateInvoiceBackground(context, invoiceNumber, isCustomProject)
+                        isProcessing = false
+                        if (success) {
+                            Toast.makeText(context, "Dokumen PDF berhasil dirender di memori!", Toast.LENGTH_SHORT).show()
+                            
+                            // n8n webhook asynchronous notification
+                            if (triggerN8nWebhook) {
+                                triggerN8nAsyncWebhook(scope, context, invoiceNumber)
                             }
+                            onDismiss()
+                        } else {
+                            Toast.makeText(context, "Gagal membuat dokumen PDF!", Toast.LENGTH_LONG).show()
                         }
                     }
-                )
+                }
+            )
 
                 ActionMenuItem(
                     icon = Icons.Default.Image,
@@ -230,12 +231,12 @@ private suspend fun generateInvoiceBackground(context: Context, invoiceNumber: S
     return withContext(Dispatchers.IO) {
         try {
             val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
-            var client = "Gading Sakti Mandiri"
-            var phone = "08123456789"
+            var client = "Pelanggan Umum"
+            var phone = "-"
             var date = System.currentTimeMillis()
-            var total = 5200000.0
-            var paid = 2000000.0
-            var remaining = 3200000.0
+            var total = 0.0
+            var paid = 0.0
+            var remaining = 0.0
             var realInvoiceNumber = invoiceNumber
 
             if (isCustom) {
@@ -291,7 +292,7 @@ private suspend fun generateInvoiceBackground(context: Context, invoiceNumber: S
             )
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("OmniverseActionHub", "Error generating PDF background: ${e.message}", e)
             false
         }
     }
@@ -304,12 +305,12 @@ private suspend fun printThermalBluetoothBackground(context: Context, invoiceNum
     return withContext(Dispatchers.IO) {
         try {
             val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
-            var client = "Gading Sakti Mandiri"
-            var total = 5200000.0
-            var paid = 2000000.0
-            var remaining = 3200000.0
-            var status = "PARTIAL"
-            var name = "AJIBQOBUL Apparel Series"
+            var client = "Pelanggan Umum"
+            var total = 0.0
+            var paid = 0.0
+            var remaining = 0.0
+            var status = "BELUM LUNAS"
+            var name = "Transaksi ERP"
 
             if (isCustom) {
                 val rawId = invoiceNumber.removePrefix("PRJ-").toIntOrNull()
@@ -346,6 +347,7 @@ private suspend fun printThermalBluetoothBackground(context: Context, invoiceNum
             }
 
             ExtendedThermalPrinterManager.printInvoiceBluetooth(
+                context = context,
                 deviceAddress = "00:11:22:33:44:55",
                 projectName = name,
                 clientName = client,
@@ -356,18 +358,17 @@ private suspend fun printThermalBluetoothBackground(context: Context, invoiceNum
             )
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("OmniverseActionHub", "Error printing Bluetooth thermal invoice: ${e.message}", e)
             false
         }
     }
 }
 
 /**
- * Asynchronous webhook handler running in the background thread (Dispatchers.IO)
+ * Asynchronous webhook handler running in caller's lifecycle scope
  */
-private fun triggerN8nAsyncWebhook(context: Context, invoiceNumber: String) {
-    val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO)
-    scope.launch {
+private fun triggerN8nAsyncWebhook(scope: kotlinx.coroutines.CoroutineScope, context: Context, invoiceNumber: String) {
+    scope.launch(Dispatchers.IO) {
         try {
             // Emulating n8n webhook HTTP payload delivery
             kotlinx.coroutines.delay(1200)
@@ -375,7 +376,7 @@ private fun triggerN8nAsyncWebhook(context: Context, invoiceNumber: String) {
                 Toast.makeText(context, "WhatsApp n8n Webhook: Pesan Terkirim untuk $invoiceNumber!", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("OmniverseActionHub", "Error delivering n8n webhook: ${e.message}", e)
         }
     }
 }

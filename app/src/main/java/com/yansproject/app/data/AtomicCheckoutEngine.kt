@@ -217,9 +217,26 @@ object AtomicCheckoutEngine {
 
                 Log.d(TAG, "Batch completed successfully!")
                 onComplete(true, invoiceNum)
+            } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+                val errorMsg = "Gagal menyimpan transaksi ke database cloud (${e.code}): ${e.localizedMessage}"
+                Log.e(TAG, "Firestore Exception during atomic checkout batch: ${e.code} - ${e.message}", e)
+                onComplete(false, errorMsg)
+            } catch (e: org.json.JSONException) {
+                val errorMsg = "Format rincian barang pesanan tidak valid: ${e.localizedMessage}"
+                Log.e(TAG, "JSON Parsing Exception during atomic checkout batch: ${e.message}", e)
+                onComplete(false, errorMsg)
+            } catch (e: RuntimeException) {
+                val errorMsg = e.localizedMessage ?: "Pembatasan stok atau data checkout tidak valid."
+                Log.e(TAG, "Runtime Exception during atomic checkout batch: ${e.message}", e)
+                onComplete(false, errorMsg)
+            } catch (e: java.io.IOException) {
+                val errorMsg = "Gagal terhubung ke jaringan saat proses checkout: ${e.localizedMessage}"
+                Log.e(TAG, "I/O Network Exception during atomic checkout batch: ${e.message}", e)
+                onComplete(false, errorMsg)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed executing atomic checkout batch: ${e.message}")
-                onComplete(false, e.localizedMessage ?: "Gagal checkout atomik.")
+                val errorMsg = "Gagal checkout atomik: ${e.localizedMessage}"
+                Log.e(TAG, "Unexpected Exception during atomic checkout batch: ${e.message}", e)
+                onComplete(false, errorMsg)
             }
         }
     }

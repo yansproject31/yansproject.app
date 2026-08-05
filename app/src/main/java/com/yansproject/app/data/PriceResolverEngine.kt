@@ -19,27 +19,32 @@ object PriceResolverEngine {
         val category = (priceCategory ?: "Retail").trim().lowercase()
 
         // 1. Get Base/Tier Price
+        var usedFallback = false
         val basePrice = when (category) {
             "member" -> {
                 val stockPrice = stockMaster?.harga_member ?: 0.0
-                if (stockPrice > 0) stockPrice else AppSettings.getAjibqobulHargaMember(context)
+                if (stockPrice > 0) stockPrice else { usedFallback = true; AppSettings.getAjibqobulHargaMember(context) }
             }
             "reseller" -> {
                 val stockPrice = stockMaster?.harga_reseller ?: 0.0
-                if (stockPrice > 0) stockPrice else AppSettings.getAjibqobulHargaReseller(context)
+                if (stockPrice > 0) stockPrice else { usedFallback = true; AppSettings.getAjibqobulHargaReseller(context) }
             }
             "custom" -> {
                 val stockPrice = stockMaster?.harga_custom ?: 0.0
-                if (stockPrice > 0) stockPrice else AppSettings.getAjibqobulHargaCustom(context)
+                if (stockPrice > 0) stockPrice else { usedFallback = true; AppSettings.getAjibqobulHargaCustom(context) }
             }
             "retail" -> {
                 val stockPrice = stockMaster?.harga_retail ?: 0.0
-                if (stockPrice > 0) stockPrice else AppSettings.getAjibqobulHargaRetail(context)
+                if (stockPrice > 0) stockPrice else { usedFallback = true; AppSettings.getAjibqobulHargaRetail(context) }
             }
             else -> {
                 val stockPrice = stockMaster?.harga_retail ?: 0.0
-                if (stockPrice > 0) stockPrice else AppSettings.getAjibqobulHargaRetail(context)
+                if (stockPrice > 0) stockPrice else { usedFallback = true; AppSettings.getAjibqobulHargaRetail(context) }
             }
+        }
+
+        if (usedFallback) {
+            android.util.Log.d("PriceResolverEngine", "Using AppSettings price fallback for MasterStock ID '${stockMaster?.id_stock}' category '$category'")
         }
 
         // 2. Addition for sleeve (Panjang)
@@ -71,12 +76,17 @@ object PriceResolverEngine {
         size: String = ""
     ): Double {
         val isPanjang = sleeve.trim().equals("panjang", ignoreCase = true)
+        var usedHppFallback = false
         val baseHpp = if (isPanjang) {
             val stockHpp = stockMaster?.hpp_panjang ?: 0.0
-            if (stockHpp > 0) stockHpp else AppSettings.getAjibqobulHppPanjang(context)
+            if (stockHpp > 0) stockHpp else { usedHppFallback = true; AppSettings.getAjibqobulHppPanjang(context) }
         } else {
             val stockHpp = stockMaster?.hpp_pendek ?: 0.0
-            if (stockHpp > 0) stockHpp else AppSettings.getAjibqobulHppPendek(context)
+            if (stockHpp > 0) stockHpp else { usedHppFallback = true; AppSettings.getAjibqobulHppPendek(context) }
+        }
+
+        if (usedHppFallback) {
+            android.util.Log.d("PriceResolverEngine", "Using AppSettings HPP fallback for MasterStock ID '${stockMaster?.id_stock}' sleeve '$sleeve'")
         }
 
         val upsizeHpp = when (size.trim().uppercase()) {

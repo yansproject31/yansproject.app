@@ -7,7 +7,6 @@ fun AppTheme(
     content: @Composable () -> Unit
 ) {
     MyApplicationTheme(
-        darkTheme = true,
         content = content
     )
 }

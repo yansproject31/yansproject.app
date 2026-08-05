@@ -48,23 +48,7 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
             // Collect standard system invoices
             launch {
                 db.invoiceDao().getAllInvoices().collect { invoices ->
-                    val finalInvoices = if (invoices.isEmpty()) {
-                        listOf(Invoice(
-                            invoiceNumber = "INV-2026-AJB001",
-                            clientName = "Ahmad Fauzi",
-                            clientPhone = "08123456789",
-                            totalAmount = 399600.0,
-                            paidAmount = 200000.0,
-                            status = "BELUM LUNAS",
-                            issueDate = System.currentTimeMillis(),
-                            dueDate = System.currentTimeMillis() + 86400000 * 7,
-                            discount = 0.0,
-                            dpAmount = 200000.0
-                        ))
-                    } else {
-                        invoices
-                    }
-                    _state.update { it.copy(ajibqobulInvoices = finalInvoices) }
+                    _state.update { it.copy(ajibqobulInvoices = invoices) }
                     recalculateMetrics()
                 }
             }
@@ -81,31 +65,8 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
             // Collect general inflows
             launch {
                 db.inflowDao().getAllInflows().collect { inflows ->
-                    val finalInflows = if (inflows.isEmpty()) {
-                        listOf(
-                            OperationalPemasukan(
-                                id = "INFLOW-001",
-                                transactionNumber = "TX-20260713-001",
-                                category = "Uang Muka Penjualan",
-                                amount = 200000.0,
-                                date = System.currentTimeMillis(),
-                                notes = "Pembayaran DP awal Invoice INV-2026-AJB001",
-                                paymentMethod = "TRANSFER BANK"
-                            ),
-                            OperationalPemasukan(
-                                id = "INFLOW-002",
-                                transactionNumber = "TX-20260713-002",
-                                category = "Uang Muka Project Custom",
-                                amount = 7250000.0,
-                                date = System.currentTimeMillis() - 86400000,
-                                notes = "Uang Muka Proyek Jersey Gathering Telkomsel",
-                                paymentMethod = "TRANSFER BANK"
-                            )
-                        )
-                    } else {
-                        inflows.map { it.toOperationalPemasukan() }
-                    }
-                    _state.update { it.copy(generalInflows = finalInflows) }
+                    val mappedInflows = inflows.map { it.toOperationalPemasukan() }
+                    _state.update { it.copy(generalInflows = mappedInflows) }
                     recalculateMetrics()
                 }
             }
@@ -209,7 +170,10 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
     fun receivePaymentOnInvoice(invoiceNumber: String, isCustomProject: Boolean, amount: Double, paymentMethod: String) {
         viewModelScope.launch {
             try {
-                val db = AppDatabase.getDatabase(getApplication())
+                val context = getApplication<Application>()
+                val adminName = AppSettings.getStoreName(context).ifBlank { "System" }
+                val adminUid = AppSettings.getEmail(context).ifBlank { "sys_user" }
+                val db = AppDatabase.getDatabase(context)
                 val repository = BusinessRepository(db)
                 val allInvs = db.invoiceDao().getInvoicesList()
                 
@@ -227,8 +191,8 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
                         method = paymentMethod,
                         methodDetail = "Otomatis via Dual Invoice Manager",
                         notes = "Pembayaran untuk tagihan nomor ${matched.invoiceNumber}",
-                        adminName = "Owner",
-                        adminUid = "owner-uid"
+                        adminName = adminName,
+                        adminUid = adminUid
                     )
                 } else {
                     // Fallback to manual db injection if invoice is not found
@@ -264,12 +228,12 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
                         date = System.currentTimeMillis(),
                         notes = "Pembayaran cicilan untuk tagihan nomor $invoiceNumber",
                         paymentMethod = paymentMethod,
-                        createdBy = "Owner"
+                        createdBy = adminName
                     )
                     db.inflowDao().insertInflow(newInflowEntity)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("DualInvoiceManagerViewModel", "Error receiving payment on $invoiceNumber: ${e.message}", e)
             }
         }
     }
@@ -324,7 +288,7 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
                 repository.createProject(entity, prefix)
                 repository.deduplicateInvoicesInLocalDb()
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("DualInvoiceManagerViewModel", "Error adding custom project invoice: ${e.message}", e)
             }
         }
     }
@@ -341,19 +305,21 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
 
                 val actualDp = if (dpAmount > 0.0) dpAmount else invoice.paidAmount
                 if (actualDp > 0.0) {
+                    val adminName = AppSettings.getStoreName(getApplication()).ifBlank { "System" }
+                    val adminUid = AppSettings.getEmail(getApplication()).ifBlank { "sys_user" }
                     repository.addInvoicePayment(
                         invoiceId = savedInv.id,
                         amount = actualDp,
                         method = dpMethod,
                         methodDetail = dpMethod,
                         notes = "Uang Muka / Pelunasan Invoice ${savedInv.invoiceNumber} - ${savedInv.clientName}",
-                        adminName = "Owner",
-                        adminUid = "owner_sys"
+                        adminName = adminName,
+                        adminUid = adminUid
                     )
                 }
                 repository.deduplicateInvoicesInLocalDb()
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("DualInvoiceManagerViewModel", "Error adding stock invoice: ${e.message}", e)
             }
         }
     }

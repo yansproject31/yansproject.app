@@ -31,7 +31,7 @@ abstract class YansRoomDatabase : RoomDatabase() {
                     "yans_local_secure.db"
                 )
                 .addMigrations(MIGRATION_1_2)
-                .fallbackToDestructiveMigrationOnDowngrade()
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

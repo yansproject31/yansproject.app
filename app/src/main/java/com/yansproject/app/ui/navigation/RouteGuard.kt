@@ -47,8 +47,9 @@ object RouteGuard {
     )
 
     fun isFinancialRoute(route: String?): Boolean {
-        if (route == null) return false
-        return FINANCIAL_SENSITIVE_ROUTES.contains(route) || route.contains("ledger") || route.contains("keuangan")
+        if (route.isNullOrBlank()) return false
+        val baseRoute = route.split("?", "{")[0].trim()
+        return FINANCIAL_SENSITIVE_ROUTES.contains(baseRoute)
     }
 
     fun isUserAuthorizedForFinancials(role: UserRole?): Boolean {
