@@ -36,22 +36,22 @@ class RecoveryManager private constructor(private val context: Context) {
 
         try {
             val db = appDatabase.openHelper.writableDatabase
-            val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table'")
             val tableNames = mutableListOf<String>()
-            while (cursor.moveToNext()) {
-                tableNames.add(cursor.getString(0))
+            db.query("SELECT name FROM sqlite_master WHERE type='table'").use { cursor ->
+                while (cursor.moveToNext()) {
+                    tableNames.add(cursor.getString(0))
+                }
             }
-            cursor.close()
 
             val essentialTables = listOf("stock_items", "invoices", "projects", "customers")
             val missingTables = essentialTables.filter { !tableNames.contains(it) }
 
             if (missingTables.isNotEmpty()) {
-                val errorMsg = "Recovery check failed: Missing essential tables: $missingTables"
+                val errorMsg = "Database integrity check failed: Missing essential tables: $missingTables"
                 Log.e(TAG, errorMsg)
                 RecoveryResult.Failure(errorMsg)
             } else {
-                Log.i(TAG, "Database recovery check verified success. Essential tables present.")
+                Log.i(TAG, "Database integrity verification completed successfully. Essential tables present.")
                 RecoveryResult.Success
             }
         } catch (e: Exception) {

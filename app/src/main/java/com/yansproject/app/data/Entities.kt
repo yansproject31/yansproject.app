@@ -33,7 +33,7 @@ data class ProjectCustom(
     @get:PropertyName("clientPhone") @set:PropertyName("clientPhone") var clientPhone: String = "",
     @get:PropertyName("description") @set:PropertyName("description") var description: String = "",
     @get:PropertyName("startDate") @set:PropertyName("startDate") var startDate: Long = System.currentTimeMillis(),
-    @get:PropertyName("endDate") @set:PropertyName("endDate") var endDate: Long = System.currentTimeMillis(),
+    @get:PropertyName("endDate") @set:PropertyName("endDate") var endDate: Long = 0L,
     @get:PropertyName("totalCost") @set:PropertyName("totalCost") var totalCost: Double = 0.0,
     @get:PropertyName("paidAmount") @set:PropertyName("paidAmount") var paidAmount: Double = 0.0,
     @get:PropertyName("status") @set:PropertyName("status") var status: String = "Planning",
@@ -52,7 +52,7 @@ data class ProjectCustom(
     @get:PropertyName("clientAddress") @set:PropertyName("clientAddress") var clientAddress: String = "",
     @get:PropertyName("clientNotes") @set:PropertyName("clientNotes") var clientNotes: String = "",
     @get:PropertyName("invoiceNumber") @set:PropertyName("invoiceNumber") var invoiceNumber: String = "",
-    @get:PropertyName("pic") @set:PropertyName("pic") var pic: String = "Owner",
+    @get:PropertyName("pic") @set:PropertyName("pic") var pic: String = "",
     @get:PropertyName("designStatus") @set:PropertyName("designStatus") var designStatus: String = "Draft",
     @get:PropertyName("openPoStatus") @set:PropertyName("openPoStatus") var openPoStatus: String = "Belum Dibuka",
     @get:PropertyName("poTargetQty") @set:PropertyName("poTargetQty") var poTargetQty: Int = 0,
@@ -67,7 +67,7 @@ data class ProjectCustom(
     @get:PropertyName("currentStage") @set:PropertyName("currentStage") var currentStage: String = "Project Dibuat"
 ) {
     val remainingPayment: Double
-        get() = totalCost - paidAmount
+        get() = maxOf(0.0, totalCost - paidAmount)
 
     val totalQty: Int
         get() = qtyXS + qtyS + qtyM + qtyL + qtyXL + qtyXXL + qty3XL + qty4XL
@@ -125,7 +125,7 @@ data class OrderHistory(
     @get:PropertyName("isDeleted") @set:PropertyName("isDeleted") var isDeleted: Boolean = false
 ) {
     val remainingPayment: Double
-        get() = totalAmount - paidAmount
+        get() = maxOf(0.0, totalAmount - paidAmount)
 }
 
 @Keep
@@ -137,7 +137,7 @@ data class Invoice(
     @get:PropertyName("clientName") @set:PropertyName("clientName") var clientName: String = "",
     @get:PropertyName("clientPhone") @set:PropertyName("clientPhone") var clientPhone: String = "",
     @get:PropertyName("issueDate") @set:PropertyName("issueDate") var issueDate: Long = System.currentTimeMillis(),
-    @get:PropertyName("dueDate") @set:PropertyName("dueDate") var dueDate: Long = System.currentTimeMillis(),
+    @get:PropertyName("dueDate") @set:PropertyName("dueDate") var dueDate: Long = 0L,
     @get:PropertyName("totalAmount") @set:PropertyName("totalAmount") var totalAmount: Double = 0.0,
     @get:PropertyName("paidAmount") @set:PropertyName("paidAmount") var paidAmount: Double = 0.0,
     @get:PropertyName("status") @set:PropertyName("status") var status: String = "BELUM LUNAS",
@@ -149,7 +149,10 @@ data class Invoice(
     @get:PropertyName("isDeleted") @set:PropertyName("isDeleted") var isDeleted: Boolean = false
 ) {
     val remainingPayment: Double
-        get() = totalAmount - paidAmount
+        get() {
+            val effectivePaid = maxOf(paidAmount, dpAmount)
+            return maxOf(0.0, totalAmount - effectivePaid - discount)
+        }
 }
 
 @Keep
@@ -178,7 +181,7 @@ data class Expense(
     @get:PropertyName("notes") @set:PropertyName("notes") var notes: String = "",
     @get:PropertyName("transactionNumber") @set:PropertyName("transactionNumber") var transactionNumber: String = "",
     @get:PropertyName("paymentMethod") @set:PropertyName("paymentMethod") var paymentMethod: String = "Cash",
-    @get:PropertyName("createdBy") @set:PropertyName("createdBy") var createdBy: String = "admin",
+    @get:PropertyName("createdBy") @set:PropertyName("createdBy") var createdBy: String = "",
     @get:PropertyName("createdAt") @set:PropertyName("createdAt") var createdAt: Long = System.currentTimeMillis(),
     @get:PropertyName("updatedAt") @set:PropertyName("updatedAt") var updatedAt: Long = System.currentTimeMillis(),
     @get:PropertyName("isDeleted") @set:PropertyName("isDeleted") var isDeleted: Boolean = false,
@@ -198,7 +201,7 @@ data class Inflow(
     @get:PropertyName("photoUrl") @set:PropertyName("photoUrl") var photoUrl: String = "",
     @get:PropertyName("transactionNumber") @set:PropertyName("transactionNumber") var transactionNumber: String = "",
     @get:PropertyName("paymentMethod") @set:PropertyName("paymentMethod") var paymentMethod: String = "Cash",
-    @get:PropertyName("createdBy") @set:PropertyName("createdBy") var createdBy: String = "admin",
+    @get:PropertyName("createdBy") @set:PropertyName("createdBy") var createdBy: String = "",
     @get:PropertyName("createdAt") @set:PropertyName("createdAt") var createdAt: Long = System.currentTimeMillis(),
     @get:PropertyName("updatedAt") @set:PropertyName("updatedAt") var updatedAt: Long = System.currentTimeMillis(),
     @get:PropertyName("isDeleted") @set:PropertyName("isDeleted") var isDeleted: Boolean = false,
@@ -218,7 +221,7 @@ data class StockHistory(
     @get:PropertyName("quantity") @set:PropertyName("quantity") var quantity: Int = 0,
     @get:PropertyName("type") @set:PropertyName("type") var type: String = "Masuk",
     @get:PropertyName("notes") @set:PropertyName("notes") var notes: String = "",
-    @get:PropertyName("user") @set:PropertyName("user") var user: String = "admin",
+    @get:PropertyName("user") @set:PropertyName("user") var user: String = "",
     @get:PropertyName("changeType") @set:PropertyName("changeType") var changeType: String = "Penyesuaian",
     @get:PropertyName("qtyBefore") @set:PropertyName("qtyBefore") var qtyBefore: Int = 0,
     @get:PropertyName("qtyAdded") @set:PropertyName("qtyAdded") var qtyAdded: Int = 0,
@@ -234,7 +237,7 @@ data class AuditLog(
     @get:PropertyName("timestamp") @set:PropertyName("timestamp") var timestamp: Long = System.currentTimeMillis(),
     @get:PropertyName("activity") @set:PropertyName("activity") var activity: String = "",
     @get:PropertyName("details") @set:PropertyName("details") var details: String = "",
-    @get:PropertyName("adminName") @set:PropertyName("adminName") var adminName: String = "admin",
+    @get:PropertyName("adminName") @set:PropertyName("adminName") var adminName: String = "",
     @get:PropertyName("actorId") @set:PropertyName("actorId") var actorId: String = "",
     @get:PropertyName("correlationId") @set:PropertyName("correlationId") var correlationId: String = "",
     @get:PropertyName("objectId") @set:PropertyName("objectId") var objectId: String = "",
@@ -323,7 +326,7 @@ data class InventoryLedger(
     @get:PropertyName("sleeve") @set:PropertyName("sleeve") var sleeve: String = "",
     @get:PropertyName("size") @set:PropertyName("size") var size: String = "",
     @get:PropertyName("quantity") @set:PropertyName("quantity") var quantity: Int = 0,
-    @get:PropertyName("user") @set:PropertyName("user") var user: String = "Owner",
+    @get:PropertyName("user") @set:PropertyName("user") var user: String = "",
     @get:PropertyName("timestamp") @set:PropertyName("timestamp") var timestamp: Long = System.currentTimeMillis(),
     @get:PropertyName("notes") @set:PropertyName("notes") var notes: String = ""
 )
@@ -340,7 +343,7 @@ data class ProductionBatch(
     @get:PropertyName("varianName") @set:PropertyName("varianName") var varianName: String = "",
     @get:PropertyName("date") @set:PropertyName("date") var date: Long = System.currentTimeMillis(),
     @get:PropertyName("time") @set:PropertyName("time") var time: String = "",
-    @get:PropertyName("user") @set:PropertyName("user") var user: String = "Owner",
+    @get:PropertyName("user") @set:PropertyName("user") var user: String = "",
     @get:PropertyName("notes") @set:PropertyName("notes") var notes: String = "",
     @get:PropertyName("status") @set:PropertyName("status") var status: String = "Valid",
     @get:PropertyName("hppPendek") @set:PropertyName("hppPendek") var hppPendek: Double = 0.0,
@@ -367,7 +370,13 @@ data class InventorySummary(
     @get:PropertyName("availableStock") @set:PropertyName("availableStock") var availableStock: Int = 0,
     @get:PropertyName("nilaiPersediaan") @set:PropertyName("nilaiPersediaan") var nilaiPersediaan: Double = 0.0,
     @get:PropertyName("updated_at") @set:PropertyName("updated_at") var updated_at: Long = System.currentTimeMillis()
-)
+) {
+    val computedAvailableStock: Int
+        get() = maxOf(0, readyStock - reservedStock)
+
+    val isBalanced: Boolean
+        get() = availableStock == computedAvailableStock
+}
 
 @Keep
 @Entity(tableName = "invoice_payments")

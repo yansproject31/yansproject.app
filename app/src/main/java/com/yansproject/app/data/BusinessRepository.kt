@@ -197,7 +197,8 @@ class BusinessRepository(private val db: AppDatabase) {
     suspend fun generateInvoiceNumber(prefix: String, dateMillis: Long): String = invoiceMutex.withLock {
         val dateFormat = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
         val dateStr = dateFormat.format(java.util.Date(dateMillis))
-        val fullPrefix = "INV-$dateStr-"
+        val cleanPrefix = if (prefix.isNotBlank()) prefix.trimEnd('-', '/') else "INV"
+        val fullPrefix = "$cleanPrefix-$dateStr-"
         val existingInvoices = invoiceDao.getInvoicesList()
         val matching = existingInvoices.filter { it.invoiceNumber.startsWith(fullPrefix) }
         var nextSeq = if (matching.isEmpty()) {
@@ -630,73 +631,15 @@ class BusinessRepository(private val db: AppDatabase) {
                     }
                 }
 
-                val isTransitionToLunas = (invoice.status != "LUNAS" && status == "LUNAS")
-                if (isTransitionToLunas && invoice.orderId == null) {
-                    val converters = AppTypeConverters()
-                    val items = try {
-                        converters.toInvoiceItemList(invoice.itemsJson)
-                    } catch (e: Exception) {
-                        emptyList()
-                    }
-                    val catalogs = db.catalogDao().getCatalogsList()
-                    val variants = db.varianWarnaDao().getAllVarianList()
-                    val currentUser = FirebaseSyncManager.currentUser.value?.displayName ?: "Owner"
-                    
-                    for (item in items) {
-                        val parsed = parseInvoiceItemDetails(item.description)
-                        if (parsed != null) {
-                            val catalog = catalogs.find { it.nama_catalog.equals(parsed.catalogName, ignoreCase = true) }
-                            val varian = variants.find { it.id_catalog == catalog?.id_catalog && it.nama_warna.equals(parsed.varianName, ignoreCase = true) }
-                            
-                            if (catalog != null && varian != null) {
-                                val masterStock = db.masterStockDao().getStockByVarian(varian.id_varian)
-                                if (masterStock != null) {
-                                    // Deduct stock physically
-                                    val updatedStock = updateStockQtyForSizeSleeve(masterStock, parsed.size, parsed.sleeve, -item.quantity)
-                                    val finalStock = recalculateTotalStock(updatedStock)
-                                    db.masterStockDao().updateStockMaster(finalStock)
-                                    FirebaseSyncManager.syncItemToCloud("master_stock", finalStock.id_stock.toString(), finalStock)
-                                    syncMasterStockToStockItems(varian.id_varian)
-                                    
-                                    // Insert stock history
-                                    val historyEntry = StockHistory(
-                                        date = System.currentTimeMillis(),
-                                        series = "${catalog.nama_catalog} (${varian.nama_warna})",
-                                        sleeve = parsed.sleeve,
-                                        size = parsed.size,
-                                        quantity = item.quantity,
-                                        type = "Keluar",
-                                        notes = "Penjualan Invoice ${invoice.invoiceNumber}",
-                                        user = currentUser
-                                    )
-                                    db.stockHistoryDao().insertHistory(historyEntry)
-                                    val docId = "${System.currentTimeMillis()}_${parsed.size}_${parsed.sleeve}"
-                                    FirebaseSyncManager.syncItemToCloud("stock_history", docId, historyEntry)
-                                    
-                                    // Insert "Penjualan" ledger entry
-                                    val ledgerEntry = InventoryLedger(
-                                        id = 0,
-                                        transactionType = "Penjualan",
-                                        batchNumber = "",
-                                        invoiceNumber = invoice.invoiceNumber,
-                                        catalogId = catalog.id_catalog,
-                                        catalogName = catalog.nama_catalog,
-                                        seriesName = catalog.nama_catalog,
-                                        varianId = varian.id_varian,
-                                        varianName = varian.nama_warna,
-                                        sleeve = parsed.sleeve,
-                                        size = parsed.size,
-                                        quantity = -item.quantity, // Negative for sale deduction
-                                        user = currentUser,
-                                        timestamp = System.currentTimeMillis(),
-                                        notes = "Penjualan Invoice ${invoice.invoiceNumber}"
-                                    )
-                                    val insertedLedgerId = db.inventoryLedgerDao().insertLedger(ledgerEntry)
-                                    FirebaseSyncManager.syncItemToCloud("inventory_ledger", insertedLedgerId.toString(), ledgerEntry.copy(id = insertedLedgerId.toInt()))
-                                }
-                            }
-                        }
-                    }
+                val isDeductingStatus = status.uppercase().trim() in listOf(
+                    "DISETUJUI", "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "BELUM LUNAS", "COMPLETED", "PAID"
+                )
+                val isCancelledStatus = status.uppercase().trim() in listOf("BATAL", "DIBATALKAN", "CANCELLED", "VOID")
+
+                if (isDeductingStatus && updatedInvoice.orderId == null) {
+                    deductStockForInvoice(updatedInvoice)
+                } else if (isCancelledStatus) {
+                    restoreStockForInvoice(updatedInvoice)
                 }
                 
                 // Update inventory summary
@@ -1185,6 +1128,151 @@ class BusinessRepository(private val db: AppDatabase) {
         }
     }
 
+    suspend fun deductStockForInvoice(invoice: Invoice) {
+        // Custom Projects stand alone with their own system and DO NOT touch or deduct Stock Ajibqobul
+        if (invoice.projectId != null || invoice.invoiceNumber.startsWith("PRJ-") || invoice.invoiceNumber.startsWith("YP-")) {
+            return
+        }
+
+        val statusClean = invoice.status.uppercase().trim()
+        val isDeductingStatus = statusClean in listOf(
+            "DISETUJUI", "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "BELUM LUNAS", "COMPLETED", "PAID"
+        )
+        if (!isDeductingStatus) return
+
+        // Prevent duplicate stock deduction for the same invoice
+        if (invoice.invoiceNumber.isNotBlank()) {
+            val existingLedgers = db.inventoryLedgerDao().getLedgerList()
+            val hasDeductedStock = existingLedgers.any { 
+                it.invoiceNumber == invoice.invoiceNumber && 
+                (it.transactionType.equals("Penjualan", ignoreCase = true) || it.quantity < 0)
+            }
+            if (hasDeductedStock) {
+                return
+            }
+        }
+
+        val converters = AppTypeConverters()
+        val items = try {
+            converters.toInvoiceItemList(invoice.itemsJson)
+        } catch (e: Exception) {
+            emptyList()
+        }
+        if (items.isEmpty()) return
+
+        val catalogs = db.catalogDao().getCatalogsList()
+        val variants = db.varianWarnaDao().getAllVarianList()
+        val currentUser = FirebaseSyncManager.currentUser.value?.displayName ?: "Owner"
+
+        val updatedVarianIds = mutableSetOf<Int>()
+
+        for (item in items) {
+            val parsed = parseInvoiceItemDetails(item.description)
+            if (parsed != null) {
+                val catalog = catalogs.find { it.nama_catalog.trim().equals(parsed.catalogName.trim(), ignoreCase = true) }
+                val varian = variants.find { 
+                    (catalog == null || it.id_catalog == catalog.id_catalog) && 
+                    it.nama_warna.trim().equals(parsed.varianName.trim(), ignoreCase = true) 
+                } ?: variants.find { it.nama_warna.trim().equals(parsed.varianName.trim(), ignoreCase = true) }
+
+                if (catalog != null && varian != null) {
+                    val masterStock = db.masterStockDao().getStockByVarian(varian.id_varian)
+                    if (masterStock != null) {
+                        // Deduct stock physically
+                        val updatedStock = updateStockQtyForSizeSleeve(masterStock, parsed.size, parsed.sleeve, -item.quantity)
+                        val finalStock = recalculateTotalStock(updatedStock)
+                        db.masterStockDao().updateStockMaster(finalStock)
+                        FirebaseSyncManager.syncItemToCloud("master_stock", finalStock.id_stock.toString(), finalStock)
+                        syncMasterStockToStockItems(varian.id_varian)
+
+                        // Insert stock history
+                        val historyEntry = StockHistory(
+                            date = System.currentTimeMillis(),
+                            series = "${catalog.nama_catalog} (${varian.nama_warna})",
+                            sleeve = parsed.sleeve,
+                            size = parsed.size,
+                            quantity = item.quantity,
+                            type = "Keluar",
+                            notes = "Penjualan Invoice ${invoice.invoiceNumber}",
+                            user = currentUser
+                        )
+                        db.stockHistoryDao().insertHistory(historyEntry)
+                        val docId = "${System.currentTimeMillis()}_${parsed.size}_${parsed.sleeve}"
+                        FirebaseSyncManager.syncItemToCloud("stock_history", docId, historyEntry)
+
+                        // Insert "Penjualan" ledger entry
+                        val ledgerEntry = InventoryLedger(
+                            id = 0,
+                            transactionType = "Penjualan",
+                            batchNumber = "",
+                            invoiceNumber = invoice.invoiceNumber,
+                            catalogId = catalog.id_catalog,
+                            catalogName = catalog.nama_catalog,
+                            seriesName = catalog.nama_catalog,
+                            varianId = varian.id_varian,
+                            varianName = varian.nama_warna,
+                            sleeve = parsed.sleeve,
+                            size = parsed.size,
+                            quantity = -item.quantity, // Negative for sale deduction
+                            user = currentUser,
+                            timestamp = System.currentTimeMillis(),
+                            notes = "Penjualan Invoice ${invoice.invoiceNumber}"
+                        )
+                        val insertedLedgerId = db.inventoryLedgerDao().insertLedger(ledgerEntry)
+                        FirebaseSyncManager.syncItemToCloud("inventory_ledger", insertedLedgerId.toString(), ledgerEntry.copy(id = insertedLedgerId.toInt()))
+
+                        updatedVarianIds.add(varian.id_varian)
+                    } else {
+                        deductFallbackStockItem(item, invoice.invoiceNumber, currentUser)
+                    }
+                } else {
+                    deductFallbackStockItem(item, invoice.invoiceNumber, currentUser)
+                }
+            } else {
+                deductFallbackStockItem(item, invoice.invoiceNumber, currentUser)
+            }
+        }
+
+        for (vId in updatedVarianIds) {
+            updateInventorySummaryForVarian(vId)
+        }
+    }
+
+    private suspend fun deductFallbackStockItem(item: InvoiceItemDetail, invoiceNumber: String, currentUser: String = "Owner") {
+        val allStock = stockDao.getAllStock().firstOrNull() ?: emptyList()
+        val matchedStock = allStock.find { 
+            it.name.trim().equals(item.description.trim(), ignoreCase = true) ||
+            (it.name.isNotBlank() && item.description.contains(it.name, ignoreCase = true))
+        }
+        if (matchedStock != null) {
+            val newCount = (matchedStock.stockCount - item.quantity).coerceAtLeast(0)
+            stockDao.updateStockCount(matchedStock.id, newCount)
+            val updatedStockItem = matchedStock.copy(stockCount = newCount)
+            FirebaseSyncManager.syncItemToCloud("stock_items", matchedStock.id.toString(), updatedStockItem)
+            syncStockItemToMasterStock(updatedStockItem)
+
+            val ledgerEntry = InventoryLedger(
+                id = 0,
+                transactionType = "Penjualan",
+                batchNumber = "",
+                invoiceNumber = invoiceNumber,
+                catalogId = 0,
+                catalogName = item.description,
+                seriesName = item.description,
+                varianId = 0,
+                varianName = item.description,
+                sleeve = "Standard",
+                size = "Standard",
+                quantity = -item.quantity,
+                user = currentUser,
+                timestamp = System.currentTimeMillis(),
+                notes = "Penjualan Invoice $invoiceNumber"
+            )
+            val insertedLedgerId = db.inventoryLedgerDao().insertLedger(ledgerEntry)
+            FirebaseSyncManager.syncItemToCloud("inventory_ledger", insertedLedgerId.toString(), ledgerEntry.copy(id = insertedLedgerId.toInt()))
+        }
+    }
+
     suspend fun createDirectInvoice(invoice: Invoice): Invoice {
         var result: Invoice = invoice
         db.withTransaction {
@@ -1201,6 +1289,7 @@ class BusinessRepository(private val db: AppDatabase) {
                 invoice.copy(id = insertedId.toInt())
             }
             
+            deductStockForInvoice(finalInvoice)
             updateSummariesForInvoice(finalInvoice)
             val cloudKey = finalInvoice.invoiceNumber.ifEmpty { finalInvoice.id.toString() }
             FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, finalInvoice)
@@ -1541,6 +1630,8 @@ class BusinessRepository(private val db: AppDatabase) {
 
             if (invoice.status.equals("BATAL", ignoreCase = true) || invoice.status.equals("CANCELLED", ignoreCase = true) || invoice.status.equals("DITOLAK", ignoreCase = true)) {
                 cleanUpInvoiceRelatedData(invoice)
+            } else {
+                deductStockForInvoice(invoice)
             }
             invoiceDao.updateInvoice(invoice)
             updateSummariesForInvoice(invoice)
@@ -2360,6 +2451,17 @@ class BusinessRepository(private val db: AppDatabase) {
     }
 
     suspend fun reconcileAllInventorySummaries() {
+        // Audit & reconcile physical stock deduction for all active stock invoices
+        val allInvoices = db.invoiceDao().getInvoicesList()
+        val activeStockInvoices = allInvoices.filter { invoice ->
+            !invoice.isDeleted &&
+            (invoice.projectId == null && !invoice.invoiceNumber.startsWith("PRJ-") && !invoice.invoiceNumber.startsWith("YP-")) &&
+            invoice.status.uppercase().trim() in listOf("DISETUJUI", "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "BELUM LUNAS", "COMPLETED", "PAID")
+        }
+        for (inv in activeStockInvoices) {
+            deductStockForInvoice(inv)
+        }
+
         val activeCatalogs = db.catalogDao().getCatalogsList().filter { !it.isDeleted }
         val activeVariants = db.varianWarnaDao().getAllVarianList().filter { !it.isDeleted }
         val activeCatalogIds = activeCatalogs.map { it.id_catalog }.toSet()

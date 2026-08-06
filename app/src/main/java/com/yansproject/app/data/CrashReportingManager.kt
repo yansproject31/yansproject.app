@@ -70,6 +70,19 @@ class CrashReportingManager private constructor(private val context: Context) {
         FirebaseCrashlytics.getInstance().recordException(throwable)
     }
 
+    fun clearSessionContext() {
+        breadcrumbs.clear()
+        try {
+            FirebaseCrashlytics.getInstance().setUserId("")
+            setCustomKey("user_role", "ANONYMOUS")
+            setCustomKey("last_fatal_context", "")
+            setCustomKey("fatal_timestamp", "")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed resetting Firebase Crashlytics user context: ${e.message}")
+        }
+        Log.i(TAG, "Cleared crash breadcrumbs and user context for session teardown.")
+    }
+
     fun getBreadcrumbHistory(): List<String> {
         return breadcrumbs.toList()
     }

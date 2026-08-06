@@ -78,6 +78,7 @@ class CryptoSecurityGuard {
     }
 
     fun encryptResult(rawText: String): CryptoResult {
+        if (rawText.isBlank()) return CryptoResult(isSuccess = true, data = "")
         return try {
             CryptoResult(isSuccess = true, data = encryptOrThrow(rawText))
         } catch (e: Exception) {
@@ -86,9 +87,11 @@ class CryptoSecurityGuard {
     }
 
     fun encrypt(rawText: String): String {
+        if (rawText.isBlank()) return ""
         return try {
             encryptOrThrow(rawText)
         } catch (e: Exception) {
+            android.util.Log.e("CryptoSecurityGuard", "Silent encrypt failed for non-blank text", e)
             ""
         }
     }
@@ -98,8 +101,8 @@ class CryptoSecurityGuard {
      * Throws SecurityException on decryption failure.
      */
     fun decryptOrThrow(cipherText: String): String {
+        if (cipherText.isBlank()) return ""
         try {
-            if (cipherText.isBlank()) return ""
             val secretKey = getOrCreateSecretKey()
             val packed = Base64.decode(cipherText, Base64.NO_WRAP)
             
@@ -125,6 +128,7 @@ class CryptoSecurityGuard {
     }
 
     fun decryptResult(cipherText: String): CryptoResult {
+        if (cipherText.isBlank()) return CryptoResult(isSuccess = true, data = "")
         return try {
             CryptoResult(isSuccess = true, data = decryptOrThrow(cipherText))
         } catch (e: Exception) {
@@ -133,9 +137,11 @@ class CryptoSecurityGuard {
     }
 
     fun decrypt(cipherText: String): String {
+        if (cipherText.isBlank()) return ""
         return try {
             decryptOrThrow(cipherText)
         } catch (e: Exception) {
+            android.util.Log.e("CryptoSecurityGuard", "Silent decrypt failed for non-blank cipherText", e)
             ""
         }
     }

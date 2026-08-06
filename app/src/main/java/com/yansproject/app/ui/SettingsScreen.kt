@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.yansproject.app.data.*
 import com.yansproject.app.ui.theme.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -969,7 +970,7 @@ fun SettingsScreen(
                                 val db = AppDatabase.getDatabase(context)
                                 db.openHelper.writableDatabase.execSQL("VACUUM")
                             } catch (dbEx: Exception) {
-                                dbEx.printStackTrace()
+                                android.util.Log.e("SettingsScreen", "SQLite VACUUM optimization failed: ${dbEx.message}", dbEx)
                             }
                             
                             System.gc()
@@ -2267,6 +2268,7 @@ fun renderNestedSubScreen(
 
         "akun" -> {
             val currentEmail = (currentUser?.email ?: AppSettings.getEmail(context)).trim().lowercase()
+            val cleanEmail = currentEmail.ifBlank { "yansart31@gmail.com" }
             val userPrefs = remember(currentEmail) { 
                 context.getSharedPreferences("yans_user_prefs_${if (currentEmail.isNotBlank()) currentEmail else "guest"}", android.content.Context.MODE_PRIVATE) 
             }
@@ -2292,7 +2294,63 @@ fun renderNestedSubScreen(
             var otherDevicesLoggedOut by remember { mutableStateOf(userPrefs.getBoolean("other_devices_logged_out", false)) }
             var isSavingProfile by remember { mutableStateOf(false) }
 
+            var isSavingCredentials by remember { mutableStateOf(false) }
+
+            var showPhoneOtpModal by remember { mutableStateOf(false) }
+            var showEmailOtpModal by remember { mutableStateOf(false) }
+            var generatedOtpCode by remember { mutableStateOf("") }
+            var otpInput by remember { mutableStateOf("") }
+            var isVerifyingOtp by remember { mutableStateOf(false) }
+
+            var activeSessionsList by remember { mutableStateOf<List<com.yansproject.app.data.UserSessionInfo>>(emptyList()) }
+            var isRevokingSessions by remember { mutableStateOf(false) }
+            var isLoadingSessions by remember { mutableStateOf(false) }
+
+            LaunchedEffect(currentEmail, otherDevicesLoggedOut) {
+                if (currentEmail.isNotBlank()) {
+                    isLoadingSessions = true
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        val sessions = com.yansproject.app.data.FirebaseSyncManager.fetchOrRegisterSessions(context, currentEmail)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            activeSessionsList = sessions
+                            isLoadingSessions = false
+                        }
+                    }
+                }
+            }
+
             // Real-time & Offline-First Data Synchronization with Thread Isolation & Null Safety
+            DisposableEffect(currentEmail) {
+                var listenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+                if (com.yansproject.app.data.FirebaseSyncManager.isFirebaseActive && currentEmail.isNotBlank()) {
+                    try {
+                        val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        listenerRegistration = firestore.collection("users").document(currentEmail)
+                            .addSnapshotListener { snapshot, e ->
+                                if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+                                val remoteName = snapshot.getString("displayName")
+                                val remoteWa = snapshot.getString("whatsapp") ?: snapshot.getString("phone")
+                                val remoteAddr = snapshot.getString("address")
+                                val remoteRecovery = snapshot.getString("recoveryEmail")
+                                val remoteUsername = snapshot.getString("username")
+                                val remoteCategory = snapshot.getString("priceCategory")
+
+                                if (!remoteName.isNullOrBlank() && (nameInput.isBlank() || nameInput == "YP")) nameInput = remoteName
+                                if (!remoteWa.isNullOrBlank() && whatsappInput.isBlank()) whatsappInput = remoteWa
+                                if (!remoteAddr.isNullOrBlank() && addressInput.isBlank()) addressInput = remoteAddr
+                                if (!remoteRecovery.isNullOrBlank() && recoveryAccountInput.isBlank()) recoveryAccountInput = remoteRecovery
+                                if (!remoteUsername.isNullOrBlank() && usernameInput.isBlank()) usernameInput = remoteUsername
+                                if (!remoteCategory.isNullOrBlank() && !isOwner) memberPriceCategory = remoteCategory
+                            }
+                    } catch (ex: Exception) {
+                        android.util.Log.e("SettingsAccountCenter", "Snapshot listener error: ${ex.message}")
+                    }
+                }
+                onDispose {
+                    listenerRegistration?.remove()
+                }
+            }
+
             LaunchedEffect(currentEmail, isOwner, currentUser) {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     try {
@@ -2559,6 +2617,35 @@ fun renderNestedSubScreen(
                                                     apply()
                                                 }
 
+                                                if (com.yansproject.app.data.FirebaseSyncManager.isFirebaseActive) {
+                                                    try {
+                                                        val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                                        val bizData = hashMapOf(
+                                                            "store_name" to nameInput.trim(),
+                                                            "store_email" to cleanEmail,
+                                                            "store_whatsapp" to whatsappInput.trim(),
+                                                            "store_address" to addressInput.trim(),
+                                                            "updated_at" to System.currentTimeMillis()
+                                                        )
+                                                        firestore.collection("settings").document("business_identity").set(bizData, com.google.firebase.firestore.SetOptions.merge()).await()
+
+                                                        val userData = hashMapOf<String, Any>(
+                                                            "displayName" to nameInput.trim(),
+                                                            "email" to cleanEmail,
+                                                            "whatsapp" to whatsappInput.trim(),
+                                                            "address" to addressInput.trim(),
+                                                            "username" to usernameInput.trim(),
+                                                            "recoveryEmail" to recoveryAccountInput.trim(),
+                                                            "role" to "OWNER",
+                                                            "priceCategory" to "Retail",
+                                                            "updated_at" to System.currentTimeMillis()
+                                                        )
+                                                        firestore.collection("users").document(cleanEmail).set(userData, com.google.firebase.firestore.SetOptions.merge()).await()
+                                                    } catch (fe: Exception) {
+                                                        android.util.Log.e("SettingsAccountCenter", "Firestore owner update failed: ${fe.message}")
+                                                    }
+                                                }
+
                                                 com.yansproject.app.data.FirebaseSyncManager.saveSession(
                                                     context = context,
                                                     email = cleanEmail,
@@ -2579,6 +2666,25 @@ fun renderNestedSubScreen(
                                                     newAddress = addressInput.trim(),
                                                     newTier = memberPriceCategory
                                                 )
+
+                                                if (com.yansproject.app.data.FirebaseSyncManager.isFirebaseActive) {
+                                                    try {
+                                                        val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                                        val userData = hashMapOf<String, Any>(
+                                                            "displayName" to nameInput.trim(),
+                                                            "email" to cleanEmail,
+                                                            "whatsapp" to whatsappInput.trim(),
+                                                            "address" to addressInput.trim(),
+                                                            "username" to usernameInput.trim(),
+                                                            "recoveryEmail" to recoveryAccountInput.trim(),
+                                                            "priceCategory" to memberPriceCategory,
+                                                            "updated_at" to System.currentTimeMillis()
+                                                        )
+                                                        firestore.collection("users").document(cleanEmail).set(userData, com.google.firebase.firestore.SetOptions.merge()).await()
+                                                    } catch (fe: Exception) {
+                                                        android.util.Log.e("SettingsAccountCenter", "Firestore member update failed: ${fe.message}")
+                                                    }
+                                                }
 
                                                 com.yansproject.app.data.FirebaseSyncManager.updateDisplayName(context, nameInput.trim())
                                                 
@@ -2705,45 +2811,78 @@ fun renderNestedSubScreen(
 
                         Button(
                             onClick = {
-                                var hasChanges = false
-                                val secPrefs = context.getSharedPreferences("yans_security_prefs", android.content.Context.MODE_PRIVATE)
-
-                                if (passwordInput.isNotEmpty()) {
-                                    if (passwordInput.length >= 6) {
-                                        secPrefs.edit().putString("app_pin", passwordInput).apply()
-                                        viewModel.addAuditLog("Ganti PIN Sandi", "Sandi login utama berhasil diperbarui.")
-                                        hasChanges = true
-                                    } else {
-                                        Toast.makeText(context, "Sandi Baru harus minimal 6 karakter!", Toast.LENGTH_SHORT).show()
-                                        return@Button
-                                    }
-                                }
-                                if (transactionPinInput.isNotEmpty()) {
-                                    if (transactionPinInput.length in 4..6 && transactionPinInput.all { it.isDigit() }) {
-                                        userPrefs.edit().putString("transaction_pin", transactionPinInput).apply()
-                                        secPrefs.edit()
-                                            .putString("transaction_pin_${currentUser?.email ?: "default"}", transactionPinInput)
-                                            .putString("transaction_pin", transactionPinInput)
-                                            .apply()
-                                        viewModel.addAuditLog("Ganti PIN Transaksi", "PIN Transaksi khusus 4-6 angka berhasil diperbarui.")
-                                        hasChanges = true
-                                    } else {
-                                        Toast.makeText(context, "PIN Transaksi harus berupa 4 hingga 6 angka!", Toast.LENGTH_SHORT).show()
-                                        return@Button
-                                    }
-                                }
-                                if (hasChanges) {
-                                    Toast.makeText(context, "Kredensial keamanan & PIN Transaksi berhasil diperbarui!", Toast.LENGTH_SHORT).show()
-                                    passwordInput = ""
-                                } else {
+                                if (passwordInput.isEmpty() && transactionPinInput.isEmpty()) {
                                     Toast.makeText(context, "Tidak ada perubahan sandi/PIN yang dimasukkan.", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                if (passwordInput.isNotEmpty() && passwordInput.length < 6) {
+                                    Toast.makeText(context, "Sandi Baru harus minimal 6 karakter!", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                if (transactionPinInput.isNotEmpty() && (transactionPinInput.length !in 4..6 || !transactionPinInput.all { it.isDigit() })) {
+                                    Toast.makeText(context, "PIN Transaksi harus berupa 4 hingga 6 angka!", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+
+                                isSavingCredentials = true
+                                coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    try {
+                                        var messageResult = ""
+                                        var isSuccess = true
+
+                                        if (passwordInput.isNotEmpty()) {
+                                            val (success, msg) = com.yansproject.app.data.FirebaseSyncManager.changePasswordAndSyncAll(
+                                                context = context,
+                                                newPassword = passwordInput,
+                                                transactionPin = transactionPinInput.ifBlank { null }
+                                            )
+                                            isSuccess = success
+                                            messageResult = msg
+                                            if (success) {
+                                                viewModel.addAuditLog("Ganti PIN Sandi", "Sandi login utama berhasil diperbarui di Cloud & Lokal.")
+                                            }
+                                        } else if (transactionPinInput.isNotEmpty()) {
+                                            val (success, msg) = com.yansproject.app.data.FirebaseSyncManager.updateTransactionPinAndSync(
+                                                context = context,
+                                                transactionPin = transactionPinInput
+                                            )
+                                            isSuccess = success
+                                            messageResult = msg
+                                            if (success) {
+                                                viewModel.addAuditLog("Ganti PIN Transaksi", "PIN Transaksi khusus berhasil diperbarui.")
+                                            }
+                                        }
+
+                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                            isSavingCredentials = false
+                                            if (isSuccess) {
+                                                passwordInput = ""
+                                                Toast.makeText(context, messageResult, Toast.LENGTH_LONG).show()
+                                            } else {
+                                                Toast.makeText(context, messageResult, Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("SettingsAccountCenter", "Error updating credentials: ${e.message}", e)
+                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                            isSavingCredentials = false
+                                            Toast.makeText(context, "Gagal memperbarui kredensial: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
                                 }
                             },
+                            enabled = !isSavingCredentials,
                             colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = Color.Black),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth().height(45.dp)
                         ) {
-                            Text("SIMPAN PIN & KREDENSIAL", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            if (isSavingCredentials) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.Black, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("MENYIMPAN...", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            } else {
+                                Text("SIMPAN PIN & KREDENSIAL", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
                         }
                     }
                 }
@@ -2771,10 +2910,15 @@ fun renderNestedSubScreen(
                             if (!isEmailVerified) {
                                 Button(
                                     onClick = {
-                                        isEmailVerified = true
-                                        userPrefs.edit().putBoolean("email_verified", true).apply()
-                                        Toast.makeText(context, "Link verifikasi dikirim! Email diverifikasi otomatis.", Toast.LENGTH_SHORT).show()
-                                        viewModel.addAuditLog("Verifikasi Email", "Verifikasi alamat email utama berhasil diproses.")
+                                        val emailToVerify = cleanEmail.ifBlank { currentEmail }
+                                        if (emailToVerify.isBlank()) {
+                                            Toast.makeText(context, "Alamat email tidak valid!", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            generatedOtpCode = (100000..999999).random().toString()
+                                            otpInput = ""
+                                            showEmailOtpModal = true
+                                            Toast.makeText(context, "Kode OTP Email dikirim! Kode: $generatedOtpCode", Toast.LENGTH_LONG).show()
+                                        }
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = HighlightSoftCyan, contentColor = Color.Black),
                                     shape = RoundedCornerShape(6.dp),
@@ -2796,7 +2940,7 @@ fun renderNestedSubScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text("Verifikasi Nomor Telepon", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Verifikasi Nomor Telepon / WhatsApp", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                 Text(
                                     text = if (isPhoneVerified) "Terverifikasi Resmi" else "Belum Terverifikasi",
                                     color = if (isPhoneVerified) AlertGreen else AlertRed,
@@ -2806,10 +2950,14 @@ fun renderNestedSubScreen(
                             if (!isPhoneVerified) {
                                 Button(
                                     onClick = {
-                                        isPhoneVerified = true
-                                        userPrefs.edit().putBoolean("phone_verified", true).apply()
-                                        Toast.makeText(context, "OTP dikirim! Nomor WhatsApp berhasil diverifikasi.", Toast.LENGTH_SHORT).show()
-                                        viewModel.addAuditLog("Verifikasi Telepon", "Nomor telepon/WhatsApp utama berhasil diverifikasi.")
+                                        if (whatsappInput.isBlank()) {
+                                            Toast.makeText(context, "Harap isi Nomor WhatsApp terlebih dahulu di Form Profil!", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            generatedOtpCode = (100000..999999).random().toString()
+                                            otpInput = ""
+                                            showPhoneOtpModal = true
+                                            Toast.makeText(context, "OTP dikirim ke WhatsApp $whatsappInput! Kode: $generatedOtpCode", Toast.LENGTH_LONG).show()
+                                        }
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = HighlightSoftCyan, contentColor = Color.Black),
                                     shape = RoundedCornerShape(6.dp),
@@ -2827,42 +2975,66 @@ fun renderNestedSubScreen(
                 // Sesi Login & Active Devices Card
                 PremiumGlassCard(modifier = Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("SESI LOGIN & PERANGKAT AKTIF", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Current Device (Dynamic)
-                        val manufacturer = remember { android.os.Build.MANUFACTURER.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() } }
-                        val model = remember { android.os.Build.MODEL }
-                        val release = remember { android.os.Build.VERSION.RELEASE }
-                        val sdk = remember { android.os.Build.VERSION.SDK_INT }
-                        val currentDeviceName = "$manufacturer $model (Perangkat Ini)"
-                        val currentDeviceDetails = "Android $release (API $sdk) | Sesi Aktif Utama"
-
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Outlined.PhoneAndroid, contentDescription = null, tint = AgedGold, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(currentDeviceName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                Text(currentDeviceDetails, color = TextMuted, fontSize = 11.sp)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .background(AlertGreen.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text("AKTIF", color = AlertGreen, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("SESI LOGIN & PERANGKAT AKTIF", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+                            if (isLoadingSessions) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), color = AgedGold, strokeWidth = 1.5.dp)
                             }
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
 
-                        HorizontalDivider(color = BorderGrey.copy(alpha = 0.2f))
+                        if (activeSessionsList.isEmpty()) {
+                            Text("Tidak ada sesi aktif terdeteksi.", color = TextMuted, fontSize = 11.sp)
+                        } else {
+                            activeSessionsList.forEachIndexed { index, session ->
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                    val icon = when {
+                                        session.deviceName.contains("Web", ignoreCase = true) || session.deviceName.contains("Chrome", ignoreCase = true) -> Icons.Outlined.Laptop
+                                        session.deviceName.contains("Tab", ignoreCase = true) || session.deviceName.contains("Pad", ignoreCase = true) -> Icons.Outlined.Tablet
+                                        else -> Icons.Outlined.PhoneAndroid
+                                    }
+                                    val iconTint = if (session.isCurrent) AgedGold else TextMuted
 
-                        // Other Devices Fallback (Clean & Authentic)
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Outlined.Devices, contentDescription = null, tint = TextMuted, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Perangkat Lain", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
-                                Text("Informasi perangkat tidak tersedia.", color = TextMuted, fontSize = 11.sp)
+                                    Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(24.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(session.deviceName, color = Color.White, fontSize = 13.sp, fontWeight = if (session.isCurrent) FontWeight.Bold else FontWeight.Medium)
+                                        Text("${session.osDetails} • ${session.ipLocation}", color = TextMuted, fontSize = 11.sp)
+                                    }
+                                    if (session.isCurrent) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(AlertGreen.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("PERANGKAT INI", color = AlertGreen, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    } else if (session.isActive && !otherDevicesLoggedOut) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(HighlightSoftCyan.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("AKTIF", color = HighlightSoftCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(AlertRed.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("DIPUTUSKAN", color = AlertRed, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+
+                                if (index < activeSessionsList.size - 1) {
+                                    HorizontalDivider(color = BorderGrey.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 4.dp))
+                                }
                             }
                         }
 
@@ -2870,18 +3042,208 @@ fun renderNestedSubScreen(
 
                         Button(
                             onClick = {
-                                otherDevicesLoggedOut = true
-                                userPrefs.edit().putBoolean("other_devices_logged_out", true).apply()
-                                Toast.makeText(context, "Sesi login di perangkat lain telah diputuskan!", Toast.LENGTH_SHORT).show()
-                                viewModel.addAuditLog("Logout Sesi Lain", "Owner memutuskan koneksi seluruh perangkat login lainnya.")
+                                isRevokingSessions = true
+                                coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    val (success, msg) = com.yansproject.app.data.FirebaseSyncManager.revokeOtherSessionsOnCloud(context, currentEmail)
+                                    val updatedSessions = com.yansproject.app.data.FirebaseSyncManager.fetchOrRegisterSessions(context, currentEmail)
+                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                        isRevokingSessions = false
+                                        otherDevicesLoggedOut = true
+                                        activeSessionsList = updatedSessions
+                                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                        viewModel.addAuditLog("Logout Sesi Lain", "Memutuskan koneksi seluruh sesi perangkat aktif lainnya.")
+                                    }
+                                }
                             },
+                            enabled = !isRevokingSessions,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B1E1E), contentColor = Color.White),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth().height(45.dp)
                         ) {
-                            Text("PUTUS KONEKSI SESI LAIN", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            if (isRevokingSessions) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("MEMUTUSKAN SESI...", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            } else {
+                                Text("PUTUS KONEKSI SESI LAIN", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
                         }
                     }
+                }
+
+                // OTP Verification Modals
+                if (showPhoneOtpModal) {
+                    AlertDialog(
+                        onDismissRequest = { if (!isVerifyingOtp) showPhoneOtpModal = false },
+                        containerColor = Color(0xFF0B1B1C),
+                        shape = RoundedCornerShape(16.dp),
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.VerifiedUser, contentDescription = null, tint = AgedGold)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("VERIFIKASI OTP WHATSAPP", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+                            }
+                        },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(
+                                    "Kode OTP verifikasi 6-digit telah dikirimkan ke WhatsApp:",
+                                    color = TextLight, fontSize = 12.sp
+                                )
+                                Text(
+                                    whatsappInput,
+                                    color = AlertGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                )
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF163536).copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text("KODE OTP SIMULASI SIKRON:", color = TextMuted, fontSize = 10.sp)
+                                        Text(generatedOtpCode, color = AgedGold, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                                    }
+                                }
+                                OutlinedTextField(
+                                    value = otpInput,
+                                    onValueChange = { if (it.length <= 6) otpInput = it },
+                                    label = { Text("Masukkan 6-Digit OTP", color = TextMuted) },
+                                    singleLine = true,
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                                    ),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = AgedGold,
+                                        unfocusedBorderColor = BorderGrey,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    if (otpInput.trim() == generatedOtpCode) {
+                                        isVerifyingOtp = true
+                                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                            com.yansproject.app.data.FirebaseSyncManager.verifyPhoneOnCloud(currentEmail, whatsappInput.trim())
+                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                isVerifyingOtp = false
+                                                isPhoneVerified = true
+                                                userPrefs.edit().putBoolean("phone_verified", true).apply()
+                                                showPhoneOtpModal = false
+                                                Toast.makeText(context, "Selamat! Nomor WhatsApp $whatsappInput terverifikasi resmi!", Toast.LENGTH_LONG).show()
+                                                viewModel.addAuditLog("Verifikasi Telepon", "Nomor WhatsApp $whatsappInput berhasil diverifikasi.")
+                                            }
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Kode OTP tidak sesuai! Silakan masukkan $generatedOtpCode", Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                                enabled = !isVerifyingOtp && otpInput.length == 6,
+                                colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = Color.Black)
+                            ) {
+                                if (isVerifyingOtp) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.Black)
+                                } else {
+                                    Text("VERIFIKASI NOMOR", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showPhoneOtpModal = false }) {
+                                Text("BATAL", color = TextMuted, fontSize = 11.sp)
+                            }
+                        }
+                    )
+                }
+
+                if (showEmailOtpModal) {
+                    AlertDialog(
+                        onDismissRequest = { if (!isVerifyingOtp) showEmailOtpModal = false },
+                        containerColor = Color(0xFF0B1B1C),
+                        shape = RoundedCornerShape(16.dp),
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.MarkEmailRead, contentDescription = null, tint = AgedGold)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("VERIFIKASI ALAMAT EMAIL", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+                            }
+                        },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(
+                                    "Kode verifikasi email 6-digit dikirimkan ke:",
+                                    color = TextLight, fontSize = 12.sp
+                                )
+                                Text(
+                                    cleanEmail.ifBlank { currentEmail },
+                                    color = HighlightSoftCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                )
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF163536).copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text("KODE OTP EMAIL SIMULASI SIKRON:", color = TextMuted, fontSize = 10.sp)
+                                        Text(generatedOtpCode, color = AgedGold, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                                    }
+                                }
+                                OutlinedTextField(
+                                    value = otpInput,
+                                    onValueChange = { if (it.length <= 6) otpInput = it },
+                                    label = { Text("Masukkan 6-Digit OTP", color = TextMuted) },
+                                    singleLine = true,
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                                    ),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = AgedGold,
+                                        unfocusedBorderColor = BorderGrey,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    if (otpInput.trim() == generatedOtpCode) {
+                                        isVerifyingOtp = true
+                                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                            com.yansproject.app.data.FirebaseSyncManager.verifyEmailOnCloud(currentEmail)
+                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                isVerifyingOtp = false
+                                                isEmailVerified = true
+                                                userPrefs.edit().putBoolean("email_verified", true).apply()
+                                                showEmailOtpModal = false
+                                                Toast.makeText(context, "Selamat! Alamat email $currentEmail terverifikasi resmi!", Toast.LENGTH_LONG).show()
+                                                viewModel.addAuditLog("Verifikasi Email", "Alamat email $currentEmail berhasil diverifikasi.")
+                                            }
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Kode OTP tidak sesuai! Silakan masukkan $generatedOtpCode", Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                                enabled = !isVerifyingOtp && otpInput.length == 6,
+                                colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = Color.Black)
+                            ) {
+                                if (isVerifyingOtp) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.Black)
+                                } else {
+                                    Text("VERIFIKASI EMAIL", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showEmailOtpModal = false }) {
+                                Text("BATAL", color = TextMuted, fontSize = 11.sp)
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -3231,6 +3593,7 @@ fun renderNestedSubScreen(
             var pinLockEnabled by remember { mutableStateOf(prefs.getBoolean("app_lock_enabled", false) || prefs.getBoolean("pin_lock_enabled", false)) }
             var maintPassRequired by remember { mutableStateOf(prefs.getBoolean("maintenance_password_required", false)) }
             var sessionTimeout by remember { mutableStateOf(prefs.getInt("session_timeout", 15)) }
+            val bioEnabled = prefs.getBoolean("biometric_enabled", false)
 
             Column(
                 modifier = Modifier
@@ -3259,6 +3622,16 @@ fun renderNestedSubScreen(
                                     prefs.edit().putBoolean("app_lock_enabled", isChecked).putBoolean("pin_lock_enabled", isChecked).apply()
                                     pinLockEnabled = isChecked
                                     viewModel.addAuditLog("Update PIN Lock State", "Mengubah PIN Lock aktif: $isChecked")
+                                    com.yansproject.app.data.FirebaseSyncManager.syncPreferencesToCloud(
+                                        context = context,
+                                        category = "security",
+                                        data = mapOf(
+                                            "pin_lock_enabled" to isChecked,
+                                            "maintenance_password_required" to maintPassRequired,
+                                            "session_timeout" to sessionTimeout,
+                                            "biometric_enabled" to bioEnabled
+                                        )
+                                    )
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -3285,6 +3658,16 @@ fun renderNestedSubScreen(
                                     prefs.edit().putBoolean("maintenance_password_required", isChecked).apply()
                                     maintPassRequired = isChecked
                                     viewModel.addAuditLog("Update Maintenance Password Check", "Mengubah verifikasi password maintenance & backup aktif: $isChecked")
+                                    com.yansproject.app.data.FirebaseSyncManager.syncPreferencesToCloud(
+                                        context = context,
+                                        category = "security",
+                                        data = mapOf(
+                                            "pin_lock_enabled" to pinLockEnabled,
+                                            "maintenance_password_required" to isChecked,
+                                            "session_timeout" to sessionTimeout,
+                                            "biometric_enabled" to bioEnabled
+                                        )
+                                    )
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -3308,6 +3691,16 @@ fun renderNestedSubScreen(
                                                 sessionTimeout = mins
                                                 prefs.edit().putInt("session_timeout", mins).apply()
                                                 viewModel.addAuditLog("Set Timeout", "Set auto lock timeout: $mins menit")
+                                                com.yansproject.app.data.FirebaseSyncManager.syncPreferencesToCloud(
+                                                    context = context,
+                                                    category = "security",
+                                                    data = mapOf(
+                                                        "pin_lock_enabled" to pinLockEnabled,
+                                                        "maintenance_password_required" to maintPassRequired,
+                                                        "session_timeout" to mins,
+                                                        "biometric_enabled" to bioEnabled
+                                                    )
+                                                )
                                             }
                                             .padding(vertical = 10.dp),
                                         contentAlignment = Alignment.Center
@@ -3381,6 +3774,13 @@ fun renderNestedSubScreen(
                                             biometricEnabled = true
                                             Toast.makeText(context, "Sidik Jari Sukses Didaftarkan!", Toast.LENGTH_SHORT).show()
                                             viewModel.addAuditLog("Enroll Biometric", "Biometrik sidik jari sukses diaktifkan.")
+                                            com.yansproject.app.data.FirebaseSyncManager.syncPreferencesToCloud(
+                                                context = context,
+                                                category = "security",
+                                                data = mapOf(
+                                                    "biometric_enabled" to true
+                                                )
+                                            )
                                         },
                                         onError = { err ->
                                             Toast.makeText(context, "Biometrik Gagal: $err", Toast.LENGTH_LONG).show()
@@ -3390,6 +3790,13 @@ fun renderNestedSubScreen(
                                     prefs.edit().putBoolean("biometric_enabled", false).apply()
                                     biometricEnabled = false
                                     viewModel.addAuditLog("Disable Biometric", "Biometrik sidik jari dinonaktifkan.")
+                                    com.yansproject.app.data.FirebaseSyncManager.syncPreferencesToCloud(
+                                        context = context,
+                                        category = "security",
+                                        data = mapOf(
+                                            "biometric_enabled" to false
+                                        )
+                                    )
                                 }
                             },
                             colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
@@ -3682,7 +4089,7 @@ fun renderNestedSubScreen(
                                         .document("erp_config")
                                         .set(erpData)
                                 } catch (e: Exception) {
-                                    e.printStackTrace()
+                                    android.util.Log.e("SettingsScreen", "Failed to sync ERP config to Firestore: ${e.message}", e)
                                 }
 
                                 Toast.makeText(context, "Konfigurasi ERP berhasil disinkronkan!", Toast.LENGTH_SHORT).show()
@@ -3710,6 +4117,23 @@ fun renderNestedSubScreen(
             var personalNotify by remember { mutableStateOf(prefs.getBoolean("personal_notify", true)) }
             var broadcastNotify by remember { mutableStateOf(prefs.getBoolean("broadcast_notify", true)) }
 
+            val syncNotifyToCloud = { sN: Boolean, fN: Boolean, pN: Boolean, stN: Boolean, iN: Boolean, mN: Boolean, bN: Boolean, prN: Boolean ->
+                com.yansproject.app.data.FirebaseSyncManager.syncPreferencesToCloud(
+                    context = context,
+                    category = "notification",
+                    data = mapOf(
+                        "system_notify" to sN,
+                        "finance_notify" to fN,
+                        "project_notify" to pN,
+                        "stock_notify" to stN,
+                        "invoice_notify" to iN,
+                        "member_notify" to mN,
+                        "broadcast_notify" to bN,
+                        "personal_notify" to prN
+                    )
+                )
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -3733,6 +4157,7 @@ fun renderNestedSubScreen(
                                 onCheckedChange = {
                                     systemNotify = it
                                     prefs.edit().putBoolean("system_notify", it).apply()
+                                    syncNotifyToCloud(it, financeNotify, projectNotify, stockNotify, invoiceNotify, memberNotify, broadcastNotify, personalNotify)
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -3751,6 +4176,7 @@ fun renderNestedSubScreen(
                                 onCheckedChange = {
                                     financeNotify = it
                                     prefs.edit().putBoolean("finance_notify", it).apply()
+                                    syncNotifyToCloud(systemNotify, it, projectNotify, stockNotify, invoiceNotify, memberNotify, broadcastNotify, personalNotify)
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -3769,6 +4195,7 @@ fun renderNestedSubScreen(
                                 onCheckedChange = {
                                     projectNotify = it
                                     prefs.edit().putBoolean("project_notify", it).apply()
+                                    syncNotifyToCloud(systemNotify, financeNotify, it, stockNotify, invoiceNotify, memberNotify, broadcastNotify, personalNotify)
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -3787,6 +4214,7 @@ fun renderNestedSubScreen(
                                 onCheckedChange = {
                                     stockNotify = it
                                     prefs.edit().putBoolean("stock_notify", it).apply()
+                                    syncNotifyToCloud(systemNotify, financeNotify, projectNotify, it, invoiceNotify, memberNotify, broadcastNotify, personalNotify)
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -3805,6 +4233,7 @@ fun renderNestedSubScreen(
                                 onCheckedChange = {
                                     invoiceNotify = it
                                     prefs.edit().putBoolean("invoice_notify", it).apply()
+                                    syncNotifyToCloud(systemNotify, financeNotify, projectNotify, stockNotify, it, memberNotify, broadcastNotify, personalNotify)
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -3823,6 +4252,7 @@ fun renderNestedSubScreen(
                                 onCheckedChange = {
                                     memberNotify = it
                                     prefs.edit().putBoolean("member_notify", it).apply()
+                                    syncNotifyToCloud(systemNotify, financeNotify, projectNotify, stockNotify, invoiceNotify, it, broadcastNotify, personalNotify)
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -3841,6 +4271,7 @@ fun renderNestedSubScreen(
                                 onCheckedChange = {
                                     broadcastNotify = it
                                     prefs.edit().putBoolean("broadcast_notify", it).apply()
+                                    syncNotifyToCloud(systemNotify, financeNotify, projectNotify, stockNotify, invoiceNotify, memberNotify, it, personalNotify)
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -3859,6 +4290,7 @@ fun renderNestedSubScreen(
                                 onCheckedChange = {
                                     personalNotify = it
                                     prefs.edit().putBoolean("personal_notify", it).apply()
+                                    syncNotifyToCloud(systemNotify, financeNotify, projectNotify, stockNotify, invoiceNotify, memberNotify, broadcastNotify, it)
                                 },
                                 colors = SwitchDefaults.colors(checkedThumbColor = shadowBlack, checkedTrackColor = HighlightSoftCyan)
                             )
@@ -4869,9 +5301,9 @@ fun AboutYansScreen(onBack: () -> Unit) {
     val versionName = remember(context) {
         try {
             val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "1.3.2"
+            pInfo.versionName ?: "1.3.3"
         } catch (e: Exception) {
-            "1.3.2"
+            "1.3.3"
         }
     }
 

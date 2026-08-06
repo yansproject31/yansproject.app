@@ -27,13 +27,26 @@ class SessionManager private constructor(private val context: Context) {
     fun logoutAndClearSession(onComplete: () -> Unit = {}) {
         Log.i(TAG, "Executing complete user logout and state teardown...")
 
-        // 1. Clear memory caches
+        // 1. Invalidate pending Firestore listeners
+        try {
+            EnterpriseSyncEngine.stopRealtimeSyncListeners()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping realtime sync listeners during logout: ${e.message}")
+        }
+
+        // 2. Clear memory-resident caches
         CacheManager.getInstance(context).clearAll()
 
-        // 2. Reset UI UserSessionManager
+        // 3. Reset notification dispatcher state and deduplication history
+        NotificationDispatcher.getInstance(context).clearDeliveredHistory()
+
+        // 4. Reset UI UserSessionManager
         UserSessionManager.resetSession()
 
-        // 3. Log audit event
+        // 5. Reset CrashReporting user context and breadcrumbs
+        CrashReportingManager.getInstance(context).clearSessionContext()
+
+        // 6. Log audit event
         leaveBreadcrumbIfPossible("User logged out successfully")
 
         onComplete()

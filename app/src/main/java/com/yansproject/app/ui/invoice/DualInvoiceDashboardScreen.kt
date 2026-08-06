@@ -42,6 +42,9 @@ import com.yansproject.app.data.Invoice
 import com.yansproject.app.ui.DualInvoiceManagerViewModel
 import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -66,6 +69,7 @@ fun DualInvoiceDashboardScreen(
     var isPaymentCustom by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
+    val dashboardScope = rememberCoroutineScope()
     val isScrollingUp = remember {
         derivedStateOf {
             if (listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
@@ -443,7 +447,51 @@ fun DualInvoiceDashboardScreen(
             onPaymentRecorded = { amount, method, triggerWa ->
                 viewModel.receivePaymentOnInvoice(currentId, isPaymentCustom, amount, method)
                 if (triggerWa) {
-                    Toast.makeText(context, "Resi WhatsApp dipicu asinkron via n8n webhook!", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Webhook WA: Dipicu (Pending delivery via n8n)...", Toast.LENGTH_SHORT).show()
+                    dashboardScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            val prefs = context.getSharedPreferences("yans_auth_prefs", android.content.Context.MODE_PRIVATE)
+                            val rawN8nUrl = prefs.getString("n8n_url", "https://primary-production.shared.n8n.cloud") ?: "https://primary-production.shared.n8n.cloud"
+                            val n8nBase = if (rawN8nUrl.startsWith("http")) rawN8nUrl else "https://$rawN8nUrl"
+                            val pushEndpoint = "$n8nBase/webhook/yans-invoice-receipt"
+
+                            val payload = org.json.JSONObject().apply {
+                                put("invoiceNumber", currentId)
+                                put("isCustomProject", isPaymentCustom)
+                                put("amountPaid", amount)
+                                put("paymentMethod", method)
+                                put("timestamp", System.currentTimeMillis())
+                            }
+
+                            val url = java.net.URL(pushEndpoint)
+                            val conn = url.openConnection() as java.net.HttpURLConnection
+                            conn.requestMethod = "POST"
+                            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                            conn.doOutput = true
+                            conn.connectTimeout = 4000
+                            conn.readTimeout = 4000
+
+                            conn.outputStream.use { os ->
+                                os.write(payload.toString().toByteArray(Charsets.UTF_8))
+                            }
+
+                            val responseCode = conn.responseCode
+                            conn.disconnect()
+
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                if (responseCode in 200..299) {
+                                    Toast.makeText(context, "Webhook WA: Diterima oleh server (Accepted HTTP $responseCode)", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Webhook WA: Gagal (Server merespons HTTP $responseCode)", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("DualInvoiceDashboard", "Webhook dispatch error: ${e.message}")
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                Toast.makeText(context, "Webhook WA: Gagal dikirim (${e.localizedMessage ?: "Network error"})", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
                 }
                 showPaymentRecordByInvoiceId = null
             }

@@ -8,4 +8,5 @@
 <full-backup-content>
     <exclude domain="sharedpref" path="yans_local_credentials.xml"/>
     <exclude domain="sharedpref" path="yans_security_prefs.xml"/>
+    <exclude domain="database" path="yans_erp_db"/>
 </full-backup-content>

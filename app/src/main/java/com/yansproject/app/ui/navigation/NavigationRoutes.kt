@@ -14,12 +14,16 @@ object Routes {
     const val KitabDigital = "kitab_digital"
     const val LuxuryCart = "luxury_cart"
     
-    // Core ERP forms / updates
+    // Core ERP forms / updates (Canonical Routes)
     const val AddInvoice = "invoice_create_route"
     const val AddProject = "project_create_route"
     const val AddStock = "stock_update_route"
     const val CustomProjectMain = "custom_project_main"
-    const val CustomProjectCreate = "project_create_route"
+    
+    /**
+     * Legacy route alias for [AddProject]. Kept for backward compatibility.
+     */
+    const val CustomProjectCreate = AddProject
     const val CustomProjectDetail = "custom_project_detail/{projectId}"
     const val InstantCheckout = "instant_checkout"
     const val AjibReturn = "ajib_return_adjustment"

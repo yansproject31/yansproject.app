@@ -16,11 +16,16 @@ service cloud.firestore {
     function isOwner() {
       return isSignedIn() && 
              request.auth.token != null && 
-             'email' in request.auth.token && 
              (
-               request.auth.token.email == 'yansart31@gmail.com' || 
-               (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
-                get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'OWNER')
+               (request.auth.token.keys().hasAll(['role']) && (request.auth.token.role == 'OWNER' || request.auth.token.role == 'ADMIN')) ||
+               (
+                 'email' in request.auth.token && 
+                 exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
+                 (
+                   get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'OWNER' ||
+                   get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN'
+                 )
+               )
              );
     }
     

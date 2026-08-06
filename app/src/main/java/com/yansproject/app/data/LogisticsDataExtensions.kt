@@ -17,8 +17,11 @@ data class ReturnTransaction(
     val destination: String = "Available Stock", // "Available Stock" or "Damaged Stock"
     val notes: String = "",
     val timestamp: Long = System.currentTimeMillis(),
-    val status: String = "VERIFIED"
-) : Serializable
+    val status: String = "INITIALIZED" // Default fallback marker, pending explicit verification
+) : Serializable {
+    val isExplicitlyVerified: Boolean get() = status.equals("VERIFIED", ignoreCase = true)
+    fun markVerified(): ReturnTransaction = copy(status = "VERIFIED")
+}
 
 /**
  * DamagedItemLog for tracking damaged clothing items/manufacturing defects.

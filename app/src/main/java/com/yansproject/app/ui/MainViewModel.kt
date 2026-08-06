@@ -177,6 +177,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .putString("layout_density", layoutDensity)
             .apply()
 
+        val context = getApplication<android.app.Application>().applicationContext
+        FirebaseSyncManager.syncPreferencesToCloud(
+            context = context,
+            category = "appearance",
+            data = mapOf(
+                "themeVariant" to themeVariant,
+                "accentColor" to accentColor,
+                "canvasStyle" to canvasStyle,
+                "glassStyle" to glassStyle,
+                "fontScale" to fontScale,
+                "hapticEnabled" to hapticEnabled,
+                "layoutDensity" to layoutDensity
+            )
+        )
+
         addAuditLog("Pengaturan Tampilan", "Memperbarui tema ke $themeVariant ($accentColor), font scale ${fontScale}x, kepadatan $layoutDensity.")
     }
 
@@ -212,12 +227,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             tab.equals("Persetujuan", ignoreCase = true) -> {
                 invoices.filter { it.status.equals("MENUNGGU PERSETUJUAN", ignoreCase = true) }
             }
+            tab.equals("Belum Lunas", ignoreCase = true) -> {
+                invoices.filter { 
+                    (it.remainingPayment > 0 || it.paidAmount < it.totalAmount) &&
+                    !it.status.equals("LUNAS", ignoreCase = true) &&
+                    !it.status.equals("PAID", ignoreCase = true) &&
+                    !it.status.equals("BATAL", ignoreCase = true) &&
+                    !it.status.equals("REFUND", ignoreCase = true)
+                }
+            }
             tab.equals("Belum Dibayar", ignoreCase = true) -> {
                 invoices.filter { 
-                    it.status.equals("BELUM LUNAS", ignoreCase = true) || 
+                    it.paidAmount == 0.0 &&
+                    !it.status.equals("LUNAS", ignoreCase = true) &&
+                    !it.status.equals("BATAL", ignoreCase = true) &&
+                    !it.status.equals("REFUND", ignoreCase = true)
+                }
+            }
+            tab.equals("DP", ignoreCase = true) || tab.equals("DP / Cicilan", ignoreCase = true) -> {
+                invoices.filter {
+                    (it.paidAmount > 0 && it.paidAmount < it.totalAmount) ||
                     it.status.equals("DP", ignoreCase = true) ||
                     it.status.equals("DICICIL", ignoreCase = true) ||
-                    it.status.equals("DP AWAL", ignoreCase = true)
+                    it.status.equals("DP AWAL", ignoreCase = true) ||
+                    it.status.equals("DP PRODUKSI", ignoreCase = true)
                 }
             }
             tab.equals("Lunas", ignoreCase = true) -> {

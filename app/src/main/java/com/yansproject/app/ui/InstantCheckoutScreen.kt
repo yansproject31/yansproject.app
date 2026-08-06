@@ -453,32 +453,71 @@ fun InstantCheckoutScreen(
                                     Toast.makeText(context, "Keranjang belanja kosong!", Toast.LENGTH_SHORT).show()
                                     return@Button
                                 }
-                                // Decrease stock count in ViewModel
-                                cartItems.forEach { item ->
-                                    val match = stockState.items.find {
+
+                                // 1. Pre-flight stock availability verification
+                                val currentStockItems = stockState.items
+                                val insufficientItem = cartItems.find { item ->
+                                    val match = currentStockItems.find {
                                         it.series == item.series && it.color == item.color && it.sleeve == item.sleeve && it.size == item.size
                                     }
-                                    if (match != null) {
-                                        stockViewModel.updateStockQuantity(
-                                            series = item.series,
-                                            color = item.color,
-                                            sleeve = item.sleeve,
-                                            size = item.size,
-                                            newReadyStock = (match.readyStock - item.qty).coerceAtLeast(0)
-                                        )
-                                    }
+                                    match == null || match.readyStock < item.qty
+                                }
+                                if (insufficientItem != null) {
+                                    Toast.makeText(
+                                        context,
+                                        "Gagal Checkout: Stok untuk ${insufficientItem.series.displayName} (${insufficientItem.size.name}) tidak mencukupi!",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    return@Button
                                 }
 
-                                // Record Akad verification
-                                stockViewModel.verifyAjibqobulAkad(
-                                    seriesName = cartItems.first().series.displayName,
-                                    clientName = "Tatap Muka ${selectedTier.name}",
-                                    totalAmount = totalCartSum.toDouble()
-                                )
+                                try {
+                                    // 2. Stock deduction execution
+                                    cartItems.forEach { item ->
+                                        val match = currentStockItems.find {
+                                            it.series == item.series && it.color == item.color && it.sleeve == item.sleeve && it.size == item.size
+                                        }
+                                        if (match != null) {
+                                            stockViewModel.updateStockQuantity(
+                                                series = item.series,
+                                                color = item.color,
+                                                sleeve = item.sleeve,
+                                                size = item.size,
+                                                newReadyStock = (match.readyStock - item.qty).coerceAtLeast(0)
+                                            )
+                                        }
+                                    }
 
-                                Toast.makeText(context, "INSTANT CO BERHASIL! Qobul sah terverifikasi.", Toast.LENGTH_LONG).show()
-                                cartItems.clear()
-                                onCheckoutSuccess()
+                                    // 3. Record Akad verification
+                                    stockViewModel.verifyAjibqobulAkad(
+                                        seriesName = cartItems.first().series.displayName,
+                                        clientName = "Tatap Muka ${selectedTier.name}",
+                                        totalAmount = totalCartSum.toDouble()
+                                    )
+
+                                    // 4. Record stock invoice transaction in ViewModel for persistence
+                                    val sampleInvoiceNumber = "INV-CO-${System.currentTimeMillis().toString().takeLast(6)}"
+                                    val coInvoice = com.yansproject.app.data.Invoice(
+                                        id = 0,
+                                        invoiceNumber = sampleInvoiceNumber,
+                                        clientName = "Tatap Muka ${selectedTier.name}",
+                                        clientPhone = "",
+                                        totalAmount = totalCartSum.toDouble(),
+                                        paidAmount = totalCartSum.toDouble(),
+                                        issueDate = System.currentTimeMillis(),
+                                        dueDate = System.currentTimeMillis(),
+                                        status = "LUNAS"
+                                    )
+                                    invoiceViewModel.addStockInvoice(coInvoice, totalCartSum.toDouble(), "CASH")
+
+                                    // 5. UI Success Confirmation (Truthful reporting after execution)
+                                    Toast.makeText(context, "INSTANT CO BERHASIL! Qobul sah terverifikasi & stok diperbarui.", Toast.LENGTH_LONG).show()
+                                    cartItems.clear()
+                                    onCheckoutSuccess()
+                                } catch (e: Exception) {
+                                    android.util.Log.e("InstantCheckoutScreen", "Checkout execution failed: ${e.message}", e)
+                                    Toast.makeText(context, "Gagal memproses instant checkout: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = LuxuryGold),
                             shape = RoundedCornerShape(12.dp),

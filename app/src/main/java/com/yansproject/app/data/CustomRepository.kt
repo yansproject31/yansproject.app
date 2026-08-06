@@ -37,6 +37,7 @@ class CustomRepository(private val db: AppDatabase) {
             
             val projectId = projectDao.insertProject(updatedProject).toInt()
             
+            val calculatedDueDate = if (project.endDate > project.startDate) project.endDate else 0L
             val itemsList = com.yansproject.app.ui.ProjectItemParser.getProjectItems(project.description)
             val invoiceItems = if (itemsList.isNotEmpty()) {
                 itemsList.map { item ->
@@ -47,9 +48,14 @@ class CustomRepository(private val db: AppDatabase) {
                     )
                 }
             } else {
+                val fallbackDesc = if (project.description.isNotBlank()) {
+                    "Layanan Project Custom: ${project.projectName} [Unparsed Details: ${project.description.take(40)}...]"
+                } else {
+                    "Layanan Project Custom: ${project.projectName} [Standard Project Package]"
+                }
                 listOf(
                     InvoiceItemDetail(
-                        description = "Layanan Project Custom: ${project.projectName}",
+                        description = fallbackDesc,
                         quantity = 1,
                         price = project.totalCost
                     )
@@ -61,7 +67,7 @@ class CustomRepository(private val db: AppDatabase) {
                 clientName = project.clientName,
                 clientPhone = project.clientPhone,
                 issueDate = project.startDate,
-                dueDate = project.endDate,
+                dueDate = calculatedDueDate,
                 totalAmount = project.totalCost,
                 paidAmount = project.paidAmount,
                 status = determineInvoiceStatus(project.totalCost, project.paidAmount),
@@ -78,7 +84,8 @@ class CustomRepository(private val db: AppDatabase) {
     private suspend fun generateInvoiceNumber(prefix: String, dateMillis: Long): String = invoiceMutex.withLock {
         val dateFormat = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
         val dateStr = dateFormat.format(java.util.Date(dateMillis))
-        val fullPrefix = "INV-$dateStr-"
+        val cleanPrefix = if (prefix.isNotBlank()) prefix.trimEnd('-', '/') else "INV"
+        val fullPrefix = "$cleanPrefix-$dateStr-"
         val existingInvoices = invoiceDao.getInvoicesList()
         val matching = existingInvoices.filter { it.invoiceNumber.startsWith(fullPrefix) }
         var nextSeq = if (matching.isEmpty()) {

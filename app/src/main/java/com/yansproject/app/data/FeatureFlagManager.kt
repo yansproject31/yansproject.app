@@ -18,6 +18,7 @@ class FeatureFlagManager private constructor(private val context: Context) {
 
     private val TAG = "FeatureFlagManager"
     private val isDebuggable: Boolean = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    private val overrides = java.util.concurrent.ConcurrentHashMap<FeatureFlagKey, Boolean>()
 
     companion object {
         @Volatile
@@ -32,7 +33,20 @@ class FeatureFlagManager private constructor(private val context: Context) {
         }
     }
 
+    fun setOverride(key: FeatureFlagKey, enabled: Boolean) {
+        overrides[key] = enabled
+        Log.i(TAG, "Feature flag override set for ${key.name}: $enabled")
+    }
+
+    fun clearOverride(key: FeatureFlagKey) {
+        overrides.remove(key)
+        Log.i(TAG, "Feature flag override cleared for ${key.name}")
+    }
+
     fun isFeatureEnabled(key: FeatureFlagKey): Boolean {
+        val override = overrides[key]
+        if (override != null) return override
+
         return if (isDebuggable) {
             key.defaultValueInDebug
         } else {

@@ -122,6 +122,9 @@ class BackupRestoreService private constructor(private val context: Context) {
             }
 
             if (copiedSuccessfully) {
+                // Public mirror to Downloads directory explicitly after successful creation
+                mirrorBackupToPublic(backupDir)
+
                 // Register Audit Log
                 try {
                     val auditLog = AuditLog(
@@ -146,13 +149,22 @@ class BackupRestoreService private constructor(private val context: Context) {
     }
 
     /**
-     * Resolves an ultra-safe directory for storage backup.
+     * Resolves an ultra-safe directory for storage backup without hidden side effects.
      * Prefers App Documents Directory on Scoped Storage to bypass runtime storage permissions entirely.
      */
     fun getSafeBackupDirectory(): File {
-        val dir = com.yansproject.app.ui.DocumentExporter.getExportDirectory(context, "backup")
-        com.yansproject.app.ui.DocumentExporter.mirrorToDownloads(context, dir, "Backup")
-        return dir
+        return com.yansproject.app.ui.DocumentExporter.getExportDirectory(context, "backup")
+    }
+
+    /**
+     * Mirrors the backup directory contents to the public Downloads/Backup folder.
+     */
+    fun mirrorBackupToPublic(dir: File) {
+        try {
+            com.yansproject.app.ui.DocumentExporter.mirrorToDownloads(context, dir, "Backup")
+        } catch (e: Exception) {
+            Log.w(TAG, "Non-critical: Failed to mirror backup to public Downloads folder: ${e.message}")
+        }
     }
 
     /**

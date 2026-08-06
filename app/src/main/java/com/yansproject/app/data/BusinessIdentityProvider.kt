@@ -42,7 +42,7 @@ object BusinessIdentityProvider {
         val clean = email.trim().lowercase()
         if (clean.isEmpty()) return false
         val ownerEmail = if (context != null) getSupportEmail(context).trim().lowercase() else DEFAULT_SUPPORT_EMAIL.lowercase()
-        return clean == ownerEmail || clean == DEFAULT_SUPPORT_EMAIL.lowercase() || clean == "admin@yansproject.id"
+        return clean == ownerEmail || clean == DEFAULT_SUPPORT_EMAIL.lowercase()
     }
 
     /**

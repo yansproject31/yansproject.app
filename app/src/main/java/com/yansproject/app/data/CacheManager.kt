@@ -20,6 +20,7 @@ class CacheManager private constructor(private val context: Context) {
     private val TAG = "CacheManager"
     private val memoryCache = ConcurrentHashMap<String, CacheEntry<*>>()
     val DEFAULT_TTL_MS = 15 * 60 * 1000L // 15 minutes default TTL
+    val MAX_CACHE_CAPACITY = 200 // Explicit capacity cap to prevent memory leaks
 
     companion object {
         @Volatile
@@ -35,6 +36,17 @@ class CacheManager private constructor(private val context: Context) {
     }
 
     fun <T> put(key: String, value: T, ttlMs: Long = DEFAULT_TTL_MS) {
+        if (memoryCache.size >= MAX_CACHE_CAPACITY) {
+            purgeExpiredEntries()
+            if (memoryCache.size >= MAX_CACHE_CAPACITY) {
+                // Evict oldest entry by timestamp
+                val oldestKey = memoryCache.minByOrNull { it.value.timestamp }?.key
+                if (oldestKey != null) {
+                    memoryCache.remove(oldestKey)
+                    Log.d(TAG, "Cache capacity limit reached ($MAX_CACHE_CAPACITY). Evicted oldest entry: $oldestKey")
+                }
+            }
+        }
         memoryCache[key] = CacheEntry(data = value, timestamp = System.currentTimeMillis(), ttlMs = ttlMs)
     }
 

@@ -91,12 +91,21 @@ class HealthMonitor private constructor(private val context: Context) {
         }
 
         // 3. Network Subsystem Health Check
-        val isNetworkConnected = NetworkMonitor(context).isOnline.value
+        val isNetworkConnected = try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+            val activeNetwork = cm?.activeNetwork
+            val capabilities = if (activeNetwork != null) cm.getNetworkCapabilities(activeNetwork) else null
+            capabilities?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        } catch (e: Exception) {
+            false
+        }
+
         subsystems.add(
             SubsystemHealth(
                 name = "NetworkConnectivity",
-                isHealthy = isNetworkConnected,
-                statusMessage = if (isNetworkConnected) "Network connected" else "Offline mode active (Room SSOT)"
+                isHealthy = true, // Offline mode with Room SSOT is valid and healthy
+                statusMessage = if (isNetworkConnected) "Network connected (Online)" else "Offline mode active (Room SSOT)",
+                metrics = mapOf("is_online" to isNetworkConnected.toString())
             )
         )
 

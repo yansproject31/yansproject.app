@@ -128,7 +128,25 @@ class OfflineActionQueue private constructor(private val context: Context) {
 
                 try {
                     val docRef = firestore.collection(action.targetCollection).document(action.additionalMeta)
-                    if (action.stringPayload.contains("\"isDeleted\":true") || action.stringPayload.contains("\"is_deleted\":true")) {
+                    
+                    val mapPayload = try {
+                        val jsonObject = org.json.JSONObject(action.stringPayload)
+                        val map = mutableMapOf<String, Any?>()
+                        val keys = jsonObject.keys()
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            map[key] = jsonObject.get(key)
+                        }
+                        map
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    val isSoftDelete = (mapPayload?.get("isDeleted") == true) || 
+                                       (mapPayload?.get("is_deleted") == true) ||
+                                       action.version == 999
+
+                    if (isSoftDelete) {
                         val updates = mapOf<String, Any>(
                             "isDeleted" to true,
                             "is_deleted" to true,
@@ -136,6 +154,11 @@ class OfflineActionQueue private constructor(private val context: Context) {
                             "lastUpdated" to System.currentTimeMillis()
                         )
                         docRef.set(updates, com.google.firebase.firestore.SetOptions.merge())
+                    } else if (mapPayload != null && mapPayload.isNotEmpty()) {
+                        docRef.set(mapPayload, com.google.firebase.firestore.SetOptions.merge())
+                    } else if (action.stringPayload.isNotBlank()) {
+                        // Fallback string payload map wrapper
+                        docRef.set(mapOf("payload" to action.stringPayload, "lastUpdated" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge())
                     }
 
                     // On successful replay execution, delete action from Room DB

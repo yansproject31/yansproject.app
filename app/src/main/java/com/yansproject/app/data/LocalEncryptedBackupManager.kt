@@ -100,14 +100,19 @@ class LocalEncryptedBackupManager(private val context: Context) {
     }
 
     /**
-     * Reads, decrypts, and safely restores the local SQLite database from an input stream.
+     * Reads, decrypts, and safely restores the local SQLite database from an input stream using atomic staging.
      */
     fun importBackup(inputStream: InputStream): Boolean {
-        return try {
-            Log.d("LocalEncryptedBackupManager", "Starting local encrypted backup import...")
+        var tempStagedFile: File? = null
+        var mainBakFile: File? = null
+        var shmBakFile: File? = null
+        var walBakFile: File? = null
 
-            // 1. Parse binary package format
-            inputStream.use { stream ->
+        return try {
+            Log.d("LocalEncryptedBackupManager", "Starting local encrypted backup import with atomic staging...")
+
+            // 1. Parse binary package format and decrypt
+            val decryptedBytes = inputStream.use { stream ->
                 val ivSizeBuffer = ByteArray(4)
                 if (stream.read(ivSizeBuffer) != 4) return false
                 val ivLen = ((ivSizeBuffer[0].toInt() and 0xFF) shl 24) or
@@ -125,39 +130,80 @@ class LocalEncryptedBackupManager(private val context: Context) {
 
                 val encryptedBytes = stream.readBytes()
 
-                // 2. Initialize AES-GCM Decrypt Cipher
                 val secretKey = getOrCreateBackupKey()
                 val cipher = Cipher.getInstance(transformation)
                 val spec = GCMParameterSpec(gcmTagLength, iv)
                 cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
 
-                val decryptedBytes = cipher.doFinal(encryptedBytes)
-
-                // 3. Force close current open database
-                val db = AppDatabase.getDatabase(context)
-                db.close()
-
-                // 4. Overwrite main database file
-                val dbFile = context.getDatabasePath(AppDatabase.DATABASE_NAME)
-                if (dbFile.exists()) {
-                    dbFile.delete()
-                }
-                
-                // Overwrite the main DB file
-                dbFile.writeBytes(decryptedBytes)
-
-                // 5. Explicitly clear any stale WAL and SHM files to prevent corruption
-                val shmFile = File(dbFile.absolutePath + "-shm")
-                if (shmFile.exists()) shmFile.delete()
-
-                val walFile = File(dbFile.absolutePath + "-wal")
-                if (walFile.exists()) walFile.delete()
-
-                Log.d("LocalEncryptedBackupManager", "Encrypted backup imported and restored successfully.")
-                true
+                cipher.doFinal(encryptedBytes)
             }
+
+            // 2. Validate SQLite Header on decrypted bytes before touching existing database
+            if (decryptedBytes.size < 16) {
+                Log.e("LocalEncryptedBackupManager", "Decrypted payload too small to be a valid SQLite database.")
+                return false
+            }
+            val sqliteHeaderPrefix = "SQLite format 3\u0000".toByteArray(Charsets.US_ASCII)
+            for (i in sqliteHeaderPrefix.indices) {
+                if (decryptedBytes[i] != sqliteHeaderPrefix[i]) {
+                    Log.e("LocalEncryptedBackupManager", "Decrypted payload invalid: SQLite header mismatch.")
+                    return false
+                }
+            }
+
+            // 3. Write to temporary staged file
+            tempStagedFile = File(context.cacheDir, "yans_erp_db_restore_temp.db")
+            tempStagedFile.writeBytes(decryptedBytes)
+
+            // 4. Force close current open database
+            val db = AppDatabase.getDatabase(context)
+            db.close()
+
+            val dbFile = context.getDatabasePath(AppDatabase.DATABASE_NAME)
+            val shmFile = File(dbFile.absolutePath + "-shm")
+            val walFile = File(dbFile.absolutePath + "-wal")
+
+            // 5. Create backup copies of current active files for atomic rollback
+            if (dbFile.exists()) {
+                mainBakFile = File(dbFile.absolutePath + ".restore_bak")
+                dbFile.copyTo(mainBakFile, overwrite = true)
+            }
+            if (shmFile.exists()) {
+                shmBakFile = File(shmFile.absolutePath + ".restore_bak")
+                shmFile.copyTo(shmBakFile, overwrite = true)
+            }
+            if (walFile.exists()) {
+                walBakFile = File(walFile.absolutePath + ".restore_bak")
+                walFile.copyTo(walBakFile, overwrite = true)
+            }
+
+            // 6. Perform atomic replacement
+            if (dbFile.exists()) dbFile.delete()
+            if (shmFile.exists()) shmFile.delete()
+            if (walFile.exists()) walFile.delete()
+
+            tempStagedFile.copyTo(dbFile, overwrite = true)
+
+            // 7. Clean up backup copies on successful restore
+            mainBakFile?.delete()
+            shmBakFile?.delete()
+            walBakFile?.delete()
+            tempStagedFile.delete()
+
+            Log.d("LocalEncryptedBackupManager", "Encrypted backup imported and restored atomically with success.")
+            true
         } catch (e: Exception) {
-            Log.e("LocalEncryptedBackupManager", "Failed to import/decrypt backup", e)
+            Log.e("LocalEncryptedBackupManager", "Failed to import/decrypt backup. Attempting rollback...", e)
+            try {
+                // Perform rollback if database replacement failed
+                val dbFile = context.getDatabasePath(AppDatabase.DATABASE_NAME)
+                mainBakFile?.let { if (it.exists()) it.copyTo(dbFile, overwrite = true); it.delete() }
+                shmBakFile?.let { if (it.exists()) it.copyTo(File(dbFile.absolutePath + "-shm"), overwrite = true); it.delete() }
+                walBakFile?.let { if (it.exists()) it.copyTo(File(dbFile.absolutePath + "-wal"), overwrite = true); it.delete() }
+            } catch (rollbackEx: Exception) {
+                Log.e("LocalEncryptedBackupManager", "Critical: Rollback failed during restore error handling.", rollbackEx)
+            }
+            tempStagedFile?.delete()
             false
         }
     }

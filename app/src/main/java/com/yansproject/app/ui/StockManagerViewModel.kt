@@ -167,9 +167,10 @@ class StockManagerViewModel(application: Application) : AndroidViewModel(applica
                     )
                 )
 
-                // 4. Update state
+                // 4. Update state with explicitly verified return transaction
+                val verifiedReturnTx = returnTx.markVerified()
                 _state.update { currentState ->
-                    val updatedList = currentState.returns.toMutableList().apply { add(0, returnTx) }
+                    val updatedList = currentState.returns.toMutableList().apply { add(0, verifiedReturnTx) }
                     val updatedDamagedList = currentState.damagedLogs.toMutableList()
                     if (destination == "Damaged Stock") {
                         updatedDamagedList.add(

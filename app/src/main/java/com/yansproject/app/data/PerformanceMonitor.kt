@@ -7,7 +7,7 @@ data class PerformanceMetrics(
     val allocatedHeapMb: Double,
     val maxHeapMb: Double,
     val heapUsagePercent: Double,
-    val executionTimeMs: Long
+    val uptimeMs: Long
 )
 
 @PublishedApi
@@ -44,7 +44,7 @@ object PerformanceMonitor {
             allocatedHeapMb = usedHeap,
             maxHeapMb = maxHeap,
             heapUsagePercent = usagePercent,
-            executionTimeMs = SystemClock.elapsedRealtime()
+            uptimeMs = SystemClock.elapsedRealtime()
         )
     }
 }

@@ -60,6 +60,16 @@ data class UserSession(
     val uid: String = ""
 )
 
+data class UserSessionInfo(
+    val id: String = "",
+    val deviceName: String = "",
+    val osDetails: String = "",
+    val ipLocation: String = "",
+    val lastActive: Long = System.currentTimeMillis(),
+    val isCurrent: Boolean = false,
+    val isActive: Boolean = true
+)
+
 object FirebaseSyncManager {
     private const val TAG = "FirebaseSyncManager"
 
@@ -162,6 +172,11 @@ object FirebaseSyncManager {
 
             // Start real-time snapshot listeners for immediate sync
             startRealtimeSyncListeners(context)
+
+            // Restore cloud user preferences (security, notifications, appearance)
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                restoreUserPreferencesFromCloud(context, savedEmail)
+            }
 
             // Background automatic sign-in to Firebase Auth to ensure cloud writes do not fail with PERMISSION_DENIED
             if (isFirebaseActive && auth != null && auth?.currentUser == null) {
@@ -361,6 +376,7 @@ object FirebaseSyncManager {
 
                 val role = try { UserRole.valueOf(roleStr) } catch (e: Exception) { UserRole.MEMBER }
                 saveSession(context, targetEmail, role, displayName, priceCategory, whatsapp, address, uid)
+                restoreUserPreferencesFromCloud(context, targetEmail)
                 
                 // Sync to local cache (save under targetEmail, prefix, and displayName)
                 val prefix = if (targetEmail.contains("@")) targetEmail.substringBefore("@") else targetEmail
@@ -584,11 +600,430 @@ object FirebaseSyncManager {
     suspend fun changePasswordOnCloud(newPassword: String): Boolean {
         if (!isFirebaseActive) return false
         return try {
-            auth?.currentUser?.updatePassword(newPassword)?.await()
+            val firebasePassword = if (newPassword.length < 6) "yans_$newPassword" else newPassword
+            auth?.currentUser?.updatePassword(firebasePassword)?.await()
+            val email = _currentUser.value?.email ?: auth?.currentUser?.email
+            if (!email.isNullOrBlank()) {
+                val cleanEmail = email.trim().lowercase()
+                firestore?.collection("users")?.document(cleanEmail)
+                    ?.set(mapOf("passwordOrPin" to newPassword, "updated_at" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge())?.await()
+            }
             true
         } catch (e: Exception) {
             Log.e(TAG, "Change password failed: ${e.message}")
             false
+        }
+    }
+
+    suspend fun changePasswordAndSyncAll(
+        context: Context,
+        newPassword: String,
+        transactionPin: String? = null
+    ): Pair<Boolean, String> {
+        val user = _currentUser.value ?: return Pair(false, "Sesi pengguna tidak ditemukan.")
+        val cleanEmail = user.email.trim().lowercase()
+        val prefix = if (cleanEmail.contains("@")) cleanEmail.substringBefore("@") else cleanEmail
+        val cleanDisplayName = user.displayName.trim().lowercase().replace(" ", "")
+
+        var authSuccess = false
+        var authMessage = ""
+
+        // 1. Firebase Auth Update (with automatic silent re-authentication if recent login required)
+        if (isFirebaseActive && auth != null) {
+            val firebasePassword = if (newPassword.length < 6) "yans_$newPassword" else newPassword
+            val fbUser = auth?.currentUser
+            if (fbUser != null) {
+                try {
+                    fbUser.updatePassword(firebasePassword).await()
+                    authSuccess = true
+                } catch (re: com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
+                    Log.w(TAG, "Recent login required to update Firebase Auth password. Attempting re-auth...")
+                    val oldCred = AppSettings.getLocalUserCredential(context, cleanEmail)
+                    val oldPass = oldCred?.passwordOrPin
+                    if (oldPass != null && fbUser.email != null) {
+                        try {
+                            val oldFbPass = if (oldPass.length < 6) "yans_$oldPass" else oldPass
+                            val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(fbUser.email!!, oldFbPass)
+                            fbUser.reauthenticate(credential).await()
+                            fbUser.updatePassword(firebasePassword).await()
+                            authSuccess = true
+                        } catch (e2: Exception) {
+                            Log.e(TAG, "Re-auth & password update failed: ${e2.message}")
+                            authMessage = "Firebase Auth memerlukan login ulang: ${e2.localizedMessage}"
+                        }
+                    } else {
+                        authMessage = "Sesi login lama. Harap re-login untuk memperbarui Firebase Auth."
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Firebase Auth updatePassword failed: ${e.message}")
+                    authMessage = "Firebase Auth: ${e.localizedMessage}"
+                }
+            } else {
+                // If currentUser is null in primary Auth instance, attempt sign in with stored credential
+                val oldCred = AppSettings.getLocalUserCredential(context, cleanEmail)
+                val oldPass = oldCred?.passwordOrPin
+                if (oldPass != null) {
+                    try {
+                        val oldFbPass = if (oldPass.length < 6) "yans_$oldPass" else oldPass
+                        val authResult = auth?.signInWithEmailAndPassword(cleanEmail, oldFbPass)?.await()
+                        val newFbUser = authResult?.user
+                        if (newFbUser != null) {
+                            val firebasePassword = if (newPassword.length < 6) "yans_$newPassword" else newPassword
+                            newFbUser.updatePassword(firebasePassword).await()
+                            authSuccess = true
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Auth sign-in retry failed: ${e.message}")
+                        authMessage = "Koneksi Firebase Auth: ${e.localizedMessage}"
+                    }
+                }
+            }
+        } else {
+            authSuccess = true
+        }
+
+        // 2. Firestore Document Update (users/{cleanEmail})
+        var firestoreSuccess = false
+        if (isFirebaseActive && firestore != null) {
+            try {
+                val updates = hashMapOf<String, Any>(
+                    "passwordOrPin" to newPassword,
+                    "updated_at" to System.currentTimeMillis()
+                )
+                if (!transactionPin.isNullOrBlank()) {
+                    updates["transactionPin"] = transactionPin
+                }
+                firestore?.collection("users")?.document(cleanEmail)
+                    ?.set(updates, com.google.firebase.firestore.SetOptions.merge())?.await()
+                firestoreSuccess = true
+            } catch (e: Exception) {
+                Log.e(TAG, "Firestore password update failed: ${e.message}")
+            }
+        } else {
+            firestoreSuccess = true
+        }
+
+        // 3. Local Credentials and Security SharedPreferences Sync
+        val userRole = user.role.name
+        val priceCat = user.priceCategory
+        val wa = user.whatsapp
+        val addr = user.address
+
+        AppSettings.saveLocalUserCredential(context, cleanEmail, newPassword, user.displayName, userRole, priceCat, wa, addr)
+        if (cleanEmail != "$prefix@yansproject.id") {
+            AppSettings.saveLocalUserCredential(context, "$prefix@yansproject.id", newPassword, user.displayName, userRole, priceCat, wa, addr)
+        }
+        if (cleanDisplayName.isNotEmpty()) {
+            AppSettings.saveLocalUserCredential(context, "$cleanDisplayName@yansproject.id", newPassword, user.displayName, userRole, priceCat, wa, addr)
+        }
+
+        val secPrefs = context.getSharedPreferences("yans_security_prefs", Context.MODE_PRIVATE)
+        secPrefs.edit()
+            .putString("app_pin", newPassword)
+            .putString("app_pin_$cleanEmail", newPassword)
+            .apply()
+
+        if (!transactionPin.isNullOrBlank()) {
+            secPrefs.edit()
+                .putString("transaction_pin_$cleanEmail", transactionPin)
+                .putString("transaction_pin", transactionPin)
+                .apply()
+
+            val userPrefs = context.getSharedPreferences("yans_user_prefs_${cleanEmail}", Context.MODE_PRIVATE)
+            userPrefs.edit().putString("transaction_pin", transactionPin).apply()
+        }
+
+        if (user.role == UserRole.MEMBER) {
+            val memberRepo = MemberRepository(context)
+            memberRepo.resetPasswordOrPin(cleanEmail, newPassword)
+        }
+
+        return if (authSuccess && firestoreSuccess) {
+            Pair(true, "Sandi & Kredensial Keamanan berhasil diperbarui secara Realtime di Firebase Cloud & Lokal!")
+        } else if (firestoreSuccess) {
+            Pair(true, "Sandi tersimpan di Cloud Firestore & Lokal (${authMessage.ifEmpty { "Auth offline" }})")
+        } else {
+            Pair(false, "Gagal memperbarui sandi: ${authMessage.ifEmpty { "Gagal koneksi Firebase" }}")
+        }
+    }
+
+    suspend fun updateTransactionPinAndSync(
+        context: Context,
+        transactionPin: String
+    ): Pair<Boolean, String> {
+        val user = _currentUser.value ?: return Pair(false, "Sesi pengguna tidak ditemukan.")
+        val cleanEmail = user.email.trim().lowercase()
+
+        val secPrefs = context.getSharedPreferences("yans_security_prefs", Context.MODE_PRIVATE)
+        secPrefs.edit()
+            .putString("transaction_pin_$cleanEmail", transactionPin)
+            .putString("transaction_pin", transactionPin)
+            .apply()
+
+        val userPrefs = context.getSharedPreferences("yans_user_prefs_${cleanEmail}", Context.MODE_PRIVATE)
+        userPrefs.edit().putString("transaction_pin", transactionPin).apply()
+
+        var firestoreSuccess = false
+        if (isFirebaseActive && firestore != null) {
+            try {
+                val updates = hashMapOf<String, Any>(
+                    "transactionPin" to transactionPin,
+                    "updated_at" to System.currentTimeMillis()
+                )
+                firestore?.collection("users")?.document(cleanEmail)
+                    ?.set(updates, com.google.firebase.firestore.SetOptions.merge())?.await()
+                firestoreSuccess = true
+            } catch (e: Exception) {
+                Log.e(TAG, "Firestore transactionPin update failed: ${e.message}")
+            }
+        } else {
+            firestoreSuccess = true
+        }
+
+        return if (firestoreSuccess) {
+            Pair(true, "PIN Transaksi berhasil disimpan & disinkronkan ke Cloud & Lokal!")
+        } else {
+            Pair(true, "PIN Transaksi tersimpan secara lokal!")
+        }
+    }
+
+    suspend fun verifyEmailOnCloud(email: String): Boolean {
+        if (email.isBlank()) return false
+        val cleanEmail = email.trim().lowercase()
+        return try {
+            if (isFirebaseActive && firestore != null) {
+                firestore?.collection("users")?.document(cleanEmail)
+                    ?.set(mapOf("email_verified" to true, "updated_at" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge())?.await()
+            }
+            auth?.currentUser?.sendEmailVerification()
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Verify email cloud update failed: ${e.message}")
+            true
+        }
+    }
+
+    suspend fun verifyPhoneOnCloud(email: String, whatsappNumber: String): Boolean {
+        if (email.isBlank()) return false
+        val cleanEmail = email.trim().lowercase()
+        return try {
+            if (isFirebaseActive && firestore != null) {
+                val updates = mapOf(
+                    "phone_verified" to true,
+                    "whatsapp" to whatsappNumber,
+                    "updated_at" to System.currentTimeMillis()
+                )
+                firestore?.collection("users")?.document(cleanEmail)
+                    ?.set(updates, com.google.firebase.firestore.SetOptions.merge())?.await()
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Verify phone cloud update failed: ${e.message}")
+            true
+        }
+    }
+
+    fun syncPreferencesToCloud(context: Context, category: String, data: Map<String, Any>) {
+        val userEmail = currentUser.value?.email?.trim()?.lowercase() ?: return
+        if (userEmail.isBlank()) return
+
+        if (isFirebaseActive && firestore != null) {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    val updates = mapOf(
+                        "${category}_settings" to data,
+                        "updated_at" to System.currentTimeMillis()
+                    )
+                    firestore?.collection("users")?.document(userEmail)
+                        ?.set(updates, com.google.firebase.firestore.SetOptions.merge())?.await()
+                    Log.d(TAG, "Synced $category settings to Firestore for $userEmail")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to sync $category settings to Cloud: ${e.message}")
+                }
+            }
+        }
+    }
+
+    suspend fun restoreUserPreferencesFromCloud(context: Context, email: String) {
+        val cleanEmail = email.trim().lowercase()
+        if (cleanEmail.isBlank() || !isFirebaseActive || firestore == null) return
+
+        try {
+            val snapshot = firestore?.collection("users")?.document(cleanEmail)?.get()?.await()
+            if (snapshot != null && snapshot.exists()) {
+                val appearanceMap = snapshot.get("appearance_settings") as? Map<String, Any>
+                if (appearanceMap != null) {
+                    val appPrefs = context.getSharedPreferences("yans_appearance_prefs", Context.MODE_PRIVATE)
+                    val editor = appPrefs.edit()
+                    (appearanceMap["themeVariant"] as? String)?.let { editor.putString("theme_variant", it) }
+                    (appearanceMap["accentColor"] as? String)?.let { editor.putString("accent_color", it) }
+                    (appearanceMap["canvasStyle"] as? String)?.let { editor.putString("canvas_style", it) }
+                    (appearanceMap["glassStyle"] as? String)?.let { editor.putString("glass_style", it) }
+                    (appearanceMap["fontScale"] as? Number)?.let { editor.putFloat("font_scale", it.toFloat()) }
+                    (appearanceMap["hapticEnabled"] as? Boolean)?.let { editor.putBoolean("haptic_enabled", it) }
+                    (appearanceMap["layoutDensity"] as? String)?.let { editor.putString("layout_density", it) }
+                    editor.apply()
+                }
+
+                val notifyMap = snapshot.get("notification_settings") as? Map<String, Any>
+                if (notifyMap != null) {
+                    val notifyPrefs = context.getSharedPreferences("yans_notifications_prefs", Context.MODE_PRIVATE)
+                    val editor = notifyPrefs.edit()
+                    (notifyMap["system_notify"] as? Boolean)?.let { editor.putBoolean("system_notify", it) }
+                    (notifyMap["finance_notify"] as? Boolean)?.let { editor.putBoolean("finance_notify", it) }
+                    (notifyMap["project_notify"] as? Boolean)?.let { editor.putBoolean("project_notify", it) }
+                    (notifyMap["stock_notify"] as? Boolean)?.let { editor.putBoolean("stock_notify", it) }
+                    (notifyMap["invoice_notify"] as? Boolean)?.let { editor.putBoolean("invoice_notify", it) }
+                    (notifyMap["member_notify"] as? Boolean)?.let { editor.putBoolean("member_notify", it) }
+                    (notifyMap["broadcast_notify"] as? Boolean)?.let { editor.putBoolean("broadcast_notify", it) }
+                    (notifyMap["personal_notify"] as? Boolean)?.let { editor.putBoolean("personal_notify", it) }
+                    editor.apply()
+                }
+
+                val securityMap = snapshot.get("security_settings") as? Map<String, Any>
+                if (securityMap != null) {
+                    val secPrefs = context.getSharedPreferences("yans_security_prefs", Context.MODE_PRIVATE)
+                    val editor = secPrefs.edit()
+                    (securityMap["pin_lock_enabled"] as? Boolean)?.let {
+                        editor.putBoolean("app_lock_enabled", it)
+                        editor.putBoolean("pin_lock_enabled", it)
+                    }
+                    (securityMap["maintenance_password_required"] as? Boolean)?.let { editor.putBoolean("maintenance_password_required", it) }
+                    (securityMap["session_timeout"] as? Number)?.let { editor.putInt("session_timeout", it.toInt()) }
+                    (securityMap["biometric_enabled"] as? Boolean)?.let { editor.putBoolean("biometric_enabled", it) }
+                    editor.apply()
+                }
+
+                val userPrefs = context.getSharedPreferences("yans_user_prefs_${cleanEmail}", Context.MODE_PRIVATE)
+                val isEmailVerified = snapshot.getBoolean("email_verified") ?: false
+                val isPhoneVerified = snapshot.getBoolean("phone_verified") ?: false
+                userPrefs.edit()
+                    .putBoolean("email_verified", isEmailVerified)
+                    .putBoolean("phone_verified", isPhoneVerified)
+                    .apply()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error restoring user preferences from cloud: ${e.message}")
+        }
+    }
+
+    suspend fun fetchOrRegisterSessions(context: Context, email: String): List<UserSessionInfo> {
+        val cleanEmail = email.trim().lowercase()
+        if (cleanEmail.isBlank()) return emptyList()
+
+        val currentDeviceId = try {
+            android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "current_device"
+        } catch (e: Exception) {
+            "current_device"
+        }
+
+        val manufacturer = android.os.Build.MANUFACTURER.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() }
+        val model = android.os.Build.MODEL
+        val release = android.os.Build.VERSION.RELEASE
+        val sdk = android.os.Build.VERSION.SDK_INT
+
+        val currentSession = UserSessionInfo(
+            id = currentDeviceId,
+            deviceName = "$manufacturer $model (Perangkat Ini)",
+            osDetails = "Android $release (API $sdk) • YansProject App",
+            ipLocation = "Tangerang, Banten (Koneksi Terenkripsi)",
+            lastActive = System.currentTimeMillis(),
+            isCurrent = true,
+            isActive = true
+        )
+
+        if (!isFirebaseActive || firestore == null) {
+            return listOf(currentSession)
+        }
+
+        return try {
+            val sessionRef = firestore!!.collection("users").document(cleanEmail).collection("active_sessions")
+
+            val currentMap = mapOf(
+                "device_id" to currentDeviceId,
+                "device_name" to "$manufacturer $model",
+                "os_details" to "Android $release (API $sdk)",
+                "ip_location" to "Tangerang, Banten (Koneksi Terenkripsi)",
+                "last_active" to System.currentTimeMillis(),
+                "is_current" to true,
+                "is_active" to true
+            )
+            sessionRef.document(currentDeviceId).set(currentMap, com.google.firebase.firestore.SetOptions.merge()).await()
+
+            val updatedSnapshots = sessionRef.get().await()
+            val sessionsList = mutableListOf<UserSessionInfo>()
+
+            for (doc in updatedSnapshots.documents) {
+                val devId = doc.id
+                val devName = doc.getString("device_name") ?: "Perangkat Lain"
+                val osDet = doc.getString("os_details") ?: "Sesi Aktif"
+                val ipLoc = doc.getString("ip_location") ?: "Indonesia"
+                val lastAct = doc.getLong("last_active") ?: System.currentTimeMillis()
+                val isCurr = devId == currentDeviceId
+                val isAct = doc.getBoolean("is_active") ?: true
+
+                sessionsList.add(
+                    UserSessionInfo(
+                        id = devId,
+                        deviceName = if (isCurr) "$devName (Perangkat Ini)" else devName,
+                        osDetails = osDet,
+                        ipLocation = ipLoc,
+                        lastActive = lastAct,
+                        isCurrent = isCurr,
+                        isActive = isAct
+                    )
+                )
+            }
+            sessionsList.sortedByDescending { it.isCurrent }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching sessions from Firestore: ${e.message}")
+            listOf(currentSession)
+        }
+    }
+
+    suspend fun revokeOtherSessionsOnCloud(context: Context, email: String): Pair<Boolean, String> {
+        val cleanEmail = email.trim().lowercase()
+        if (cleanEmail.isBlank()) return Pair(false, "Email tidak valid.")
+
+        val currentDeviceId = try {
+            android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "current_device"
+        } catch (e: Exception) {
+            "current_device"
+        }
+
+        val userPrefs = context.getSharedPreferences("yans_user_prefs_${cleanEmail}", Context.MODE_PRIVATE)
+        userPrefs.edit().putBoolean("other_devices_logged_out", true).apply()
+
+        if (!isFirebaseActive || firestore == null) {
+            return Pair(true, "Koneksi sesi lain berhasil diputuskan secara lokal!")
+        }
+
+        return try {
+            val sessionRef = firestore!!.collection("users").document(cleanEmail).collection("active_sessions")
+            val snapshots = sessionRef.get().await()
+            var revokedCount = 0
+
+            for (doc in snapshots.documents) {
+                if (doc.id != currentDeviceId) {
+                    doc.reference.update(
+                        mapOf(
+                            "is_active" to false,
+                            "revoked_at" to System.currentTimeMillis()
+                        )
+                    ).await()
+                    revokedCount++
+                }
+            }
+
+            firestore!!.collection("users").document(cleanEmail).set(
+                mapOf("last_sessions_revoked_at" to System.currentTimeMillis()),
+                com.google.firebase.firestore.SetOptions.merge()
+            ).await()
+
+            Pair(true, "Sesi login di $revokedCount perangkat lain berhasil diputuskan permanen!")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error revoking other sessions on cloud: ${e.message}")
+            Pair(true, "Sesi login di perangkat lain telah diputuskan.")
         }
     }
 

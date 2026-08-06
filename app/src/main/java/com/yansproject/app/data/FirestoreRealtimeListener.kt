@@ -66,7 +66,20 @@ class FirestoreRealtimeListener private constructor() {
 
                 if (snapshot != null) {
                     // Prevent duplicate concurrent callback executions for the same snapshot tick
-                    onUpdate(snapshot)
+                    val guard = callbackGuards[key]
+                    if (guard != null) {
+                        if (guard.compareAndSet(false, true)) {
+                            try {
+                                onUpdate(snapshot)
+                            } finally {
+                                guard.set(false)
+                            }
+                        } else {
+                            Log.w(TAG, "Duplicate concurrent callback execution prevented for listener '$key'")
+                        }
+                    } else {
+                        onUpdate(snapshot)
+                    }
                 }
             })
 

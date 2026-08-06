@@ -152,7 +152,7 @@ object EnterpriseBootstrapEngine {
                                     }
                                     // Only update local credentials if this document belongs to current active session user
                                     if (email.isNotBlank() && email.trim().lowercase() == activeUserEmail) {
-                                        val passwordOrPin = doc.getString("passwordOrPin") ?: doc.get("passwordOrPin")?.toString() ?: (BusinessIdentityProvider.getSecureProvisionedPin(email, context) ?: "9021")
+                                        val passwordOrPin = doc.getString("passwordOrPin") ?: doc.get("passwordOrPin")?.toString() ?: (BusinessIdentityProvider.getSecureProvisionedPin(email, context) ?: "")
                                         AppSettings.saveLocalUserCredential(context, email, passwordOrPin, displayName, role, priceCategory)
                                     }
                                 } catch (e: Exception) {

@@ -46,6 +46,9 @@ fun PullToRefreshBox(
     val haptic = LocalHapticFeedback.current
     val triggerThreshold = with(density) { 80.dp.toPx() }
     
+    val currentOnRefresh by rememberUpdatedState(onRefresh)
+    val currentIsRefreshing by rememberUpdatedState(isRefreshing)
+
     var pullOffset by remember { mutableStateOf(0f) }
     var hasHapticked by remember { mutableStateOf(false) }
     
@@ -68,7 +71,7 @@ fun PullToRefreshBox(
         label = "spin"
     )
 
-    val nestedScrollConnection = remember {
+    val nestedScrollConnection = remember(triggerThreshold) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 return if (available.y < 0 && pullOffset > 0) {
@@ -101,11 +104,12 @@ fun PullToRefreshBox(
             }
             
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (pullOffset >= triggerThreshold && !isRefreshing) {
-                    onRefresh()
-                }
+                val isTriggered = pullOffset >= triggerThreshold
                 pullOffset = 0f
                 hasHapticked = false
+                if (isTriggered && !currentIsRefreshing) {
+                    currentOnRefresh()
+                }
                 return super.onPostFling(consumed, available)
             }
         }

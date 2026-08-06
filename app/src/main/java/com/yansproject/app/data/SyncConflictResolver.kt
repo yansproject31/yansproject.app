@@ -22,6 +22,11 @@ import android.util.Log
  * 4. Inflow & Expense: Immutable Additive Transaction Merge.
  *    Each financial entry is assigned a unique transaction number and preserved to maintain ledger integrity.
  */
+/**
+ * SyncConflictResolver: Primary enterprise facade for entity-level conflict resolution.
+ * Enforces field-level delta merges, sub-ledger additive updates, and monotonic stage advancements
+ * by delegating execution to [DataConflictResolver].
+ */
 class SyncConflictResolver(private val context: Context) {
 
     private val TAG = "SyncConflictResolver"
@@ -31,7 +36,20 @@ class SyncConflictResolver(private val context: Context) {
         appDatabase: AppDatabase,
         offlineActionDao: OfflineActionDao
     ): List<ConflictLog> {
-        Log.i(TAG, "Starting explicit SyncConflictResolver cycle...")
+        Log.i(TAG, "Starting explicit SyncConflictResolver execution cycle...")
+        return delegateResolver.resolveAndSyncQueue(appDatabase, offlineActionDao)
+    }
+
+    /**
+     * Resolves single collection conflict using active policy.
+     */
+    suspend fun resolveSingleConflict(
+        collectionName: String,
+        appDatabase: AppDatabase,
+        offlineActionDao: OfflineActionDao
+    ): List<ConflictLog> {
+        val strategy = getMergeStrategyForCollection(collectionName)
+        Log.i(TAG, "Resolving conflict for '$collectionName' using policy: $strategy")
         return delegateResolver.resolveAndSyncQueue(appDatabase, offlineActionDao)
     }
 

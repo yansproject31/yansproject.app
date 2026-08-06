@@ -213,7 +213,7 @@ fun KitabDigitalScreen(
             }
             prefs.edit().putString("paragraph_notes_db", jsonObj.toString()).apply()
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("KitabDigitalScreen", "Error saving paragraph notes: ${e.message}", e)
         }
     }
 

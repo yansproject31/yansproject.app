@@ -26,8 +26,44 @@ data class DispatchResult(
 class NotificationDispatcher private constructor(private val context: Context) {
 
     private val TAG = "NotificationDispatcher"
+    private val PREFS_NAME = "yans_notification_dedupe_prefs"
+    private val KEY_DELIVERED_IDS = "delivered_ids_set"
+    private val MAX_PERSISTED_IDS = 200
+
+    private val prefs by lazy { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
     private val deliveredIds = ConcurrentHashMap.newKeySet<String>()
     private val failureCounter = ConcurrentHashMap<String, AtomicInteger>()
+
+    init {
+        loadPersistedDeliveredIds()
+    }
+
+    private fun loadPersistedDeliveredIds() {
+        try {
+            val savedSet = prefs.getStringSet(KEY_DELIVERED_IDS, emptySet()) ?: emptySet()
+            deliveredIds.addAll(savedSet)
+            Log.d(TAG, "Loaded ${savedSet.size} persisted notification delivery IDs.")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed loading persisted notification delivery IDs: ${e.message}")
+        }
+    }
+
+    private fun persistDeliveredId(id: String) {
+        deliveredIds.add(id)
+        try {
+            val currentSet = prefs.getStringSet(KEY_DELIVERED_IDS, emptySet())?.toMutableSet() ?: mutableSetOf()
+            currentSet.add(id)
+            if (currentSet.size > MAX_PERSISTED_IDS) {
+                // Trim oldest entries if set grows beyond cap
+                val trimmed = currentSet.toList().takeLast(MAX_PERSISTED_IDS).toSet()
+                prefs.edit().putStringSet(KEY_DELIVERED_IDS, trimmed).apply()
+            } else {
+                prefs.edit().putStringSet(KEY_DELIVERED_IDS, currentSet).apply()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed persisting notification delivery ID '$id': ${e.message}")
+        }
+    }
 
     companion object {
         @Volatile
@@ -70,7 +106,7 @@ class NotificationDispatcher private constructor(private val context: Context) {
                 roleTarget = roleTarget,
                 userId = userId
             )
-            deliveredIds.add(id)
+            persistDeliveredId(id)
             Log.i(TAG, "Local notification dispatched successfully [ID: $id, Category: $category]")
             DispatchResult(id = id, success = true, isDuplicate = false, type = NotificationType.Local(id.hashCode()))
         } catch (e: Exception) {
@@ -110,7 +146,7 @@ class NotificationDispatcher private constructor(private val context: Context) {
                 roleTarget = roleTarget,
                 userId = userId
             )
-            deliveredIds.add(messageId)
+            persistDeliveredId(messageId)
             Log.i(TAG, "Remote push notification processed successfully [MessageID: $messageId]")
             DispatchResult(id = messageId, success = true, isDuplicate = false, type = NotificationType.RemotePush(messageId))
         } catch (e: Exception) {
@@ -134,5 +170,11 @@ class NotificationDispatcher private constructor(private val context: Context) {
     fun clearDeliveredHistory() {
         deliveredIds.clear()
         failureCounter.clear()
+        try {
+            prefs.edit().remove(KEY_DELIVERED_IDS).apply()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed clearing notification dedupe preferences: ${e.message}")
+        }
+        Log.i(TAG, "Notification delivered history fully cleared.")
     }
 }

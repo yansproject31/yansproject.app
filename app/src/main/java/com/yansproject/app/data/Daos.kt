@@ -86,7 +86,7 @@ interface StockHistoryDao {
     @Query("DELETE FROM stock_history")
     suspend fun clearAllHistory()
 
-    @Query("DELETE FROM stock_history WHERE notes LIKE '%' || :keyword || '%'")
+    @Query("DELETE FROM stock_history WHERE length(:keyword) >= 3 AND notes LIKE '%' || :keyword || '%'")
     suspend fun deleteHistoryByKeyword(keyword: String)
 }
 
@@ -104,7 +104,7 @@ interface AuditLogDao {
     @Query("DELETE FROM audit_logs WHERE timestamp < :olderThan")
     suspend fun deleteLogsOlderThan(olderThan: Long): Int
 
-    @Query("DELETE FROM audit_logs WHERE details LIKE '%' || :keyword || '%'")
+    @Query("DELETE FROM audit_logs WHERE length(:keyword) >= 3 AND details LIKE '%' || :keyword || '%'")
     suspend fun deleteLogsByKeyword(keyword: String)
 }
 
@@ -215,7 +215,7 @@ interface InventoryLedgerDao {
     @Query("DELETE FROM inventory_ledger")
     suspend fun clearAll()
 
-    @Query("DELETE FROM inventory_ledger WHERE invoiceNumber = :invoiceNumber OR notes LIKE '%' || :invoiceNumber || '%'")
+    @Query("DELETE FROM inventory_ledger WHERE length(:invoiceNumber) >= 3 AND (invoiceNumber = :invoiceNumber OR notes LIKE '%' || :invoiceNumber || '%')")
     suspend fun deleteLedgerByInvoiceNumber(invoiceNumber: String)
 }
 

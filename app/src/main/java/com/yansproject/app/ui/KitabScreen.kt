@@ -115,7 +115,7 @@ fun rememberKitabData(context: Context): List<KitabFull> {
                 list.add(KitabFull(id, title, subtitle, quote, muqaddimah, penutup, juzList, folder))
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("KitabScreen", "Error loading kitab list: ${e.message}", e)
         }
         list
     }

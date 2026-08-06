@@ -53,9 +53,7 @@ class MemberRepository(private val context: Context) {
                         val isOwner = role.equals("OWNER", ignoreCase = true) ||
                                 role.equals("ADMIN", ignoreCase = true) ||
                                 displayName.contains("Owner", ignoreCase = true) ||
-                                displayName.equals("YANSPROJECT.ID", ignoreCase = true) ||
-                                email.equals("admin@yansproject.id", ignoreCase = true) ||
-                                email.equals("yansart31@gmail.com", ignoreCase = true)
+                                BusinessIdentityProvider.isOwnerEmail(email, context)
 
                         if (!isOwner && displayName.isNotBlank() && (role.equals("MEMBER", ignoreCase = true) || role.isBlank())) {
                             val normalizedName = displayName.trim().lowercase()
@@ -181,7 +179,7 @@ class MemberRepository(private val context: Context) {
             }
             com.yansproject.app.ui.AppSettings.saveMemberPriceCategory(context, newDisplayName, newTier)
             com.yansproject.app.ui.AppSettings.addMember(context, newDisplayName)
-            val secureFallback = BusinessIdentityProvider.getSecureProvisionedPin(targetEmail, context) ?: "9021"
+            val secureFallback = BusinessIdentityProvider.getSecureProvisionedPin(targetEmail, context) ?: ""
             val existingCred = com.yansproject.app.ui.AppSettings.getLocalUserCredential(context, targetEmail)
             val existingPass = existingCred?.passwordOrPin ?: secureFallback
             val existingRole = existingCred?.role ?: "MEMBER"

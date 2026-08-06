@@ -244,7 +244,7 @@ object DataImportExportHelper {
                     onComplete(count)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("DataImportExportHelper", "CSV export failed: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     onComplete(-1)
                 }
@@ -316,7 +316,7 @@ object DataImportExportHelper {
                             if (name.isNotEmpty()) {
                                 AppSettings.addMember(context, name)
                                 val memberEmail = "${name.lowercase().replace(" ", "")}@yansproject.id"
-                                val provisionedPin = com.yansproject.app.data.BusinessIdentityProvider.getSecureProvisionedPin(memberEmail, context) ?: "9021"
+                                val provisionedPin = com.yansproject.app.data.BusinessIdentityProvider.getSecureProvisionedPin(memberEmail, context) ?: (100000..999999).random().toString()
                                 // Also create in firestore if cloud is active
                                 FirebaseSyncManager.registerMemberOnCloud(
                                     context = context,

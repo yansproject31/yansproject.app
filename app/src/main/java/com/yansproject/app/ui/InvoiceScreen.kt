@@ -162,20 +162,26 @@ fun InvoiceScreen(
             "Lunas" -> invoice.status.equals("LUNAS", ignoreCase = true) || 
                       invoice.status.equals("PAID", ignoreCase = true) || 
                       (invoice.totalAmount > 0 && invoice.paidAmount >= invoice.totalAmount)
-            "Belum Dibayar", "Belum Lunas" -> (invoice.status.equals("BELUM LUNAS", ignoreCase = true) || 
-                             invoice.status.equals("BELUM DIBAYAR", ignoreCase = true) || 
-                             invoice.status.equals("BELUM_DIBAYAR", ignoreCase = true) || 
-                             invoice.status.equals("UNPAID", ignoreCase = true) || 
-                             invoice.status.equals("DISETUJUI", ignoreCase = true) || 
-                             invoice.status.equals("MENUNGGU PEMBAYARAN", ignoreCase = true)) && invoice.paidAmount == 0.0
-            "DP" -> invoice.status.equals("DP", ignoreCase = true) || 
-                   invoice.status.equals("DP AWAL", ignoreCase = true) || 
-                   invoice.status.equals("DP PRODUKSI", ignoreCase = true) || 
-                   invoice.status.equals("DP 50%", ignoreCase = true) || 
-                   invoice.status.equals("PARTIAL", ignoreCase = true) || 
-                   invoice.status.equals("DICICIL", ignoreCase = true) || 
-                   invoice.status.equals("SEBAGIAN", ignoreCase = true) || 
-                   (invoice.paidAmount > 0 && invoice.paidAmount < invoice.totalAmount)
+            "Belum Lunas" -> (invoice.paidAmount < invoice.totalAmount || invoice.remainingPayment > 0) &&
+                             !invoice.status.equals("LUNAS", ignoreCase = true) && 
+                             !invoice.status.equals("PAID", ignoreCase = true) && 
+                             !invoice.status.equals("BATAL", ignoreCase = true) && 
+                             !invoice.status.equals("REFUND", ignoreCase = true) && 
+                             !invoice.status.equals("REFUNDED", ignoreCase = true) && 
+                             !invoice.status.equals("CANCELLED", ignoreCase = true)
+            "Belum Dibayar" -> invoice.paidAmount == 0.0 && 
+                              !invoice.status.equals("LUNAS", ignoreCase = true) && 
+                              !invoice.status.equals("PAID", ignoreCase = true) && 
+                              !invoice.status.equals("BATAL", ignoreCase = true) && 
+                              !invoice.status.equals("REFUND", ignoreCase = true)
+            "DP", "DP / Cicilan" -> (invoice.paidAmount > 0 && invoice.paidAmount < invoice.totalAmount) ||
+                       invoice.status.equals("DP", ignoreCase = true) || 
+                       invoice.status.equals("DP AWAL", ignoreCase = true) || 
+                       invoice.status.equals("DP PRODUKSI", ignoreCase = true) || 
+                       invoice.status.equals("DP 50%", ignoreCase = true) || 
+                       invoice.status.equals("PARTIAL", ignoreCase = true) || 
+                       invoice.status.equals("DICICIL", ignoreCase = true) || 
+                       invoice.status.equals("SEBAGIAN", ignoreCase = true)
             "Refund" -> invoice.status.equals("REFUND", ignoreCase = true) || 
                         invoice.status.equals("REFUNDED", ignoreCase = true) || 
                         invoice.status.equals("BATAL", ignoreCase = true) || 
@@ -277,9 +283,9 @@ fun InvoiceScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     val filtersList = if (isOwner) {
-                        listOf("Semua", "Persetujuan", "Belum Lunas", "DP", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
+                        listOf("Semua", "Persetujuan", "Belum Lunas", "DP / Cicilan", "Belum Dibayar", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
                     } else {
-                        listOf("Semua", "Belum Lunas", "DP", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
+                        listOf("Semua", "Belum Lunas", "DP / Cicilan", "Belum Dibayar", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
                     }
                     items(filtersList) { filter ->
                         val isSelected = selectedFilter == filter

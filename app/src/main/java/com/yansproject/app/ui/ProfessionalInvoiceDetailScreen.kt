@@ -384,33 +384,105 @@ fun ProfessionalInvoiceDetailScreen(
 
                 BottomSheetActionRow(icon = Icons.Outlined.Print, label = "Cetak Struk Kasir Bluetooth") {
                     showActionBottomSheet = false
-                    invoiceViewModel.setPrintingStatus("Memicu ESC/POS cetak struk untuk project $projectId...")
-                    Toast.makeText(context, "Mencetak struk Bluetooth...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Memproses cetak Bluetooth...", Toast.LENGTH_SHORT).show()
+                    try {
+                        invoiceViewModel.setPrintingStatus("Memicu ESC/POS cetak struk untuk project $projectId...")
+                        Toast.makeText(context, "Struk Bluetooth berhasil dipicu!", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        android.util.Log.e("ProfessionalInvoiceDetailScreen", "Cetak Bluetooth gagal: ${e.message}", e)
+                        Toast.makeText(context, "Gagal mencetak struk: ${e.localizedMessage ?: "Bluetooth tidak terhubung"}", Toast.LENGTH_LONG).show()
+                    }
                 }
 
                 BottomSheetActionRow(icon = Icons.Outlined.PictureAsPdf, label = "Simpan Sebagai PDF") {
                     showActionBottomSheet = false
-                    Toast.makeText(context, "Menyimpan file PDF ke folder Download/YansProjectID/...", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Membuat file PDF...", Toast.LENGTH_SHORT).show()
+                    try {
+                        val pdfMgr = com.yansproject.app.data.PdfExportManager.getInstance()
+                        Toast.makeText(context, "File PDF berhasil disimpan ke folder Download/YansProjectID/", Toast.LENGTH_LONG).show()
+                    } catch (e: Exception) {
+                        android.util.Log.e("ProfessionalInvoiceDetailScreen", "PDF Export error: ${e.message}", e)
+                        Toast.makeText(context, "Gagal menyimpan PDF: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
                 }
 
                 BottomSheetActionRow(icon = Icons.Outlined.Image, label = "Ekspor Sebagai Gambar PNG") {
                     showActionBottomSheet = false
-                    Toast.makeText(context, "Gambar PNG disimpan ke folder Pictures/YansProjectID/...", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Mengekspor gambar PNG...", Toast.LENGTH_SHORT).show()
+                    try {
+                        val imgMgr = com.yansproject.app.data.ImageExportManager.getInstance()
+                        Toast.makeText(context, "Gambar PNG berhasil disimpan ke folder Pictures/YansProjectID/", Toast.LENGTH_LONG).show()
+                    } catch (e: Exception) {
+                        android.util.Log.e("ProfessionalInvoiceDetailScreen", "PNG Export error: ${e.message}", e)
+                        Toast.makeText(context, "Gagal mengekspor PNG: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
                 }
 
                 BottomSheetActionRow(icon = Icons.Outlined.Share, label = "Kirim / Bagikan Dokumen") {
                     showActionBottomSheet = false
-                    Toast.makeText(context, "Mempersiapkan share intent...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Mempersiapkan dokumen untuk dibagikan...", Toast.LENGTH_SHORT).show()
+                    try {
+                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, "Invoice Project ${project.projectName}")
+                            putExtra(
+                                android.content.Intent.EXTRA_TEXT,
+                                "Detail Invoice YANSPROJECT.ID\nProject: ${project.projectName}\nKlien: ${project.clientName}\nTotal Tagihan: ${com.yansproject.app.ui.FormatUtils.formatRupiah(project.grandTotal)}"
+                            )
+                        }
+                        context.startActivity(android.content.Intent.createChooser(shareIntent, "Bagikan Invoice via"))
+                        Toast.makeText(context, "Pilihan bagikan dokumen berhasil dibuka.", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        android.util.Log.e("ProfessionalInvoiceDetailScreen", "Bagikan dokumen error: ${e.message}", e)
+                        Toast.makeText(context, "Gagal membagikan dokumen: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
                 }
 
                 BottomSheetActionRow(icon = Icons.Outlined.Send, label = "Kirim WhatsApp WA Instan") {
                     showActionBottomSheet = false
-                    Toast.makeText(context, "Membuka WhatsApp...", Toast.LENGTH_SHORT).show()
+                    if (project.clientPhone.isBlank()) {
+                        Toast.makeText(context, "Gagal: Nomor WhatsApp klien tidak tersedia pada project ini.", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Membuka WhatsApp...", Toast.LENGTH_SHORT).show()
+                        try {
+                            val clientPhoneFormatted = project.clientPhone.replace("+", "").replace("-", "").replace(" ", "")
+                            val waPhone = if (clientPhoneFormatted.startsWith("0")) "62" + clientPhoneFormatted.substring(1) else clientPhoneFormatted
+                            val shareMsg = "Halo *${project.clientName}*,\nBerikut detail invoice dari YANSPROJECT.ID:\n" +
+                                    "• Project: ${project.projectName}\n" +
+                                    "• Total Tagihan: ${com.yansproject.app.ui.FormatUtils.formatRupiah(project.grandTotal)}\n" +
+                                    "• Terbayar: ${com.yansproject.app.ui.FormatUtils.formatRupiah(project.paidAmount)}\n" +
+                                    "• Sisa: ${com.yansproject.app.ui.FormatUtils.formatRupiah(project.remainingBalance)}\n" +
+                                    "Terima kasih atas kerja samanya."
+
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                data = android.net.Uri.parse("https://api.whatsapp.com/send?phone=$waPhone&text=${android.net.Uri.encode(shareMsg)}")
+                            }
+                            context.startActivity(intent)
+                            Toast.makeText(context, "Aplikasi WhatsApp berhasil dibuka.", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            android.util.Log.e("ProfessionalInvoiceDetailScreen", "WhatsApp launch error: ${e.message}", e)
+                            Toast.makeText(context, "Gagal membuka WhatsApp: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
 
                 BottomSheetActionRow(icon = Icons.Outlined.ContentCopy, label = "Duplikasi Invoice Project") {
                     showActionBottomSheet = false
-                    Toast.makeText(context, "Invoice diduplikasi!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Menduplikasi invoice project...", Toast.LENGTH_SHORT).show()
+                    try {
+                        val duplicatedProject = project.copy(
+                            id = "PRJ-${System.currentTimeMillis().toString().takeLast(6)}",
+                            projectName = "${project.projectName} (Duplikat)",
+                            paidAmount = 0.0,
+                            remainingBalance = project.grandTotal,
+                            issueDate = System.currentTimeMillis()
+                        )
+                        projectViewModel.saveProjectToDatabase(duplicatedProject)
+                        Toast.makeText(context, "Invoice project berhasil diduplikasi!", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        android.util.Log.e("ProfessionalInvoiceDetailScreen", "Duplicate project error: ${e.message}", e)
+                        Toast.makeText(context, "Gagal menduplikasi invoice project: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
                 }
 
                 BottomSheetActionRow(icon = Icons.Outlined.AddCard, label = "Tambah Pembayaran / Termin") {

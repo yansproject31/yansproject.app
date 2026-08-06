@@ -11,7 +11,7 @@ data class DomainInvoice(
     val clientName: String = "",
     val clientPhone: String = "",
     val issueDate: Long = System.currentTimeMillis(),
-    val dueDate: Long = System.currentTimeMillis(),
+    val dueDate: Long = 0L,
     val totalAmount: Double = 0.0,
     val paidAmount: Double = 0.0,
     val status: String = "BELUM LUNAS", // "LUNAS", "BELUM LUNAS"
@@ -22,7 +22,11 @@ data class DomainInvoice(
     val attachmentUrl: String = "", // Google Drive or Paper.id external link (Spark friendly)
     val ownerId: String = ""
 ) {
-    val remainingPayment: Double get() = totalAmount - paidAmount
+    val remainingPayment: Double
+        get() {
+            val effectivePaid = maxOf(paidAmount, dpAmount)
+            return maxOf(0.0, totalAmount - effectivePaid - discount)
+        }
 }
 
 data class DomainStockItem(
@@ -47,7 +51,7 @@ data class DomainProject(
     val clientPhone: String = "",
     val description: String = "",
     val startDate: Long = System.currentTimeMillis(),
-    val endDate: Long = System.currentTimeMillis(),
+    val endDate: Long = 0L,
     val totalCost: Double = 0.0,
     val paidAmount: Double = 0.0,
     val status: String = "Planning", // "Planning", "In Progress", "Completed", "Cancelled"
@@ -64,13 +68,13 @@ data class DomainProject(
     val clientInstitution: String = "",
     val clientAddress: String = "",
     val clientNotes: String = "",
-    val pic: String = "Owner",
+    val pic: String = "",
     val currentStage: String = "Project Dibuat",
     val attachmentUrl: String = "", // External link (e.g. Google Drive po sheet)
     val ownerId: String = ""
 ) {
     val totalQty: Int get() = qtyXS + qtyS + qtyM + qtyL + qtyXL + qtyXXL + qty3XL + qty4XL
-    val remainingPayment: Double get() = totalCost - paidAmount
+    val remainingPayment: Double get() = maxOf(0.0, totalCost - paidAmount)
 }
 
 data class DomainDashboardStats(
