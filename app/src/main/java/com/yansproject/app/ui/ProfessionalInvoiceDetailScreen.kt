@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yansproject.app.data.CustomProject
+import com.yansproject.app.data.Invoice
+import com.yansproject.app.data.InvoiceItemDetail
 import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
 import com.yansproject.app.data.IdrAccountingEngine
@@ -396,74 +398,119 @@ fun ProfessionalInvoiceDetailScreen(
 
                 BottomSheetActionRow(icon = Icons.Outlined.PictureAsPdf, label = "Simpan Sebagai PDF") {
                     showActionBottomSheet = false
-                    Toast.makeText(context, "Membuat file PDF...", Toast.LENGTH_SHORT).show()
-                    try {
-                        val pdfMgr = com.yansproject.app.data.PdfExportManager.getInstance()
-                        Toast.makeText(context, "File PDF berhasil disimpan ke folder Download/YansProjectID/", Toast.LENGTH_LONG).show()
-                    } catch (e: Exception) {
-                        android.util.Log.e("ProfessionalInvoiceDetailScreen", "PDF Export error: ${e.message}", e)
-                        Toast.makeText(context, "Gagal menyimpan PDF: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    val invoice = Invoice(
+                        id = kotlin.math.abs(project.id.hashCode()),
+                        invoiceNumber = "PRJ-${project.id.take(8).uppercase()}",
+                        clientName = project.clientName,
+                        clientPhone = project.clientPhone,
+                        issueDate = project.issueDate,
+                        dueDate = project.issueDate,
+                        totalAmount = project.grandTotal,
+                        paidAmount = project.paidAmount,
+                        discount = project.discountNominal,
+                        dpAmount = project.paidAmount,
+                        status = if (project.paidAmount >= project.grandTotal) "LUNAS" else "BELUM LUNAS"
+                    )
+                    val itemsList = listOf(
+                        InvoiceItemDetail(
+                            description = project.projectName,
+                            quantity = 1,
+                            price = project.grandTotal
+                        )
+                    )
+                    val pdfFile = com.yansproject.app.ui.DocumentExporter.exportToPdf(context, invoice, itemsList)
+                    if (pdfFile != null) {
+                        Toast.makeText(context, "Faktur PDF tersimpan di: ${pdfFile.absolutePath}", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Gagal membuat PDF Invoice.", Toast.LENGTH_SHORT).show()
                     }
                 }
 
                 BottomSheetActionRow(icon = Icons.Outlined.Image, label = "Ekspor Sebagai Gambar PNG") {
                     showActionBottomSheet = false
-                    Toast.makeText(context, "Mengekspor gambar PNG...", Toast.LENGTH_SHORT).show()
-                    try {
-                        val imgMgr = com.yansproject.app.data.ImageExportManager.getInstance()
-                        Toast.makeText(context, "Gambar PNG berhasil disimpan ke folder Pictures/YansProjectID/", Toast.LENGTH_LONG).show()
-                    } catch (e: Exception) {
-                        android.util.Log.e("ProfessionalInvoiceDetailScreen", "PNG Export error: ${e.message}", e)
-                        Toast.makeText(context, "Gagal mengekspor PNG: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    val invoice = Invoice(
+                        id = kotlin.math.abs(project.id.hashCode()),
+                        invoiceNumber = "PRJ-${project.id.take(8).uppercase()}",
+                        clientName = project.clientName,
+                        clientPhone = project.clientPhone,
+                        issueDate = project.issueDate,
+                        dueDate = project.issueDate,
+                        totalAmount = project.grandTotal,
+                        paidAmount = project.paidAmount,
+                        discount = project.discountNominal,
+                        dpAmount = project.paidAmount,
+                        status = if (project.paidAmount >= project.grandTotal) "LUNAS" else "BELUM LUNAS"
+                    )
+                    val itemsList = listOf(
+                        InvoiceItemDetail(
+                            description = project.projectName,
+                            quantity = 1,
+                            price = project.grandTotal
+                        )
+                    )
+                    val pngFile = com.yansproject.app.ui.DocumentExporter.exportToPng(context, invoice, itemsList)
+                    if (pngFile != null) {
+                        Toast.makeText(context, "Gambar PNG tersimpan di: ${pngFile.absolutePath}", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Gagal mengekspor PNG Invoice.", Toast.LENGTH_SHORT).show()
                     }
                 }
 
                 BottomSheetActionRow(icon = Icons.Outlined.Share, label = "Kirim / Bagikan Dokumen") {
                     showActionBottomSheet = false
-                    Toast.makeText(context, "Mempersiapkan dokumen untuk dibagikan...", Toast.LENGTH_SHORT).show()
-                    try {
-                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(android.content.Intent.EXTRA_SUBJECT, "Invoice Project ${project.projectName}")
-                            putExtra(
-                                android.content.Intent.EXTRA_TEXT,
-                                "Detail Invoice YANSPROJECT.ID\nProject: ${project.projectName}\nKlien: ${project.clientName}\nTotal Tagihan: ${com.yansproject.app.ui.FormatUtils.formatRupiah(project.grandTotal)}"
-                            )
-                        }
-                        context.startActivity(android.content.Intent.createChooser(shareIntent, "Bagikan Invoice via"))
-                        Toast.makeText(context, "Pilihan bagikan dokumen berhasil dibuka.", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        android.util.Log.e("ProfessionalInvoiceDetailScreen", "Bagikan dokumen error: ${e.message}", e)
-                        Toast.makeText(context, "Gagal membagikan dokumen: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    val invoice = Invoice(
+                        id = kotlin.math.abs(project.id.hashCode()),
+                        invoiceNumber = "PRJ-${project.id.take(8).uppercase()}",
+                        clientName = project.clientName,
+                        clientPhone = project.clientPhone,
+                        issueDate = project.issueDate,
+                        dueDate = project.issueDate,
+                        totalAmount = project.grandTotal,
+                        paidAmount = project.paidAmount,
+                        discount = project.discountNominal,
+                        dpAmount = project.paidAmount,
+                        status = if (project.paidAmount >= project.grandTotal) "LUNAS" else "BELUM LUNAS"
+                    )
+                    val itemsList = listOf(
+                        InvoiceItemDetail(
+                            description = project.projectName,
+                            quantity = 1,
+                            price = project.grandTotal
+                        )
+                    )
+                    val pdfFile = com.yansproject.app.ui.DocumentExporter.exportToPdf(context, invoice, itemsList)
+                    if (pdfFile != null) {
+                        com.yansproject.app.ui.DocumentExporter.shareFile(context, pdfFile, "Bagikan Invoice ${invoice.invoiceNumber}")
+                    } else {
+                        Toast.makeText(context, "Gagal membuat dokumen untuk dibagikan.", Toast.LENGTH_SHORT).show()
                     }
                 }
 
                 BottomSheetActionRow(icon = Icons.Outlined.Send, label = "Kirim WhatsApp WA Instan") {
                     showActionBottomSheet = false
-                    if (project.clientPhone.isBlank()) {
-                        Toast.makeText(context, "Gagal: Nomor WhatsApp klien tidak tersedia pada project ini.", Toast.LENGTH_LONG).show()
-                    } else {
-                        Toast.makeText(context, "Membuka WhatsApp...", Toast.LENGTH_SHORT).show()
-                        try {
-                            val clientPhoneFormatted = project.clientPhone.replace("+", "").replace("-", "").replace(" ", "")
-                            val waPhone = if (clientPhoneFormatted.startsWith("0")) "62" + clientPhoneFormatted.substring(1) else clientPhoneFormatted
-                            val shareMsg = "Halo *${project.clientName}*,\nBerikut detail invoice dari YANSPROJECT.ID:\n" +
-                                    "• Project: ${project.projectName}\n" +
-                                    "• Total Tagihan: ${com.yansproject.app.ui.FormatUtils.formatRupiah(project.grandTotal)}\n" +
-                                    "• Terbayar: ${com.yansproject.app.ui.FormatUtils.formatRupiah(project.paidAmount)}\n" +
-                                    "• Sisa: ${com.yansproject.app.ui.FormatUtils.formatRupiah(project.remainingBalance)}\n" +
-                                    "Terima kasih atas kerja samanya."
-
-                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                data = android.net.Uri.parse("https://api.whatsapp.com/send?phone=$waPhone&text=${android.net.Uri.encode(shareMsg)}")
-                            }
-                            context.startActivity(intent)
-                            Toast.makeText(context, "Aplikasi WhatsApp berhasil dibuka.", Toast.LENGTH_SHORT).show()
-                        } catch (e: Exception) {
-                            android.util.Log.e("ProfessionalInvoiceDetailScreen", "WhatsApp launch error: ${e.message}", e)
-                            Toast.makeText(context, "Gagal membuka WhatsApp: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                        }
-                    }
+                    val invoice = Invoice(
+                        id = kotlin.math.abs(project.id.hashCode()),
+                        invoiceNumber = "PRJ-${project.id.take(8).uppercase()}",
+                        clientName = project.clientName,
+                        clientPhone = project.clientPhone,
+                        issueDate = project.issueDate,
+                        dueDate = project.issueDate,
+                        totalAmount = project.grandTotal,
+                        paidAmount = project.paidAmount,
+                        discount = project.discountNominal,
+                        dpAmount = project.paidAmount,
+                        status = if (project.paidAmount >= project.grandTotal) "LUNAS" else "BELUM LUNAS"
+                    )
+                    val itemsList = listOf(
+                        InvoiceItemDetail(
+                            description = project.projectName,
+                            quantity = 1,
+                            price = project.grandTotal
+                        )
+                    )
+                    val pdfFile = com.yansproject.app.ui.DocumentExporter.exportToPdf(context, invoice, itemsList)
+                    val shareMsg = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, itemsList, context)
+                    com.yansproject.app.util.ShareUtils.shareFileToWhatsApp(context, pdfFile, project.clientPhone, shareMsg)
                 }
 
                 BottomSheetActionRow(icon = Icons.Outlined.ContentCopy, label = "Duplikasi Invoice Project") {

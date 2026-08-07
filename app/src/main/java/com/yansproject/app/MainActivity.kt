@@ -253,11 +253,13 @@ fun MainAppContainer(
   // Restrict navigation bounds adaptively
   LaunchedEffect(currentUser, currentTab) {
     val role = currentUser?.role ?: UserRole.MEMBER
-    val isOwner = role == UserRole.OWNER
-    if (!isOwner) {
-      if (currentTab == AppTab.PROJECT || currentTab == AppTab.INVOICE) {
-        viewModel.setTab(AppTab.DASHBOARD)
-      }
+    val canInvoices = role.canManageInvoices()
+    val canProjects = role.canManageProjects()
+    if (!canInvoices && currentTab == AppTab.INVOICE) {
+      viewModel.setTab(AppTab.RIWAYAT)
+    }
+    if (!canProjects && currentTab == AppTab.PROJECT) {
+      viewModel.setTab(AppTab.DASHBOARD)
     }
   }
 
@@ -406,7 +408,8 @@ fun MainAppContainer(
   if (showNotificationDialog) {
     NotificationCenterDialog(
       notifications = notifications,
-      isOwner = userRole == UserRole.OWNER,
+      isOwner = userRole.canManageInvoices(),
+      viewModel = viewModel,
       onDismiss = { showNotificationDialog = false },
       onMarkRead = { id -> viewModel.markNotificationAsRead(id) },
       onMarkAllRead = { viewModel.markAllNotificationsAsRead() },
@@ -643,7 +646,12 @@ fun GlobalSearchDialog(
                     modifier = Modifier
                       .fillMaxWidth()
                       .clickable {
-                        if (isOwner) viewModel.setTab(AppTab.INVOICE) else viewModel.setTab(AppTab.DASHBOARD)
+                        if (isOwner) {
+                          viewModel.setTab(AppTab.INVOICE)
+                        } else {
+                          viewModel.riwayatSearchQuery.value = inv.invoiceNumber
+                          viewModel.setTab(AppTab.RIWAYAT)
+                        }
                         onDismiss()
                       },
                     colors = CardDefaults.cardColors(containerColor = CardGrey)
@@ -932,6 +940,7 @@ fun GlobalSearchDialog(
 fun NotificationCenterDialog(
   notifications: List<AppSettings.AppNotification>,
   isOwner: Boolean,
+  viewModel: MainViewModel,
   onDismiss: () -> Unit,
   onMarkRead: (String) -> Unit,
   onMarkAllRead: () -> Unit,
@@ -1035,6 +1044,46 @@ fun NotificationCenterDialog(
         }
 
         Spacer(modifier = Modifier.height(10.dp))
+
+        val notificationManager = remember(context) { androidx.core.content.ContextCompat.getSystemService(context, android.app.NotificationManager::class.java) }
+        val isNotificationEnabled = notificationManager?.areNotificationsEnabled() == true
+
+        if (!isNotificationEnabled) {
+          Surface(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 4.dp)
+              .clickable {
+                try {
+                  val intent = android.content.Intent().apply {
+                    action = android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                    putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                  }
+                  context.startActivity(intent)
+                } catch (e: Exception) {
+                  try {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
+                    context.startActivity(intent)
+                  } catch (_: Exception) {}
+                }
+              },
+            shape = RoundedCornerShape(8.dp),
+            color = AlertRed.copy(alpha = 0.15f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed)
+          ) {
+            Row(
+              modifier = Modifier.padding(10.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+              Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = AlertRed, modifier = Modifier.size(20.dp))
+              Column(modifier = Modifier.weight(1f)) {
+                Text("Izin Notifikasi Sistem Nonaktif", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AlertRed)
+                Text("Ketuk di sini untuk mengaktifkan izin notifikasi di Pengaturan HP agar broadcast Owner selalu masuk.", fontSize = 10.sp, color = Color.White.copy(alpha = 0.85f))
+              }
+            }
+          }
+        }
 
         // Actions Row
         Row(
@@ -1317,10 +1366,14 @@ fun NotificationCenterDialog(
                             if (cat in setOf("SISTEM", "SYSTEM")) {
                               selectedSystemNotif = item
                             } else {
+                              if (invoiceMatch != null) {
+                                viewModel.riwayatSearchQuery.value = invoiceMatch
+                              }
                               val target = when {
-                                cat in setOf("PESANAN", "INVOICE", "ORDER") -> AppTab.INVOICE
+                                cat in setOf("PESANAN", "INVOICE", "ORDER", "PEMBAYARAN", "PAYMENT") -> {
+                                  if (isOwner) AppTab.INVOICE else AppTab.RIWAYAT
+                                }
                                 cat in setOf("STOCK", "STOK") -> AppTab.STOCK
-                                cat in setOf("PEMBAYARAN", "PAYMENT") -> AppTab.INVOICE
                                 else -> AppTab.SETTINGS
                               }
                               onNavigate(target)

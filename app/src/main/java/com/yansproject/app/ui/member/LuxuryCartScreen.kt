@@ -739,36 +739,40 @@ fun LuxuryCartScreen(
                                                 
                                                 // Size Grid (XS, S, M, L, XL, XXL, 3XL, 4XL)
                                                 val standardSizes = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
-                                                val chunkedSizes = standardSizes.chunked(4)
                                                 
-                                                Column(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
-                                                    chunkedSizes.forEach { rowSizes ->
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                        ) {
-                                                            rowSizes.forEach { size ->
-                                                                Box(modifier = Modifier.weight(1f)) {
-                                                                    SizeGridCard(
-                                                                        size = size,
-                                                                        sleeve = sleeve,
-                                                                        catalogId = sampleItem.catalogId,
-                                                                        catalogName = catalogName,
-                                                                        varianId = sampleItem.varianId,
-                                                                        varianName = varianName,
-                                                                        sleeveItems = sleeveItems,
-                                                                        stockMaster = matchingStockMaster,
-                                                                        priceCategory = priceCategory,
-                                                                        viewModel = viewModel
-                                                                    )
+                                                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                                                    val numColumns = if (maxWidth < 360.dp) 2 else 4
+                                                    val chunkedSizes = standardSizes.chunked(numColumns)
+                                                    
+                                                    Column(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        chunkedSizes.forEach { rowSizes ->
+                                                            Row(
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                            ) {
+                                                                rowSizes.forEach { size ->
+                                                                    Box(modifier = Modifier.weight(1f)) {
+                                                                        SizeGridCard(
+                                                                            size = size,
+                                                                            sleeve = sleeve,
+                                                                            catalogId = sampleItem.catalogId,
+                                                                            catalogName = catalogName,
+                                                                            varianId = sampleItem.varianId,
+                                                                            varianName = varianName,
+                                                                            sleeveItems = sleeveItems,
+                                                                            stockMaster = matchingStockMaster,
+                                                                            priceCategory = priceCategory,
+                                                                            viewModel = viewModel
+                                                                        )
+                                                                    }
                                                                 }
-                                                            }
-                                                            if (rowSizes.size < 4) {
-                                                                repeat(4 - rowSizes.size) {
-                                                                    Spacer(modifier = Modifier.weight(1f))
+                                                                if (rowSizes.size < numColumns) {
+                                                                    repeat(numColumns - rowSizes.size) {
+                                                                        Spacer(modifier = Modifier.weight(1f))
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -894,7 +898,7 @@ fun SizeGridCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(95.dp)
+            .heightIn(min = 96.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(if (isInCart) HighlightSoftCyan.copy(alpha = 0.08f) else CardDarkCard)
             .border(
@@ -923,7 +927,7 @@ fun SizeGridCard(
     ) {
         // Size and badge / Add trigger
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
@@ -962,26 +966,30 @@ fun SizeGridCard(
                 }
             }
 
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
                 text = priceLabel,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (isInCart) AgedGold else TextMuted,
-                modifier = Modifier.padding(bottom = if (isInCart) 0.dp else 4.dp)
+                modifier = Modifier.padding(bottom = if (isInCart) 2.dp else 4.dp)
             )
 
+            Spacer(modifier = Modifier.height(4.dp))
+
             if (isInCart && matchingItem != null) {
-                // Interactive Stepper inside Grid Card
+                // Interactive Stepper inside Grid Card: [- 0 +] or [- qty +]
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(26.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .height(28.dp)
+                        .clip(RoundedCornerShape(6.dp))
                         .background(SurfaceDarkTeal)
-                        .border(1.dp, BorderGrey, RoundedCornerShape(4.dp)),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .border(1.dp, BorderGrey.copy(alpha = 0.6f), RoundedCornerShape(6.dp)),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Minus (-) Button
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
@@ -993,9 +1001,9 @@ fun SizeGridCard(
                     ) {
                         Text(
                             text = "-",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
+                            color = HighlightSoftCyan,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold
                         )
                     }
                     
@@ -1003,9 +1011,35 @@ fun SizeGridCard(
                         modifier = Modifier
                             .width(1.dp)
                             .fillMaxHeight()
-                            .background(BorderGrey)
+                            .background(BorderGrey.copy(alpha = 0.5f))
                     )
 
+                    // Quantity Value Box (Center display: 0, 1, 2, etc.)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(1.2f)
+                            .background(ShadowBlack.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$qty",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .fillMaxHeight()
+                            .background(BorderGrey.copy(alpha = 0.5f))
+                    )
+
+                    // Plus (+) Button
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
@@ -1017,9 +1051,9 @@ fun SizeGridCard(
                     ) {
                         Text(
                             text = "+",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
+                            color = HighlightSoftCyan,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold
                         )
                     }
                 }

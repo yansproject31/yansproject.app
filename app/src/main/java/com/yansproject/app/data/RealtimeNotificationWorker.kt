@@ -88,11 +88,11 @@ class RealtimeNotificationWorker(
                                 (userEmail.isNotBlank() && cleanTargetUser.contains(userEmail))
                             )
                         } else {
-                            (roleTarget.uppercase() in setOf("ALL", "MEMBER", "BROADCAST", "PROMO")) &&
+                            (roleTarget.uppercase() in setOf("ALL", "MEMBER", "BROADCAST", "PROMO", "PUBLIC") || catUpper in setOf("BROADCAST", "PROMO", "SISTEM", "SYSTEM", "STOCK", "STOK")) &&
                             (cleanTargetUser == "all" || cleanTargetUser == userEmail || cleanTargetUser == savedName || cleanTargetUser.isBlank())
                         }
                     } else {
-                        roleTarget.uppercase() in setOf("ALL", "OWNER", "ADMIN", "BROADCAST", "PROMO") || cleanTargetUser == "all"
+                        roleTarget.uppercase() in setOf("ALL", "OWNER", "ADMIN", "BROADCAST", "PROMO", "PUBLIC") || cleanTargetUser == "all"
                     }
 
                     if (isForMe && title.isNotBlank()) {

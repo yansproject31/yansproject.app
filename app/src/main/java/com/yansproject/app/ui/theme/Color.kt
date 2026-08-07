@@ -90,6 +90,7 @@ val TextSecondary = YansTextSecondary
 val ErrorRed = YansError
 
 val PrimaryDarkTeal: Color get() = dynamicPrimaryDarkTeal
+val DeepTeal: Color = Color(0xFF163536)
 val SecondaryShadowBlackTeal: Color get() = dynamicSecondaryShadowBlackTeal
 val AccentAgedGold: Color get() = dynamicAgedGold
 val HighlightSoftCyan: Color get() = dynamicHighlightSoftCyan

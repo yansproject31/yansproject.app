@@ -444,7 +444,7 @@ fun DualInvoiceEditorScreen(
                                     clientPhone = clientPhone,
                                     totalAmount = grandTotal,
                                     paidAmount = dpVal,
-                                    status = if (remainingBalance <= 0.0) "LUNAS" else if (dpVal > 0.0) "DP" else "BELUM LUNAS",
+                                    status = if (remainingBalance <= 0.0) "LUNAS" else "BELUM LUNAS",
                                     issueDate = System.currentTimeMillis(),
                                     dueDate = System.currentTimeMillis() + 86400000 * 7,
                                     discount = discountNominal,

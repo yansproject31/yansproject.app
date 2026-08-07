@@ -3468,25 +3468,29 @@ fun MemberDetailStockView(
                                                 .border(1.dp, if (currentQty > 0) HighlightSoftCyan.copy(alpha = 0.5f) else BorderGrey, RoundedCornerShape(8.dp))
                                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                                         ) {
-                                            IconButton(
-                                                onClick = {
-                                                    if (currentQty > 0) {
-                                                        val nextQty = currentQty - 1
-                                                        if (nextQty == 0) {
-                                                            qtyStates.remove("$size-Pendek")
-                                                        } else {
-                                                            qtyStates["$size-Pendek"] = nextQty
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(PrimaryDarkTeal.copy(alpha = 0.6f))
+                                                    .clickable {
+                                                        if (currentQty > 0) {
+                                                            val nextQty = currentQty - 1
+                                                            if (nextQty == 0) {
+                                                                qtyStates.remove("$size-Pendek")
+                                                            } else {
+                                                                qtyStates["$size-Pendek"] = nextQty
+                                                            }
+                                                            textValue = nextQty.toString()
                                                         }
-                                                        textValue = nextQty.toString()
-                                                    }
-                                                },
-                                                modifier = Modifier.size(38.dp) // Touch Area diperbesar
+                                                    },
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Outlined.Remove,
                                                     contentDescription = "Kurang",
                                                     tint = Color.White,
-                                                    modifier = Modifier.size(16.dp)
+                                                    modifier = Modifier.size(14.dp)
                                                 )
                                             }
 
@@ -3516,29 +3520,33 @@ fun MemberDetailStockView(
                                                 ),
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                                 modifier = Modifier
-                                                    .widthIn(min = 32.dp, max = 80.dp) // Dynamic width
+                                                    .weight(1f)
                                                     .height(28.dp)
                                                     .wrapContentHeight(Alignment.CenterVertically),
                                                 singleLine = true
                                             )
 
-                                            IconButton(
-                                                onClick = {
-                                                    if (currentQty < pendekCount) {
-                                                        val nextQty = currentQty + 1
-                                                        qtyStates["$size-Pendek"] = nextQty
-                                                        textValue = nextQty.toString()
-                                                    } else {
-                                                        Toast.makeText(context, "Mencapai batas stok ($pendekCount Pcs)!", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                },
-                                                modifier = Modifier.size(38.dp) // Touch Area diperbesar
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(PrimaryDarkTeal.copy(alpha = 0.6f))
+                                                    .clickable {
+                                                        if (currentQty < pendekCount) {
+                                                            val nextQty = currentQty + 1
+                                                            qtyStates["$size-Pendek"] = nextQty
+                                                            textValue = nextQty.toString()
+                                                        } else {
+                                                            Toast.makeText(context, "Mencapai batas stok ($pendekCount Pcs)!", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    },
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Outlined.Add,
                                                     contentDescription = "Tambah",
                                                     tint = Color.White,
-                                                    modifier = Modifier.size(16.dp)
+                                                    modifier = Modifier.size(14.dp)
                                                 )
                                             }
                                         }
@@ -3685,25 +3693,29 @@ fun MemberDetailStockView(
                                                 .border(1.dp, if (currentQty > 0) HighlightSoftCyan.copy(alpha = 0.5f) else BorderGrey, RoundedCornerShape(8.dp))
                                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                                         ) {
-                                            IconButton(
-                                                onClick = {
-                                                    if (currentQty > 0) {
-                                                        val nextQty = currentQty - 1
-                                                        if (nextQty == 0) {
-                                                            qtyStates.remove("$size-Panjang")
-                                                        } else {
-                                                            qtyStates["$size-Panjang"] = nextQty
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(PrimaryDarkTeal.copy(alpha = 0.6f))
+                                                    .clickable {
+                                                        if (currentQty > 0) {
+                                                            val nextQty = currentQty - 1
+                                                            if (nextQty == 0) {
+                                                                qtyStates.remove("$size-Panjang")
+                                                            } else {
+                                                                qtyStates["$size-Panjang"] = nextQty
+                                                            }
+                                                            textValue = nextQty.toString()
                                                         }
-                                                        textValue = nextQty.toString()
-                                                    }
-                                                },
-                                                modifier = Modifier.size(38.dp) // Touch Area diperbesar
+                                                    },
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Outlined.Remove,
                                                     contentDescription = "Kurang",
                                                     tint = Color.White,
-                                                    modifier = Modifier.size(16.dp)
+                                                    modifier = Modifier.size(14.dp)
                                                 )
                                             }
 
@@ -3733,29 +3745,33 @@ fun MemberDetailStockView(
                                                 ),
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                                 modifier = Modifier
-                                                    .widthIn(min = 32.dp, max = 80.dp) // Dynamic width
+                                                    .weight(1f)
                                                     .height(28.dp)
                                                     .wrapContentHeight(Alignment.CenterVertically),
                                                 singleLine = true
                                             )
 
-                                            IconButton(
-                                                onClick = {
-                                                    if (currentQty < panjangCount) {
-                                                        val nextQty = currentQty + 1
-                                                        qtyStates["$size-Panjang"] = nextQty
-                                                        textValue = nextQty.toString()
-                                                    } else {
-                                                        Toast.makeText(context, "Mencapai batas stok ($panjangCount Pcs)!", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                },
-                                                modifier = Modifier.size(38.dp) // Touch Area diperbesar
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(PrimaryDarkTeal.copy(alpha = 0.6f))
+                                                    .clickable {
+                                                        if (currentQty < panjangCount) {
+                                                            val nextQty = currentQty + 1
+                                                            qtyStates["$size-Panjang"] = nextQty
+                                                            textValue = nextQty.toString()
+                                                        } else {
+                                                            Toast.makeText(context, "Mencapai batas stok ($panjangCount Pcs)!", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    },
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Outlined.Add,
                                                     contentDescription = "Tambah",
                                                     tint = Color.White,
-                                                    modifier = Modifier.size(16.dp)
+                                                    modifier = Modifier.size(14.dp)
                                                 )
                                             }
                                         }

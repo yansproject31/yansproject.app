@@ -300,10 +300,14 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
                 val repository = BusinessRepository(db)
                 val prefix = AppSettings.getInvoicePrefix(getApplication())
                 val invoiceNum = if (invoice.invoiceNumber.isNotBlank()) invoice.invoiceNumber else repository.generateInvoiceNumber(prefix, invoice.issueDate)
-                val finalInv = invoice.copy(invoiceNumber = invoiceNum)
+                val actualDp = if (dpAmount > 0.0) dpAmount else invoice.paidAmount
+                val finalInv = invoice.copy(
+                    invoiceNumber = invoiceNum,
+                    paidAmount = 0.0,
+                    status = "BELUM BAYAR"
+                )
                 val savedInv = repository.createDirectInvoice(finalInv)
 
-                val actualDp = if (dpAmount > 0.0) dpAmount else invoice.paidAmount
                 if (actualDp > 0.0) {
                     val adminName = AppSettings.getStoreName(getApplication()).ifBlank { "System" }
                     val adminUid = AppSettings.getEmail(getApplication()).ifBlank { "sys_user" }

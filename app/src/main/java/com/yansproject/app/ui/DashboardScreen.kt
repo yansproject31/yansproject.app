@@ -1107,7 +1107,7 @@ fun DashboardScreen(
     // Order POS yang belum/tidak memiliki Invoice
     val filteredStandaloneOrders = remember(filteredOrders, invoices) {
         filteredOrders.filter { ord ->
-            invoices.none { inv -> inv.orderId == ord.id }
+            invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id }
         }
     }
 
@@ -1154,7 +1154,7 @@ fun DashboardScreen(
     }
     val allTimeStandaloneOrdersPaid = remember(orders, invoices) {
         orders.filter { ord ->
-            !ord.isDeleted && invoices.none { inv -> inv.orderId == ord.id }
+            !ord.isDeleted && invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id }
         }.sumOf { getEffectiveOrderPaid(it) }
     }
     val allTimeInflowsAmount = remember(inflows) { 
@@ -1231,11 +1231,11 @@ fun DashboardScreen(
     }
 
     // --- TIMELINE AKTIVITAS TERBARU DUA ARAH ---
-    val activities = remember(invoices, projects, stockItems, orders, expenses, selectedFilter) {
+    val activities = remember(invoices, projects, stockItems, orders, expenses, selectedFilter, allPayments) {
         val list = mutableListOf<DashboardActivity>()
 
         // A. Project Baru
-        projects.forEach { proj ->
+        projects.filter { !it.isDeleted }.forEach { proj ->
             if (isTimestampInFilter(proj.startDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
@@ -1250,7 +1250,7 @@ fun DashboardScreen(
         }
 
         // B. Invoice Baru
-        invoices.forEach { inv ->
+        invoices.filter { !it.isDeleted && it.status.uppercase().trim() !in listOf("BATAL", "CANCELLED", "DIBATALKAN", "VOID", "DRAFT", "REFUND") }.forEach { inv ->
             if (isTimestampInFilter(inv.issueDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
@@ -1265,7 +1265,7 @@ fun DashboardScreen(
         }
 
         // C. Penjualan AJIBQOBUL
-        orders.forEach { ord ->
+        orders.filter { !it.isDeleted }.forEach { ord ->
             if (isTimestampInFilter(ord.orderDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
@@ -1280,7 +1280,7 @@ fun DashboardScreen(
         }
 
         // D. Stock Masuk Rill
-        stockItems.filter { it.stockCount > 0 }.take(5).forEach { item ->
+        stockItems.filter { !it.isDeleted && it.stockCount > 0 }.take(5).forEach { item ->
             val updateDate = if (item.lastUpdated > 0) item.lastUpdated else System.currentTimeMillis()
             if (isTimestampInFilter(updateDate, selectedFilter)) {
                 list.add(
@@ -1296,7 +1296,7 @@ fun DashboardScreen(
         }
 
         // E. Stock Keluar (Diambil dari transaksi pemesanan / penjualan real-time)
-        orders.forEach { ord ->
+        orders.filter { !it.isDeleted }.forEach { ord ->
             if (isTimestampInFilter(ord.orderDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
@@ -1311,7 +1311,7 @@ fun DashboardScreen(
         }
 
         // F. Pemasukan (Diambil dari invoice yang sudah di-bayar / LUNAS / DP)
-        invoices.forEach { inv ->
+        invoices.filter { !it.isDeleted && it.status.uppercase().trim() !in listOf("BATAL", "CANCELLED", "DIBATALKAN", "VOID", "DRAFT", "REFUND") }.forEach { inv ->
             val paid = calculateInvoicePaid(inv, allPayments)
             if (paid > 0 && isTimestampInFilter(inv.issueDate, selectedFilter)) {
                 list.add(
@@ -1327,9 +1327,9 @@ fun DashboardScreen(
         }
 
         // Pemasukan POS / Order Standalone
-        orders.forEach { ord ->
+        orders.filter { !it.isDeleted }.forEach { ord ->
             val paid = getEffectiveOrderPaid(ord)
-            val isNotCoveredByInvoice = invoices.none { inv -> inv.orderId == ord.id }
+            val isNotCoveredByInvoice = invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id }
             if (paid > 0 && isNotCoveredByInvoice && isTimestampInFilter(ord.orderDate, selectedFilter)) {
                 list.add(
                     DashboardActivity(
@@ -1486,10 +1486,10 @@ fun DashboardScreen(
 
                     // Pre-compute today's metrics for Sprint 7C
                     val orderHariIni = remember(invoices, startOfToday, endOfToday) { invoices.count { !it.isDeleted && it.issueDate in startOfToday..endOfToday } }
-                    val invoiceBelumBayar = remember(invoices) { invoices.count { !it.isDeleted && it.status == "BELUM LUNAS" } }
-                    val invoiceSebagian = remember(invoices) { invoices.count { !it.isDeleted && it.status == "DP" } }
-                    val invoiceLunas = remember(invoices) { invoices.count { !it.isDeleted && it.status == "LUNAS" } }
-                    val totalPenjualanHariIni = remember(invoices, startOfToday, endOfToday) { invoices.filter { !it.isDeleted && it.issueDate in startOfToday..endOfToday }.sumOf { it.totalAmount } }
+                    val invoiceBelumBayar = remember(invoices) { invoices.count { !it.isDeleted && (it.status.uppercase().trim() in listOf("BELUM LUNAS", "BELUM BAYAR", "PENDING", "MENUNGGU PERSETUJUAN")) } }
+                    val invoiceSebagian = remember(invoices) { invoices.count { !it.isDeleted && (it.status.uppercase().trim() in listOf("DP", "DICICIL", "DP AWAL", "DP PRODUKSI")) } }
+                    val invoiceLunas = remember(invoices) { invoices.count { !it.isDeleted && (it.status.uppercase().trim() in listOf("LUNAS", "PAID", "SELESAI")) } }
+                    val totalPenjualanHariIni = remember(invoices, allPayments, startOfToday, endOfToday) { invoices.filter { !it.isDeleted && it.issueDate in startOfToday..endOfToday && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "REFUND") }.sumOf { calculateInvoicePaid(it, allPayments) } }
 
                     LazyColumn(
                         modifier = Modifier
@@ -1623,7 +1623,7 @@ fun DashboardScreen(
                             projectAktifCount = projectAktifCount,
                             invoiceBelumLunasCount = invoiceBelumLunasCount,
                             onCatalogClick = { viewModel.setTab(AppTab.STOCK) },
-                            onOrderClick = { viewModel.setTab(AppTab.INVOICE) }
+                            onOrderClick = { viewModel.setTab(AppTab.RIWAYAT) }
                         )
                     }
 
@@ -1741,7 +1741,12 @@ fun DashboardScreen(
                                 "PROJECT AKTIF" -> viewModel.setTab(AppTab.PROJECT)
                                 "INVOICE UNPAID" -> {
                                     viewModel.invoiceStatusFilter.value = "Semua"
-                                    viewModel.setTab(AppTab.INVOICE)
+                                    if (userRole.canManageInvoices()) {
+                                        viewModel.setTab(AppTab.INVOICE)
+                                    } else {
+                                        viewModel.riwayatSearchQuery.value = ""
+                                        viewModel.setTab(AppTab.RIWAYAT)
+                                    }
                                 }
                             }
                         }
@@ -1984,7 +1989,11 @@ fun DashboardScreen(
             invoice = currentDashInvoice,
             onDismiss = { selectedInvoiceForDetail = null },
             onNavigateToInvoice = {
-                viewModel.setTab(AppTab.INVOICE)
+                if (userRole.canManageInvoices()) {
+                    viewModel.setTab(AppTab.INVOICE)
+                } else {
+                    viewModel.setTab(AppTab.RIWAYAT)
+                }
                 selectedInvoiceForDetail = null
             },
             viewModel = viewModel
@@ -3308,11 +3317,11 @@ fun InteractiveDonutChart(
 fun getEffectiveInvoicePaid(inv: Invoice): Double {
     if (inv.isDeleted) return 0.0
     val st = inv.status.trim().uppercase()
-    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT")) return 0.0
-    if (inv.paidAmount > 0.0) return inv.paidAmount
+    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "REFUND")) return 0.0
     if (st in listOf("LUNAS", "PAID", "SELESAI", "LUNAS (PAID)")) {
-        return if (inv.totalAmount > 0.0) inv.totalAmount else 0.0
+        return if (inv.totalAmount > 0.0) maxOf(inv.totalAmount, inv.paidAmount) else inv.paidAmount
     }
+    if (inv.paidAmount > 0.0) return inv.paidAmount
     if (inv.dpAmount > 0.0) return inv.dpAmount
     return 0.0
 }
@@ -3320,9 +3329,9 @@ fun getEffectiveInvoicePaid(inv: Invoice): Double {
 fun calculateInvoicePaid(inv: Invoice, allPayments: List<InvoicePayment> = emptyList()): Double {
     if (inv.isDeleted) return 0.0
     val st = inv.status.trim().uppercase()
-    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT")) return 0.0
+    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "REFUND")) return 0.0
     if (st in listOf("LUNAS", "PAID", "SELESAI", "LUNAS (PAID)")) {
-        return if (inv.totalAmount > 0.0) inv.totalAmount else 0.0
+        return if (inv.totalAmount > 0.0) maxOf(inv.totalAmount, inv.paidAmount) else inv.paidAmount
     }
     val paymentsForInv = allPayments.filter { p ->
         (p.invoiceId == inv.invoiceNumber && inv.invoiceNumber.isNotBlank()) || 
@@ -3338,7 +3347,7 @@ fun calculateInvoicePaid(inv: Invoice, allPayments: List<InvoicePayment> = empty
 fun calculateInvoiceSisaPiutang(inv: Invoice, allPayments: List<InvoicePayment> = emptyList()): Double {
     if (inv.isDeleted) return 0.0
     val st = inv.status.trim().uppercase()
-    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "LUNAS", "PAID", "SELESAI", "LUNAS (PAID)")) return 0.0
+    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "LUNAS", "PAID", "SELESAI", "LUNAS (PAID)", "REFUND")) return 0.0
     
     val paid = calculateInvoicePaid(inv, allPayments)
     return maxOf(0.0, inv.totalAmount - paid)
@@ -4167,6 +4176,7 @@ fun RiwayatLaporanScreen(
 ) {
     val context = LocalContext.current
     val invoices by viewModel.allInvoices.collectAsState()
+    val allPayments by viewModel.allInvoicePayments.collectAsState()
     val expenses by viewModel.allExpenses.collectAsState()
     val inflows by viewModel.allInflows.collectAsState()
     val orders by viewModel.allOrders.collectAsState()
@@ -4175,7 +4185,7 @@ fun RiwayatLaporanScreen(
     var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
     var selectedLogForReceipt by remember { mutableStateOf<DashboardActivity?>(null) }
 
-    val filteredLogs = remember(invoices, expenses, inflows, orders, selectedPeriod, selectedCategoryFilter) {
+    val filteredLogs = remember(invoices, allPayments, expenses, inflows, orders, selectedPeriod, selectedCategoryFilter) {
         val list = mutableListOf<DashboardActivity>()
         
         fun isTimeInFilter(time: Long): Boolean {
@@ -4197,10 +4207,7 @@ fun RiwayatLaporanScreen(
 
         // Pemasukan dari Invoices (Lunas/paidAmount > 0)
         invoices.forEach { inv ->
-            val paid = if (inv.paidAmount > 0.0) inv.paidAmount
-            else if (inv.status.equals("LUNAS", ignoreCase = true) || inv.status.equals("PAID", ignoreCase = true) || inv.status.equals("SELESAI", ignoreCase = true)) inv.totalAmount
-            else if (inv.dpAmount > 0.0) inv.dpAmount
-            else 0.0
+            val paid = calculateInvoicePaid(inv, allPayments)
             if (!inv.isDeleted && paid > 0 && isTimeInFilter(inv.issueDate)) {
                 list.add(
                     DashboardActivity(
@@ -4221,7 +4228,7 @@ fun RiwayatLaporanScreen(
             val paid = if (ord.paidAmount > 0.0) ord.paidAmount
             else if (st == "COMPLETED" || st == "SELESAI" || st == "LUNAS" || st == "PAID" || st == "DISETUJUI" || st == "TERBAYAR") ord.totalAmount
             else 0.0
-            val isNotCoveredByInvoice = invoices.none { inv -> inv.orderId == ord.id }
+            val isNotCoveredByInvoice = invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id }
             if (!ord.isDeleted && paid > 0 && isNotCoveredByInvoice && isTimeInFilter(ord.orderDate)) {
                 list.add(
                     DashboardActivity(

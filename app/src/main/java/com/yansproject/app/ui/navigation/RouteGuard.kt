@@ -46,10 +46,21 @@ object RouteGuard {
         Routes.SettingsBackup
     )
 
+    private val INVOICE_MANAGEMENT_ROUTES = setOf(
+        Routes.Invoice,
+        Routes.AddInvoice
+    )
+
     fun isFinancialRoute(route: String?): Boolean {
         if (route.isNullOrBlank()) return false
         val baseRoute = route.split("?", "{")[0].trim()
         return FINANCIAL_SENSITIVE_ROUTES.contains(baseRoute)
+    }
+
+    fun isInvoiceRoute(route: String?): Boolean {
+        if (route.isNullOrBlank()) return false
+        val baseRoute = route.split("?", "{")[0].trim()
+        return INVOICE_MANAGEMENT_ROUTES.contains(baseRoute)
     }
 
     fun isUserAuthorizedForFinancials(role: UserRole?): Boolean {
@@ -57,8 +68,51 @@ object RouteGuard {
         return role.canAccessFinancials() || role == UserRole.OWNER || role == UserRole.ADMIN
     }
 
+    fun isUserAuthorizedForInvoices(role: UserRole?): Boolean {
+        if (role == null) return false
+        return role.canManageInvoices()
+    }
+
     /**
-     * Async verification of Firebase Auth custom claims & local session role
+     * Async verification of Firebase Auth custom claims & local session role for Invoices
+     */
+    suspend fun verifyInvoiceAccessWithCustomClaims(fallbackRole: UserRole?): RouteAccessResult {
+        if (!isUserAuthorizedForInvoices(fallbackRole)) {
+            return RouteAccessResult.Denied("Peran Pengguna (${fallbackRole?.name ?: "MEMBER"}) tidak memiliki izin untuk mengelola atau mengakses Manajemen Invoice ERP YANSPROJECT.ID.")
+        }
+
+        val firebaseUser = try {
+            FirebaseAuth.getInstance().currentUser
+        } catch (e: Exception) {
+            null
+        }
+
+        if (firebaseUser != null) {
+            try {
+                val idTokenResult = firebaseUser.getIdToken(false).await()
+                val claims = idTokenResult.claims
+                val claimRole = claims["role"] as? String
+                val isOwnerClaim = (claims["isOwner"] as? Boolean) ?: (claims["owner"] as? Boolean) ?: false
+                val isAdminClaim = (claims["isAdmin"] as? Boolean) ?: (claims["admin"] as? Boolean) ?: false
+
+                if (isOwnerClaim || isAdminClaim || claimRole.equals("OWNER", ignoreCase = true) || claimRole.equals("ADMIN", ignoreCase = true)) {
+                    return RouteAccessResult.Granted
+                } else if (claimRole != null && !claimRole.equals("OWNER", ignoreCase = true) && !claimRole.equals("ADMIN", ignoreCase = true)) {
+                    return RouteAccessResult.Denied("Custom Claim Firebase Auth ('$claimRole') membatasi akses Manajemen Invoice ERP.")
+                }
+            } catch (e: Exception) {
+                if (fallbackRole == UserRole.OWNER || fallbackRole == UserRole.ADMIN) {
+                    return RouteAccessResult.Granted
+                }
+            }
+        }
+
+        return if (isUserAuthorizedForInvoices(fallbackRole)) RouteAccessResult.Granted
+        else RouteAccessResult.Denied("Akses ditolak oleh kebijakan otorisasi YANSPROJECT.ID.")
+    }
+
+    /**
+     * Async verification of Firebase Auth custom claims & local session role for Financials
      */
     suspend fun verifyFinancialAccessWithCustomClaims(fallbackRole: UserRole?): RouteAccessResult {
         // 1. Check local session role first
@@ -96,6 +150,55 @@ object RouteGuard {
 
         return if (isUserAuthorizedForFinancials(fallbackRole)) RouteAccessResult.Granted
         else RouteAccessResult.Denied("Akses ditolak oleh kebijakan keamanan YANSPROJECT.ID.")
+    }
+}
+
+/**
+ * GuardedInvoiceRoute Component
+ * Wraps Invoice management screens to enforce Owner/Admin authorization.
+ */
+@Composable
+fun GuardedInvoiceRoute(
+    userRole: UserRole?,
+    onNavigateBack: () -> Unit = {},
+    onNavigateToHistory: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    var accessState by remember(userRole) {
+        mutableStateOf<RouteAccessResult>(
+            if (RouteGuard.isUserAuthorizedForInvoices(userRole)) RouteAccessResult.Granted
+            else RouteAccessResult.Checking
+        )
+    }
+
+    LaunchedEffect(userRole) {
+        if (!RouteGuard.isUserAuthorizedForInvoices(userRole)) {
+            accessState = RouteGuard.verifyInvoiceAccessWithCustomClaims(userRole)
+        }
+    }
+
+    when (val state = accessState) {
+        is RouteAccessResult.Checking -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(BackgroundShadowBlack),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = AgedGold)
+            }
+        }
+        is RouteAccessResult.Granted -> {
+            content()
+        }
+        is RouteAccessResult.Denied -> {
+            AccessDeniedScreen(
+                title = "AKSES MANAJEMEN INVOICE DIBATASI",
+                reason = state.reason,
+                onNavigateBack = onNavigateBack,
+                onNavigateToHistory = onNavigateToHistory
+            )
+        }
     }
 }
 
@@ -138,6 +241,7 @@ fun GuardedFinancialRoute(
         }
         is RouteAccessResult.Denied -> {
             AccessDeniedScreen(
+                title = "AKSES KEUANGAN DIBATASI",
                 reason = state.reason,
                 onNavigateBack = onNavigateBack
             )
@@ -147,8 +251,10 @@ fun GuardedFinancialRoute(
 
 @Composable
 fun AccessDeniedScreen(
+    title: String = "AKSES KEUANGAN DIBATASI",
     reason: String,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToHistory: (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
@@ -186,7 +292,7 @@ fun AccessDeniedScreen(
                 }
 
                 Text(
-                    text = "AKSES KEUANGAN DIBATASI",
+                    text = title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Black,
                     color = AlertRed,
@@ -220,7 +326,7 @@ fun AccessDeniedScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            text = "Modul ini dilindungi oleh Route Guard & Firebase Auth Custom Claims YANSPROJECT.ID.",
+                            text = "Modul ini dilindungi oleh Route Guard & Otorisasi Peran YANSPROJECT.ID.",
                             fontSize = 11.sp,
                             color = AgedGold,
                             lineHeight = 15.sp
@@ -230,16 +336,35 @@ fun AccessDeniedScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Button(
-                    onClick = onNavigateBack,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryDarkTeal,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Kembali ke Dashboard Utama", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    if (onNavigateToHistory != null) {
+                        Button(
+                            onClick = onNavigateToHistory,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PrimaryDarkTeal,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Buka Riwayat Transaksi Saya", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = onNavigateBack,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.White
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryDarkTeal),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Kembali ke Dashboard Utama", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

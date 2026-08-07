@@ -144,7 +144,7 @@ fun AnalisisKeuanganGlobalScreen(
     }
 
     val filteredStandaloneOrders = remember(filteredOrders, invoices) {
-        filteredOrders.filter { ord -> invoices.none { inv -> inv.orderId == ord.id } }
+        filteredOrders.filter { ord -> invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id } }
     }
 
     // Helper calculate paid amount for invoice defensively
@@ -181,7 +181,7 @@ fun AnalisisKeuanganGlobalScreen(
         }.sumOf { calcPaid(it) }
     }
     val allTimePosPaid = remember(orders, invoices) {
-        orders.filter { ord -> !ord.isDeleted && invoices.none { inv -> inv.orderId == ord.id } }.sumOf { getEffectiveOrderPaid(it) }
+        orders.filter { ord -> !ord.isDeleted && invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id } }.sumOf { getEffectiveOrderPaid(it) }
     }
     val allTimeDirectInflow = remember(inflows) {
         inflows.filter {
@@ -704,7 +704,7 @@ fun AnalisisPenjualanAjibqobulScreen(
     }
 
     val filteredStandaloneOrders = remember(filteredOrders, invoices) {
-        filteredOrders.filter { ord -> invoices.none { inv -> inv.orderId == ord.id } }
+        filteredOrders.filter { ord -> invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id } }
     }
 
     // Helper calculate paid amount for invoice defensively

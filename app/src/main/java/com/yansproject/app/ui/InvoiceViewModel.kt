@@ -23,6 +23,8 @@ import java.net.URL
  */
 class InvoiceViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val repository = com.yansproject.app.data.InvoiceRepository.getInstance(application)
+
     private val _invoiceQueue = MutableStateFlow<List<DomainInvoice>>(emptyList())
     val invoiceQueue: StateFlow<List<DomainInvoice>> = _invoiceQueue.asStateFlow()
 
@@ -35,6 +37,46 @@ class InvoiceViewModel(application: Application) : AndroidViewModel(application)
     init {
         // Production state starts clean; demo state is isolated and never seeded into live UI by default
         _invoicesState.value = emptyList()
+    }
+
+    /**
+     * Process invoice payment safely using InvoiceRepository with client-side UUID generation,
+     * duplicate check, and atomic Room/Firestore commits.
+     */
+    fun processPayment(
+        invoiceId: Int,
+        amount: Double,
+        method: String = "Transfer Bank",
+        methodDetail: String = "",
+        notes: String = "",
+        adminName: String = "Admin",
+        adminUid: String = "ADMIN_EMAIL",
+        customDate: Long? = null,
+        transactionId: String? = null,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val txnKey = if (!transactionId.isNullOrBlank()) transactionId else java.util.UUID.randomUUID().toString()
+            val success = repository.addInvoicePayment(
+                invoiceId = invoiceId,
+                amount = amount,
+                method = method,
+                methodDetail = methodDetail,
+                notes = notes,
+                adminName = adminName,
+                adminUid = adminUid,
+                customDate = customDate,
+                transactionId = txnKey
+            )
+            withContext(Dispatchers.Main) {
+                if (success) {
+                    _syncLog.value = "Pembayaran Rp ${amount.toInt()} berhasil diproses [TX: $txnKey]"
+                } else {
+                    _syncLog.value = "Gagal memproses pembayaran. Periksa saldo tagihan atau transaksi terduplikasi."
+                }
+                onComplete?.invoke(success)
+            }
+        }
     }
 
     /**

@@ -99,7 +99,8 @@ object WhatsAppInvoiceFormatter {
 
     fun buildWhatsAppText(
         invoice: Invoice,
-        items: List<InvoiceItemDetail>
+        items: List<InvoiceItemDetail>,
+        context: Context? = null
     ): String {
         val opInvoice = OperationalInvoice(
             id = invoice.id.toString(),
@@ -115,6 +116,6 @@ object WhatsAppInvoiceFormatter {
             dpAmount = invoice.dpAmount,
             itemsJson = invoice.itemsJson
         )
-        return buildWhatsAppText(opInvoice, items, null)
+        return buildWhatsAppText(opInvoice, items, context)
     }
 }

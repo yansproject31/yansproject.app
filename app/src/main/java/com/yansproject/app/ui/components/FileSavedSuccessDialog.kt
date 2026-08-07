@@ -37,6 +37,8 @@ fun FileSavedSuccessDialog(
     folder: File = if (file.isDirectory) file else (file.parentFile ?: file),
     title: String = "BERHASIL TERSIMPAN DI PENYIMPANAN INTERNAL",
     subtitle: String = "Single Source of Truth • YANSPROJECT.ID",
+    clientPhone: String? = null,
+    shareMessage: String? = null,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -173,61 +175,90 @@ fun FileSavedSuccessDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Action Buttons
-                Button(
-                    onClick = {
-                        DocumentExporter.openFolder(context, folder)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = Color.Black),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FolderOpen,
-                        contentDescription = "Buka Folder",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("LIHAT / BUKA FOLDER", fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
+                // Action Buttons Row 1: Buka Dokumen & Buka Folder
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Button(
+                        onClick = {
+                            DocumentExporter.openFile(context, file)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = Color.Black),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                    ) {
+                        Text("BUKA DOKUMEN", fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
+                    }
+
+                    Button(
+                        onClick = {
+                            DocumentExporter.openFolder(context, folder)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = HighlightSoftCyan, contentColor = Color.Black),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FolderOpen,
+                            contentDescription = "Buka Folder",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("BUKA FOLDER", fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Action Buttons Row 2: Kirim WhatsApp & Bagikan Lainnya
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            DocumentExporter.shareFileToWhatsApp(context, file, clientPhone, shareMessage)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = Color.White),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .height(42.dp)
+                    ) {
+                        Text("KIRIM WHATSAPP", fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, color = Color.White)
+                    }
+
                     OutlinedButton(
                         onClick = {
                             DocumentExporter.shareFile(context, file)
                         },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = HighlightSoftCyan),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, HighlightSoftCyan),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier
-                            .weight(1f)
+                            .weight(0.9f)
                             .height(42.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Share, contentDescription = "Bagikan", modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(imageVector = Icons.Default.Share, contentDescription = "Bagikan", modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text("BAGIKAN", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
+                }
 
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(42.dp)
-                    ) {
-                        Text("TUTUP", fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                    }
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("TUTUP", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

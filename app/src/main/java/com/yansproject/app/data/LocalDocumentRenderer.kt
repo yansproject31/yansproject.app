@@ -302,15 +302,16 @@ class LocalDocumentRenderer(private val context: Context) {
 
             pdfDocument.finishPage(page)
 
-            // Save PDF locally to device Downloads
+            // Save PDF locally to app-specific export directory and mirror to Downloads
             val safeNum = invoice.invoiceNumber.replace("/", "_").replace("\\", "_")
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (!downloadsDir.exists()) downloadsDir.mkdirs()
-            val file = File(downloadsDir, "Invoice_${safeNum}.pdf")
+            val dir = com.yansproject.app.util.FileUtils.getExportDirectory(context, "invoice")
+            val file = File(dir, "Invoice_${safeNum}.pdf")
             val outputStream = FileOutputStream(file)
             pdfDocument.writeTo(outputStream)
             outputStream.flush()
             outputStream.close()
+
+            com.yansproject.app.util.FileUtils.mirrorToDownloads(context, file, "Invoice")
 
             return file
         } catch (e: Exception) {
@@ -569,18 +570,17 @@ class LocalDocumentRenderer(private val context: Context) {
         val bitmap = generateInvoicePngBitmap(invoice, items) ?: return null
 
         try {
-            // Save to Pictures gallery
-            val picturesDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "YansERP")
-            if (!picturesDir.exists()) picturesDir.mkdirs()
-
-            val file = File(picturesDir, "Invoice_${invoice.invoiceNumber}.png")
+            val safeNum = invoice.invoiceNumber.replace("/", "_").replace("\\", "_")
+            val exportDir = com.yansproject.app.util.FileUtils.getExportDirectory(context, "invoice")
+            val file = File(exportDir, "Invoice_${safeNum}.png")
             val fos = FileOutputStream(file)
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
             fos.flush()
             fos.close()
 
-            // Also insert into MediaStore for instant Gallery availability
-            saveBitmapToGallery(bitmap, "Invoice_${invoice.invoiceNumber}")
+            // Also insert into MediaStore & mirror to Downloads for instant availability
+            saveBitmapToGallery(bitmap, "Invoice_${safeNum}")
+            com.yansproject.app.util.FileUtils.mirrorToDownloads(context, file, "Invoice")
 
             return file
         } catch (e: Exception) {

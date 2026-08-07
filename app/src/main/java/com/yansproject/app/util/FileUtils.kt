@@ -1,9 +1,13 @@
 package com.yansproject.app.util
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.FileProvider
@@ -15,7 +19,9 @@ object FileUtils {
 
     fun getRootDirectory(context: Context): File {
         val appDoc = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
-        if (!appDoc.exists()) appDoc.mkdirs()
+        if (!appDoc.exists()) {
+            appDoc.mkdirs()
+        }
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             try {
@@ -74,52 +80,120 @@ object FileUtils {
             return null
         }
         return try {
-            val publicDownloads = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "YANSPROJECT.ID/$subFolder")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val mimeType = when {
+                    file.name.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+                    file.name.endsWith(".png", ignoreCase = true) -> "image/png"
+                    file.name.endsWith(".csv", ignoreCase = true) -> "text/csv"
+                    else -> "*/*"
+                }
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/YANSPROJECT.ID/$subFolder")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val resolver = context.contentResolver
+                val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+                val itemUri = resolver.insert(collection, contentValues)
+                if (itemUri != null) {
+                    resolver.openOutputStream(itemUri)?.use { outStream ->
+                        file.inputStream().use { inStream ->
+                            inStream.copyTo(outStream)
+                        }
+                    }
+                    contentValues.clear()
+                    contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    resolver.update(itemUri, contentValues, null, null)
+                    Log.i(TAG, "Successfully mirrored ${file.name} to MediaStore Downloads: $itemUri")
+                }
+            }
+
+            // Always maintain a physical copy in app-specific public Downloads directory
+            val publicDownloads = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "YANSPROJECT.ID/$subFolder")
             if (!publicDownloads.exists()) publicDownloads.mkdirs()
             val dest = File(publicDownloads, file.name)
             file.copyTo(dest, overwrite = true)
-            Log.i(TAG, "Successfully mirrored ${file.name} to Downloads: ${dest.absolutePath}")
+            Log.i(TAG, "Successfully mirrored ${file.name} to app-specific Downloads: ${dest.absolutePath}")
             dest
         } catch (e: SecurityException) {
             Log.w(TAG, "Permission denied mirroring ${file.name} to public Downloads: ${e.message}")
-            null
-        } catch (e: java.io.IOException) {
-            Log.e(TAG, "I/O error mirroring ${file.name} to public Downloads: ${e.message}", e)
-            null
+            file
         } catch (e: Exception) {
             Log.e(TAG, "Failed mirroring file to Downloads directory: ${e.message}", e)
-            null
+            file
         }
     }
 
     fun openFolder(context: Context, folder: File) {
+        val targetDir = if (folder.isDirectory) folder else (folder.parentFile ?: folder)
+        if (!targetDir.exists()) {
+            try { targetDir.mkdirs() } catch (_: Exception) {}
+        }
+
+        val authority = "${context.packageName}.fileprovider"
+        val folderUri: Uri = try {
+            FileProvider.getUriForFile(context, authority, targetDir)
+        } catch (e: Exception) {
+            Uri.fromFile(targetDir)
+        }
+
+        var launched = false
+
+        // Strategy 1: Intent with FileProvider Uri using "resource/folder" MIME type
         try {
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                if (folder.isDirectory) folder else (folder.parentFile ?: folder)
-            )
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "resource/folder")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                setDataAndType(folderUri, "resource/folder")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
-        } catch (e: android.content.ActivityNotFoundException) {
+            launched = true
+        } catch (e: Exception) {
+            Log.w(TAG, "FileProvider resource/folder view failed: ${e.message}")
+        }
+
+        // Strategy 2: Intent using SAF DocumentsContract directory Uri & EXTRA_INITIAL_URI
+        if (!launched) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(folderUri, "vnd.android.document/directory")
+                    putExtra("android.provider.extra.INITIAL_URI", folderUri)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        putExtra(DocumentsContract.EXTRA_INITIAL_URI, folderUri)
+                    }
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                launched = true
+            } catch (e: Exception) {
+                Log.w(TAG, "SAF directory view failed for $folderUri: ${e.message}")
+            }
+        }
+
+        // Strategy 3: System GET_CONTENT picker pointing directly to specific Uri
+        if (!launched) {
             try {
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     type = "*/*"
                     addCategory(Intent.CATEGORY_OPENABLE)
+                    putExtra("android.provider.extra.INITIAL_URI", folderUri)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        putExtra(DocumentsContract.EXTRA_INITIAL_URI, folderUri)
+                    }
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(intent)
-            } catch (ex: Exception) {
-                Log.w(TAG, "Unable to launch system file chooser intent for ${folder.absolutePath}: ${ex.message}")
-                Toast.makeText(context, "Folder tersimpan di: ${folder.absolutePath}", Toast.LENGTH_LONG).show()
+                launched = true
+            } catch (e: Exception) {
+                Log.w(TAG, "System GET_CONTENT with initial Uri failed: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error opening folder URI: ${e.message}", e)
-            Toast.makeText(context, "Folder tersimpan di: ${folder.absolutePath}", Toast.LENGTH_LONG).show()
+        }
+
+        if (!launched) {
+            Toast.makeText(context, "Folder tersimpan di: ${targetDir.name}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -145,10 +219,10 @@ object FileUtils {
             context.startActivity(intent)
         } catch (e: android.content.ActivityNotFoundException) {
             Log.w(TAG, "No suitable handler application found for file ${file.name}: ${e.message}")
-            Toast.makeText(context, "Tidak ada aplikasi untuk membuka ${file.name}. Berkas tersimpan di: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Tidak ada aplikasi untuk membuka ${file.name}. Berkas tersimpan di: ${file.name}", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             Log.e(TAG, "Failed opening file via system handler: ${e.message}", e)
-            Toast.makeText(context, "Berkas tersimpan di: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Berkas tersimpan di: ${file.name}", Toast.LENGTH_LONG).show()
         }
     }
 }

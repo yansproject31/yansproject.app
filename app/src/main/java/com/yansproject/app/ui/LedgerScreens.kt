@@ -86,7 +86,7 @@ fun RiwayatModalBerjalanScreen(
             !it.notes.contains("Pembayaran Invoice")
         }.sumOf { it.amount }
         val invSum = invoices.sumOf { calculateInvoicePaid(it, payments) }
-        val ordSum = orders.filter { ord -> !ord.isDeleted && invoices.none { inv -> inv.orderId == ord.id } }.sumOf { getEffectiveOrderPaid(it) }
+        val ordSum = orders.filter { ord -> !ord.isDeleted && invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id } }.sumOf { getEffectiveOrderPaid(it) }
         infSum + invSum + ordSum
     }
     val totalExpense = remember(expenses) {

@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yansproject.app.data.*
+import java.util.UUID
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -61,14 +62,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     data class SavedFileEvent(
         val file: java.io.File,
         val folder: java.io.File = if (file.isDirectory) file else (file.parentFile ?: file),
-        val title: String = "BERHASIL TERSIMPAN DI PENYIMPANAN INTERNAL"
+        val title: String = "BERHASIL TERSIMPAN DI PENYIMPANAN INTERNAL",
+        val clientPhone: String? = null,
+        val shareMessage: String? = null
     )
 
     private val _savedFileEvent = MutableStateFlow<SavedFileEvent?>(null)
     val savedFileEvent: StateFlow<SavedFileEvent?> = _savedFileEvent.asStateFlow()
 
-    fun showSavedFileDialog(file: java.io.File, folder: java.io.File = if (file.isDirectory) file else (file.parentFile ?: file), title: String = "BERHASIL TERSIMPAN DI PENYIMPANAN INTERNAL") {
-        _savedFileEvent.value = SavedFileEvent(file, folder, title)
+    fun showSavedFileDialog(
+        file: java.io.File,
+        folder: java.io.File = if (file.isDirectory) file else (file.parentFile ?: file),
+        title: String = "BERHASIL TERSIMPAN DI PENYIMPANAN INTERNAL",
+        clientPhone: String? = null,
+        shareMessage: String? = null
+    ) {
+        _savedFileEvent.value = SavedFileEvent(file, folder, title, clientPhone, shareMessage)
     }
 
     fun dismissSavedFileDialog() {
@@ -225,38 +234,60 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) { invoices, tab ->
         when {
             tab.equals("Persetujuan", ignoreCase = true) -> {
-                invoices.filter { it.status.equals("MENUNGGU PERSETUJUAN", ignoreCase = true) }
-            }
-            tab.equals("Belum Lunas", ignoreCase = true) -> {
                 invoices.filter { 
-                    (it.remainingPayment > 0 || it.paidAmount < it.totalAmount) &&
+                    !it.isDeleted && (
+                        it.status.equals("MENUNGGU PERSETUJUAN", ignoreCase = true) ||
+                        it.status.equals("MENUNGGU_APPROVAL", ignoreCase = true) ||
+                        it.status.equals("PENDING", ignoreCase = true)
+                    )
+                }
+            }
+            tab.equals("Belum Lunas", ignoreCase = true) || tab.equals("DP", ignoreCase = true) || tab.equals("DP / Cicilan", ignoreCase = true) -> {
+                invoices.filter { 
+                    !it.isDeleted &&
                     !it.status.equals("LUNAS", ignoreCase = true) &&
                     !it.status.equals("PAID", ignoreCase = true) &&
+                    !it.status.equals("SELESAI", ignoreCase = true) &&
                     !it.status.equals("BATAL", ignoreCase = true) &&
-                    !it.status.equals("REFUND", ignoreCase = true)
+                    !it.status.equals("CANCELLED", ignoreCase = true) &&
+                    !it.status.equals("REFUND", ignoreCase = true) &&
+                    !it.status.equals("REFUNDED", ignoreCase = true) &&
+                    !it.status.equals("VOID", ignoreCase = true) &&
+                    (it.remainingPayment > 0.01 || it.paidAmount < it.totalAmount)
                 }
             }
             tab.equals("Belum Dibayar", ignoreCase = true) -> {
                 invoices.filter { 
+                    !it.isDeleted &&
                     it.paidAmount == 0.0 &&
                     !it.status.equals("LUNAS", ignoreCase = true) &&
+                    !it.status.equals("PAID", ignoreCase = true) &&
                     !it.status.equals("BATAL", ignoreCase = true) &&
+                    !it.status.equals("CANCELLED", ignoreCase = true) &&
                     !it.status.equals("REFUND", ignoreCase = true)
                 }
             }
-            tab.equals("DP", ignoreCase = true) || tab.equals("DP / Cicilan", ignoreCase = true) -> {
-                invoices.filter {
-                    (it.paidAmount > 0 && it.paidAmount < it.totalAmount) ||
-                    it.status.equals("DP", ignoreCase = true) ||
-                    it.status.equals("DICICIL", ignoreCase = true) ||
-                    it.status.equals("DP AWAL", ignoreCase = true) ||
-                    it.status.equals("DP PRODUKSI", ignoreCase = true)
+            tab.equals("Lunas", ignoreCase = true) -> {
+                invoices.filter { 
+                    !it.isDeleted && (
+                        it.status.equals("LUNAS", ignoreCase = true) ||
+                        it.status.equals("PAID", ignoreCase = true) ||
+                        it.status.equals("SELESAI", ignoreCase = true) ||
+                        (it.totalAmount > 0 && it.paidAmount >= it.totalAmount)
+                    )
                 }
             }
-            tab.equals("Lunas", ignoreCase = true) -> {
-                invoices.filter { it.status.equals("LUNAS", ignoreCase = true) }
+            tab.equals("Refund", ignoreCase = true) || tab.equals("Batal", ignoreCase = true) -> {
+                invoices.filter {
+                    !it.isDeleted && (
+                        it.status.equals("BATAL", ignoreCase = true) ||
+                        it.status.equals("CANCELLED", ignoreCase = true) ||
+                        it.status.equals("REFUND", ignoreCase = true) ||
+                        it.status.equals("REFUNDED", ignoreCase = true)
+                    )
+                }
             }
-            else -> invoices
+            else -> invoices.filter { !it.isDeleted }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -322,7 +353,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 maxOf(effectivePaid, paymentRecordsSum)
             }
         }
-        val standaloneOrdRevenue = orders.filter { ord -> !ord.isDeleted && invoices.none { inv -> inv.orderId == ord.id } }.sumOf { ord ->
+        val standaloneOrdRevenue = orders.filter { ord -> !ord.isDeleted && invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id } }.sumOf { ord ->
             val paid = ord.paidAmount
             if (paid > 0.0) paid
             else {
@@ -520,12 +551,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
-        // Run invoice deduplication & reconcile inventory summaries to clean any orphaned data
+        // Run invoice deduplication, payment recalibration & reconcile inventory summaries
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                repository.deduplicateInvoicesInLocalDb()
+                repository.recalibrateAllInvoicesPaidAmount()
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Error deduplicating invoices: ${e.message}")
+                Log.e("MainViewModel", "Error recalibrating invoices: ${e.message}")
             }
             try {
                 repository.reconcileAllInventorySummaries()
@@ -683,7 +714,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setTab(tab: AppTab) {
-        _currentTab.value = tab
+        val role = FirebaseSyncManager.currentUser.value?.role ?: UserRole.MEMBER
+        val targetTab = when (tab) {
+            AppTab.INVOICE -> if (role.canManageInvoices()) AppTab.INVOICE else AppTab.RIWAYAT
+            AppTab.PROJECT -> if (role.canManageProjects()) AppTab.PROJECT else AppTab.DASHBOARD
+            else -> tab
+        }
+        _currentTab.value = targetTab
     }
 
     private fun isCurrentUserOwner(): Boolean {
@@ -1203,13 +1240,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         methodDetail: String,
         notes: String,
         customDate: Long? = null,
+        transactionId: String? = null,
         onComplete: (Boolean) -> Unit
     ) {
         viewModelScope.launch {
             val adminName = FirebaseSyncManager.currentUser.value?.displayName ?: "Admin"
             val adminUid = FirebaseSyncManager.currentUser.value?.email ?: "ADMIN_EMAIL"
+            
+            // Client-side UUID generation for transaction tracking
+            val txnKey = if (!transactionId.isNullOrBlank()) transactionId else UUID.randomUUID().toString()
+
+            // Transaction check to prevent duplicate payment records for the same Invoice ID
+            val targetInvoice = allInvoices.value.find { it.id == invoiceId }
+            val invoiceKey = targetInvoice?.invoiceNumber ?: invoiceId.toString()
+            val existingPayment = allInvoicePayments.value.find { p ->
+                p.id == txnKey || (
+                    (p.invoiceId == invoiceKey || p.invoiceId == invoiceId.toString()) &&
+                    p.amount == amount &&
+                    Math.abs(p.date - (customDate ?: System.currentTimeMillis())) < 3000
+                )
+            }
+
+            if (existingPayment != null) {
+                Log.w("MainViewModel", "Duplicate payment attempt detected for invoice $invoiceKey (Transaction Key: $txnKey). Aborting.")
+                onComplete(true)
+                return@launch
+            }
+
             val success = repository.addInvoicePayment(
-                invoiceId, amount, method, methodDetail, notes, adminName, adminUid, customDate
+                invoiceId, amount, method, methodDetail, notes, adminName, adminUid, customDate, txnKey
             )
             if (success) {
                 val invoice = allInvoices.value.find { it.id == invoiceId }

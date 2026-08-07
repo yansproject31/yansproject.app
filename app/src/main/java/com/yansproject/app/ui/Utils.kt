@@ -308,6 +308,10 @@ object DocumentExporter {
         ShareUtils.shareFile(context, file, title)
     }
 
+    fun shareFileToWhatsApp(context: Context, file: File?, clientPhone: String?, captionText: String? = null) {
+        ShareUtils.shareFileToWhatsApp(context, file, clientPhone, captionText)
+    }
+
     fun openFile(context: Context, file: File) {
         FileUtils.openFile(context, file)
     }

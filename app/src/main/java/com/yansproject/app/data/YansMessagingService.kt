@@ -8,10 +8,11 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.yansproject.app.MainActivity
-import com.yansproject.app.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.yansproject.app.MainActivity
+import com.yansproject.app.R
+import com.yansproject.app.util.NotificationHandler
 
 class YansMessagingService : FirebaseMessagingService() {
 
@@ -23,8 +24,31 @@ class YansMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
-        Log.d("YansMessagingService", "Received push notification from: ${remoteMessage.from}")
-        com.yansproject.app.util.NotificationHandler.handleIncomingFcmMessage(this, remoteMessage)
+        Log.d("YansMessagingService", "Received push notification from: ${remoteMessage.from}, priority: ${remoteMessage.priority}")
+        try {
+            // Ensure persistent channels are initialized before processing message
+            NotificationHandler.initNotificationChannels(this)
+
+            val dataMap = remoteMessage.data.toMutableMap()
+            remoteMessage.notification?.let { notif ->
+                if (!dataMap.containsKey("title")) notif.title?.let { dataMap["title"] = it }
+                if (!dataMap.containsKey("body")) notif.body?.let { dataMap["body"] = it }
+            }
+
+            val msgId = remoteMessage.messageId
+                ?: dataMap["id"]
+                ?: "fcm_${System.currentTimeMillis()}_${java.util.UUID.randomUUID().toString().substring(0, 6)}"
+
+            if (dataMap.isNotEmpty()) {
+                Log.d("YansMessagingService", "Processing high-priority data payload for message ID $msgId")
+                NotificationDispatcher.getInstance(this).dispatchRemotePushNotification(msgId, dataMap)
+            } else {
+                Log.d("YansMessagingService", "Processing fallback remote message for message ID $msgId")
+                NotificationHandler.handleIncomingFcmMessage(this, remoteMessage)
+            }
+        } catch (e: Exception) {
+            Log.e("YansMessagingService", "Error processing FCM remote message: ${e.message}", e)
+        }
     }
 
     private fun sendInboundNotification(
@@ -33,57 +57,21 @@ class YansMessagingService : FirebaseMessagingService() {
         category: String,
         targetTab: String
     ) {
-        // Deep link to transaction history
-        val intent = Intent(this, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra("TARGET_TAB", targetTab)
-        }
-
-        val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
-        } else {
-            PendingIntent.FLAG_ONE_SHOT
-        }
-
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            System.currentTimeMillis().toInt(),
-            intent,
-            pendingIntentFlags
-        )
-
-        // Save to in-app notification center via AppSettings
         try {
-            com.yansproject.app.ui.AppSettings.addNotification(this, title, messageBody, category, targetTab)
+            NotificationHandler.initNotificationChannels(this)
+            val msgId = java.util.UUID.randomUUID().toString()
+            val payload = mapOf(
+                "id" to msgId,
+                "title" to title,
+                "body" to messageBody,
+                "category" to category,
+                "targetTab" to targetTab,
+                "roleTarget" to "ALL"
+            )
+            NotificationDispatcher.getInstance(this).dispatchRemotePushNotification(msgId, payload)
         } catch (e: Exception) {
-            Log.e("YansMessagingService", "Failed to persist in-app notification", e)
+            Log.e("YansMessagingService", "Failed to dispatch inbound notification", e)
         }
-
-        val channelId = "yans_inbound_payments"
-        val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_logo)
-            .setContentTitle(title)
-            .setContentText(messageBody)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Inbound Payment Notifications",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Channel for Paper.id and n8n webhook notifications"
-                enableLights(true)
-                enableVibration(true)
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
     }
 }
+

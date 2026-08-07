@@ -59,8 +59,8 @@ fun DualInvoiceDashboardScreen(
     val context = LocalContext.current
 
     // Pill Filter state
-    var selectedFilter by remember { mutableStateOf("All") }
-    val filters = listOf("All", "Unpaid", "Paid", "Partially Paid")
+    var selectedFilter by remember { mutableStateOf("Semua") }
+    val filters = listOf("Semua", "Belum Lunas", "Belum Dibayar", "Lunas")
 
     // Modal state
     var showActionHubByInvoiceId by remember { mutableStateOf<String?>(null) }
@@ -85,11 +85,10 @@ fun DualInvoiceDashboardScreen(
         state.ajibqobulInvoices.filter { inv ->
             val remaining = inv.totalAmount - inv.paidAmount
             when (selectedFilter) {
-                "All" -> true
-                "Unpaid" -> remaining > 0 && inv.paidAmount == 0.0
-                "Overdue" -> remaining > 0 && inv.dueDate < System.currentTimeMillis()
-                "Paid" -> remaining <= 0.0
-                "Partially Paid" -> remaining > 0 && inv.paidAmount > 0.0
+                "Semua", "All" -> true
+                "Belum Lunas", "Partially Paid" -> remaining > 0.01
+                "Belum Dibayar", "Unpaid" -> remaining > 0.01 && inv.paidAmount == 0.0
+                "Lunas", "Paid" -> remaining <= 0.01
                 else -> true
             }
         }
@@ -99,11 +98,10 @@ fun DualInvoiceDashboardScreen(
         state.customProjectInvoices.filter { proj ->
             val remaining = proj.remainingBalance
             when (selectedFilter) {
-                "All" -> true
-                "Unpaid" -> remaining > 0 && proj.paidAmount == 0.0
-                "Overdue" -> remaining > 0 && proj.issueDate + (86400000 * 14) < System.currentTimeMillis() // assume 14 days due
-                "Paid" -> remaining <= 0.0
-                "Partially Paid" -> remaining > 0 && proj.paidAmount > 0.0
+                "Semua", "All" -> true
+                "Belum Lunas", "Partially Paid" -> remaining > 0.01
+                "Belum Dibayar", "Unpaid" -> remaining > 0.01 && proj.paidAmount == 0.0
+                "Lunas", "Paid" -> remaining <= 0.01
                 else -> true
             }
         }
@@ -249,15 +247,13 @@ fun DualInvoiceDashboardScreen(
 
                     // Calculate Count dynamically
                     val count = when (filter) {
-                        "All" -> state.ajibqobulInvoices.size + state.customProjectInvoices.size
-                        "Unpaid" -> state.ajibqobulInvoices.count { (it.totalAmount - it.paidAmount) > 0 && it.paidAmount == 0.0 } +
-                                state.customProjectInvoices.count { it.remainingBalance > 0 && it.paidAmount == 0.0 }
-                        "Overdue" -> state.ajibqobulInvoices.count { (it.totalAmount - it.paidAmount) > 0 && it.dueDate < System.currentTimeMillis() } +
-                                state.customProjectInvoices.count { it.remainingBalance > 0 && it.issueDate + 1209600000 < System.currentTimeMillis() }
-                        "Paid" -> state.ajibqobulInvoices.count { (it.totalAmount - it.paidAmount) <= 0.0 } +
-                                state.customProjectInvoices.count { it.remainingBalance <= 0.0 }
-                        "Partially Paid" -> state.ajibqobulInvoices.count { (it.totalAmount - it.paidAmount) > 0 && it.paidAmount > 0.0 } +
-                                state.customProjectInvoices.count { it.remainingBalance > 0 && it.paidAmount > 0.0 }
+                        "Semua", "All" -> state.ajibqobulInvoices.size + state.customProjectInvoices.size
+                        "Belum Lunas" -> state.ajibqobulInvoices.count { (it.totalAmount - it.paidAmount) > 0.01 } +
+                                state.customProjectInvoices.count { it.remainingBalance > 0.01 }
+                        "Belum Dibayar" -> state.ajibqobulInvoices.count { (it.totalAmount - it.paidAmount) > 0.01 && it.paidAmount == 0.0 } +
+                                state.customProjectInvoices.count { it.remainingBalance > 0.01 && it.paidAmount == 0.0 }
+                        "Lunas", "Paid" -> state.ajibqobulInvoices.count { (it.totalAmount - it.paidAmount) <= 0.01 } +
+                                state.customProjectInvoices.count { it.remainingBalance <= 0.01 }
                         else -> 0
                     }
 

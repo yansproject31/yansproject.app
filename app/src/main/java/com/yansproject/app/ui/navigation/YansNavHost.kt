@@ -93,50 +93,26 @@ fun YansNavHost(
             DashboardScreen(viewModel = viewModel, navController = navController)
         }
         composable(Routes.Project) {
-            ProjectScreen(viewModel = viewModel)
+            if (userRole?.canManageProjects() == true) {
+                ProjectScreen(viewModel = viewModel)
+            } else {
+                RiwayatScreen(viewModel = viewModel)
+            }
         }
         composable(Routes.Stock) {
             StockScreen(viewModel = viewModel)
         }
         composable(Routes.Invoice) {
-            InvoiceScreen(viewModel = viewModel)
+            GuardedInvoiceRoute(
+                userRole = userRole,
+                onNavigateBack = { viewModel.setTab(AppTab.DASHBOARD) },
+                onNavigateToHistory = { viewModel.setTab(AppTab.RIWAYAT) }
+            ) {
+                InvoiceScreen(viewModel = viewModel)
+            }
         }
         composable(Routes.History) {
-            if (userRole == UserRole.OWNER || userRole == UserRole.ADMIN) {
-                RiwayatScreen(viewModel = viewModel)
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Lock,
-                            contentDescription = null,
-                            tint = AlertOrange,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Text(
-                            text = "Akses Terbatas",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Halaman Riwayat hanya dapat diakses oleh Owner / Admin.",
-                            fontSize = 13.sp,
-                            color = TextMuted,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
+            RiwayatScreen(viewModel = viewModel)
         }
         composable(
             route = Routes.KitabDigital,
@@ -420,11 +396,25 @@ fun YansNavHost(
         
         // Unified Action & Core ERP Forms
         composable(Routes.AddInvoice) {
-            ActionHubAndPdfModule(isCustomProject = false, onNavigateBack = { navController.popBackStack() })
+            GuardedInvoiceRoute(
+                userRole = userRole,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToHistory = {
+                    navController.popBackStack()
+                    viewModel.setTab(AppTab.RIWAYAT)
+                }
+            ) {
+                ActionHubAndPdfModule(isCustomProject = false, onNavigateBack = { navController.popBackStack() })
+            }
         }
         
         composable(Routes.AddProject) {
-            CustomProjectFormScreen(onNavigateBack = { navController.popBackStack() })
+            GuardedFinancialRoute(
+                userRole = userRole,
+                onNavigateBack = { navController.popBackStack() }
+            ) {
+                CustomProjectFormScreen(onNavigateBack = { navController.popBackStack() })
+            }
         }
         
         composable(Routes.AddStock) {

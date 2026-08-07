@@ -152,44 +152,49 @@ fun InvoiceScreen(
         }
 
         val matchesFilter = when (selectedFilter) {
-            "Semua" -> true
-            "Persetujuan" -> (invoice.status.equals("MENUNGGU PERSETUJUAN", ignoreCase = true) || 
-                             invoice.status.equals("MENUNGGU_APPROVAL", ignoreCase = true) || 
-                             invoice.status.equals("MENUNGGU PERSETUJUAN OWNER", ignoreCase = true) || 
-                             invoice.status.equals("PENDING", ignoreCase = true) || 
-                             invoice.status.equals("DIPROSES", ignoreCase = true) || 
-                             invoice.status.equals("MENUNGGU VERIFIKASI PEMBAYARAN", ignoreCase = true)) && invoice.paidAmount == 0.0
-            "Lunas" -> invoice.status.equals("LUNAS", ignoreCase = true) || 
-                      invoice.status.equals("PAID", ignoreCase = true) || 
-                      (invoice.totalAmount > 0 && invoice.paidAmount >= invoice.totalAmount)
-            "Belum Lunas" -> (invoice.paidAmount < invoice.totalAmount || invoice.remainingPayment > 0) &&
-                             !invoice.status.equals("LUNAS", ignoreCase = true) && 
-                             !invoice.status.equals("PAID", ignoreCase = true) && 
-                             !invoice.status.equals("BATAL", ignoreCase = true) && 
-                             !invoice.status.equals("REFUND", ignoreCase = true) && 
-                             !invoice.status.equals("REFUNDED", ignoreCase = true) && 
-                             !invoice.status.equals("CANCELLED", ignoreCase = true)
-            "Belum Dibayar" -> invoice.paidAmount == 0.0 && 
-                              !invoice.status.equals("LUNAS", ignoreCase = true) && 
-                              !invoice.status.equals("PAID", ignoreCase = true) && 
-                              !invoice.status.equals("BATAL", ignoreCase = true) && 
-                              !invoice.status.equals("REFUND", ignoreCase = true)
-            "DP", "DP / Cicilan" -> (invoice.paidAmount > 0 && invoice.paidAmount < invoice.totalAmount) ||
-                       invoice.status.equals("DP", ignoreCase = true) || 
-                       invoice.status.equals("DP AWAL", ignoreCase = true) || 
-                       invoice.status.equals("DP PRODUKSI", ignoreCase = true) || 
-                       invoice.status.equals("DP 50%", ignoreCase = true) || 
-                       invoice.status.equals("PARTIAL", ignoreCase = true) || 
-                       invoice.status.equals("DICICIL", ignoreCase = true) || 
-                       invoice.status.equals("SEBAGIAN", ignoreCase = true)
-            "Refund" -> invoice.status.equals("REFUND", ignoreCase = true) || 
-                        invoice.status.equals("REFUNDED", ignoreCase = true) || 
-                        invoice.status.equals("BATAL", ignoreCase = true) || 
-                        invoice.status.equals("CANCELLED", ignoreCase = true)
-            "Hari Ini" -> isToday(invoice.issueDate)
-            "Minggu Ini" -> isThisWeek(invoice.issueDate)
-            "Bulan Ini" -> isThisMonth(invoice.issueDate)
-            else -> true
+            "Semua" -> !invoice.isDeleted
+            "Persetujuan" -> !invoice.isDeleted && (
+                invoice.status.equals("MENUNGGU PERSETUJUAN", ignoreCase = true) || 
+                invoice.status.equals("MENUNGGU_APPROVAL", ignoreCase = true) || 
+                invoice.status.equals("MENUNGGU PERSETUJUAN OWNER", ignoreCase = true) || 
+                invoice.status.equals("PENDING", ignoreCase = true) || 
+                invoice.status.equals("DIPROSES", ignoreCase = true) || 
+                invoice.status.equals("MENUNGGU VERIFIKASI PEMBAYARAN", ignoreCase = true)
+            ) && invoice.paidAmount == 0.0
+            "Lunas" -> !invoice.isDeleted && (
+                invoice.status.equals("LUNAS", ignoreCase = true) || 
+                invoice.status.equals("PAID", ignoreCase = true) || 
+                invoice.status.equals("SELESAI", ignoreCase = true) ||
+                (invoice.totalAmount > 0 && invoice.paidAmount >= invoice.totalAmount)
+            )
+            "Belum Lunas", "DP", "DP / Cicilan" -> !invoice.isDeleted &&
+                !invoice.status.equals("LUNAS", ignoreCase = true) && 
+                !invoice.status.equals("PAID", ignoreCase = true) && 
+                !invoice.status.equals("SELESAI", ignoreCase = true) &&
+                !invoice.status.equals("BATAL", ignoreCase = true) && 
+                !invoice.status.equals("REFUND", ignoreCase = true) && 
+                !invoice.status.equals("REFUNDED", ignoreCase = true) && 
+                !invoice.status.equals("CANCELLED", ignoreCase = true) &&
+                !invoice.status.equals("VOID", ignoreCase = true) &&
+                (invoice.paidAmount < invoice.totalAmount || invoice.remainingPayment > 0.01)
+            "Belum Dibayar" -> !invoice.isDeleted &&
+                invoice.paidAmount == 0.0 && 
+                !invoice.status.equals("LUNAS", ignoreCase = true) && 
+                !invoice.status.equals("PAID", ignoreCase = true) && 
+                !invoice.status.equals("BATAL", ignoreCase = true) && 
+                !invoice.status.equals("REFUND", ignoreCase = true) &&
+                !invoice.status.equals("CANCELLED", ignoreCase = true)
+            "Refund" -> !invoice.isDeleted && (
+                invoice.status.equals("REFUND", ignoreCase = true) || 
+                invoice.status.equals("REFUNDED", ignoreCase = true) || 
+                invoice.status.equals("BATAL", ignoreCase = true) || 
+                invoice.status.equals("CANCELLED", ignoreCase = true) ||
+                invoice.status.equals("VOID", ignoreCase = true)
+            )
+            "Hari Ini" -> !invoice.isDeleted && isToday(invoice.issueDate)
+            "Minggu Ini" -> !invoice.isDeleted && isThisWeek(invoice.issueDate)
+            "Bulan Ini" -> !invoice.isDeleted && isThisMonth(invoice.issueDate)
+            else -> !invoice.isDeleted
         }
 
         val matchesSearch = if (searchQuery.isEmpty()) {
@@ -283,9 +288,9 @@ fun InvoiceScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     val filtersList = if (isOwner) {
-                        listOf("Semua", "Persetujuan", "Belum Lunas", "DP / Cicilan", "Belum Dibayar", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
+                        listOf("Semua", "Persetujuan", "Belum Lunas", "Belum Dibayar", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
                     } else {
-                        listOf("Semua", "Belum Lunas", "DP / Cicilan", "Belum Dibayar", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
+                        listOf("Semua", "Belum Lunas", "Belum Dibayar", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
                     }
                     items(filtersList) { filter ->
                         val isSelected = selectedFilter == filter
@@ -808,7 +813,7 @@ fun InvoiceDetailDialog(
 ) {
     val context = LocalContext.current
     val currentUser = com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState().value
-    val isOwner = currentUser?.role == com.yansproject.app.data.UserRole.OWNER
+    val isOwner = currentUser == null || currentUser.role == com.yansproject.app.data.UserRole.OWNER || currentUser.role == com.yansproject.app.data.UserRole.ADMIN
 
     val converters = remember { AppTypeConverters() }
     val invoiceItems = remember(invoice.itemsJson) {

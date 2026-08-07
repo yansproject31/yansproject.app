@@ -77,12 +77,13 @@ object NotificationHandler {
     fun handleIncomingFcmMessage(context: Context, remoteMessage: RemoteMessage) {
         val data = remoteMessage.data
         val title = data["title"] ?: remoteMessage.notification?.title ?: "Notifikasi YANSPROJECT.ID"
-        val message = data["body"] ?: data["description"] ?: remoteMessage.notification?.body ?: ""
+        val message = data["body"] ?: data["description"] ?: data["message"] ?: remoteMessage.notification?.body ?: ""
         val category = data["category"] ?: "Sistem"
         val targetTab = data["targetTab"] ?: data["target_tab"] ?: "RIWAYAT"
         val roleTarget = data["roleTarget"] ?: data["role_target"] ?: "ALL"
         val userId = data["userId"] ?: data["user_id"] ?: data["clientId"] ?: "ALL"
-        val notificationId = data["id"] ?: java.util.UUID.randomUUID().toString()
+        val senderRole = data["senderRole"] ?: data["sender_role"] ?: ""
+        val notificationId = data["id"] ?: remoteMessage.messageId ?: java.util.UUID.randomUUID().toString()
 
         processAndDispatchNotification(
             context = context,
@@ -92,7 +93,8 @@ object NotificationHandler {
             category = category,
             targetTab = targetTab,
             roleTarget = roleTarget,
-            userId = userId
+            userId = userId,
+            senderRole = senderRole
         )
     }
 
@@ -107,9 +109,11 @@ object NotificationHandler {
         category: String,
         targetTab: String = "RIWAYAT",
         roleTarget: String = "ALL",
-        userId: String = "ALL"
+        userId: String = "ALL",
+        senderRole: String = ""
     ) {
         try {
+            val notifPrefs = context.getSharedPreferences("yans_notifications_prefs", Context.MODE_PRIVATE)
             val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
             val liveUser = com.yansproject.app.data.FirebaseSyncManager.currentUser.value
             val activeEmail = (liveUser?.email ?: authPrefs.getString("saved_email", ""))?.trim()?.lowercase() ?: ""
@@ -123,18 +127,30 @@ object NotificationHandler {
                 return
             }
 
-            // Category preference check (explicit rules)
             val catUpper = category.trim().uppercase()
-            val isCategoryEnabled = when (catUpper) {
-                "BROADCAST", "PROMO", "SISTEM", "SYSTEM" ->
-                    authPrefs.getBoolean("broadcast_notify", true) && authPrefs.getBoolean("system_notify", true)
-                "STOCK", "STOK", "INVENTORY" ->
-                    authPrefs.getBoolean("stock_notify", true)
-                "INVOICE", "ORDER", "PESANAN" ->
-                    authPrefs.getBoolean("invoice_notify", true)
-                "PEMBAYARAN", "PAYMENT", "KEUANGAN", "FINANCE" ->
-                    authPrefs.getBoolean("finance_notify", true)
-                else -> true
+            val roleUpper = roleTarget.trim().uppercase()
+            val senderRoleUpper = senderRole.trim().uppercase()
+
+            // Determine if this is an Owner Broadcast (Global Priority Channel)
+            val isOwnerBroadcast = catUpper == "BROADCAST" || catUpper == "PROMO" ||
+                                   roleUpper == "BROADCAST" || senderRoleUpper == "OWNER"
+
+            // Category preference check (Owner broadcasts bypass category toggles)
+            val isCategoryEnabled = if (isOwnerBroadcast) {
+                true
+            } else {
+                when (catUpper) {
+                    "BROADCAST", "PROMO", "SISTEM", "SYSTEM" ->
+                        (notifPrefs.getBoolean("broadcast_notify", true) || authPrefs.getBoolean("broadcast_notify", true)) &&
+                        (notifPrefs.getBoolean("system_notify", true) || authPrefs.getBoolean("system_notify", true))
+                    "STOCK", "STOK", "INVENTORY" ->
+                        notifPrefs.getBoolean("stock_notify", true) && authPrefs.getBoolean("stock_notify", true)
+                    "INVOICE", "ORDER", "PESANAN" ->
+                        notifPrefs.getBoolean("invoice_notify", true) && authPrefs.getBoolean("invoice_notify", true)
+                    "PEMBAYARAN", "PAYMENT", "KEUANGAN", "FINANCE" ->
+                        notifPrefs.getBoolean("finance_notify", true) && authPrefs.getBoolean("finance_notify", true)
+                    else -> true
+                }
             }
 
             if (!isCategoryEnabled) {
@@ -146,7 +162,9 @@ object NotificationHandler {
             val isMemberRole = activeRole == "MEMBER"
             val targetUserClean = userId.trim().lowercase()
 
-            val isPermittedForUser = if (isMemberRole) {
+            val isPermittedForUser = if (isOwnerBroadcast) {
+                true // Owner broadcast messages are captured & rendered for ALL roles including Members in background
+            } else if (isMemberRole) {
                 val isInvoiceOrOrder = catUpper in setOf("INVOICE", "ORDER", "PESANAN", "PEMBAYARAN", "PAYMENT")
                 if (isInvoiceOrOrder) {
                     // Members ONLY see invoices/orders/payments that explicitly match their identity!
@@ -157,12 +175,12 @@ object NotificationHandler {
                     )
                 } else {
                     // Broadcasts, Stock alerts, System announcements
-                    (roleTarget.uppercase() in setOf("ALL", "MEMBER", "BROADCAST")) &&
-                    (targetUserClean == "all" || targetUserClean == activeEmail || targetUserClean == activeName)
+                    (roleUpper in setOf("ALL", "MEMBER", "BROADCAST", "PROMO", "PUBLIC") || catUpper in setOf("BROADCAST", "PROMO", "SISTEM", "SYSTEM", "STOCK", "STOK")) &&
+                    (targetUserClean == "all" || targetUserClean == activeEmail || targetUserClean == activeName || targetUserClean.isBlank())
                 }
             } else {
                 // Owner / Admin role gets Owner, Admin, System, and ALL broadcasts
-                roleTarget.uppercase() in setOf("ALL", "OWNER", "ADMIN", "BROADCAST") || targetUserClean == "all"
+                roleUpper in setOf("ALL", "OWNER", "ADMIN", "BROADCAST", "PROMO", "PUBLIC") || targetUserClean == "all"
             }
 
             if (!isPermittedForUser) {
@@ -183,9 +201,6 @@ object NotificationHandler {
                 roleTarget = roleTarget,
                 userId = userId
             )
-
-            // Determine if this is an Owner Broadcast (Global Priority Channel)
-            val isOwnerBroadcast = catUpper == "BROADCAST" || catUpper == "PROMO" || roleTarget.uppercase() == "BROADCAST"
 
             postAndroidNotification(
                 context = context,

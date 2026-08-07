@@ -68,6 +68,8 @@ fun MainScaffold(
             file = currentSavedFileEvent.file,
             folder = currentSavedFileEvent.folder,
             title = currentSavedFileEvent.title,
+            clientPhone = currentSavedFileEvent.clientPhone,
+            shareMessage = currentSavedFileEvent.shareMessage,
             onDismiss = { viewModel.dismissSavedFileDialog() }
         )
     }

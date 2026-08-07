@@ -133,22 +133,34 @@ class InvoiceViewModel : ViewModel() {
 
     fun recordInvoicePayment(invoiceNumber: String, amount: Double, context: Context) {
         viewModelScope.launch {
-            val updatedList = _state.value.invoices.map { inv ->
-                if (inv.invoiceNumber == invoiceNumber) {
-                    val newPaid = (inv.paidAmount + amount).coerceAtMost(inv.totalAmount)
-                    val newStatus = if (newPaid >= inv.totalAmount) "PAID" else "PARTIAL"
-                    inv.copy(paidAmount = newPaid, status = newStatus)
-                } else inv
+            var success = false
+            withContext(Dispatchers.IO) {
+                try {
+                    val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
+                    val targetInvoice = db.invoiceDao().getInvoicesList().find { it.invoiceNumber == invoiceNumber }
+                    if (targetInvoice != null) {
+                        val repo = com.yansproject.app.data.InvoiceRepository.getInstance(context)
+                        val txnKey = java.util.UUID.randomUUID().toString()
+                        success = repo.addInvoicePayment(
+                            invoiceId = targetInvoice.id,
+                            amount = amount,
+                            method = "Transfer Bank",
+                            methodDetail = "ActionHub",
+                            notes = "Pembayaran via ActionHub",
+                            transactionId = txnKey
+                        )
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("InvoiceViewModel", "Failed to record invoice payment: ${e.message}", e)
+                }
             }
-            val unpaidTotal = updatedList
-                .filter { it.status == "UNPAID" || it.status == "PARTIAL" }
-                .sumOf { it.totalAmount - it.paidAmount }
 
-            _state.value = _state.value.copy(
-                invoices = updatedList,
-                totalBalanceDue = unpaidTotal
-            )
-            Toast.makeText(context, "PEMBAYARAN Rp ${amount.toInt()} TERSIMPAN SECARA REALTIME!", Toast.LENGTH_SHORT).show()
+            loadInvoicesHistory(context)
+            if (success) {
+                Toast.makeText(context, "PEMBAYARAN Rp ${amount.toInt()} TERSIMPAN SECARA REALTIME!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Pembayaran diproses atau transaksi serupa sudah tercatat.", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }
@@ -380,7 +392,8 @@ fun InvoiceHistoryScreen(
                         title = "Kirim WhatsApp Notifikasi",
                         color = HighlightSoftCyan,
                         onClick = {
-                            Toast.makeText(context, "Mengirim tagihan ke ${activeInvoice.clientPhone}...", Toast.LENGTH_LONG).show()
+                            val shareMsg = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(activeInvoice, emptyList(), context)
+                            com.yansproject.app.util.ShareUtils.shareFileToWhatsApp(context, null, activeInvoice.clientPhone, shareMsg)
                             selectedInvoiceForHub = null
                         }
                     )

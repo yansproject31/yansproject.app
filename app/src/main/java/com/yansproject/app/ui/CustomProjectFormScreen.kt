@@ -924,29 +924,32 @@ private fun QuantityCounterChip(
             .border(1.dp, DividerDarkCyanGray.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
             .padding(horizontal = 4.dp, vertical = 2.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(30.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(if (value > 0) PrimaryDarkTeal else PrimaryDarkTeal.copy(alpha = 0.3f))
                     .clickable { onDecrement() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("-", color = if (value > 0) LuxuryGold else TextMuted, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                Text("-", color = if (value > 0) LuxuryGold else TextMuted, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
             }
-            Spacer(modifier = Modifier.width(10.dp))
-            Text("$value", color = if (value > 0) AlertGreen else Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("$value", color = if (value > 0) AlertGreen else Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+            Spacer(modifier = Modifier.width(6.dp))
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(30.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(PrimaryDarkTeal)
                     .clickable { onIncrement() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("+", color = LuxuryGold, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                Text("+", color = LuxuryGold, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
             }
         }
     }

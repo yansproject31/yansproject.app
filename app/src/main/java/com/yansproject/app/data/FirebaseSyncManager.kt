@@ -38,7 +38,7 @@ enum class UserRole {
     }
 
     fun canManageInvoices(): Boolean {
-        return this == OWNER || this == ADMIN || this == STAFF
+        return this == OWNER || this == ADMIN
     }
 
     fun canAccessFinancials(): Boolean {
@@ -1994,13 +1994,13 @@ object FirebaseSyncManager {
                                         cleanTargetUser.contains(savedName)
                                     )
                                 } else {
-                                    // Stock, Broadcast, Promotion, System alerts sent to ALL or MEMBER
-                                    (roleTarget == "ALL" || roleTarget.equals("MEMBER", ignoreCase = true)) &&
-                                    (userId == "ALL" || cleanTargetUser == cleanEmail || cleanTargetUser == savedEmail || cleanTargetUser == savedName)
+                                    // Stock, Broadcast, Promotion, System alerts sent to ALL, MEMBER, BROADCAST, PROMO
+                                    (roleTarget.uppercase() in setOf("ALL", "MEMBER", "BROADCAST", "PROMO", "PUBLIC") || catUpper in setOf("BROADCAST", "PROMO", "SISTEM", "SYSTEM", "STOCK", "STOK")) &&
+                                    (userId == "ALL" || cleanTargetUser == "all" || cleanTargetUser == cleanEmail || cleanTargetUser == savedEmail || cleanTargetUser == savedName || cleanTargetUser.isBlank())
                                 }
                             } else {
-                                // Owner Role can see Owner alerts, Stock, System, and ALL broadcasts
-                                roleTarget == "ALL" || roleTarget.equals("OWNER", ignoreCase = true) || userId == "ALL"
+                                // Owner / Admin Role can see Owner alerts, Stock, System, and ALL broadcasts
+                                roleTarget.uppercase() in setOf("ALL", "OWNER", "ADMIN", "BROADCAST", "PROMO", "PUBLIC") || userId == "ALL" || cleanTargetUser == "all"
                             }
 
                             if (isForMe && !isArchived) {

@@ -51,8 +51,11 @@ import androidx.compose.ui.window.Dialog
 import com.yansproject.app.data.AppTypeConverters
 import com.yansproject.app.data.Invoice
 import com.yansproject.app.data.InvoiceItemDetail
+import com.yansproject.app.data.InvoicePayment
 import com.yansproject.app.data.FirebaseSyncManager
 import com.yansproject.app.data.UserRole
+import androidx.compose.foundation.BorderStroke
+import com.yansproject.app.ui.theme.DeepTeal
 import com.yansproject.app.ui.theme.*
 import java.io.File
 import java.io.FileInputStream
@@ -169,8 +172,11 @@ fun RiwayatScreen(
                 "Bulan Ini" -> isThisMonth(invoice.issueDate)
                 "Tahun Ini" -> isThisYear(invoice.issueDate)
                 "Lunas" -> (invoice.status ?: "").equals("LUNAS", ignoreCase = true) || (invoice.totalAmount > 0 && invoice.paidAmount >= invoice.totalAmount)
-                "Belum Lunas" -> ((invoice.status ?: "").equals("BELUM LUNAS", ignoreCase = true) || (invoice.status ?: "").equals("DISETUJUI", ignoreCase = true)) && invoice.paidAmount == 0.0
-                "DP" -> (invoice.status ?: "").equals("DP", ignoreCase = true) || (invoice.paidAmount > 0 && invoice.paidAmount < invoice.totalAmount)
+                "Belum Lunas", "DP" -> !(invoice.status ?: "").equals("LUNAS", ignoreCase = true) &&
+                                      !(invoice.status ?: "").equals("PAID", ignoreCase = true) &&
+                                      !(invoice.status ?: "").equals("BATAL", ignoreCase = true) &&
+                                      !(invoice.status ?: "").equals("REFUND", ignoreCase = true) &&
+                                      (invoice.paidAmount < invoice.totalAmount || invoice.remainingPayment > 0.01)
                 "Batal" -> (invoice.status ?: "").equals("BATAL", ignoreCase = true)
                 else -> true
             }
@@ -613,7 +619,7 @@ fun RiwayatScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(listOf("Semua", "Hari Ini", "Minggu Ini", "Bulan Ini", "Tahun Ini", "Lunas", "DP", "Belum Lunas", "Batal")) { filter ->
+                    items(listOf("Semua", "Hari Ini", "Minggu Ini", "Bulan Ini", "Tahun Ini", "Belum Lunas", "Lunas", "Batal")) { filter ->
                         val isSelected = filter == selectedFilter
                         Box(
                             modifier = Modifier
@@ -713,8 +719,12 @@ fun RiwayatScreen(
                 onDismiss = { selectedInvoiceForDetail = null },
                 onNavigateToInvoice = {
                     selectedInvoiceForDetail = null
-                    viewModel.setTab(AppTab.INVOICE)
-                    Toast.makeText(context, "Membuka Invoice di Tab Invoice...", Toast.LENGTH_SHORT).show()
+                    if (isOwner) {
+                        viewModel.setTab(AppTab.INVOICE)
+                        Toast.makeText(context, "Membuka Invoice di Tab Invoice...", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Rincian invoice sedang ditampilkan.", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 viewModel = viewModel
             )
@@ -919,6 +929,15 @@ fun DetailRiwayatBottomSheet(
     val converters = remember { AppTypeConverters() }
     val invoiceItems = remember(invoice.itemsJson) { converters.toInvoiceItemList(invoice.itemsJson) }
     var showQuickPaymentDialog by remember { mutableStateOf(false) }
+    var showPaymentHistoryDialog by remember { mutableStateOf(false) }
+
+    val allPayments by (viewModel?.allInvoicePayments ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
+    val invoicePayments = remember(allPayments, invoice) {
+        allPayments.filter { p ->
+            (p.invoiceId == invoice.invoiceNumber && invoice.invoiceNumber.isNotBlank()) ||
+            p.invoiceId == invoice.id.toString()
+        }.distinctBy { p -> p.id.ifEmpty { "${p.date}_${p.amount}_${p.paymentMethod}" } }
+    }
 
     val currentAddress = remember(invoiceItems) {
         invoiceItems.find { it.description.startsWith("__ADDRESS__:") }?.description?.removePrefix("__ADDRESS__:") ?: "-"
@@ -1297,21 +1316,35 @@ fun DetailRiwayatBottomSheet(
             // 4. TOMBOL AKSI & CATAT PELUNASAN
             item {
                 val currentUser = FirebaseSyncManager.currentUser.value
-                val isOwner = currentUser?.role == UserRole.OWNER
+                val isOwner = currentUser == null || currentUser.role == UserRole.OWNER || currentUser.role == UserRole.ADMIN
                 Spacer(modifier = Modifier.height(4.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
 
-                    // Quick Payment for Admin/Owner if unpaid
-                    if (isOwner && remainingPayment > 0 && !isBatal) {
+                    // Quick Payment & Manage Payment History for Admin/Owner
+                    if (isOwner && !isBatal) {
+                        if (remainingPayment > 0) {
+                            Button(
+                                onClick = { showQuickPaymentDialog = true },
+                                modifier = Modifier.fillMaxWidth().height(42.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = StatusWarningGold, contentColor = ShadowBlack),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(imageVector = Icons.Outlined.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Catat Pelunasan / Input Pembayaran", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
                         Button(
-                            onClick = { showQuickPaymentDialog = true },
-                            modifier = Modifier.fillMaxWidth().height(42.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = StatusWarningGold, contentColor = ShadowBlack),
-                            shape = RoundedCornerShape(10.dp)
+                            onClick = { showPaymentHistoryDialog = true },
+                            modifier = Modifier.fillMaxWidth().height(40.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = DeepTeal, contentColor = TextLight),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f))
                         ) {
-                            Icon(imageVector = Icons.Outlined.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(imageVector = Icons.Outlined.History, contentDescription = null, modifier = Modifier.size(18.dp), tint = AgedGold)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Catat Pelunasan / Input Pembayaran", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Kelola & Edit Histori Pembayaran", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextLight)
                         }
                     }
 
@@ -1437,6 +1470,26 @@ fun DetailRiwayatBottomSheet(
                     } else {
                         Toast.makeText(context, "Gagal mencatat pembayaran.", Toast.LENGTH_SHORT).show()
                     }
+                }
+            }
+        )
+    }
+
+    if (showPaymentHistoryDialog && viewModel != null) {
+        PaymentHistoryDialog(
+            invoice = invoice,
+            payments = invoicePayments,
+            onDismiss = { showPaymentHistoryDialog = false },
+            onEditPayment = { paymentId, newAmount, method, notes ->
+                viewModel.editInvoicePayment(paymentId, invoice.id, newAmount, method, method, notes) { ok ->
+                    if (ok) Toast.makeText(context, "Pembayaran berhasil diperbarui!", Toast.LENGTH_SHORT).show()
+                    else Toast.makeText(context, "Gagal memperbarui pembayaran.", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDeletePayment = { paymentId ->
+                viewModel.deleteInvoicePayment(paymentId, invoice.id) { ok ->
+                    if (ok) Toast.makeText(context, "Pembayaran berhasil dihapus!", Toast.LENGTH_SHORT).show()
+                    else Toast.makeText(context, "Gagal menghapus pembayaran.", Toast.LENGTH_SHORT).show()
                 }
             }
         )
@@ -1611,61 +1664,9 @@ fun shareToWhatsApp(
     sleeveName: String,
     totalQty: Int
 ) {
-    val address = items.find { it.description.startsWith("__ADDRESS__:") }?.description?.removePrefix("__ADDRESS__:") ?: "-"
-    val statusText = when (invoice.status) {
-        "LUNAS" -> "LUNAS ✅"
-        "DP" -> "DP 🔸"
-        "BATAL" -> "BATAL ❌"
-        else -> "BELUM LUNAS ⚠️"
-    }
-
-    val text = """
-        *YANSPROJECT.ID - INVOICE TRANSAKSI*
-        --------------------------------------------
-        *Nomor Invoice:* ${invoice.invoiceNumber}
-        *Tanggal:* ${FormatUtils.formatDate(invoice.issueDate)}
-        
-        *DETAIL CUSTOMER:*
-        *Nama:* ${invoice.clientName}
-        *WhatsApp:* ${invoice.clientPhone}
-        *Alamat:* $address
-        
-        *DETAIL PESANAN:*
-        *Series / Items:* $seriesName
-        *Total Qty:* $totalQty Pcs
-        
-        *RINCIAN PEMBAYARAN:*
-        *Subtotal:* ${FormatUtils.formatRupiah(invoice.totalAmount + invoice.discount)}
-        *Diskon:* ${FormatUtils.formatRupiah(invoice.discount)}
-        *DP / Terbayar:* ${FormatUtils.formatRupiah(invoice.paidAmount)}
-        *Sisa Pembayaran:* ${FormatUtils.formatRupiah((invoice.totalAmount - invoice.paidAmount).coerceAtLeast(0.0))}
-        --------------------------------------------
-        *GRAND TOTAL:* ${FormatUtils.formatRupiah(invoice.totalAmount)}
-        *STATUS:* $statusText
-        
-        Terima kasih telah bertransaksi di YANSPROJECT.ID!
-    """.trimIndent()
-
-    try {
-        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(android.content.Intent.EXTRA_TEXT, text)
-            `package` = "com.whatsapp"
-        }
-        context.startActivity(intent)
-    } catch (e: Exception) {
-        android.util.Log.w("RiwayatScreen", "WhatsApp direct share failed, attempting system chooser: ${e.message}")
-        try {
-            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(android.content.Intent.EXTRA_TEXT, text)
-            }
-            context.startActivity(android.content.Intent.createChooser(intent, "Bagikan via"))
-        } catch (err: Exception) {
-            android.util.Log.e("RiwayatScreen", "Failed to share text content: ${err.message}", err)
-            Toast.makeText(context, "Gagal membagikan invoice.", Toast.LENGTH_SHORT).show()
-        }
-    }
+    val text = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, items, context)
+    val pdfFile = com.yansproject.app.ui.DocumentExporter.exportToPdf(context, invoice, items)
+    com.yansproject.app.util.ShareUtils.shareFileToWhatsApp(context, pdfFile, invoice.clientPhone, text)
 }
 
 fun printInvoicePdf(context: Context, invoice: Invoice) {
@@ -1812,6 +1813,250 @@ fun RiwayatSizeMatrixLayout(
                         fontWeight = if (qty > 0) FontWeight.Bold else FontWeight.Normal,
                         color = if (qty > 0) Color.White else TextMuted
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PaymentHistoryDialog(
+    invoice: Invoice,
+    payments: List<InvoicePayment>,
+    onDismiss: () -> Unit,
+    onEditPayment: (paymentId: String, newAmount: Double, method: String, notes: String) -> Unit,
+    onDeletePayment: (paymentId: String) -> Unit
+) {
+    var editingPayment by remember { mutableStateOf<InvoicePayment?>(null) }
+    var deletingPaymentId by remember { mutableStateOf<String?>(null) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = SecondaryShadowBlackTeal),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.5f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "HISTORI PEMBAYARAN",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AgedGold
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Tutup", tint = TextMuted)
+                    }
+                }
+
+                Text(
+                    text = "Invoice: ${invoice.invoiceNumber} • ${invoice.clientName}",
+                    fontSize = 12.sp,
+                    color = TextLight,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                HorizontalDivider(color = BorderGrey.copy(alpha = 0.3f))
+
+                if (payments.isEmpty()) {
+                    Text(
+                        text = "Belum ada rincian riwayat pembayaran yang tercatat.",
+                        fontSize = 12.sp,
+                        color = TextMuted,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 300.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(payments) { p ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = ShadowBlack),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(0.8.dp, DeepTeal),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = FormatUtils.formatRupiah(p.amount),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = AlertGreen
+                                        )
+                                        Text(
+                                            text = "${FormatUtils.formatDate(p.date)} • ${p.paymentMethod}",
+                                            fontSize = 11.sp,
+                                            color = TextMuted
+                                        )
+                                        if (p.notes.isNotBlank()) {
+                                            Text(
+                                                text = p.notes,
+                                                fontSize = 10.sp,
+                                                color = TextLight
+                                            )
+                                        }
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        IconButton(
+                                            onClick = { editingPayment = p },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Edit,
+                                                contentDescription = "Edit",
+                                                tint = HighlightSoftCyan,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { deletingPaymentId = p.id },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Delete,
+                                                contentDescription = "Hapus",
+                                                tint = AlertRed,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = DeepTeal, contentColor = TextLight),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("TUTUP", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+
+    editingPayment?.let { p ->
+        EditPaymentSubDialog(
+            payment = p,
+            onDismiss = { editingPayment = null },
+            onConfirm = { newAmount, method, notes ->
+                editingPayment = null
+                onEditPayment(p.id, newAmount, method, notes)
+            }
+        )
+    }
+
+    deletingPaymentId?.let { pId ->
+        AlertDialog(
+            onDismissRequest = { deletingPaymentId = null },
+            title = { Text("Hapus Pembayaran?", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+            text = { Text("Apakah Anda yakin ingin menghapus catatan pembayaran ini? Tindakan ini akan memperbarui sisa piutang dan meretrukturisasi kas/ledger secara otomatis.", color = TextLight, fontSize = 12.sp) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        deletingPaymentId = null
+                        onDeletePayment(pId)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
+                ) {
+                    Text("HAPUS", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingPaymentId = null }) {
+                    Text("BATAL", color = TextMuted)
+                }
+            },
+            containerColor = SecondaryShadowBlackTeal
+        )
+    }
+}
+
+@Composable
+fun EditPaymentSubDialog(
+    payment: InvoicePayment,
+    onDismiss: () -> Unit,
+    onConfirm: (newAmount: Double, method: String, notes: String) -> Unit
+) {
+    var amountInput by remember { mutableStateOf(payment.amount.toInt().toString()) }
+    var methodInput by remember { mutableStateOf(payment.paymentMethod) }
+    var notesInput by remember { mutableStateOf(payment.notes) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = SecondaryShadowBlackTeal),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, HighlightSoftCyan),
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("EDIT CATATAN PEMBAYARAN", color = HighlightSoftCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+
+                OutlinedTextField(
+                    value = amountInput,
+                    onValueChange = { if (it.all { c -> c.isDigit() }) amountInput = it },
+                    label = { Text("Nominal Pembayaran (Rp)", color = TextMuted) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
+                )
+
+                OutlinedTextField(
+                    value = methodInput,
+                    onValueChange = { methodInput = it },
+                    label = { Text("Metode (CASH / TRANSFER / LAINNYA)", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
+                )
+
+                OutlinedTextField(
+                    value = notesInput,
+                    onValueChange = { notesInput = it },
+                    label = { Text("Catatan / Keterangan", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = HighlightSoftCyan, unfocusedBorderColor = BorderGrey)
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text("BATAL", color = TextMuted)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val amt = amountInput.toDoubleOrNull() ?: payment.amount
+                            onConfirm(amt, methodInput, notesInput)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = HighlightSoftCyan, contentColor = ShadowBlack)
+                    ) {
+                        Text("SIMPAN", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

@@ -130,11 +130,12 @@ class NotificationDispatcher private constructor(private val context: Context) {
 
         return try {
             val title = payloadData["title"] ?: "YANSPROJECT.ID Notifikasi"
-            val body = payloadData["body"] ?: payloadData["description"] ?: ""
+            val body = payloadData["body"] ?: payloadData["description"] ?: payloadData["message"] ?: ""
             val category = payloadData["category"] ?: "Sistem"
             val targetTab = payloadData["targetTab"] ?: payloadData["target_tab"] ?: "RIWAYAT"
             val roleTarget = payloadData["roleTarget"] ?: payloadData["role_target"] ?: "ALL"
             val userId = payloadData["userId"] ?: payloadData["user_id"] ?: "ALL"
+            val senderRole = payloadData["senderRole"] ?: payloadData["sender_role"] ?: ""
 
             NotificationHandler.processAndDispatchNotification(
                 context = context,
@@ -144,7 +145,8 @@ class NotificationDispatcher private constructor(private val context: Context) {
                 category = category,
                 targetTab = targetTab,
                 roleTarget = roleTarget,
-                userId = userId
+                userId = userId,
+                senderRole = senderRole
             )
             persistDeliveredId(messageId)
             Log.i(TAG, "Remote push notification processed successfully [MessageID: $messageId]")

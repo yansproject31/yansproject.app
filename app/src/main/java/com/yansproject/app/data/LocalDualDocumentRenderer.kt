@@ -205,16 +205,14 @@ object LocalDualDocumentRenderer {
         document.finishPage(page)
 
         return try {
-            var downloadDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "YansProjectID")
-            if (!downloadDir.exists() && !downloadDir.mkdirs()) {
-                downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
-            }
+            val downloadDir = com.yansproject.app.util.FileUtils.getExportDirectory(context, "invoice")
             val fileName = "INV_PRINT_${System.currentTimeMillis()}.pdf"
             val file = File(downloadDir, fileName)
             val outputStream = FileOutputStream(file)
             document.writeTo(outputStream)
             outputStream.close()
             document.close()
+            com.yansproject.app.util.FileUtils.mirrorToDownloads(context, file, "Invoice")
             Log.d(TAG, "Successfully written inverted physical invoice PDF to: ${file.absolutePath}")
             file
         } catch (e: Exception) {

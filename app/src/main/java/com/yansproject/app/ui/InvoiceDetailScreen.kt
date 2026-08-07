@@ -778,7 +778,14 @@ fun InvoiceDetailScreen(
                                 )
                                 val file = documentRenderer.generateInvoicePdf(operationalInvoice, invoiceItems)
                                 if (file != null) {
-                                    viewModel.showSavedFileDialog(file, file.parentFile ?: file, "FAKTUR INVOICE PDF TERSIMPAN")
+                                    val shareMsg = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, invoiceItems)
+                                    viewModel.showSavedFileDialog(
+                                        file = file,
+                                        folder = file.parentFile ?: file,
+                                        title = "FAKTUR INVOICE PDF TERSIMPAN",
+                                        clientPhone = invoice.clientPhone,
+                                        shareMessage = shareMsg
+                                    )
                                     viewModel.addAuditLog("Unduh PDF", "Faktur Invoice ${invoice.invoiceNumber} berhasil dirender sebagai PDF.")
                                 } else {
                                     Toast.makeText(context, "Gagal merender PDF secara lokal!", Toast.LENGTH_SHORT).show()
@@ -819,7 +826,14 @@ fun InvoiceDetailScreen(
                                 )
                                 val file = documentRenderer.generateInvoicePng(operationalInvoice, invoiceItems)
                                 if (file != null) {
-                                    viewModel.showSavedFileDialog(file, file.parentFile ?: file, "GAMBAR INVOICE PNG TERSIMPAN")
+                                    val shareMsg = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, invoiceItems)
+                                    viewModel.showSavedFileDialog(
+                                        file = file,
+                                        folder = file.parentFile ?: file,
+                                        title = "GAMBAR INVOICE PNG TERSIMPAN",
+                                        clientPhone = invoice.clientPhone,
+                                        shareMessage = shareMsg
+                                    )
                                     viewModel.addAuditLog("Ekspor PNG", "Gambar Invoice ${invoice.invoiceNumber} disimpan ke Galeri.")
                                 } else {
                                     Toast.makeText(context, "Gagal merender PNG secara lokal!", Toast.LENGTH_SHORT).show()
@@ -841,23 +855,23 @@ fun InvoiceDetailScreen(
                         // Kirim WhatsApp
                         Button(
                             onClick = {
-                                val clientPhoneFormatted = invoice.clientPhone.replace("+", "").replace("-", "").replace(" ", "")
-                                val waPhone = if (clientPhoneFormatted.startsWith("0")) "62" + clientPhoneFormatted.substring(1) else clientPhoneFormatted
+                                val operationalInvoice = OperationalInvoice(
+                                    id = invoice.id.toString(),
+                                    invoiceNumber = invoice.invoiceNumber,
+                                    clientName = invoice.clientName,
+                                    clientPhone = invoice.clientPhone,
+                                    issueDate = invoice.issueDate,
+                                    dueDate = invoice.dueDate,
+                                    totalAmount = invoice.totalAmount,
+                                    paidAmount = currentPaidAmount,
+                                    discount = invoice.discount,
+                                    dpAmount = invoice.dpAmount,
+                                    itemsJson = invoice.itemsJson
+                                )
+                                val file = documentRenderer.generateInvoicePdf(operationalInvoice, invoiceItems)
                                 val shareMsg = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, invoiceItems)
-
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                    data = android.net.Uri.parse("https://api.whatsapp.com/send?phone=$waPhone&text=${android.net.Uri.encode(shareMsg)}")
-                                }
-                                try {
-                                    context.startActivity(intent)
-                                    viewModel.addAuditLog("Kirim WhatsApp", "Invoice ${invoice.invoiceNumber} dibagikan ke WhatsApp $waPhone")
-                                } catch (e: Exception) {
-                                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(android.content.Intent.EXTRA_TEXT, shareMsg)
-                                    }
-                                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Kirim Invoice via"))
-                                }
+                                com.yansproject.app.util.ShareUtils.shareFileToWhatsApp(context, file, invoice.clientPhone, shareMsg)
+                                viewModel.addAuditLog("Kirim WhatsApp", "Invoice ${invoice.invoiceNumber} dibagikan ke WhatsApp ${invoice.clientPhone}")
                             },
                             modifier = Modifier
                                 .weight(1f)
