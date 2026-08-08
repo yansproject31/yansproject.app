@@ -220,7 +220,7 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
                     }
 
                     // Create inflow ledger entry manually as a fallback
-                    val transactionNumber = "TX-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
+                    val transactionNumber = "INV-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
                     val newInflowEntity = Inflow(
                         transactionNumber = transactionNumber,
                         category = if (isCustomProject) "Angsuran Project Custom" else "Angsuran Invoice Stock",

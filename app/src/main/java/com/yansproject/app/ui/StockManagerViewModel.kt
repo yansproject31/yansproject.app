@@ -155,9 +155,13 @@ class StockManagerViewModel(application: Application) : AndroidViewModel(applica
                 val insertedLedgerId = appDb.inventoryLedgerDao().insertLedger(ledgerEntry)
                 FirebaseSyncManager.syncItemToCloud("inventory_ledger", insertedLedgerId.toString(), ledgerEntry.copy(id = insertedLedgerId.toInt()))
 
-                // 2. Call BusinessRepository to update the inventory summary dynamically
+                // 2. Call BusinessRepository to update physical MasterStock and inventory summary dynamically
                 val repository = BusinessRepository(appDb)
-                repository.updateInventorySummaryForVarian(variantId)
+                if (destination == "Available Stock") {
+                    repository.addStockForVarianSizeSleeve(variantId, size, sleeve, returnedQuantity, "Retur $reason ke $destination")
+                } else {
+                    repository.updateInventorySummaryForVarian(variantId)
+                }
 
                 // 3. Insert into audit logs
                 appDb.auditLogDao().insertLog(

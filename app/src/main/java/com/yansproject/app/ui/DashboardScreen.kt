@@ -1012,6 +1012,7 @@ fun DashboardScreen(
     val invoices by viewModel.allInvoices.collectAsState()
     val projects by viewModel.allProjects.collectAsState()
     val stockItems by viewModel.allStock.collectAsState()
+    val masterStocks by viewModel.allStockMaster.collectAsState()
     val orders by viewModel.allOrders.collectAsState()
     val expenses by viewModel.allExpenses.collectAsState()
     val inflows by viewModel.allInflows.collectAsState()
@@ -1183,19 +1184,33 @@ fun DashboardScreen(
     val allTimeNetProfit = (allTimeInvoicesPaid + allTimeStandaloneOrdersPaid + allTimeNonModalInflows) - allTimeExpensesAmount
     val modalBerjalan = modalAwal + allTimeNetProfit
 
-    // 7. Stok AJIBQOBUL & Nilai Persediaan Gudang (Data Rill Inventory Summary / Stock Items)
-    val totalStockPieces = remember(inventorySummaries, stockItems) {
+    // 7. Stok AJIBQOBUL & Nilai Persediaan Gudang (Data Rill Inventory Summary / Master Stock / Stock Items)
+    val totalStockPieces = remember(inventorySummaries, stockItems, masterStocks) {
         val summarySum = inventorySummaries.sumOf { it.availableStock }
+        val masterSum = masterStocks.filter { !it.isDeleted }.sumOf { it.total_stock }
         if (summarySum > 0 || inventorySummaries.isNotEmpty()) {
             summarySum
+        } else if (masterSum > 0) {
+            masterSum
         } else {
             stockItems.filter { !it.isDeleted }.sumOf { it.stockCount }
         }
     }
-    val nilaiTotalStock = remember(inventorySummaries, stockItems) {
+    val nilaiTotalStock = remember(inventorySummaries, stockItems, masterStocks) {
         val summaryNilai = inventorySummaries.sumOf { it.nilaiPersediaan }
+        val context = com.yansproject.app.YansApplication.instance
+        val defaultHppPendek = AppSettings.getAjibqobulHppPendek(context)
+        val masterNilai = masterStocks.filter { !it.isDeleted }.sumOf { stock ->
+            val hppP = if (stock.hpp_pendek > 0.0) stock.hpp_pendek else defaultHppPendek
+            val hppL = if (stock.hpp_panjang > 0.0) stock.hpp_panjang else defaultHppPendek
+            val qtyP = stock.xs_pendek + stock.s_pendek + stock.m_pendek + stock.l_pendek + stock.xl_pendek + stock.xxl_pendek + stock.three_xl_pendek + stock.four_xl_pendek
+            val qtyL = stock.xs_panjang + stock.s_panjang + stock.m_panjang + stock.l_panjang + stock.xl_panjang + stock.xxl_panjang + stock.three_xl_panjang + stock.four_xl_panjang
+            (qtyP * hppP) + (qtyL * hppL)
+        }
         if (summaryNilai > 0 || inventorySummaries.isNotEmpty()) {
             summaryNilai
+        } else if (masterNilai > 0.0) {
+            masterNilai
         } else {
             stockItems.filter { !it.isDeleted }.sumOf { (it.stockCount * it.costPrice) }
         }
@@ -3317,7 +3332,7 @@ fun InteractiveDonutChart(
 fun getEffectiveInvoicePaid(inv: Invoice): Double {
     if (inv.isDeleted) return 0.0
     val st = inv.status.trim().uppercase()
-    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "REFUND")) return 0.0
+    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "REFUND", "REFUNDED")) return 0.0
     if (st in listOf("LUNAS", "PAID", "SELESAI", "LUNAS (PAID)")) {
         return if (inv.totalAmount > 0.0) maxOf(inv.totalAmount, inv.paidAmount) else inv.paidAmount
     }
@@ -3329,7 +3344,7 @@ fun getEffectiveInvoicePaid(inv: Invoice): Double {
 fun calculateInvoicePaid(inv: Invoice, allPayments: List<InvoicePayment> = emptyList()): Double {
     if (inv.isDeleted) return 0.0
     val st = inv.status.trim().uppercase()
-    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "REFUND")) return 0.0
+    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT")) return 0.0
     if (st in listOf("LUNAS", "PAID", "SELESAI", "LUNAS (PAID)")) {
         return if (inv.totalAmount > 0.0) maxOf(inv.totalAmount, inv.paidAmount) else inv.paidAmount
     }
@@ -3347,7 +3362,7 @@ fun calculateInvoicePaid(inv: Invoice, allPayments: List<InvoicePayment> = empty
 fun calculateInvoiceSisaPiutang(inv: Invoice, allPayments: List<InvoicePayment> = emptyList()): Double {
     if (inv.isDeleted) return 0.0
     val st = inv.status.trim().uppercase()
-    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "LUNAS", "PAID", "SELESAI", "LUNAS (PAID)", "REFUND")) return 0.0
+    if (st in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "LUNAS", "PAID", "SELESAI", "LUNAS (PAID)", "REFUND", "REFUNDED")) return 0.0
     
     val paid = calculateInvoicePaid(inv, allPayments)
     return maxOf(0.0, inv.totalAmount - paid)

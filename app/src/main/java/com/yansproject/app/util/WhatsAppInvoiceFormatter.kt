@@ -66,26 +66,59 @@ object WhatsAppInvoiceFormatter {
         if (filteredItems.isEmpty()) {
             sb.append("• 1x Custom Project Order - ").append(FormatUtils.formatRupiah(invoice.totalAmount)).append("\n")
         } else {
-            filteredItems.forEachIndexed { idx, item ->
-                val qty = if (item.quantity > 0) item.quantity else 1
-                val subtotal = item.price * qty
-                sb.append("${idx + 1}. *${item.description}*\n")
-                sb.append("   └ $qty Pcs @ ${FormatUtils.formatRupiah(item.price)} = *${FormatUtils.formatRupiah(subtotal)}*\n")
+            val shortItems = filteredItems.filter { InvoiceItemSorter.extractSleeve(it.description) == "Pendek" }
+            val longItems = filteredItems.filter { InvoiceItemSorter.extractSleeve(it.description) == "Panjang" }
+
+            var itemNum = 1
+            if (shortItems.isNotEmpty()) {
+                sb.append("👕 *LENGAN PENDEK:*\n")
+                shortItems.forEach { item ->
+                    val qty = if (item.quantity > 0) item.quantity else 1
+                    val sub = item.price * qty
+                    sb.append(" ${itemNum++}. *${item.description}*\n")
+                    sb.append("    └ $qty Pcs @ ${FormatUtils.formatRupiah(item.price)} = *${FormatUtils.formatRupiah(sub)}*\n")
+                }
+            }
+
+            if (longItems.isNotEmpty()) {
+                if (shortItems.isNotEmpty()) sb.append("\n")
+                sb.append("👔 *LENGAN PANJANG:*\n")
+                longItems.forEach { item ->
+                    val qty = if (item.quantity > 0) item.quantity else 1
+                    val sub = item.price * qty
+                    sb.append(" ${itemNum++}. *${item.description}*\n")
+                    sb.append("    └ $qty Pcs @ ${FormatUtils.formatRupiah(item.price)} = *${FormatUtils.formatRupiah(sub)}*\n")
+                }
             }
         }
-        sb.append("\n").append(DIVIDER_DOUBLE).append("\n")
+        sb.append("\n").append(DIVIDER_SINGLE).append("\n")
+
+        val shortQty = InvoiceItemSorter.getShortSleeveTotalQty(filteredItems)
+        val longQty = InvoiceItemSorter.getLongSleeveTotalQty(filteredItems)
+        val globalQty = InvoiceItemSorter.getGlobalTotalQty(filteredItems)
+
+        sb.append("📊 *RINGKASAN KUANTITAS (QTY)*\n")
+        if (shortQty > 0) sb.append("• Total Lengan Pendek : ").append(shortQty).append(" Pcs\n")
+        if (longQty > 0) sb.append("• Total Lengan Panjang: ").append(longQty).append(" Pcs\n")
+        sb.append("• *Total Kuantitas Global*: *").append(globalQty).append(" Pcs*\n")
+        sb.append(DIVIDER_DOUBLE).append("\n\n")
+
+        val calculatedSubtotal = InvoiceItemSorter.calcSubtotal(filteredItems)
+        val subtotalToDisplay = if (calculatedSubtotal > 0.0) calculatedSubtotal else invoice.totalAmount
+        val grandTotal = (subtotalToDisplay - invoice.discount).coerceAtLeast(0.0)
 
         sb.append("💳 *RINGKASAN PEMBAYARAN*\n")
-        sb.append("• *Total Belanja* : ").append(FormatUtils.formatRupiah(invoice.totalAmount)).append("\n")
+        sb.append("• *Subtotal Barang* : ").append(FormatUtils.formatRupiah(subtotalToDisplay)).append("\n")
         if (invoice.discount > 0) {
-            sb.append("• *Potongan Diskon*: - ").append(FormatUtils.formatRupiah(invoice.discount)).append("\n")
+            sb.append("• *Potongan Diskon* : - ").append(FormatUtils.formatRupiah(invoice.discount)).append("\n")
         }
+        sb.append("• *Grand Total*     : *").append(FormatUtils.formatRupiah(grandTotal)).append("*\n")
         if (invoice.dpAmount > 0) {
-            sb.append("• *Uang Muka (DP)* : ").append(FormatUtils.formatRupiah(invoice.dpAmount)).append("\n")
+            sb.append("• *Uang Muka (DP)*  : ").append(FormatUtils.formatRupiah(invoice.dpAmount)).append("\n")
         }
-        sb.append("• *Total Terbayar*: ").append(FormatUtils.formatRupiah(invoice.paidAmount)).append("\n")
+        sb.append("• *Total Terbayar*  : ").append(FormatUtils.formatRupiah(invoice.paidAmount)).append("\n")
         sb.append(DIVIDER_SINGLE).append("\n")
-        sb.append("▶️ *SISA TAGIHAN*  : *").append(FormatUtils.formatRupiah(remaining)).append("*\n")
+        sb.append("▶️ *SISA PEMBAYARAN* : *").append(FormatUtils.formatRupiah(remaining)).append("*\n")
         sb.append(DIVIDER_DOUBLE).append("\n\n")
 
         sb.append("🤝 *AKAD SYAR'I & KETERANGAN*\n")

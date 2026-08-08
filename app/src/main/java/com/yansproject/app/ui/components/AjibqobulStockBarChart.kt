@@ -1,7 +1,12 @@
 package com.yansproject.app.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -49,18 +56,22 @@ fun AjibqobulStockBarChart(
     seriesList: List<SeriesStockData>,
     modifier: Modifier = Modifier,
     title: String = "GRAFIK STOK KATALOG (SERIES AJIBQOBUL)",
+    initialExpanded: Boolean = false,
     onSeriesSelected: ((SeriesStockData) -> Unit)? = null
 ) {
+    var isChartVisible by remember { mutableStateOf(initialExpanded) }
     var selectedSeries by remember { mutableStateOf<SeriesStockData?>(null) }
     var animationPlayed by remember { mutableStateOf(false) }
 
-    LaunchedEffect(seriesList) {
-        animationPlayed = true
+    LaunchedEffect(seriesList, isChartVisible) {
+        if (isChartVisible) {
+            animationPlayed = true
+        }
     }
 
     val animatedProgress by animateFloatAsState(
-        targetValue = if (animationPlayed) 1f else 0f,
-        animationSpec = tween(durationMillis = 1000),
+        targetValue = if (animationPlayed && isChartVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = 800),
         label = "BarChartAnimation"
     )
 
@@ -73,18 +84,21 @@ fun AjibqobulStockBarChart(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Header Row
+            // Header Row (Clickable to toggle chart visibility)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isChartVisible = !isChartVisible },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Box(
                         modifier = Modifier
@@ -104,32 +118,73 @@ fun AjibqobulStockBarChart(
                         Text(
                             text = title,
                             color = AccentAgedGold,
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = 0.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Monitoring Ketersediaan Stok per Katalog Real-Time",
+                            text = if (isChartVisible) "Monitoring Stok per Katalog Real-Time" else "Ketuk untuk melihat grafik visual stok",
                             color = TextMuted,
-                            fontSize = 10.sp
+                            fontSize = 9.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                Surface(
-                    color = SecondaryShadowBlackTeal,
-                    shape = RoundedCornerShape(8.dp),
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderGrey)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = "${seriesList.size} Katalog",
-                        color = HighlightSoftCyan,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    Surface(
+                        color = SecondaryShadowBlackTeal,
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderGrey)
+                    ) {
+                        Text(
+                            text = "${seriesList.size} Katalog",
+                            color = HighlightSoftCyan,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    Surface(
+                        color = if (isChartVisible) AccentAgedGold.copy(alpha = 0.25f) else SecondaryShadowBlackTeal,
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(0.8.dp, if (isChartVisible) AccentAgedGold else BorderGrey)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isChartVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                contentDescription = if (isChartVisible) "Sembunyikan" else "Tampilkan",
+                                tint = if (isChartVisible) AccentAgedGold else TextLight,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = if (isChartVisible) "Hide" else "View",
+                                color = if (isChartVisible) AccentAgedGold else TextLight,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
+
+            AnimatedVisibility(
+                visible = isChartVisible,
+                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
 
             if (seriesList.isEmpty()) {
                 Box(
@@ -349,6 +404,8 @@ fun AjibqobulStockBarChart(
             }
         }
     }
+}
+}
 }
 
 @Composable

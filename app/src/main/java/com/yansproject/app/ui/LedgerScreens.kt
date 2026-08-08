@@ -309,7 +309,7 @@ fun RiwayatModalBerjalanScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = item.notes.ifEmpty { "Penyertaan Modal Awal" },
+                                    text = FormatUtils.sanitizeNotes(item.notes).ifEmpty { "Penyertaan Modal Awal" },
                                     fontSize = 11.sp,
                                     color = TextSecondary
                                 )
@@ -388,7 +388,7 @@ fun LedgerInflowItemCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
                     Text(
-                        text = item.notes.ifEmpty { "Pemasukan kas tanpa catatan" },
+                        text = FormatUtils.sanitizeNotes(item.notes).ifEmpty { "Pemasukan kas tanpa catatan" },
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -1071,7 +1071,7 @@ fun InflowDetailDialog(
                                 .background(CardGrey)
                                 .padding(12.dp)
                         ) {
-                            Text(text = item.notes, fontSize = 12.sp, color = Color.White)
+                            Text(text = FormatUtils.sanitizeNotes(item.notes), fontSize = 12.sp, color = Color.White)
                         }
                     }
                 }
@@ -1565,7 +1565,7 @@ fun RiwayatKasScreen(
                                     }
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = tx.notes,
+                                        text = FormatUtils.sanitizeNotes(tx.notes),
                                         fontSize = 11.sp,
                                         color = TextLight,
                                         maxLines = 1
@@ -4029,7 +4029,7 @@ fun InvoicePaymentCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = item.notes,
+                        text = FormatUtils.sanitizeNotes(item.notes),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -4124,7 +4124,7 @@ fun TrashedItemCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = item.notes,
+                        text = FormatUtils.sanitizeNotes(item.notes),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White

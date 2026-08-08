@@ -62,21 +62,43 @@ object AtomicCheckoutEngine {
                     }
                 }
 
-                // Execute the entire flow atomically inside a Firestore Batch
-                firestore.runBatch { batch ->
-                    Log.d(TAG, "Starting atomic checkout batch for $invoiceNum")
+                // Execute the entire checkout flow atomically inside a Firestore Transaction
+                var finalAssignedInvoiceNum = invoiceNum
 
-                    // -- STEP 1: Stock Validation & Reservation --
+                firestore.runTransaction { transaction ->
+                    Log.d(TAG, "Starting atomic checkout transaction for $invoiceNum")
+
+                    // -- STEP 1: Invoice Number Collision Resolution --
+                    var candidateNum = invoiceNum
+                    var counter = 1
+                    var invDocRef = firestore.collection("invoices").document(candidateNum)
+                    var invSnap = transaction.get(invDocRef)
+                    
+                    while (invSnap.exists()) {
+                        counter++
+                        val suffix = String.format("%02d", counter)
+                        candidateNum = "$invoiceNum-$suffix"
+                        invDocRef = firestore.collection("invoices").document(candidateNum)
+                        invSnap = transaction.get(invDocRef)
+                    }
+                    finalAssignedInvoiceNum = candidateNum
+
+                    // -- STEP 2: Stock Validation & Reservation Check inside Transaction --
                     for (item in cartItems) {
                         val stockId = stockIdMap[item.varianId] ?: item.varianId
                         val stockRef = firestore.collection("master_stock").document(stockId.toString())
                         
-                        // Use fetched Firestore stock, fallback to local cache
-                        val currentStock = currentFirestoreStocks[item.varianId]
-                            ?: localStockObjects[item.varianId]
-                            ?: MasterStock(id_stock = stockId, id_varian = item.varianId)
+                        val stockSnap = transaction.get(stockRef)
+                        val currentStock = if (stockSnap.exists()) {
+                            stockSnap.toObject(MasterStock::class.java)
+                                ?: localStockObjects[item.varianId]
+                                ?: MasterStock(id_stock = stockId, id_varian = item.varianId)
+                        } else {
+                            localStockObjects[item.varianId]
+                                ?: MasterStock(id_stock = stockId, id_varian = item.varianId)
+                        }
 
-                        // Validate stock availability
+                        // Validate physical stock availability against item.qty
                         val availableCount = when (item.size) {
                             "XS" -> if (item.sleeve == "Pendek") currentStock.xs_pendek else currentStock.xs_panjang
                             "S" -> if (item.sleeve == "Pendek") currentStock.s_pendek else currentStock.s_panjang
@@ -94,7 +116,7 @@ object AtomicCheckoutEngine {
                         }
                     }
 
-                    // -- STEP 2: Draft Order Generation / Update --
+                    // -- STEP 3: Draft Sales Order Generation --
                     val draftRef = firestore.collection("draft_sales_orders").document(currentUserEmail.trim().lowercase())
                     val draftData = hashMapOf(
                         "clientName" to clientName,
@@ -103,12 +125,9 @@ object AtomicCheckoutEngine {
                         "notes" to notes,
                         "updatedAt" to System.currentTimeMillis()
                     )
-                    batch.set(draftRef, draftData, SetOptions.merge())
+                    transaction.set(draftRef, draftData, SetOptions.merge())
 
-                    // -- STEP 3: Invoice Creation --
-                    val invoiceRef = firestore.collection("invoices").document(invoiceNum)
-                    
-                    // Format invoice items list to JSON structure for itemsJson
+                    // -- STEP 4: Invoice Document Creation --
                     val invoiceItemsArray = JSONArray()
                     cartItems.forEach { item ->
                         val obj = JSONObject().apply {
@@ -142,7 +161,7 @@ object AtomicCheckoutEngine {
 
                     val currentUid = FirebaseSyncManager.currentUser.value?.uid ?: ""
                     val invoiceData = hashMapOf(
-                        "invoiceNumber" to invoiceNum,
+                        "invoiceNumber" to finalAssignedInvoiceNum,
                         "clientName" to clientName,
                         "clientPhone" to clientPhone,
                         "clientEmail" to currentUserEmail,
@@ -161,11 +180,11 @@ object AtomicCheckoutEngine {
                         "dpAmount" to 0.0,
                         "isDeleted" to false
                     )
-                    batch.set(invoiceRef, invoiceData)
+                    transaction.set(invDocRef, invoiceData)
 
-                    // -- STEP 4: Order Details Subcollection Mapping --
+                    // -- STEP 5: Order Details Subcollection Mapping --
                     cartItems.forEach { item ->
-                        val detailRef = invoiceRef.collection("items").document(item.id)
+                        val detailRef = invDocRef.collection("items").document(item.id)
                         val detailData = hashMapOf(
                             "id" to item.id,
                             "catalogId" to item.catalogId,
@@ -178,27 +197,27 @@ object AtomicCheckoutEngine {
                             "price" to item.price,
                             "subtotal" to (item.price * item.qty)
                         )
-                        batch.set(detailRef, detailData)
+                        transaction.set(detailRef, detailData)
                     }
 
-                    // -- STEP 5: Transaction Audit Logging --
+                    // -- STEP 6: Transaction Audit Logging --
                     val logId = java.util.UUID.randomUUID().toString()
                     val logData = hashMapOf(
                         "id" to logId,
                         "action" to "Checkout Member",
-                        "details" to "Pesanan baru $invoiceNum oleh Member $clientName sebesar Rp${String.format("%,.0f", totalAmount)}",
+                        "details" to "Pesanan baru $finalAssignedInvoiceNum oleh Member $clientName sebesar Rp${String.format("%,.0f", totalAmount)}",
                         "timestamp" to System.currentTimeMillis(),
                         "user" to currentUserEmail
                     )
-                    batch.set(firestore.collection("activity_logs").document(logId), logData)
-                    batch.set(firestore.collection("audit_logs").document(logId), logData)
+                    transaction.set(firestore.collection("activity_logs").document(logId), logData)
+                    transaction.set(firestore.collection("audit_logs").document(logId), logData)
 
-                    // -- STEP 6: Notification Queueing --
+                    // -- STEP 7: Notification Queueing --
                     val notificationId = java.util.UUID.randomUUID().toString()
                     val notifData = hashMapOf(
                         "id" to notificationId,
                         "title" to "Pesanan Baru",
-                        "description" to "Pesanan baru $invoiceNum dari Member $clientName menunggu persetujuan.",
+                        "description" to "Pesanan baru $finalAssignedInvoiceNum dari Member $clientName menunggu persetujuan.",
                         "timestamp" to System.currentTimeMillis(),
                         "category" to "Invoice",
                         "actionRoute" to "INVOICE",
@@ -209,14 +228,14 @@ object AtomicCheckoutEngine {
                         "isArchived" to false,
                         "createdBy" to "MEMBER"
                     )
-                    batch.set(firestore.collection("notification_queue").document(notificationId), notifData)
-                    batch.set(firestore.collection("notifications").document(notificationId), notifData)
+                    transaction.set(firestore.collection("notification_queue").document(notificationId), notifData)
+                    transaction.set(firestore.collection("notifications").document(notificationId), notifData)
 
-                    Log.d(TAG, "Batch actions successfully queued for execution.")
+                    null
                 }.await()
 
-                Log.d(TAG, "Batch completed successfully!")
-                onComplete(true, invoiceNum)
+                Log.d(TAG, "Transaction completed successfully with invoice: $finalAssignedInvoiceNum")
+                onComplete(true, finalAssignedInvoiceNum)
             } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
                 val errorMsg = "Gagal menyimpan transaksi ke database cloud (${e.code}): ${e.localizedMessage}"
                 Log.e(TAG, "Firestore Exception during atomic checkout batch: ${e.code} - ${e.message}", e)

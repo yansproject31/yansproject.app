@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Close
@@ -627,6 +628,7 @@ fun InvoiceItemCard(
                         "DP PRODUKSI", "DP_PRODUKSI" -> Triple("DP PRODUKSI", AgedGold, Icons.Outlined.HourglassBottom)
                         "DP" -> Triple("DP", AgedGold, Icons.Outlined.HourglassBottom)
                         "REFUND", "REFUNDED" -> Triple("REFUND", Color(0xFFE289F2), Icons.Outlined.Undo)
+                        "PARTIAL_REFUND", "PARTIAL REFUND" -> Triple("PARTIAL REFUND", Color(0xFFFF9800), Icons.Outlined.Undo)
                         "BATAL" -> Triple("BATAL", TextMuted, Icons.Outlined.Cancel)
                         else -> Triple("BELUM LUNAS", AlertRed, Icons.Outlined.ErrorOutline)
                     }
@@ -829,6 +831,7 @@ fun InvoiceDetailDialog(
 
     var showEditNoteDialog by remember { mutableStateOf(false) }
     var showCancelConfirm by remember { mutableStateOf(false) }
+    var showRefundDialog by remember { mutableStateOf(false) }
     var exportSuccessFile by remember { mutableStateOf<java.io.File?>(null) }
 
     var showAddPaymentDialog by remember { mutableStateOf(false) }
@@ -1001,6 +1004,7 @@ fun InvoiceDetailDialog(
                                             "DP PRODUKSI", "DP_PRODUKSI" -> AgedGold
                                             "DP" -> AgedGold
                                             "REFUND", "REFUNDED" -> Color(0xFFE289F2)
+                                            "PARTIAL_REFUND", "PARTIAL REFUND" -> Color(0xFFFF9800)
                                             "BATAL" -> TextMuted
                                             else -> AlertRed
                                         }
@@ -1440,6 +1444,94 @@ fun InvoiceDetailDialog(
                         }
                     }
 
+                    // RINCIAN & RIWAYAT REFUND
+                    if (invoice.status.uppercase().trim() in listOf("REFUND", "REFUNDED", "PARTIAL_REFUND") || invoiceItems.any { it.description.startsWith("__NOTE__: Refund") }) {
+                        item {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = CardGrey),
+                                border = BorderStroke(1.dp, Color(0xFFE289F2).copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(imageVector = Icons.Outlined.Undo, contentDescription = null, tint = Color(0xFFE289F2), modifier = Modifier.size(16.dp))
+                                            Text(
+                                                text = "6. RINCIAN & RIWAYAT REFUND",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFE289F2),
+                                                letterSpacing = 1.sp
+                                            )
+                                        }
+
+                                        val refundTypeLabel = if (invoice.status.uppercase().trim() in listOf("REFUND", "REFUNDED")) "REFUND TOTAL" else "REFUND SEBAGIAN"
+                                        val refundTypeColor = if (invoice.status.uppercase().trim() in listOf("REFUND", "REFUNDED")) Color(0xFFE289F2) else Color(0xFFFF9800)
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(30.dp))
+                                                .background(refundTypeColor.copy(alpha = 0.15f))
+                                                .border(BorderStroke(1.dp, refundTypeColor.copy(alpha = 0.4f)), RoundedCornerShape(30.dp))
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(text = refundTypeLabel, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = refundTypeColor)
+                                        }
+                                    }
+                                    HorizontalDivider(color = BorderGrey.copy(alpha = 0.3f), thickness = 0.5.dp)
+
+                                    val refundNotes = invoiceItems.filter { it.description.startsWith("__NOTE__: Refund") }.map { it.description.removePrefix("__NOTE__:") }
+                                    if (refundNotes.isNotEmpty()) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Text(text = "Catatan Audit Refund:", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                                            refundNotes.forEach { noteText ->
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(ShadowBlack)
+                                                        .border(0.8.dp, Color(0xFFE289F2).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                                        .padding(10.dp)
+                                                ) {
+                                                    Text(text = noteText, fontSize = 11.sp, color = TextLight)
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(ShadowBlack)
+                                                .border(0.8.dp, Color(0xFFE289F2).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                                .padding(10.dp)
+                                        ) {
+                                            Text(text = "Invoice ini telah diproses refund (pengembalian barang ke gudang stok & pengeluaran kas).", fontSize = 11.sp, color = TextLight)
+                                        }
+                                    }
+
+                                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Icon(imageVector = Icons.Outlined.CheckCircle, contentDescription = null, tint = AlertGreen, modifier = Modifier.size(14.dp))
+                                            Text(text = "Stok barang telah direstok ke Master Stock Gudang secara realtime.", fontSize = 11.sp, color = TextLight)
+                                        }
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Icon(imageVector = Icons.Outlined.CheckCircle, contentDescription = null, tint = AlertGreen, modifier = Modifier.size(14.dp))
+                                            Text(text = "Pengeluaran dana refund tercatat di Sub-Ledger & Laporan Keuangan.", fontSize = 11.sp, color = TextLight)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // FOOTER
                     item {
                         Text(
@@ -1454,56 +1546,13 @@ fun InvoiceDetailDialog(
                 }
 
                 if (exportSuccessFile != null) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, AgedGold),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Dokumen berhasil disimpan!",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = HighlightSoftCyan
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = exportSuccessFile?.name ?: "",
-                                    fontSize = 11.sp,
-                                    color = TextLight,
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                )
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(
-                                    onClick = {
-                                        exportSuccessFile?.parentFile?.let { dir ->
-                                            DocumentExporter.openFolder(context, dir)
-                                        }
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(30.dp)
-                                ) {
-                                    Text("BUKA FOLDER", color = AgedGold, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
-                                }
-                                IconButton(
-                                    onClick = { exportSuccessFile = null },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(imageVector = Icons.Default.Close, contentDescription = "Tutup", tint = TextMuted, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                        }
-                    }
+                    val shareMsg = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, invoiceItems)
+                    com.yansproject.app.ui.components.FileSavedSuccessDialog(
+                        file = exportSuccessFile!!,
+                        clientPhone = invoice.clientPhone,
+                        shareMessage = shareMsg,
+                        onDismiss = { exportSuccessFile = null }
+                    )
                 }
 
                 // BOTTOM ACTION AREA
@@ -1621,25 +1670,15 @@ fun InvoiceDetailDialog(
                         }
                     }
 
-                    // Direct WhatsApp Message to Customer (Full-width, premium, high visibility)
+                    // Direct WhatsApp Message & File Attachment to Customer (Full-width, premium, high visibility)
                     Button(
                         onClick = {
-                            if (invoice.clientPhone.trim().length >= 9) {
-                                val shareMessage = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, invoiceItems)
-
-                                val formattedPhone = invoice.clientPhone.replace("+", "").replace(" ", "").replace("-", "")
-                                val whatsappPhone = if (formattedPhone.startsWith("0")) "62" + formattedPhone.substring(1) else formattedPhone
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                                        data = Uri.parse("https://api.whatsapp.com/send?phone=$whatsappPhone&text=${Uri.encode(shareMessage)}")
-                                    }
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Gagal membuka WhatsApp. Pastikan WhatsApp terinstal.", Toast.LENGTH_SHORT).show()
-                                }
-                            } else {
-                                Toast.makeText(context, "Nomor WhatsApp Customer tidak valid atau kosong!", Toast.LENGTH_SHORT).show()
+                            val shareMessage = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, invoiceItems)
+                            val fileToSend = exportSuccessFile ?: DocumentExporter.exportToPdf(context, invoice, invoiceItems, viewModel)
+                            if (fileToSend != null) {
+                                exportSuccessFile = fileToSend
                             }
+                            DocumentExporter.shareFileToWhatsApp(context, fileToSend, invoice.clientPhone, shareMessage)
                         },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = HighlightSoftCyan, contentColor = ShadowBlack),
@@ -1759,36 +1798,49 @@ fun InvoiceDetailDialog(
                                 }
                             }
                         }
-                    } else if (isOwner && invoice.status != "Lunas" && invoice.status != "BATAL" && invoice.status != "Void") {
-                        Row(
+                    } else if (isOwner && invoice.status.uppercase().trim() !in listOf("BATAL", "CANCELLED", "VOID", "REFUND", "REFUNDED")) {
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            if (invoice.status.uppercase().trim() !in listOf("LUNAS", "PAID", "SELESAI") && currentRemaining > 0) {
+                                Button(
+                                    onClick = { showAddPaymentDialog = true },
+                                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Outlined.Payments, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(text = "Tambah Pembayaran", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // Refund Control
                             Button(
-                                onClick = { showAddPaymentDialog = true },
+                                onClick = { showRefundDialog = true },
                                 modifier = Modifier.fillMaxWidth().height(40.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE289F2).copy(alpha = 0.15f), contentColor = Color(0xFFE289F2)),
+                                border = BorderStroke(1.dp, Color(0xFFE289F2).copy(alpha = 0.5f)),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Icon(imageVector = Icons.Outlined.Payments, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(imageVector = Icons.Outlined.Undo, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "Tambah Pembayaran", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Proses Refund (Pengembalian Dana & Restock)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
-                        }
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Cancellation Control
-                        Button(
-                            onClick = { showCancelConfirm = true },
-                            modifier = Modifier.fillMaxWidth().height(40.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AlertRed.copy(alpha = 0.15f), contentColor = AlertRed),
-                            border = BorderStroke(1.dp, AlertRed.copy(alpha = 0.5f)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(imageVector = Icons.Outlined.Cancel, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Batalkan Invoice (Restock)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            // Cancellation Control
+                            Button(
+                                onClick = { showCancelConfirm = true },
+                                modifier = Modifier.fillMaxWidth().height(40.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AlertRed.copy(alpha = 0.15f), contentColor = AlertRed),
+                                border = BorderStroke(1.dp, AlertRed.copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(imageVector = Icons.Outlined.Cancel, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Batalkan Invoice (Restock)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -1819,6 +1871,30 @@ fun InvoiceDetailDialog(
             confirmText = "Ya, Batalkan",
             dismissText = "Batal",
             isDanger = true
+        )
+    }
+
+    if (showRefundDialog) {
+        YansRefundDialog(
+            invoice = invoice,
+            allPayments = paymentsList,
+            onDismiss = { showRefundDialog = false },
+            onConfirmRefund = { reason, account, restoreStock, refundItemQtyMap ->
+                viewModel?.refundInvoice(
+                    invoiceId = invoice.id,
+                    reason = reason,
+                    paymentAccount = account,
+                    restoreStock = restoreStock,
+                    refundItemQtyMap = refundItemQtyMap
+                ) { success ->
+                    showRefundDialog = false
+                    if (success) {
+                        Toast.makeText(context, "Invoice ${invoice.invoiceNumber} berhasil di-refund.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Gagal memproses refund invoice.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
         )
     }
 
@@ -3666,4 +3742,360 @@ fun AddSaleDialog(
             )
         }
     }
+}
+
+@Composable
+fun YansRefundDialog(
+    invoice: Invoice,
+    allPayments: List<com.yansproject.app.data.InvoicePayment>,
+    onDismiss: () -> Unit,
+    onConfirmRefund: (reason: String, account: String, restoreStock: Boolean, refundItemQtyMap: Map<Int, Int>?) -> Unit
+) {
+    var reason by remember { mutableStateOf("") }
+    var selectedAccount by remember { mutableStateOf("CASH") }
+    var restoreStock by remember { mutableStateOf(true) }
+    var refundMode by remember { mutableStateOf("FULL") } // "FULL" or "PARTIAL"
+
+    val converters = remember { com.yansproject.app.data.AppTypeConverters() }
+    val parsedItems = remember(invoice.itemsJson) {
+        val items = try {
+            converters.toInvoiceItemList(invoice.itemsJson)
+        } catch (e: Exception) {
+            emptyList()
+        }
+        items.filter { !it.description.startsWith("__") }
+    }
+
+    val refundQtyMap = remember(parsedItems) {
+        mutableStateMapOf<Int, Int>().apply {
+            parsedItems.indices.forEach { i ->
+                put(i, parsedItems[i].quantity)
+            }
+        }
+    }
+
+    val totalPaid = remember(invoice, allPayments) {
+        val cloudKey = invoice.invoiceNumber.ifEmpty { invoice.id.toString() }
+        val invPayments = allPayments.filter { it.invoiceId == cloudKey || (invoice.invoiceNumber.isNotBlank() && it.invoiceId == invoice.invoiceNumber) }
+        if (invPayments.isNotEmpty()) invPayments.sumOf { it.amount } else invoice.paidAmount
+    }
+
+    val calculatedRefundPcs = remember(refundMode, parsedItems, refundQtyMap.toMap()) {
+        if (refundMode == "FULL") {
+            parsedItems.sumOf { it.quantity }
+        } else {
+            parsedItems.indices.sumOf { i -> refundQtyMap[i] ?: parsedItems[i].quantity }
+        }
+    }
+
+    val calculatedRefundValue = remember(refundMode, parsedItems, refundQtyMap.toMap()) {
+        if (refundMode == "FULL") {
+            invoice.totalAmount
+        } else {
+            parsedItems.indices.sumOf { i -> (refundQtyMap[i] ?: parsedItems[i].quantity) * parsedItems[i].price }
+        }
+    }
+
+    val actualCashOutflow = remember(calculatedRefundValue, totalPaid) {
+        minOf(calculatedRefundValue, totalPaid)
+    }
+
+    val accounts = listOf(
+        "CASH" to "Kas Tunai",
+        "BCA" to "Bank BCA",
+        "MANDIRI" to "Bank Mandiri",
+        "QRIS" to "QRIS / E-Wallet"
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF0B1B1C),
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier
+            .border(1.2.dp, Color(0xFFE289F2).copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+            .padding(4.dp),
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Color(0xFFE289F2).copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Undo,
+                        contentDescription = null,
+                        tint = Color(0xFFE289F2),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column {
+                    Text("Proses Refund & Restock Stok", color = TextLight, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("${invoice.invoiceNumber} (${invoice.clientName})", color = Color(0xFFE289F2), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Refund Mode Selection
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Pilih Opsi Refund:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AgedGold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Card(
+                            onClick = { refundMode = "FULL" },
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (refundMode == "FULL") Color(0xFFE289F2).copy(alpha = 0.25f) else SurfaceDarkTealSurface
+                            ),
+                            border = BorderStroke(1.dp, if (refundMode == "FULL") Color(0xFFE289F2) else BorderGrey),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("Refund Total", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (refundMode == "FULL") Color(0xFFE289F2) else TextLight)
+                                Text("Semua Item (${parsedItems.sumOf { it.quantity }} pcs)", fontSize = 10.sp, color = TextMuted)
+                            }
+                        }
+
+                        Card(
+                            onClick = { refundMode = "PARTIAL" },
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (refundMode == "PARTIAL") Color(0xFFE289F2).copy(alpha = 0.25f) else SurfaceDarkTealSurface
+                            ),
+                            border = BorderStroke(1.dp, if (refundMode == "PARTIAL") Color(0xFFE289F2) else BorderGrey),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("Refund Sebagian", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (refundMode == "PARTIAL") Color(0xFFE289F2) else TextLight)
+                                Text("Pilih Item / Qty Pcs", fontSize = 10.sp, color = TextMuted)
+                            }
+                        }
+                    }
+                }
+
+                // If PARTIAL refund, show item quantity selector
+                if (refundMode == "PARTIAL" && parsedItems.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Tentukan Jumlah Pcs Dikembalikan ke Gudang:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                        parsedItems.forEachIndexed { idx, item ->
+                            val currentQty = refundQtyMap[idx] ?: item.quantity
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
+                                border = BorderStroke(0.8.dp, BorderGrey.copy(alpha = 0.6f)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = item.description,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextLight,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${FormatUtils.formatRupiah(item.price)} (Beli: ${item.quantity} pcs)",
+                                            fontSize = 10.sp,
+                                            color = TextMuted
+                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            IconButton(
+                                                onClick = { if (currentQty > 0) refundQtyMap[idx] = currentQty - 1 },
+                                                modifier = Modifier.size(26.dp).background(DeepTeal, CircleShape)
+                                            ) {
+                                                Text("-", color = TextLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            }
+                                            Text(
+                                                text = "$currentQty pcs",
+                                                color = AgedGold,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 11.sp,
+                                                modifier = Modifier.padding(horizontal = 4.dp)
+                                            )
+                                            IconButton(
+                                                onClick = { if (currentQty < item.quantity) refundQtyMap[idx] = currentQty + 1 },
+                                                modifier = Modifier.size(26.dp).background(DeepTeal, CircleShape)
+                                            ) {
+                                                Text("+", color = TextLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Summary
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = DeepTeal.copy(alpha = 0.6f)),
+                    border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.3f)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Stok Dikembalikan ke Gudang:", fontSize = 11.sp, color = TextMuted)
+                            Text("$calculatedRefundPcs pcs", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AlertGreen)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Nilai Barang Retur:", fontSize = 11.sp, color = TextMuted)
+                            Text(FormatUtils.formatRupiah(calculatedRefundValue), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                        }
+                        Divider(color = BorderGrey.copy(alpha = 0.3f), thickness = 1.dp)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Pengeluaran Kas/Bank (Refund):", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AlertRed)
+                            Text(FormatUtils.formatRupiah(actualCashOutflow), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = AlertRed)
+                        }
+                    }
+                }
+
+                // Payment Account Selection
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Sumber Kas/Bank Pengeluaran Refund:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AgedGold)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        accounts.chunked(2).forEach { rowAccounts ->
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                rowAccounts.forEach { (accKey, accLabel) ->
+                                    val isSelected = selectedAccount == accKey
+                                    Card(
+                                        onClick = { selectedAccount = accKey },
+                                        modifier = Modifier.weight(1f),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isSelected) Color(0xFFE289F2).copy(alpha = 0.2f) else SurfaceDarkTealSurface
+                                        ),
+                                        border = BorderStroke(
+                                            1.dp,
+                                            if (isSelected) Color(0xFFE289F2) else BorderGrey
+                                        ),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            text = accLabel,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color(0xFFE289F2) else TextLight,
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Reason / Notes
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Alasan / Catatan Refund:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
+                    OutlinedTextField(
+                        value = reason,
+                        onValueChange = { reason = it },
+                        placeholder = { Text("Misal: Retur barang / Klaim cacat produksi / Salah ukuran", color = TextMuted, fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFE289F2),
+                            unfocusedBorderColor = BorderGrey,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        singleLine = true
+                    )
+                }
+
+                // Restore stock switch
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
+                    border = BorderStroke(1.dp, BorderGrey),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Restock Barang Otomatis", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                            Text("Kembalikan $calculatedRefundPcs pcs ke stok gudang Ajibqobul", fontSize = 10.sp, color = TextMuted)
+                        }
+                        Switch(
+                            checked = restoreStock,
+                            onCheckedChange = { restoreStock = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = ShadowBlack,
+                                checkedTrackColor = Color(0xFFE289F2)
+                            )
+                        )
+                    }
+                }
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = AlertRed.copy(alpha = 0.1f)),
+                    border = BorderStroke(0.8.dp, AlertRed.copy(alpha = 0.3f)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Outlined.Info, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
+                        Text(
+                            text = "Refund akan mengembalikan stok ke gudang secara realtime, mengupdate status invoice, serta mencatat Pengeluaran Kas/Bank (${FormatUtils.formatRupiah(actualCashOutflow)}) untuk menyelaraskan Dashboard Keuangan & Stok.",
+                            fontSize = 11.sp,
+                            color = TextLight,
+                            lineHeight = 15.sp
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val mapToPass = if (refundMode == "PARTIAL") refundQtyMap.toMap() else null
+                    onConfirmRefund(reason, selectedAccount, restoreStock, mapToPass)
+                },
+                enabled = calculatedRefundPcs > 0,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE289F2), contentColor = ShadowBlack),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(imageVector = Icons.Outlined.Undo, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Proses Refund Now", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Batal", color = TextMuted, fontSize = 12.sp)
+            }
+        }
+    )
 }

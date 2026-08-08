@@ -226,48 +226,77 @@ class LocalDocumentRenderer(private val context: Context) {
                 }
             }
 
-            // 6. Financial Summary Section
+            // 6. Financial & Quantity Summary Section
             currentY += 10f
             val summaryBoxTop = currentY
             paint.color = Color.parseColor("#F8F9FA")
-            canvas.drawRoundRect(290f, summaryBoxTop, 555f, summaryBoxTop + 105f, 8f, 8f, paint)
+            canvas.drawRoundRect(40f, summaryBoxTop, 555f, summaryBoxTop + 115f, 8f, 8f, paint)
 
             paint.color = Color.parseColor("#0F3D3E")
             paint.strokeWidth = 1f
             paint.style = Paint.Style.STROKE
-            canvas.drawRoundRect(290f, summaryBoxTop, 555f, summaryBoxTop + 105f, 8f, 8f, paint)
+            canvas.drawRoundRect(40f, summaryBoxTop, 555f, summaryBoxTop + 115f, 8f, 8f, paint)
 
             paint.style = Paint.Style.FILL
-            paint.textSize = 9.5f
 
-            // Subtotal
+            // Left Box: Quantity Breakdown
+            val shortQty = InvoiceItemSorter.getShortSleeveTotalQty(filteredItems)
+            val longQty = InvoiceItemSorter.getLongSleeveTotalQty(filteredItems)
+            val globalQty = InvoiceItemSorter.getGlobalTotalQty(filteredItems)
+
+            paint.textSize = 8.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            paint.color = Color.parseColor("#333333")
-            canvas.drawText("Total Tagihan :", 305f, summaryBoxTop + 22f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(invoice.totalAmount), 435f, summaryBoxTop + 22f, paint)
+            paint.color = Color.parseColor("#0F3D3E")
+            canvas.drawText("RINGKASAN KUANTITAS (QTY):", 52f, summaryBoxTop + 22f, paint)
 
-            // Diskon
+            paint.textSize = 8f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            paint.color = Color.parseColor("#444444")
+            canvas.drawText("• Lengan Pendek  : $shortQty Pcs", 52f, summaryBoxTop + 42f, paint)
+            canvas.drawText("• Lengan Panjang : $longQty Pcs", 52f, summaryBoxTop + 60f, paint)
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            paint.color = Color.parseColor("#0F3D3E")
+            canvas.drawText("• Total Global   : $globalQty Pcs", 52f, summaryBoxTop + 80f, paint)
+
+            // Divider vertical
+            paint.color = Color.parseColor("#CCCCCC")
+            paint.strokeWidth = 0.8f
+            canvas.drawLine(275f, summaryBoxTop + 10f, 275f, summaryBoxTop + 105f, paint)
+
+            // Right Box: Financial Summary
+            val subtotalCalculated = InvoiceItemSorter.calcSubtotal(filteredItems)
+            val displaySubtotal = if (subtotalCalculated > 0.0) subtotalCalculated else invoice.totalAmount
+            val grandTotal = (displaySubtotal - invoice.discount).coerceAtLeast(0.0)
+
+            paint.textSize = 8.5f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            paint.color = Color.parseColor("#333333")
+            canvas.drawText("Subtotal Barang :", 285f, summaryBoxTop + 20f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(displaySubtotal), 445f, summaryBoxTop + 20f, paint)
+
             if (invoice.discount > 0) {
-                paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
                 paint.color = Color.parseColor("#888888")
-                canvas.drawText("Potongan Diskon :", 305f, summaryBoxTop + 40f, paint)
-                canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), 435f, summaryBoxTop + 40f, paint)
+                canvas.drawText("Potongan Diskon :", 285f, summaryBoxTop + 38f, paint)
+                canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), 445f, summaryBoxTop + 38f, paint)
             }
 
-            // Uang Muka / Terbayar
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            paint.color = Color.parseColor("#0F3D3E")
+            canvas.drawText("GRAND TOTAL     :", 285f, summaryBoxTop + 56f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(grandTotal), 445f, summaryBoxTop + 56f, paint)
+
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             paint.color = Color.parseColor("#2E7D32")
-            canvas.drawText("Jumlah Terbayar :", 305f, summaryBoxTop + 58f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), 435f, summaryBoxTop + 58f, paint)
+            canvas.drawText("Total Terbayar  :", 285f, summaryBoxTop + 74f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), 445f, summaryBoxTop + 74f, paint)
 
-            // Sisa Piutang / Pelunasan
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             paint.color = if (remaining > 0) Color.parseColor("#C62828") else Color.parseColor("#2E7D32")
-            canvas.drawText("SISA TAGIHAN  :", 305f, summaryBoxTop + 82f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(remaining), 435f, summaryBoxTop + 82f, paint)
+            canvas.drawText("SISA PEMBAYARAN :", 285f, summaryBoxTop + 95f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(remaining), 445f, summaryBoxTop + 95f, paint)
 
             // 7. Akad Syar'i & Legal Notice Footer Box
-            var footerY = summaryBoxTop + 125f
+            var footerY = summaryBoxTop + 130f
             paint.color = Color.parseColor("#112B2C")
             canvas.drawRoundRect(40f, footerY, 555f, footerY + 42f, 6f, 6f, paint)
 
@@ -507,35 +536,60 @@ class LocalDocumentRenderer(private val context: Context) {
                 }
             }
 
-            // Totals Summary Box
-            curY = cardBottom - 420f
+            // Totals & Quantity Summary Box
+            curY = cardBottom - 450f
             paint.color = Color.parseColor("#0F3D3E")
-            canvas.drawRoundRect(cardLeft + 30f, curY, cardRight - 30f, curY + 230f, 20f, 20f, paint)
+            canvas.drawRoundRect(cardLeft + 30f, curY, cardRight - 30f, curY + 260f, 20f, 20f, paint)
+
+            val shortQty = InvoiceItemSorter.getShortSleeveTotalQty(filteredItems)
+            val longQty = InvoiceItemSorter.getLongSleeveTotalQty(filteredItems)
+            val globalQty = InvoiceItemSorter.getGlobalTotalQty(filteredItems)
+
+            // Quantity Header & Row
+            paint.color = Color.parseColor("#4FD1C5")
+            paint.textSize = 18f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            canvas.drawText("RINGKASAN QTY: Pendek: $shortQty | Panjang: $longQty | Total: $globalQty Pcs", cardLeft + 60f, curY + 38f, paint)
+
+            paint.color = Color.parseColor("#2A4D4E")
+            paint.strokeWidth = 1f
+            canvas.drawLine(cardLeft + 50f, curY + 52f, cardRight - 50f, curY + 52f, paint)
+
+            // Financial Breakdown
+            val subtotalCalc = InvoiceItemSorter.calcSubtotal(filteredItems)
+            val displaySub = if (subtotalCalc > 0.0) subtotalCalc else invoice.totalAmount
+            val grandTot = (displaySub - invoice.discount).coerceAtLeast(0.0)
 
             paint.color = Color.parseColor("#C6A15B")
-            paint.textSize = 21f
-            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("TOTAL BELANJA", cardLeft + 60f, curY + 50f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(invoice.totalAmount), cardRight - 380f, curY + 50f, paint)
+            paint.textSize = 20f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            canvas.drawText("Subtotal Barang", cardLeft + 60f, curY + 88f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(displaySub), cardRight - 380f, curY + 88f, paint)
 
             if (invoice.discount > 0) {
                 paint.color = Color.parseColor("#A0A0A0")
-                paint.textSize = 19f
-                paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-                canvas.drawText("Potongan Diskon", cardLeft + 60f, curY + 95f, paint)
-                canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), cardRight - 380f, curY + 95f, paint)
+                paint.textSize = 18f
+                canvas.drawText("Potongan Diskon", cardLeft + 60f, curY + 124f, paint)
+                canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), cardRight - 380f, curY + 124f, paint)
             }
 
-            paint.color = Color.parseColor("#4FD1C5")
-            paint.textSize = 21f
+            paint.color = Color.WHITE
+            paint.textSize = 20f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("Total Terbayar", cardLeft + 60f, curY + 140f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), cardRight - 380f, curY + 140f, paint)
+            canvas.drawText("GRAND TOTAL", cardLeft + 60f, curY + 160f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(grandTot), cardRight - 380f, curY + 160f, paint)
 
-            paint.color = if (remaining > 0) Color.parseColor("#FF5252") else Color.parseColor("#4FD1C5")
-            paint.textSize = 23f
-            canvas.drawText("SISA TAGIHAN", cardLeft + 60f, curY + 190f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(remaining), cardRight - 380f, curY + 190f, paint)
+            paint.color = Color.parseColor("#36D0A7")
+            paint.textSize = 20f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            canvas.drawText("Total Terbayar", cardLeft + 60f, curY + 196f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), cardRight - 380f, curY + 196f, paint)
+
+            paint.color = if (remaining > 0) Color.parseColor("#FF5252") else Color.parseColor("#36D0A7")
+            paint.textSize = 22f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            canvas.drawText("SISA PEMBAYARAN", cardLeft + 60f, curY + 236f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(remaining), cardRight - 380f, curY + 236f, paint)
 
             // Akad Syar'i Box Footer
             val footerY = cardBottom - 160f

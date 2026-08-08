@@ -18,21 +18,21 @@ object FileUtils {
     private const val TAG = "FileUtils"
 
     fun getRootDirectory(context: Context): File {
+        val publicDoc = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
+        try {
+            if (!publicDoc.exists()) {
+                publicDoc.mkdirs()
+            }
+            if (publicDoc.exists()) {
+                return publicDoc
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Public Documents directory creation failed, falling back to app-private storage: ${e.message}")
+        }
+
         val appDoc = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
         if (!appDoc.exists()) {
             appDoc.mkdirs()
-        }
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            try {
-                val publicDoc = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
-                if (!publicDoc.exists()) publicDoc.mkdirs()
-                if (publicDoc.exists() && publicDoc.canWrite()) {
-                    return publicDoc
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Public Documents directory unavailable, falling back to app-private storage: ${e.message}")
-            }
         }
         return appDoc
     }
@@ -131,69 +131,77 @@ object FileUtils {
             try { targetDir.mkdirs() } catch (_: Exception) {}
         }
 
-        val authority = "${context.packageName}.fileprovider"
-        val folderUri: Uri = try {
-            FileProvider.getUriForFile(context, authority, targetDir)
-        } catch (e: Exception) {
-            Uri.fromFile(targetDir)
-        }
-
         var launched = false
 
-        // Strategy 1: Intent with FileProvider Uri using "resource/folder" MIME type
+        // Build relative path for SAF DocumentUri
+        val rootPublicPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).absolutePath + "/YANSPROJECT.ID"
+        val relativeSubPath = when {
+            targetDir.absolutePath.startsWith(rootPublicPath) -> {
+                val sub = targetDir.absolutePath.removePrefix(rootPublicPath).trim('/')
+                if (sub.isEmpty()) "Documents/YANSPROJECT.ID" else "Documents/YANSPROJECT.ID/$sub"
+            }
+            targetDir.name.equals("YANSPROJECT.ID", ignoreCase = true) -> "Documents/YANSPROJECT.ID"
+            else -> "Documents/YANSPROJECT.ID/${targetDir.name}"
+        }
+
+        val safDocumentUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:$relativeSubPath")
+        val safTreeUri = Uri.parse("content://com.android.externalstorage.documents/tree/primary:$relativeSubPath")
+
+        // Strategy 1: Open SAF Documents UI directly to the target folder
         try {
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(folderUri, "resource/folder")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
+                setDataAndType(safDocumentUri, "vnd.android.document/directory")
+                putExtra("android.provider.extra.INITIAL_URI", safDocumentUri)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    putExtra(DocumentsContract.EXTRA_INITIAL_URI, safDocumentUri)
+                }
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
             launched = true
         } catch (e: Exception) {
-            Log.w(TAG, "FileProvider resource/folder view failed: ${e.message}")
+            Log.w(TAG, "SAF document/directory view failed: ${e.message}")
         }
 
-        // Strategy 2: Intent using SAF DocumentsContract directory Uri & EXTRA_INITIAL_URI
+        // Strategy 2: FileProvider Uri with resource/folder MIME
         if (!launched) {
             try {
+                val authority = "${context.packageName}.fileprovider"
+                val folderUri = FileProvider.getUriForFile(context, authority, targetDir)
                 val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(folderUri, "vnd.android.document/directory")
-                    putExtra("android.provider.extra.INITIAL_URI", folderUri)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        putExtra(DocumentsContract.EXTRA_INITIAL_URI, folderUri)
-                    }
+                    setDataAndType(folderUri, "resource/folder")
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(intent)
                 launched = true
             } catch (e: Exception) {
-                Log.w(TAG, "SAF directory view failed for $folderUri: ${e.message}")
+                Log.w(TAG, "FileProvider resource/folder view failed: ${e.message}")
             }
         }
 
-        // Strategy 3: System GET_CONTENT picker pointing directly to specific Uri
+        // Strategy 3: Open Files / DocumentsUI package or Downloads intent
         if (!launched) {
             try {
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     type = "*/*"
                     addCategory(Intent.CATEGORY_OPENABLE)
-                    putExtra("android.provider.extra.INITIAL_URI", folderUri)
+                    putExtra("android.provider.extra.INITIAL_URI", safTreeUri)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        putExtra(DocumentsContract.EXTRA_INITIAL_URI, folderUri)
+                        putExtra(DocumentsContract.EXTRA_INITIAL_URI, safTreeUri)
                     }
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                context.startActivity(intent)
+                context.startActivity(Intent.createChooser(intent, "Buka Folder YANSPROJECT.ID"))
                 launched = true
             } catch (e: Exception) {
-                Log.w(TAG, "System GET_CONTENT with initial Uri failed: ${e.message}")
+                Log.w(TAG, "GET_CONTENT folder fallback failed: ${e.message}")
             }
         }
 
         if (!launched) {
-            Toast.makeText(context, "Folder tersimpan di: ${targetDir.name}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Folder YANSPROJECT.ID: ${targetDir.absolutePath}", Toast.LENGTH_LONG).show()
         }
     }
 

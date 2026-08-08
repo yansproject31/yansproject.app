@@ -109,34 +109,50 @@ object PdfUtils {
         canvas.drawLine(40f, currentY, 555f, currentY, paint)
         currentY += 20f
 
+        val shortQty = InvoiceItemSorter.getShortSleeveTotalQty(filteredItems)
+        val longQty = InvoiceItemSorter.getLongSleeveTotalQty(filteredItems)
+        val globalQty = InvoiceItemSorter.getGlobalTotalQty(filteredItems)
+
+        // Quantity summary on left
         paint.isFakeBoldText = true
-        canvas.drawText("Subtotal:", 380f, currentY, paint)
+        canvas.drawText("Ringkasan Qty:", 50f, currentY, paint)
         paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(invoice.totalAmount + invoice.discount), 480f, currentY, paint)
+        canvas.drawText("Pendek: $shortQty | Panjang: $longQty | Total: $globalQty Pcs", 50f, currentY + 16f, paint)
+
+        // Financial summary on right
+        val calculatedSubtotal = InvoiceItemSorter.calcSubtotal(filteredItems)
+        val subtotalToDisplay = if (calculatedSubtotal > 0.0) calculatedSubtotal else invoice.totalAmount
+        val grandTotal = (subtotalToDisplay - invoice.discount).coerceAtLeast(0.0)
+
+        paint.isFakeBoldText = true
+        canvas.drawText("Subtotal:", 360f, currentY, paint)
+        paint.isFakeBoldText = false
+        canvas.drawText(FormatUtils.formatRupiah(subtotalToDisplay), 470f, currentY, paint)
+
+        if (invoice.discount > 0) {
+            currentY += 18f
+            paint.isFakeBoldText = true
+            canvas.drawText("Diskon:", 360f, currentY, paint)
+            paint.isFakeBoldText = false
+            canvas.drawText("- " + FormatUtils.formatRupiah(invoice.discount), 470f, currentY, paint)
+        }
 
         currentY += 18f
         paint.isFakeBoldText = true
-        canvas.drawText("Diskon:", 380f, currentY, paint)
-        paint.isFakeBoldText = false
-        canvas.drawText("- " + FormatUtils.formatRupiah(invoice.discount), 480f, currentY, paint)
+        canvas.drawText("Grand Total:", 360f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(grandTotal), 470f, currentY, paint)
 
         currentY += 18f
         paint.isFakeBoldText = true
-        canvas.drawText("Uang Muka (DP):", 380f, currentY, paint)
+        canvas.drawText("Total Terbayar:", 360f, currentY, paint)
         paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(invoice.dpAmount), 480f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(invoice.paidAmount), 470f, currentY, paint)
 
         currentY += 18f
         paint.isFakeBoldText = true
-        canvas.drawText("Sisa Tagihan:", 380f, currentY, paint)
+        canvas.drawText("Sisa Pembayaran:", 360f, currentY, paint)
         paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(invoice.remainingPayment), 480f, currentY, paint)
-
-        currentY += 22f
-        paint.isFakeBoldText = true
-        paint.textSize = 12f
-        canvas.drawText("GRAND TOTAL:", 380f, currentY, paint)
-        canvas.drawText(FormatUtils.formatRupiah(invoice.totalAmount), 480f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(invoice.remainingPayment), 470f, currentY, paint)
 
         paint.textSize = 50f
         paint.color = when (invoice.status) {
@@ -174,6 +190,7 @@ object PdfUtils {
             val file = File(dir, "Invoice-${safeNum}.pdf")
             FileOutputStream(file).use { outputStream ->
                 pdfDocument.writeTo(outputStream)
+                outputStream.flush()
             }
             pdfDocument.close()
 

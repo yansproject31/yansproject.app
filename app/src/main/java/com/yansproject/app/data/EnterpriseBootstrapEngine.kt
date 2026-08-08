@@ -318,8 +318,9 @@ object EnterpriseBootstrapEngine {
                     val ledgersPendek = varianLedgers.filter { it.sleeve.equals("Pendek", ignoreCase = true) }
                     val ledgersPanjang = varianLedgers.filter { !it.sleeve.equals("Pendek", ignoreCase = true) }
                     
+                    val approvedStatuses = listOf("DISETUJUI", "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "BELUM LUNAS", "COMPLETED", "PAID")
                     val approvedInvoices = invoices.filter { 
-                        !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
+                        !it.isDeleted && it.status.uppercase().trim() in approvedStatuses
                     }
                     
                     var invoicesApprovedQty = 0
@@ -334,15 +335,20 @@ object EnterpriseBootstrapEngine {
                         }
                         for (item in items) {
                             val parsed = parseInvoiceItemDetails(item.description)
-                            if (parsed != null && 
-                                parsed.catalogName.equals(catalog.nama_catalog, ignoreCase = true) && 
-                                parsed.varianName.equals(varian.nama_warna, ignoreCase = true)) {
-                                
-                                invoicesApprovedQty += item.quantity
-                                if (parsed.sleeve.equals("Pendek", ignoreCase = true)) {
-                                    invoicesApprovedQtyPendek += item.quantity
-                                } else {
-                                    invoicesApprovedQtyPanjang += item.quantity
+                            if (parsed != null) {
+                                val matchesCat = parsed.catalogName.trim().equals(catalog.nama_catalog.trim(), ignoreCase = true) ||
+                                                 parsed.catalogName.contains(catalog.nama_catalog, ignoreCase = true) ||
+                                                 catalog.nama_catalog.contains(parsed.catalogName, ignoreCase = true)
+                                val matchesVar = parsed.varianName.trim().equals(varian.nama_warna.trim(), ignoreCase = true) ||
+                                                 parsed.varianName.contains(varian.nama_warna, ignoreCase = true) ||
+                                                 varian.nama_warna.contains(parsed.varianName, ignoreCase = true)
+                                if (matchesCat && matchesVar) {
+                                    invoicesApprovedQty += item.quantity
+                                    if (parsed.sleeve.equals("Pendek", ignoreCase = true)) {
+                                        invoicesApprovedQtyPendek += item.quantity
+                                    } else {
+                                        invoicesApprovedQtyPanjang += item.quantity
+                                    }
                                 }
                             }
                         }
@@ -387,8 +393,8 @@ object EnterpriseBootstrapEngine {
                     val readyStockPanjang = (totalProduksiPanjang + totalRestockPanjang + totalReturAvailablePanjang - totalDamagedPanjang - totalTerjualPanjang + totalPenyesuaianManualPanjang).coerceAtLeast(0)
                     val readyStock = readyStockPendek + readyStockPanjang
                     
-                    val reservedStatuses = listOf("MENUNGGU PERSETUJUAN", "MENUNGGU APPROVAL", "PENDING", "DP", "DRAFT", "UNPAID", "MENUNGGU PEMBAYARAN", "MENUNGGU VERIFIKASI PEMBAYARAN")
-                    val reservedInvoices = invoices.filter { it.status.uppercase().trim() in reservedStatuses }
+                    val reservedStatuses = listOf("MENUNGGU PERSETUJUAN", "MENUNGGU APPROVAL", "PENDING", "DRAFT", "UNPAID", "MENUNGGU PEMBAYARAN", "MENUNGGU VERIFIKASI PEMBAYARAN")
+                    val reservedInvoices = invoices.filter { !it.isDeleted && it.status.uppercase().trim() in reservedStatuses }
                     
                     var reservedStockPendek = 0
                     var reservedStockPanjang = 0
@@ -401,14 +407,19 @@ object EnterpriseBootstrapEngine {
                         }
                         for (item in items) {
                             val parsed = parseInvoiceItemDetails(item.description)
-                            if (parsed != null && 
-                                parsed.catalogName.equals(catalog.nama_catalog, ignoreCase = true) && 
-                                parsed.varianName.equals(varian.nama_warna, ignoreCase = true)) {
-                                
-                                if (parsed.sleeve.equals("Pendek", ignoreCase = true)) {
-                                    reservedStockPendek += item.quantity
-                                } else {
-                                    reservedStockPanjang += item.quantity
+                            if (parsed != null) {
+                                val matchesCat = parsed.catalogName.trim().equals(catalog.nama_catalog.trim(), ignoreCase = true) ||
+                                                 parsed.catalogName.contains(catalog.nama_catalog, ignoreCase = true) ||
+                                                 catalog.nama_catalog.contains(parsed.catalogName, ignoreCase = true)
+                                val matchesVar = parsed.varianName.trim().equals(varian.nama_warna.trim(), ignoreCase = true) ||
+                                                 parsed.varianName.contains(varian.nama_warna, ignoreCase = true) ||
+                                                 varian.nama_warna.contains(parsed.varianName, ignoreCase = true)
+                                if (matchesCat && matchesVar) {
+                                    if (parsed.sleeve.equals("Pendek", ignoreCase = true)) {
+                                        reservedStockPendek += item.quantity
+                                    } else {
+                                        reservedStockPanjang += item.quantity
+                                    }
                                 }
                             }
                         }

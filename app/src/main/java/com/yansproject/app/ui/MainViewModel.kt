@@ -11,6 +11,7 @@ import com.yansproject.app.data.*
 import java.util.UUID
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 
 enum class AppTab {
@@ -381,7 +382,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val receivables = invoices.filter { inv ->
             if (inv.isDeleted) return@filter false
             val st = (inv.status ?: "").trim().uppercase()
-            st !in listOf("LUNAS", "PAID", "SELESAI", "LUNAS (PAID)", "CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT")
+            st !in listOf("LUNAS", "PAID", "SELESAI", "LUNAS (PAID)", "CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "REFUND", "REFUNDED")
         }.sumOf { inv ->
             val paymentsForInv = payments.filter { p ->
                 (p.invoiceId == inv.invoiceNumber && inv.invoiceNumber.isNotBlank()) || 
@@ -453,25 +454,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         priority: String = "MEDIUM",
         createdBy: String = "SYSTEM"
     ) {
-        val currentList = _notifications.value
-        val isDuplicate = currentList.any { 
-            it.title == title && it.message == message && Math.abs(System.currentTimeMillis() - it.timestamp) < 5000 
+        val titleClean = title.trim()
+        val msgClean = message.trim()
+        val currentList = _notifications.value.ifEmpty { AppSettings.getNotifications(getApplication()) }
+        val isDuplicate = currentList.any { existing ->
+            existing.title.trim().equals(titleClean, ignoreCase = true) && 
+            existing.message.trim().equals(msgClean, ignoreCase = true) &&
+            (!existing.isRead || Math.abs(System.currentTimeMillis() - existing.timestamp) < 86400000L)
         }
         if (isDuplicate) return
 
-        FirebaseSyncManager.sendPushNotification(
-            context = getApplication(),
-            title = title,
-            body = message,
-            category = category,
-            targetTab = targetTab ?: "INVOICE",
-            roleTarget = roleTarget,
-            userId = userId
-        )
-        
-        val notificationId = java.util.UUID.randomUUID().toString()
+        val deterministicId = "notif_${(titleClean + msgClean).hashCode()}_${System.currentTimeMillis() / 60000}"
+
         val appNotification = AppSettings.AppNotification(
-            id = notificationId,
+            id = deterministicId,
             title = title,
             message = message,
             timestamp = System.currentTimeMillis(),
@@ -493,6 +489,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         
         // Write to Firestore in cloud
         FirebaseSyncManager.writeNotificationToCloud(appNotification)
+
+        FirebaseSyncManager.sendPushNotification(
+            context = getApplication(),
+            title = title,
+            body = message,
+            category = category,
+            targetTab = targetTab ?: "INVOICE",
+            roleTarget = roleTarget,
+            userId = userId
+        )
         
         _notifications.value = AppSettings.getNotifications(getApplication())
     }
@@ -1402,6 +1408,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun refundInvoice(
+        invoiceId: Int,
+        reason: String,
+        paymentAccount: String = "CASH",
+        restoreStock: Boolean = true,
+        refundItemQtyMap: Map<Int, Int>? = null,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val invoice = allInvoices.value.find { it.id == invoiceId }
+            val success = repository.refundInvoice(
+                invoiceId = invoiceId,
+                reason = reason,
+                paymentAccount = paymentAccount,
+                restoreStock = restoreStock,
+                refundItemQtyMap = refundItemQtyMap,
+                context = getApplication()
+            )
+            if (success) {
+                if (invoice != null) {
+                    AppSettings.deleteNotificationsForInvoice(getApplication(), invoice.invoiceNumber, invoice.id, invoice.orderId, invoice.clientName)
+                }
+                _notifications.value = AppSettings.getNotifications(getApplication())
+                addAuditLog(
+                    "Refund Invoice",
+                    "Invoice ID: $invoiceId (${invoice?.invoiceNumber ?: ""}) berhasil di-refund. Alasan: $reason"
+                )
+                AppFeedbackManager.triggerSuccess()
+            } else {
+                AppFeedbackManager.triggerError()
+            }
+            onComplete?.invoke(success)
+        }
+    }
+
     fun updateInvoiceMetadata(invoiceId: Int, name: String, phone: String, address: String, notes: String) {
         viewModelScope.launch {
             repository.updateInvoiceMetadata(invoiceId, name, phone, address, notes)
@@ -1614,8 +1655,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun syncDraftWithAccountCenter() {
-        FirebaseSyncManager.currentUser.value?.let { user ->
-            draftSalesOrderManager.autoPopulateFromAccountCenter(user.email, forceOverwrite = true)
+        viewModelScope.launch(Dispatchers.IO) {
+            FirebaseSyncManager.currentUser.value?.let { user ->
+                draftSalesOrderManager.autoPopulateFromAccountCenter(user.email, forceOverwrite = true)
+            }
         }
     }
 
@@ -1624,25 +1667,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateVarianCartItems(catalogId: Int, varianId: Int, newItems: List<MemberCartItem>) {
-        val currentList = memberCart.value.filter {
-            !(it.catalogId == catalogId && it.varianId == varianId)
-        }.toMutableList()
-        currentList.addAll(newItems)
-        draftSalesOrderManager.updateCartItems(currentList)
-        AppFeedbackManager.triggerSuccess()
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentList = memberCart.value.filter {
+                !(it.catalogId == catalogId && it.varianId == varianId)
+            }.toMutableList()
+            currentList.addAll(newItems)
+            draftSalesOrderManager.updateCartItems(currentList)
+            withContext(Dispatchers.Main) {
+                AppFeedbackManager.triggerSuccess()
+            }
+        }
     }
 
     fun addToMemberCart(item: MemberCartItem) {
-        val currentList = memberCart.value.toMutableList()
-        val index = currentList.indexOfFirst { it.id == item.id }
-        if (index != -1) {
-            val existing = currentList[index]
-            currentList[index] = existing.copy(qty = existing.qty + item.qty)
-        } else {
-            currentList.add(item)
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentList = memberCart.value.toMutableList()
+            val index = currentList.indexOfFirst { it.id == item.id }
+            if (index != -1) {
+                val existing = currentList[index]
+                currentList[index] = existing.copy(qty = existing.qty + item.qty)
+            } else {
+                currentList.add(item)
+            }
+            draftSalesOrderManager.updateCartItems(currentList)
+            withContext(Dispatchers.Main) {
+                AppFeedbackManager.triggerSuccess()
+            }
         }
-        draftSalesOrderManager.updateCartItems(currentList)
-        AppFeedbackManager.triggerSuccess()
     }
 
     fun updateMemberCartQty(itemId: String, newQty: Int) {
@@ -1650,19 +1701,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             removeFromMemberCart(itemId)
             return
         }
-        val currentList = memberCart.value.map {
-            if (it.id == itemId) it.copy(qty = newQty) else it
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentList = memberCart.value.map {
+                if (it.id == itemId) it.copy(qty = newQty) else it
+            }
+            draftSalesOrderManager.updateCartItems(currentList)
         }
-        draftSalesOrderManager.updateCartItems(currentList)
     }
 
     fun removeFromMemberCart(itemId: String) {
-        val currentList = memberCart.value.filter { it.id != itemId }
-        draftSalesOrderManager.updateCartItems(currentList)
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentList = memberCart.value.filter { it.id != itemId }
+            draftSalesOrderManager.updateCartItems(currentList)
+        }
     }
 
     fun clearMemberCart() {
-        draftSalesOrderManager.clearDraft()
+        viewModelScope.launch(Dispatchers.IO) {
+            draftSalesOrderManager.clearDraft()
+        }
     }
 
     fun checkoutMemberCart(
@@ -1696,6 +1753,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     currentUserEmail = currentUserEmail,
                     onComplete = { success, result ->
                         if (success) {
+                            val assignedInvoiceNum = if (result.isNotBlank()) result else invoiceNum
                             // On successful atomic checkout, mirror the exact same invoice to local Room database immediately!
                             viewModelScope.launch {
                                 try {
@@ -1721,7 +1779,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     val converters = AppTypeConverters()
                                     val invoice = Invoice(
                                         id = 0, // Autogenerated by Room
-                                        invoiceNumber = invoiceNum,
+                                        invoiceNumber = assignedInvoiceNum,
                                         clientName = clientName,
                                         clientPhone = clientPhone,
                                         issueDate = orderDate,

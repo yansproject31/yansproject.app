@@ -74,78 +74,108 @@ class DraftSalesOrderManager(
         }
     }
 
-    fun updateCartItems(items: List<MemberCartItem>) {
-        scope.launch(Dispatchers.IO) {
-            val draft = getDraft()
-            val json = serializeCartItems(items)
-            dao.insertDraftSalesOrder(draft.copy(itemsJson = json, updatedAt = System.currentTimeMillis()))
+    suspend fun updateCartItems(items: List<MemberCartItem>) {
+        val draft = getDraft()
+        val json = serializeCartItems(items)
+        dao.insertDraftSalesOrder(draft.copy(itemsJson = json, updatedAt = System.currentTimeMillis()))
 
-            // Save user cart persistent backup by authenticated user ID/email
-            val activeUser = FirebaseSyncManager.currentUser.value
-            val userKey = (activeUser?.uid?.ifEmpty { activeUser.email } ?: activeUser?.email ?: "").trim().lowercase()
-            if (userKey.isNotBlank()) {
-                val userCartPrefs = context.getSharedPreferences("yans_user_cart_prefs", Context.MODE_PRIVATE)
-                userCartPrefs.edit().putString("cart_$userKey", json).apply()
-            }
-        }
+        // Save user cart persistent backup by authenticated user ID/email
+        val activeUser = FirebaseSyncManager.currentUser.value
+        val cleanEmail = (activeUser?.email ?: "").trim().lowercase()
+        val cleanUid = (activeUser?.uid ?: "").trim().lowercase()
+        
+        val userCartPrefs = context.getSharedPreferences("yans_user_cart_prefs", Context.MODE_PRIVATE)
+        val editor = userCartPrefs.edit()
+        if (cleanEmail.isNotBlank()) editor.putString("cart_$cleanEmail", json)
+        if (cleanUid.isNotBlank()) editor.putString("cart_$cleanUid", json)
+        editor.putString("cart_last", json)
+        editor.apply()
     }
 
-    fun clearDraft() {
-        scope.launch(Dispatchers.IO) {
-            dao.insertDraftSalesOrder(DraftSalesOrder(id = 1))
-            val activeUser = FirebaseSyncManager.currentUser.value
-            val userKey = (activeUser?.uid?.ifEmpty { activeUser.email } ?: activeUser?.email ?: "").trim().lowercase()
-            if (userKey.isNotBlank()) {
-                val userCartPrefs = context.getSharedPreferences("yans_user_cart_prefs", Context.MODE_PRIVATE)
-                userCartPrefs.edit().remove("cart_$userKey").apply()
-            }
-        }
+    suspend fun clearDraft() {
+        dao.insertDraftSalesOrder(DraftSalesOrder(id = 1))
+        val activeUser = FirebaseSyncManager.currentUser.value
+        val cleanEmail = (activeUser?.email ?: "").trim().lowercase()
+        val cleanUid = (activeUser?.uid ?: "").trim().lowercase()
+        
+        val userCartPrefs = context.getSharedPreferences("yans_user_cart_prefs", Context.MODE_PRIVATE)
+        val editor = userCartPrefs.edit()
+        if (cleanEmail.isNotBlank()) editor.remove("cart_$cleanEmail")
+        if (cleanUid.isNotBlank()) editor.remove("cart_$cleanUid")
+        editor.remove("cart_last")
+        editor.apply()
     }
 
-    fun autoPopulateFromAccountCenter(email: String, forceOverwrite: Boolean = false) {
-        scope.launch(Dispatchers.IO) {
-            val currentDraft = getDraft()
-            val activeUser = FirebaseSyncManager.currentUser.value
-            val targetEmail = email.trim().lowercase()
-            val userKey = (activeUser?.uid?.ifEmpty { targetEmail } ?: targetEmail).trim().lowercase()
-            
-            // Primary identity from active authenticated user session
-            val defaultName = activeUser?.displayName ?: ""
-            val defaultPhone = activeUser?.whatsapp ?: ""
-            val defaultAddress = activeUser?.address ?: ""
-            
-            val draftUserPrefs = context.getSharedPreferences("yans_draft_meta_prefs", Context.MODE_PRIVATE)
-            val lastDraftUserKey = draftUserPrefs.getString("last_draft_user_key", "") ?: ""
-            val isUserChanged = lastDraftUserKey != userKey || forceOverwrite
+    suspend fun autoPopulateFromAccountCenter(email: String, forceOverwrite: Boolean = false) {
+        val currentDraft = getDraft()
+        val activeUser = FirebaseSyncManager.currentUser.value
+        val cleanEmail = email.ifBlank { activeUser?.email ?: "" }.trim().lowercase()
+        val cleanUid = (activeUser?.uid ?: "").trim().lowercase()
+        val primaryUserKey = if (cleanEmail.isNotBlank()) cleanEmail else cleanUid
 
-            // Restore persistent user cart if user changed or current cart is empty
-            val userCartPrefs = context.getSharedPreferences("yans_user_cart_prefs", Context.MODE_PRIVATE)
-            val savedCartJson = userCartPrefs.getString("cart_$userKey", "") ?: ""
-            val targetItemsJson = if (savedCartJson.isNotBlank() && (isUserChanged || currentDraft.itemsJson.isBlank() || currentDraft.itemsJson == "[]")) {
-                savedCartJson
-            } else if (isUserChanged) {
-                "[]" // Avoid leaking previous user's cart
-            } else {
+        if (primaryUserKey.isBlank()) return
+
+        // Primary identity from active authenticated user session
+        val defaultName = activeUser?.displayName ?: ""
+        val defaultPhone = activeUser?.whatsapp ?: ""
+        val defaultAddress = activeUser?.address ?: ""
+        
+        val draftUserPrefs = context.getSharedPreferences("yans_draft_meta_prefs", Context.MODE_PRIVATE)
+        val lastDraftUserKey = draftUserPrefs.getString("last_draft_user_key", "") ?: ""
+        val isDifferentUser = lastDraftUserKey.isNotBlank() && 
+                lastDraftUserKey != cleanEmail && 
+                lastDraftUserKey != cleanUid
+
+        // Restore persistent user cart if available
+        val userCartPrefs = context.getSharedPreferences("yans_user_cart_prefs", Context.MODE_PRIVATE)
+        val savedCartJson = (if (cleanEmail.isNotBlank()) userCartPrefs.getString("cart_$cleanEmail", null) else null)
+            ?: (if (cleanUid.isNotBlank()) userCartPrefs.getString("cart_$cleanUid", null) else null)
+            ?: userCartPrefs.getString("cart_last", null)
+            ?: ""
+
+        val currentCartItems = deserializeCartItems(currentDraft.itemsJson)
+        val savedCartItems = deserializeCartItems(savedCartJson)
+
+        val targetItemsJson = if (isDifferentUser && !forceOverwrite) {
+            // Restore saved cart for new user if available, otherwise empty
+            if (savedCartItems.isNotEmpty()) savedCartJson else "[]"
+        } else {
+            // Same user session or initial launch: preserve non-empty cart from Room DB first, else restore from prefs
+            if (currentCartItems.isNotEmpty()) {
                 currentDraft.itemsJson
+            } else if (savedCartItems.isNotEmpty()) {
+                savedCartJson
+            } else {
+                "[]"
             }
+        }
 
-            val updatedName = if (isUserChanged || currentDraft.clientName.isBlank()) defaultName else currentDraft.clientName
-            val updatedPhone = if (isUserChanged || currentDraft.clientPhone.isBlank()) defaultPhone else currentDraft.clientPhone
-            val updatedAddress = if (isUserChanged || currentDraft.clientAddress.isBlank()) defaultAddress else currentDraft.clientAddress
-            
-            if (isUserChanged || targetItemsJson != currentDraft.itemsJson || updatedName != currentDraft.clientName || updatedPhone != currentDraft.clientPhone || updatedAddress != currentDraft.clientAddress) {
-                dao.insertDraftSalesOrder(
-                    currentDraft.copy(
-                        clientName = updatedName,
-                        clientPhone = updatedPhone,
-                        clientAddress = updatedAddress,
-                        itemsJson = targetItemsJson,
-                        updatedAt = System.currentTimeMillis()
-                    )
+        // Backup current non-empty cart to prefs
+        val finalItems = deserializeCartItems(targetItemsJson)
+        if (finalItems.isNotEmpty()) {
+            val editor = userCartPrefs.edit()
+            if (cleanEmail.isNotBlank()) editor.putString("cart_$cleanEmail", targetItemsJson)
+            if (cleanUid.isNotBlank()) editor.putString("cart_$cleanUid", targetItemsJson)
+            editor.putString("cart_last", targetItemsJson)
+            editor.apply()
+        }
+
+        val updatedName = if (isDifferentUser || currentDraft.clientName.isBlank()) defaultName.ifBlank { currentDraft.clientName } else currentDraft.clientName
+        val updatedPhone = if (isDifferentUser || currentDraft.clientPhone.isBlank()) defaultPhone.ifBlank { currentDraft.clientPhone } else currentDraft.clientPhone
+        val updatedAddress = if (isDifferentUser || currentDraft.clientAddress.isBlank()) defaultAddress.ifBlank { currentDraft.clientAddress } else currentDraft.clientAddress
+        
+        if (targetItemsJson != currentDraft.itemsJson || updatedName != currentDraft.clientName || updatedPhone != currentDraft.clientPhone || updatedAddress != currentDraft.clientAddress) {
+            dao.insertDraftSalesOrder(
+                currentDraft.copy(
+                    clientName = updatedName,
+                    clientPhone = updatedPhone,
+                    clientAddress = updatedAddress,
+                    itemsJson = targetItemsJson,
+                    updatedAt = System.currentTimeMillis()
                 )
-                draftUserPrefs.edit().putString("last_draft_user_key", userKey).apply()
-                Log.i("DraftSalesOrderManager", "Audited auto-populate for user key=$userKey (userChanged=$isUserChanged, items=${deserializeCartItems(targetItemsJson).size})")
-            }
+            )
+            draftUserPrefs.edit().putString("last_draft_user_key", primaryUserKey).apply()
+            Log.i("DraftSalesOrderManager", "Audited auto-populate for user key=$primaryUserKey (isDifferentUser=$isDifferentUser, items=${finalItems.size})")
         }
     }
 
@@ -177,15 +207,15 @@ class DraftSalesOrderManager(
                 val obj = array.getJSONObject(i)
                 list.add(
                     MemberCartItem(
-                        id = obj.getString("id"),
-                        catalogId = obj.getInt("catalogId"),
-                        catalogName = obj.getString("catalogName"),
-                        varianId = obj.getInt("varianId"),
-                        varianName = obj.getString("varianName"),
-                        size = obj.getString("size"),
-                        sleeve = obj.getString("sleeve"),
-                        qty = obj.getInt("qty"),
-                        price = obj.getDouble("price")
+                        id = obj.optString("id", ""),
+                        catalogId = obj.optInt("catalogId", 0),
+                        catalogName = obj.optString("catalogName", ""),
+                        varianId = obj.optInt("varianId", 0),
+                        varianName = obj.optString("varianName", ""),
+                        size = obj.optString("size", ""),
+                        sleeve = obj.optString("sleeve", ""),
+                        qty = obj.optInt("qty", 1),
+                        price = obj.optDouble("price", 0.0)
                     )
                 )
             }

@@ -159,17 +159,20 @@ object BitmapUtils {
         canvas.drawText("Terima kasih telah mempercayakan kebutuhan apparel Anda kepada ${com.yansproject.app.data.BusinessIdentityProvider.getCompanyName(context)}.", 400f, 1040f, paint)
 
         return try {
+            val safeNum = invoice.invoiceNumber.replace("/", "_").replace("\\", "_").replace(":", "_").ifEmpty { invoice.id.toString() }
             val dir = FileUtils.getExportDirectory(context, "invoice")
-            val file = File(dir, "Invoice-${invoice.invoiceNumber}.png")
+            val file = File(dir, "Invoice-${safeNum}.png")
             FileOutputStream(file).use { outputStream ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                outputStream.flush()
             }
+            FileUtils.mirrorToDownloads(context, file, "Invoice")
             if (viewModel != null) {
-                viewModel.showGlobalSnackbar("Dokumen berhasil disimpan.", "Buka Folder") {
+                viewModel.showGlobalSnackbar("Gambar PNG Invoice-${safeNum} berhasil disimpan.", "Buka Folder") {
                     FileUtils.openFolder(context, dir)
                 }
             } else {
-                Toast.makeText(context, "Gambar PNG disimpan di: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Gambar PNG Invoice-${safeNum} berhasil disimpan di: ${file.absolutePath}", Toast.LENGTH_LONG).show()
             }
             file
         } catch (e: Exception) {

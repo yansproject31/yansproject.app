@@ -1182,6 +1182,12 @@ object FirebaseSyncManager {
                                     db.invoiceDao().insertInvoice(item.copy(id = 0))
                                 }
                             }
+                            try {
+                                val repo = BusinessRepository(db)
+                                repo.updateSummariesForInvoice(item)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed updating summaries for synced invoice: ${e.message}")
+                            }
                         }
                     } catch (e: Exception) { Log.e(TAG, "Error syncing invoices from Firestore: ${e.message}") }
                 }
@@ -2029,6 +2035,34 @@ object FirebaseSyncManager {
                             }
                         }
 
+                        // Deduplicate list by ID and content signature
+                        val sortedRawList = list.sortedByDescending { it.timestamp }
+                        val deduplicatedList = mutableListOf<AppSettings.AppNotification>()
+                        val seenDocIds = mutableSetOf<String>()
+                        val seenSignatures = mutableSetOf<String>()
+
+                        for (item in sortedRawList) {
+                            val titleClean = item.title.trim().lowercase()
+                            val msgClean = item.message.trim().lowercase()
+                            val catClean = item.category.trim().lowercase()
+                            val sig = "${titleClean}_${msgClean}_${catClean}"
+
+                            if (!seenDocIds.contains(item.id) && !seenSignatures.contains(sig)) {
+                                seenDocIds.add(item.id)
+                                seenSignatures.add(sig)
+                                deduplicatedList.add(item)
+                            } else if (!seenDocIds.contains(item.id) && seenSignatures.contains(sig)) {
+                                val isFarApart = deduplicatedList.none { prev ->
+                                    val prevSig = "${prev.title.trim().lowercase()}_${prev.message.trim().lowercase()}_${prev.category.trim().lowercase()}"
+                                    prevSig == sig && Math.abs(prev.timestamp - item.timestamp) < 86400000L
+                                }
+                                if (isFarApart) {
+                                    seenDocIds.add(item.id)
+                                    deduplicatedList.add(item)
+                                }
+                            }
+                        }
+
                         // Persist updated shown system notif IDs
                         sharedPrefs.edit().putStringSet("shown_system_notif_ids", shownSystemIds).apply()
 
@@ -2044,7 +2078,7 @@ object FirebaseSyncManager {
                             )
                         }
 
-                        onUpdate(list.sortedByDescending { it.timestamp })
+                        onUpdate(deduplicatedList)
                     }
                 }
         } catch (e: Exception) {

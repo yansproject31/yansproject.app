@@ -11,6 +11,8 @@ import androidx.core.content.ContextCompat
 import com.yansproject.app.R
 import com.yansproject.app.data.BusinessIdentityProvider
 import com.yansproject.app.data.IdrAccountingEngine
+import com.yansproject.app.data.SleeveType
+import com.yansproject.app.ui.InvoiceItemSorter
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -264,7 +266,7 @@ object DualPdfMatrixRenderer {
 
             yPos += 20f
         } else {
-            val filteredItems = items.filter { !it.description.startsWith("__") }
+            val filteredItems = InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
             if (filteredItems.isEmpty()) {
                 canvas.drawText("Pesanan Custom", 45f, yPos, textPaint)
                 canvas.drawText("Pendek", 160f, yPos, textPaint)
@@ -282,9 +284,10 @@ object DualPdfMatrixRenderer {
                 yPos += 20f
             } else {
                 for (item in filteredItems) {
+                    val sleeveName = if (InvoiceItemSorter.extractSleeve(item.description) == "PANJANG") "Panjang" else "Pendek"
                     val desc = if (item.description.length > 20) item.description.take(18) + ".." else item.description
                     canvas.drawText(desc, 45f, yPos, textPaint)
-                    canvas.drawText("Pendek", 160f, yPos, textPaint)
+                    canvas.drawText(sleeveName, 160f, yPos, textPaint)
                     canvas.drawText("-", 200f, yPos, textPaint)
                     canvas.drawText("-", 225f, yPos, textPaint)
                     canvas.drawText("-", 250f, yPos, textPaint)

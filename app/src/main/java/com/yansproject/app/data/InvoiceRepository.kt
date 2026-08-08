@@ -210,19 +210,20 @@ class InvoiceRepository private constructor(private val db: AppDatabase) {
                 FirebaseSyncManager.syncItemToCloud("invoice_payments", paymentId, localPayment)
 
                 // Record corresponding inflow ledger entry atomically
+                val payIndex = maxOf(1, uniquePayments.size)
                 val existingInflow = inflowDao.getAllInflowsList().find {
-                    it.notes.contains("PAY_REF:$paymentId")
+                    it.notes.contains("PAY_REF:$paymentId") ||
+                    (it.notes.contains(updatedInvoice.invoiceNumber) && (it.notes.contains("[PAY_${payIndex}:") || (it.amount == amount && kotlin.math.abs(it.createdAt - localPayment.timestamp) < 10000)))
                 }
                 if (existingInflow == null) {
                     val fullMethod = if (methodDetail.isNotBlank()) "$method ($methodDetail)" else method
-                    val payIndex = maxOf(1, uniquePayments.size)
                     val dateCode = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault()).format(java.util.Date(paymentDate))
                     val clientPart = if (updatedInvoice.clientName.isNotBlank()) " (${updatedInvoice.clientName})" else ""
                     val cleanUserNotes = if (notes.isNotBlank() && !notes.startsWith("Pembayaran", ignoreCase = true) && !notes.startsWith("DP Awal", ignoreCase = true)) ". $notes" else ""
-                    val formattedNote = "${updatedInvoice.invoiceNumber}$clientPart - [PAY_${payIndex}:${dateCode}] [PAY_REF:$paymentId]$cleanUserNotes".trim()
+                    val formattedNote = "${updatedInvoice.invoiceNumber}$clientPart - [PAY_${payIndex}:${dateCode}]$cleanUserNotes".trim()
 
                     val inflow = Inflow(
-                        transactionNumber = "TX-${UUID.randomUUID().toString().substring(0, 8).uppercase()}",
+                        transactionNumber = "INV-${UUID.randomUUID().toString().substring(0, 8).uppercase()}",
                         category = "Penjualan",
                         amount = amount,
                         date = paymentDate,

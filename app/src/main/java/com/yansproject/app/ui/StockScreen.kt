@@ -507,6 +507,101 @@ fun StockScreen(
                                 matchesSearch && matchesStockFilter
                             }
 
+                            // Realtime Dashboard Inventory Calculations from read-optimized Inventory Summary
+                            val totalProduksi = remember(inventorySummaries) {
+                                inventorySummaries.sumOf { it.totalProduksi }
+                            }
+                            val totalTerjual = remember(inventorySummaries, invoices, orders) {
+                                val converters = com.yansproject.app.data.AppTypeConverters()
+                                val validInvoices = invoices.filter { 
+                                    !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "REFUND", "REFUNDED") 
+                                }
+                                val invoiceSoldUnits = validInvoices.sumOf { inv ->
+                                    try {
+                                        converters.toInvoiceItemList(inv.itemsJson)
+                                            .filter { !it.description.startsWith("__") }
+                                            .sumOf { it.quantity }
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("StockScreen", "Failed to parse itemsJson for invoice ${inv.invoiceNumber}: ${e.message}", e)
+                                        0
+                                    }
+                                }
+                                val validStandaloneOrders = orders.filter { ord ->
+                                    !ord.isDeleted && 
+                                    ord.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT", "REJECTED") &&
+                                    invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id }
+                                }
+                                val orderSoldUnits = validStandaloneOrders.sumOf { ord ->
+                                    try {
+                                        converters.toOrderItemList(ord.itemsJson).sumOf { it.quantity }
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("StockScreen", "Failed to parse itemsJson for order ${ord.id}: ${e.message}", e)
+                                        0
+                                    }
+                                }
+                                val totalGlobalSoldUnits = invoiceSoldUnits + orderSoldUnits
+                                val summarySoldUnits = inventorySummaries.sumOf { it.totalTerjual }
+                                maxOf(totalGlobalSoldUnits, summarySoldUnits)
+                            }
+                            val readyStock = remember(inventorySummaries) {
+                                inventorySummaries.sumOf { it.readyStock }
+                            }
+                            val reservedStock = remember(inventorySummaries) {
+                                inventorySummaries.sumOf { it.reservedStock }
+                            }
+                            val availableStock = remember(inventorySummaries) {
+                                inventorySummaries.sumOf { it.availableStock }
+                            }
+                            val nilaiPersediaan = remember(inventorySummaries) {
+                                inventorySummaries.sumOf { it.nilaiPersediaan }
+                            }
+
+                            // 1. Fixed Realtime Dashboard Inventory Card
+                            InventoryDashboardHeader(
+                                totalProduksi = totalProduksi,
+                                totalTerjual = totalTerjual,
+                                readyStock = readyStock,
+                                reservedStock = reservedStock,
+                                availableStock = availableStock,
+                                nilaiPersediaan = nilaiPersediaan,
+                                isOwner = isOwner,
+                                onTotalProduksiClick = if (isOwner) { { showTotalProduksiDialog = true } } else null,
+                                onTotalTerjualClick = if (isOwner) { { showTotalTerjualDialog = true } } else null,
+                                onNilaiPersediaanClick = if (isOwner) { { showNilaiPersediaanDialog = true } } else null
+                            )
+
+                            val seriesStockList = remember(catalogs, variants, inventorySummaries, stocks) {
+                                catalogs.map { catalog ->
+                                    val catalogVariants = variants.filter { it.id_catalog == catalog.id_catalog }
+                                    val available = catalogVariants.sumOf { varian ->
+                                        val summary = inventorySummaries.find { it.id_varian == varian.id_varian }
+                                        summary?.availableStock ?: (stocks.find { it.id_varian == varian.id_varian }?.total_stock ?: 0)
+                                    }
+                                    val ready = catalogVariants.sumOf { varian ->
+                                        val summary = inventorySummaries.find { it.id_varian == varian.id_varian }
+                                        summary?.readyStock ?: (stocks.find { it.id_varian == varian.id_varian }?.total_stock ?: 0)
+                                    }
+                                    val reserved = catalogVariants.sumOf { varian ->
+                                        val summary = inventorySummaries.find { it.id_varian == varian.id_varian }
+                                        summary?.reservedStock ?: 0
+                                    }
+                                    com.yansproject.app.ui.components.SeriesStockData(
+                                        seriesName = catalog.nama_catalog,
+                                        stockCount = available,
+                                        readyStock = ready,
+                                        reservedStock = reserved
+                                    )
+                                }
+                            }
+
+                            // 2. Fixed Catalog Stock Bar Chart with Expandable View & Hide Animation
+                            com.yansproject.app.ui.components.AjibqobulStockBarChart(
+                                seriesList = seriesStockList,
+                                title = "GRAFIK STOK KATALOG (SERIES AJIBQOBUL)",
+                                initialExpanded = false,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+
                             if (filteredCatalogs.isEmpty()) {
                                 Box(
                                     modifier = Modifier
@@ -528,102 +623,6 @@ fun StockScreen(
                                         .weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    item {
-                                        // Realtime Dashboard Inventory Calculations from read-optimized Inventory Summary
-                                        val totalProduksi = remember(inventorySummaries) {
-                                            inventorySummaries.sumOf { it.totalProduksi }
-                                        }
-                                        val totalTerjual = remember(inventorySummaries, invoices, orders) {
-                                            val converters = com.yansproject.app.data.AppTypeConverters()
-                                            val validInvoices = invoices.filter { 
-                                                !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
-                                            }
-                                            val invoiceSoldUnits = validInvoices.sumOf { inv ->
-                                                try {
-                                                    converters.toInvoiceItemList(inv.itemsJson)
-                                                        .filter { !it.description.startsWith("__") }
-                                                        .sumOf { it.quantity }
-                                                } catch (e: Exception) {
-                                                    android.util.Log.e("StockScreen", "Failed to parse itemsJson for invoice ${inv.invoiceNumber}: ${e.message}", e)
-                                                    0
-                                                }
-                                            }
-                                            val validStandaloneOrders = orders.filter { ord ->
-                                                !ord.isDeleted && 
-                                                ord.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT", "REJECTED") &&
-                                                invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id }
-                                            }
-                                            val orderSoldUnits = validStandaloneOrders.sumOf { ord ->
-                                                try {
-                                                    converters.toOrderItemList(ord.itemsJson).sumOf { it.quantity }
-                                                } catch (e: Exception) {
-                                                    android.util.Log.e("StockScreen", "Failed to parse itemsJson for order ${ord.id}: ${e.message}", e)
-                                                    0
-                                                }
-                                            }
-                                            val totalGlobalSoldUnits = invoiceSoldUnits + orderSoldUnits
-                                            val summarySoldUnits = inventorySummaries.sumOf { it.totalTerjual }
-                                            maxOf(totalGlobalSoldUnits, summarySoldUnits)
-                                        }
-                                        val readyStock = remember(inventorySummaries) {
-                                            inventorySummaries.sumOf { it.readyStock }
-                                        }
-                                        val reservedStock = remember(inventorySummaries) {
-                                            inventorySummaries.sumOf { it.reservedStock }
-                                        }
-                                        val availableStock = remember(inventorySummaries) {
-                                            inventorySummaries.sumOf { it.availableStock }
-                                        }
-                                        val nilaiPersediaan = remember(inventorySummaries) {
-                                            inventorySummaries.sumOf { it.nilaiPersediaan }
-                                        }
-
-                                        InventoryDashboardHeader(
-                                            totalProduksi = totalProduksi,
-                                            totalTerjual = totalTerjual,
-                                            readyStock = readyStock,
-                                            reservedStock = reservedStock,
-                                            availableStock = availableStock,
-                                            nilaiPersediaan = nilaiPersediaan,
-                                            isOwner = isOwner,
-                                            onTotalProduksiClick = if (isOwner) { { showTotalProduksiDialog = true } } else null,
-                                            onTotalTerjualClick = if (isOwner) { { showTotalTerjualDialog = true } } else null,
-                                            onNilaiPersediaanClick = if (isOwner) { { showNilaiPersediaanDialog = true } } else null
-                                        )
-
-                                        val seriesStockList = remember(catalogs, variants, inventorySummaries, stocks) {
-                                            catalogs.map { catalog ->
-                                                val catalogVariants = variants.filter { it.id_catalog == catalog.id_catalog }
-                                                val available = catalogVariants.sumOf { varian ->
-                                                    val summary = inventorySummaries.find { it.id_varian == varian.id_varian }
-                                                    summary?.availableStock ?: (stocks.find { it.id_varian == varian.id_varian }?.total_stock ?: 0)
-                                                }
-                                                val ready = catalogVariants.sumOf { varian ->
-                                                    val summary = inventorySummaries.find { it.id_varian == varian.id_varian }
-                                                    summary?.readyStock ?: (stocks.find { it.id_varian == varian.id_varian }?.total_stock ?: 0)
-                                                }
-                                                val reserved = catalogVariants.sumOf { varian ->
-                                                    val summary = inventorySummaries.find { it.id_varian == varian.id_varian }
-                                                    summary?.reservedStock ?: 0
-                                                }
-                                                com.yansproject.app.ui.components.SeriesStockData(
-                                                    seriesName = catalog.nama_catalog,
-                                                    stockCount = available,
-                                                    readyStock = ready,
-                                                    reservedStock = reserved
-                                                )
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(10.dp))
-
-                                        com.yansproject.app.ui.components.AjibqobulStockBarChart(
-                                            seriesList = seriesStockList,
-                                            title = "GRAFIK STOK KATALOG (SERIES AJIBQOBUL)",
-                                            modifier = Modifier.padding(bottom = 4.dp)
-                                        )
-                                    }
-
                                     items(filteredCatalogs) { catalog ->
                                         // Calculate total stock and varian counts for this catalog from Inventory Summary
                                         val catalogVariants = variants.filter { it.id_catalog == catalog.id_catalog }
@@ -3932,6 +3931,7 @@ fun MemberDetailStockView(
                                 )
                             }
                             viewModel.updateVarianCartItems(catalog.id_catalog, varian.id_varian, updatedList)
+                            delay(250) // Ensure Room DB transaction and flow re-emission finish before navigating
                             isSaving = false
                             
                             if (totalQtyOrdered > 0) {
@@ -4707,7 +4707,7 @@ fun TotalTerjualDetailDialog(
 
         // 1. Invoices (Owner Invoices + Invoices linked to Member Orders)
         val validInvoices = invoices.filter { 
-            !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "DRAFT") 
+            !it.isDeleted && it.status.uppercase().trim() !in listOf("CANCELLED", "VOID", "DIBATALKAN", "BATAL", "DRAFT", "REFUND", "REFUNDED") 
         }
         validInvoices.forEach { inv ->
             val items = try {

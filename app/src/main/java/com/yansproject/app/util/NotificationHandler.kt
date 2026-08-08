@@ -127,6 +127,31 @@ object NotificationHandler {
                 return
             }
 
+            // Check if notification ID or identical content was already delivered
+            val dispatcher = com.yansproject.app.data.NotificationDispatcher.getInstance(context)
+            if (dispatcher.isDelivered(id)) {
+                Log.i(TAG, "Notification $id already delivered according to NotificationDispatcher. Skipping.")
+                return
+            }
+
+            val existingList = AppSettings.getNotifications(context)
+            val titleClean = title.trim()
+            val msgClean = message.trim()
+            val isAlreadyPresent = existingList.any { existing ->
+                existing.id == id ||
+                (
+                    existing.title.trim().equals(titleClean, ignoreCase = true) &&
+                    existing.message.trim().equals(msgClean, ignoreCase = true) &&
+                    (!existing.isRead || Math.abs(System.currentTimeMillis() - existing.timestamp) < 86400000L)
+                )
+            }
+            if (isAlreadyPresent && dispatcher.isDelivered(id)) {
+                Log.i(TAG, "Notification $id with identical title & message already present locally. Skipping dispatch.")
+                return
+            }
+
+            dispatcher.markDelivered(id)
+
             val catUpper = category.trim().uppercase()
             val roleUpper = roleTarget.trim().uppercase()
             val senderRoleUpper = senderRole.trim().uppercase()

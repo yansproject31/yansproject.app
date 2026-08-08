@@ -512,7 +512,7 @@ object AppSettings {
     fun getNotifications(context: Context): List<AppNotification> {
         val jsonStr = getPrefs(context).getString("app_notifications", "[]") ?: "[]"
         val deletedIds = getDeletedNotificationIds(context)
-        val list = mutableListOf<AppNotification>()
+        val rawList = mutableListOf<AppNotification>()
         try {
             val array = org.json.JSONArray(jsonStr)
             for (i in 0 until array.length()) {
@@ -520,7 +520,7 @@ object AppSettings {
                 val id = obj.optString("id", "")
                 val isDel = obj.optBoolean("isDeleted", false) || obj.optBoolean("is_deleted", false) || deletedIds.contains(id)
                 if (!isDel && id.isNotEmpty()) {
-                    list.add(
+                    rawList.add(
                         AppNotification(
                             id = id,
                             title = obj.optString("title", ""),
@@ -542,7 +542,37 @@ object AppSettings {
         } catch (e: Exception) {
             android.util.Log.e("AppSettings", "Error parsing app notifications: ${e.message}", e)
         }
-        return list.sortedByDescending { it.timestamp }
+
+        // Clean & Deduplicate list by ID and content signature
+        val sortedList = rawList.sortedByDescending { it.timestamp }
+        val deduplicated = mutableListOf<AppNotification>()
+        val seenIds = mutableSetOf<String>()
+        val seenSignatures = mutableSetOf<String>()
+
+        for (item in sortedList) {
+            val titleClean = item.title.trim().lowercase()
+            val msgClean = item.message.trim().lowercase()
+            val catClean = item.category.trim().lowercase()
+            val sig = "${titleClean}_${msgClean}_${catClean}"
+
+            if (!seenIds.contains(item.id) && !seenSignatures.contains(sig)) {
+                seenIds.add(item.id)
+                seenSignatures.add(sig)
+                deduplicated.add(item)
+            } else if (!seenIds.contains(item.id) && seenSignatures.contains(sig)) {
+                // If ID is different but content signature matches an existing item, keep only if timestamps are > 24 hours apart
+                val isFarApart = deduplicated.none { prev ->
+                    val prevSig = "${prev.title.trim().lowercase()}_${prev.message.trim().lowercase()}_${prev.category.trim().lowercase()}"
+                    prevSig == sig && Math.abs(prev.timestamp - item.timestamp) < 86400000L
+                }
+                if (isFarApart) {
+                    seenIds.add(item.id)
+                    deduplicated.add(item)
+                }
+            }
+        }
+
+        return deduplicated
     }
 
     fun saveNotifications(context: Context, notifications: List<AppNotification>) {
@@ -632,9 +662,19 @@ object AppSettings {
         if (deletedIds.contains(notification.id)) return
 
         val list = getNotifications(context).toMutableList()
-        val exists = list.any { 
-            it.id == notification.id || 
-            (it.title == notification.title && it.message == notification.message && Math.abs(it.timestamp - notification.timestamp) < 5000) 
+        val notifTitleClean = notification.title.trim().lowercase()
+        val notifMsgClean = notification.message.trim().lowercase()
+
+        val exists = list.any { existing ->
+            existing.id == notification.id || 
+            (
+                existing.title.trim().lowercase() == notifTitleClean &&
+                existing.message.trim().lowercase() == notifMsgClean &&
+                (
+                    !existing.isRead || 
+                    Math.abs(existing.timestamp - notification.timestamp) < 86400000L
+                )
+            )
         }
         if (!exists) {
             list.add(notification)
@@ -652,10 +692,11 @@ object AppSettings {
         userId: String = "ALL",
         priority: String = "MEDIUM",
         createdBy: String = "SYSTEM",
-        id: String = java.util.UUID.randomUUID().toString()
+        id: String? = null
     ) {
+        val finalId = id ?: "notif_${(title.trim() + message.trim()).hashCode()}_${System.currentTimeMillis() / 60000}"
         val notif = AppNotification(
-            id = id,
+            id = finalId,
             title = title,
             message = message,
             category = category,

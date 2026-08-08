@@ -157,16 +157,21 @@ fun ProfessionalInvoiceDetailScreen(
                     .fillMaxWidth()
                     .border(1.dp, MutedSilver, RoundedCornerShape(12.dp))
             ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Ukuran Dewasa (Adult Size Grid)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val adultShortQty = project.adultMatrix.filter { it.sleeve == com.yansproject.app.data.SleeveType.PENDEK }.sumOf { it.quantity }
+                    val adultLongQty = project.adultMatrix.filter { it.sleeve == com.yansproject.app.data.SleeveType.PANJANG }.sumOf { it.quantity }
+                    val kidsTotalQty = project.kidsMatrix.sumOf { it.quantity }
+                    val totalGlobalQty = adultShortQty + adultLongQty + kidsTotalQty
+
+                    // Row Lengan Pendek
+                    Text("👕 Lengan Pendek (Short Sleeve Grid) • Total: $adultShortQty Pcs", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         val sizes = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
                         sizes.forEach { size ->
-                            val qty = project.adultMatrix.filter { it.size == size }.sumOf { it.quantity }
+                            val qty = project.adultMatrix.filter { it.sleeve == com.yansproject.app.data.SleeveType.PENDEK && it.size == size }.sumOf { it.quantity }
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
@@ -180,9 +185,31 @@ fun ProfessionalInvoiceDetailScreen(
                         }
                     }
 
+                    // Row Lengan Panjang
+                    Text("👔 Lengan Panjang (Long Sleeve Grid) • Total: $adultLongQty Pcs", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        val sizes = listOf("XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL")
+                        sizes.forEach { size ->
+                            val qty = project.adultMatrix.filter { it.sleeve == com.yansproject.app.data.SleeveType.PANJANG && it.size == size }.sumOf { it.quantity }
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .border(0.5.dp, MutedSilver)
+                                    .padding(vertical = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(size, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("$qty", color = if (qty > 0) HijauMint else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
                     if (project.kidsMatrix.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Ukuran Anak (Kids Size Grid)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("🧒 Ukuran Anak (Kids Size Grid) • Total: $kidsTotalQty Pcs", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -204,6 +231,16 @@ fun ProfessionalInvoiceDetailScreen(
                             }
                         }
                     }
+
+                    Divider(color = MutedSilver, thickness = 0.5.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("TOTAL KUANTITAS GLOBAL", color = LuxuryGold, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("$totalGlobalQty Pcs", color = HijauMint, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
@@ -215,11 +252,16 @@ fun ProfessionalInvoiceDetailScreen(
                     .border(1.dp, MutedSilver, RoundedCornerShape(12.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("INFORMASI KEUANGAN", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("INFORMASI KEUANGAN & RINCIAN TAGIHAN", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Grand Total Invoice (PPN Terhitung)", color = Color.Gray, fontSize = 13.sp)
+                        Text("Subtotal Biaya", color = Color.Gray, fontSize = 13.sp)
                         Text(IdrAccountingEngine.formatRupiah(project.grandTotal), color = Color.White, fontSize = 14.sp)
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Grand Total Tagihan", color = Color.Gray, fontSize = 13.sp)
+                        Text(IdrAccountingEngine.formatRupiah(project.grandTotal), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -227,8 +269,10 @@ fun ProfessionalInvoiceDetailScreen(
                         Text(IdrAccountingEngine.formatRupiah(project.paidAmount), color = HijauMint, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
 
+                    Divider(color = MutedSilver, thickness = 0.5.dp)
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Sisa Tagihan (Remaining)", color = Color.Gray, fontSize = 13.sp)
+                        Text("SISA PEMBAYARAN", color = LuxuryGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         Text(IdrAccountingEngine.formatRupiah(project.remainingBalance), color = LuxuryGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                 }

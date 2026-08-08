@@ -171,13 +171,23 @@ fun RiwayatScreen(
                 "Minggu Ini" -> isThisWeek(invoice.issueDate)
                 "Bulan Ini" -> isThisMonth(invoice.issueDate)
                 "Tahun Ini" -> isThisYear(invoice.issueDate)
-                "Lunas" -> (invoice.status ?: "").equals("LUNAS", ignoreCase = true) || (invoice.totalAmount > 0 && invoice.paidAmount >= invoice.totalAmount)
+                "Lunas" -> ((invoice.status ?: "").equals("LUNAS", ignoreCase = true) || (invoice.totalAmount > 0 && invoice.paidAmount >= invoice.totalAmount)) &&
+                          !(invoice.status ?: "").equals("BATAL", ignoreCase = true) &&
+                          !(invoice.status ?: "").equals("CANCELLED", ignoreCase = true) &&
+                          !(invoice.status ?: "").equals("REFUND", ignoreCase = true) &&
+                          !(invoice.status ?: "").equals("REFUNDED", ignoreCase = true)
                 "Belum Lunas", "DP" -> !(invoice.status ?: "").equals("LUNAS", ignoreCase = true) &&
                                       !(invoice.status ?: "").equals("PAID", ignoreCase = true) &&
                                       !(invoice.status ?: "").equals("BATAL", ignoreCase = true) &&
+                                      !(invoice.status ?: "").equals("CANCELLED", ignoreCase = true) &&
                                       !(invoice.status ?: "").equals("REFUND", ignoreCase = true) &&
+                                      !(invoice.status ?: "").equals("REFUNDED", ignoreCase = true) &&
                                       (invoice.paidAmount < invoice.totalAmount || invoice.remainingPayment > 0.01)
-                "Batal" -> (invoice.status ?: "").equals("BATAL", ignoreCase = true)
+                "Batal", "Refund", "Batal / Refund", "Refund / Batal" -> (invoice.status ?: "").equals("BATAL", ignoreCase = true) ||
+                                                                           (invoice.status ?: "").equals("CANCELLED", ignoreCase = true) ||
+                                                                           (invoice.status ?: "").equals("REFUND", ignoreCase = true) ||
+                                                                           (invoice.status ?: "").equals("REFUNDED", ignoreCase = true) ||
+                                                                           (invoice.status ?: "").equals("PARTIAL_REFUND", ignoreCase = true)
                 else -> true
             }
 
@@ -202,9 +212,14 @@ fun RiwayatScreen(
         }.sortedByDescending { it.issueDate }
     }
 
-    // Single Source of Truth KPI Metrics (Excludes Canceled/Batal Invoices)
+    // Single Source of Truth KPI Metrics (Excludes Canceled & Refunded Invoices)
     val activeInvoices = remember(filteredInvoices) {
-        filteredInvoices.filter { !it.status.equals("BATAL", ignoreCase = true) && !it.status.equals("CANCELLED", ignoreCase = true) }
+        filteredInvoices.filter { 
+            !it.status.equals("BATAL", ignoreCase = true) && 
+            !it.status.equals("CANCELLED", ignoreCase = true) &&
+            !it.status.equals("REFUND", ignoreCase = true) &&
+            !it.status.equals("REFUNDED", ignoreCase = true)
+        }
     }
     val totalGrossValue = remember(activeInvoices) { activeInvoices.sumOf { it.totalAmount } }
     val totalPaidValue = remember(activeInvoices) { activeInvoices.sumOf { it.paidAmount } }
@@ -1671,8 +1686,9 @@ fun shareToWhatsApp(
 
 fun printInvoicePdf(context: Context, invoice: Invoice) {
     try {
-        val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-        val file = File(dir, "Invoice-${invoice.invoiceNumber}.pdf")
+        val safeNum = invoice.invoiceNumber.replace("/", "_").replace("\\", "_").replace(":", "_").ifEmpty { invoice.id.toString() }
+        val dir = com.yansproject.app.ui.DocumentExporter.getExportDirectory(context, "invoice")
+        val file = File(dir, "Invoice-${safeNum}.pdf")
         if (!file.exists()) {
             Toast.makeText(context, "Silakan export PDF terlebih dahulu sebelum mencetak.", Toast.LENGTH_SHORT).show()
             return

@@ -78,6 +78,14 @@ class NotificationDispatcher private constructor(private val context: Context) {
         }
     }
 
+    fun isDelivered(id: String): Boolean {
+        return deliveredIds.contains(id)
+    }
+
+    fun markDelivered(id: String) {
+        persistDeliveredId(id)
+    }
+
     /**
      * Dispatches a local system notification idempotently.
      */

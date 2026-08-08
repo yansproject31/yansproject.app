@@ -165,34 +165,87 @@ object InvoiceItemSorter {
         return FormatUtils.getSizeIndex(size)
     }
 
-    fun sortInvoiceItems(items: List<InvoiceItemDetail>): List<InvoiceItemDetail> {
-        return items.sortedWith { a, b ->
-            val sizeA = extractSize(a.description)
-            val sizeB = extractSize(b.description)
-
-            val orderA = SIZE_ORDER[sizeA] ?: 99
-            val orderB = SIZE_ORDER[sizeB] ?: 99
-
-            if (orderA != orderB) {
-                orderA.compareTo(orderB)
-            } else {
-                a.description.compareTo(b.description, ignoreCase = true)
-            }
+    fun extractSleeve(description: String): String {
+        return if (description.contains("Panjang", ignoreCase = true) || description.contains("Long", ignoreCase = true)) {
+            "Panjang"
+        } else {
+            "Pendek"
         }
     }
 
-    private fun extractSize(description: String): String {
+    fun extractSleeveIndex(description: String): Int {
+        return if (extractSleeve(description) == "Panjang") 1 else 0
+    }
+
+    fun extractSize(description: String): String {
         val uppercaseDesc = description.uppercase()
+        val sizeRegex = Regex("""(?i)\b(XS|S|M|L|XL|XXL|2XL|3XL|4XL|5XL)\b""")
+        val match = sizeRegex.find(uppercaseDesc)
+        if (match != null) {
+            return match.value.uppercase()
+        }
         for (size in SIZE_ORDER.keys) {
-            if (uppercaseDesc.contains("($size)") || uppercaseDesc.contains("SIZE $size") || uppercaseDesc.contains(" $size ") || uppercaseDesc.endsWith(" $size")) {
+            if (uppercaseDesc.contains("($size)") || uppercaseDesc.contains("SIZE $size") || uppercaseDesc.contains("UKURAN $size") || uppercaseDesc.contains(" $size ") || uppercaseDesc.endsWith(" $size")) {
                 return size
             }
         }
         return ""
     }
+
+    fun extractSizeIndex(description: String): Int {
+        val sz = extractSize(description)
+        return SIZE_ORDER[sz] ?: 99
+    }
+
+    fun sortInvoiceItems(items: List<InvoiceItemDetail>): List<InvoiceItemDetail> {
+        return items.sortedWith { a, b ->
+            val sleeveIdxA = extractSleeveIndex(a.description)
+            val sleeveIdxB = extractSleeveIndex(b.description)
+
+            if (sleeveIdxA != sleeveIdxB) {
+                sleeveIdxA.compareTo(sleeveIdxB)
+            } else {
+                val sizeIdxA = extractSizeIndex(a.description)
+                val sizeIdxB = extractSizeIndex(b.description)
+
+                if (sizeIdxA != sizeIdxB) {
+                    sizeIdxA.compareTo(sizeIdxB)
+                } else {
+                    a.description.compareTo(b.description, ignoreCase = true)
+                }
+            }
+        }
+    }
+
+    fun getShortSleeveTotalQty(items: List<InvoiceItemDetail>): Int {
+        return items.filter { !it.description.startsWith("__") && extractSleeve(it.description) == "Pendek" }
+            .sumOf { if (it.quantity > 0) it.quantity else 1 }
+    }
+
+    fun getLongSleeveTotalQty(items: List<InvoiceItemDetail>): Int {
+        return items.filter { !it.description.startsWith("__") && extractSleeve(it.description) == "Panjang" }
+            .sumOf { if (it.quantity > 0) it.quantity else 1 }
+    }
+
+    fun getGlobalTotalQty(items: List<InvoiceItemDetail>): Int {
+        val sum = items.filter { !it.description.startsWith("__") }
+            .sumOf { if (it.quantity > 0) it.quantity else 1 }
+        return if (sum > 0) sum else 1
+    }
+
+    fun calcSubtotal(items: List<InvoiceItemDetail>): Double {
+        val validItems = items.filter { !it.description.startsWith("__") }
+        if (validItems.isEmpty()) return 0.0
+        return validItems.sumOf { (if (it.quantity > 0) it.quantity else 1) * it.price }
+    }
 }
 
 object FormatUtils {
+    fun sanitizeNotes(notes: String?): String {
+        if (notes.isNullOrBlank()) return ""
+        return notes.replace(Regex("\\[PAY_REF:[^\\]]+\\]"), "").replace("  ", " ").trim()
+    }
+
     fun formatRupiah(amount: Double): String {
         val localeID = Locale("in", "ID")
         val format = NumberFormat.getCurrencyInstance(localeID)
