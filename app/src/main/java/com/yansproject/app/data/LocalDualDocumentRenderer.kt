@@ -139,7 +139,7 @@ object LocalDualDocumentRenderer {
         paint.color = 0xFFFFFFFF.toInt()
         paint.textSize = 15f
         paint.isFakeBoldText = false
-        canvas.drawText("Akad Jual-Beli (Ajib & Qobul) Sah, Halal & Terverifikasi Sistem ERP YANSPROJECT.ID.", 60f, 700f, paint)
+        canvas.drawText("Hatur Tengkyu telah menjadi bagian dari perjalanan YANSPROJECT.ID", 60f, 700f, paint)
 
         return bitmap
     }

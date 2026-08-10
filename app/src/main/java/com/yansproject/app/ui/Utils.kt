@@ -238,9 +238,105 @@ object InvoiceItemSorter {
         if (validItems.isEmpty()) return 0.0
         return validItems.sumOf { (if (it.quantity > 0) it.quantity else 1) * it.price }
     }
+
+    fun cleanDescriptionForDisplay(description: String): String {
+        if (description.isBlank()) return "-"
+        val sleeve = extractSleeve(description).uppercase() // "PENDEK" or "PANJANG"
+        val size = extractSize(description).uppercase()     // e.g. "S", "M", "L", etc.
+        
+        if (size.isNotBlank()) {
+            return "$size - $sleeve"
+        }
+        
+        var clean = description
+            .replace("Pembelian:", "", ignoreCase = true)
+            .replace("AJIBQOBUL", "", ignoreCase = true)
+            .trim()
+        if (clean.startsWith("-")) clean = clean.removePrefix("-").trim()
+        return clean.ifBlank { description }
+    }
+
+    fun extractCatalogAndColor(items: List<InvoiceItemDetail>): Pair<String, String> {
+        var catalog = ""
+        var color = ""
+        
+        val validItems = items.filter { !it.description.startsWith("__") }
+        for (item in validItems) {
+            val raw = item.description
+                .replace("Pembelian:", "", ignoreCase = true)
+                .replace("AJIBQOBUL", "", ignoreCase = true)
+                .trim()
+            
+            val knownColors = listOf("HITAM", "BLACK", "PUTIH", "WHITE", "NAVY", "MAROON", "HIJAU", "GREEN", "RED", "MERAH", "CREAM", "KUNING", "YELLOW", "ABU", "GREY", "GRAY", "BLUE", "BIRU", "LILAC", "PINK", "COKLAT", "BROWN")
+            for (c in knownColors) {
+                if (color.isBlank() && raw.contains(c, ignoreCase = true)) {
+                    color = c.uppercase()
+                    if (color == "BLACK") color = "HITAM"
+                    if (color == "WHITE") color = "PUTIH"
+                }
+            }
+            
+            if (catalog.isBlank()) {
+                val parts = raw.split("-", "(")
+                for (part in parts) {
+                    val p = part.trim()
+                    if (p.isNotBlank() && !p.contains("PENDEK", ignoreCase = true) && !p.contains("PANJANG", ignoreCase = true) && extractSize(p).isBlank() && !knownColors.any { p.equals(it, ignoreCase = true) }) {
+                        catalog = p.uppercase()
+                        break
+                    }
+                }
+            }
+        }
+        
+        if (catalog.isBlank()) catalog = "MADAD AULIYA 68 TH"
+        if (color.isBlank()) color = "HITAM"
+        
+        return Pair(catalog, color)
+    }
 }
 
+data class MemberBadgeInfo(
+    val isMember: Boolean,
+    val badgeLabel: String,
+    val tierLabel: String
+)
+
 object FormatUtils {
+    fun getInvoiceMemberBadgeInfo(invoice: Invoice, context: Context): MemberBadgeInfo {
+        val clientName = invoice.clientName.trim()
+        if (clientName.isBlank()) {
+            return MemberBadgeInfo(false, "NON-MEMBER", "Input Manual")
+        }
+
+        val registeredMembers = AppSettings.getMembers(context)
+        val isRegistered = registeredMembers.any { m ->
+            val cleanM = m.trim()
+            cleanM.isNotBlank() && (
+                cleanM.equals(clientName, ignoreCase = true) ||
+                clientName.contains(cleanM, ignoreCase = true) ||
+                cleanM.contains(clientName, ignoreCase = true)
+            )
+        }
+
+        val itemsJsonLower = (invoice.itemsJson ?: "").lowercase()
+        val isTaggedMember = itemsJsonLower.contains("__price_category__:member") ||
+                itemsJsonLower.contains("__price_category__:reseller") ||
+                itemsJsonLower.contains("__price_type__:member") ||
+                itemsJsonLower.contains("__price_type__:reseller") ||
+                itemsJsonLower.contains("__member__:")
+
+        val memberDetail = AppSettings.getMemberDetail(context, clientName)
+
+        val isMember = isRegistered || isTaggedMember || (memberDetail != null)
+
+        return if (isMember) {
+            val priceCat = memberDetail?.priceCategory ?: if (itemsJsonLower.contains("reseller")) "Reseller" else "Member"
+            val label = if (priceCat.equals("Reseller", ignoreCase = true)) "MEMBER RESELLER" else "MEMBER MITRA"
+            MemberBadgeInfo(true, label, priceCat)
+        } else {
+            MemberBadgeInfo(false, "NON-MEMBER", "Input Manual Owner")
+        }
+    }
     fun sanitizeNotes(notes: String?): String {
         if (notes.isNullOrBlank()) return ""
         return notes.replace(Regex("\\[PAY_REF:[^\\]]+\\]"), "").replace("  ", " ").trim()
@@ -266,11 +362,11 @@ object FormatUtils {
     }
 
     fun formatPaymentMethod(method: String?, detail: String? = null): String {
-        if (method.isNullOrBlank()) return "Tunai"
+        if (method.isNullOrBlank()) return "Kas Utama (Tunai)"
         val base = when (method.trim().uppercase()) {
-            "CASH", "TUNAI" -> "Tunai"
-            "TRANSFER", "BANK" -> "Transfer Bank"
-            "QRIS" -> "QRIS"
+            "CASH", "TUNAI" -> "Kas Utama (Tunai)"
+            "TRANSFER", "BANK", "BCA", "MANDIRI", "BNI", "BRI" -> "Transfer Bank"
+            "LAINNYA", "QRIS", "DIGITAL", "OTHER" -> "Lainnya"
             "DP", "UANG_MUKA" -> "Uang Muka (DP)"
             "PIUTANG" -> "Piutang"
             else -> method

@@ -97,28 +97,24 @@ object WhatsAppInvoiceFormatter {
         val longQty = InvoiceItemSorter.getLongSleeveTotalQty(filteredItems)
         val globalQty = InvoiceItemSorter.getGlobalTotalQty(filteredItems)
 
-        sb.append("📊 *RINGKASAN KUANTITAS (QTY)*\n")
-        if (shortQty > 0) sb.append("• Total Lengan Pendek : ").append(shortQty).append(" Pcs\n")
-        if (longQty > 0) sb.append("• Total Lengan Panjang: ").append(longQty).append(" Pcs\n")
-        sb.append("• *Total Kuantitas Global*: *").append(globalQty).append(" Pcs*\n")
-        sb.append(DIVIDER_DOUBLE).append("\n\n")
+        sb.append("📊 *RINCIAN KUANTITAS & KEUANGAN*\n")
+        sb.append("• QTY PENDEK : ").append(shortQty).append(" Pcs\n")
+        sb.append("• QTY PANJANG : ").append(longQty).append(" Pcs\n")
+        sb.append("• *TOTAL QTY* : *").append(globalQty).append(" Pcs*\n")
+        sb.append(DIVIDER_SINGLE).append("\n")
 
         val calculatedSubtotal = InvoiceItemSorter.calcSubtotal(filteredItems)
-        val subtotalToDisplay = if (calculatedSubtotal > 0.0) calculatedSubtotal else invoice.totalAmount
-        val grandTotal = (subtotalToDisplay - invoice.discount).coerceAtLeast(0.0)
+        val subtotalToDisplay = if (calculatedSubtotal > 0.0) calculatedSubtotal else (invoice.totalAmount + invoice.discount)
+        val totalToDisplay = (subtotalToDisplay - invoice.discount).coerceAtLeast(0.0)
 
-        sb.append("💳 *RINGKASAN PEMBAYARAN*\n")
-        sb.append("• *Subtotal Barang* : ").append(FormatUtils.formatRupiah(subtotalToDisplay)).append("\n")
+        sb.append("• *SUB TOTAL* : ").append(FormatUtils.formatRupiah(subtotalToDisplay)).append("\n")
         if (invoice.discount > 0) {
-            sb.append("• *Potongan Diskon* : - ").append(FormatUtils.formatRupiah(invoice.discount)).append("\n")
+            sb.append("• *DISKON* : - ").append(FormatUtils.formatRupiah(invoice.discount)).append("\n")
         }
-        sb.append("• *Grand Total*     : *").append(FormatUtils.formatRupiah(grandTotal)).append("*\n")
-        if (invoice.dpAmount > 0) {
-            sb.append("• *Uang Muka (DP)*  : ").append(FormatUtils.formatRupiah(invoice.dpAmount)).append("\n")
-        }
-        sb.append("• *Total Terbayar*  : ").append(FormatUtils.formatRupiah(invoice.paidAmount)).append("\n")
+        sb.append("• *TOTAL* : *").append(FormatUtils.formatRupiah(totalToDisplay)).append("*\n")
+        sb.append("• *PEMBAYARAN* : ").append(FormatUtils.formatRupiah(invoice.paidAmount)).append("\n")
         sb.append(DIVIDER_SINGLE).append("\n")
-        sb.append("▶️ *SISA PEMBAYARAN* : *").append(FormatUtils.formatRupiah(remaining)).append("*\n")
+        sb.append("🔥 *SISA PEMBAYARAN* : *").append(FormatUtils.formatRupiah(remaining)).append("*\n")
         sb.append(DIVIDER_DOUBLE).append("\n\n")
 
         sb.append("🤝 *AKAD SYAR'I & KETERANGAN*\n")

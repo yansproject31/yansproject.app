@@ -154,6 +154,8 @@ fun InvoiceScreen(
 
         val matchesFilter = when (selectedFilter) {
             "Semua" -> !invoice.isDeleted
+            "Member Mitra", "Member", "Akun Member" -> !invoice.isDeleted && FormatUtils.getInvoiceMemberBadgeInfo(invoice, context).isMember
+            "Non-Member", "Non-Member (Manual)" -> !invoice.isDeleted && !FormatUtils.getInvoiceMemberBadgeInfo(invoice, context).isMember
             "Persetujuan" -> !invoice.isDeleted && (
                 invoice.status.equals("MENUNGGU PERSETUJUAN", ignoreCase = true) || 
                 invoice.status.equals("MENUNGGU_APPROVAL", ignoreCase = true) || 
@@ -289,9 +291,9 @@ fun InvoiceScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     val filtersList = if (isOwner) {
-                        listOf("Semua", "Persetujuan", "Belum Lunas", "Belum Dibayar", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
+                        listOf("Semua", "Member Mitra", "Non-Member", "Persetujuan", "Belum Lunas", "Belum Dibayar", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
                     } else {
-                        listOf("Semua", "Belum Lunas", "Belum Dibayar", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
+                        listOf("Semua", "Member Mitra", "Non-Member", "Belum Lunas", "Belum Dibayar", "Lunas", "Hari Ini", "Minggu Ini", "Bulan Ini", "Refund")
                     }
                     items(filtersList) { filter ->
                         val isSelected = selectedFilter == filter
@@ -668,16 +670,55 @@ fun InvoiceItemCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 2. Customer Block: Label "CUSTOMER" kecil, di bawahnya Nama Customer dengan ukuran teks tebal. Di samping kanan (jika ada) Nomor Project dengan Accent Aged Gold tebal.
+            // 2. Customer Block: Label "CUSTOMER" & Badge Keanggotaan Member / Non-Member
+            val memberBadgeInfo = remember(invoice) { FormatUtils.getInvoiceMemberBadgeInfo(invoice, context) }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = "CUSTOMER", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(text = "CUSTOMER", fontSize = 8.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                        if (memberBadgeInfo.isMember) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(CyberEmerald)
+                                    .border(0.6.dp, AgedGold, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Outlined.Star, contentDescription = null, tint = AgedGold, modifier = Modifier.size(8.dp))
+                                    Text(text = memberBadgeInfo.badgeLabel, fontSize = 7.5.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(DeepTeal.copy(alpha = 0.5f))
+                                    .border(0.6.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Outlined.PersonOutline, contentDescription = null, tint = HighlightSoftCyan, modifier = Modifier.size(8.dp))
+                                    Text(text = "NON-MEMBER", fontSize = 7.5.sp, color = HighlightSoftCyan, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = invoice.clientName, fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(text = invoice.clientName.ifEmpty { "Customer Umum" }, fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold)
                 }
                 if (invoice.projectId != null) {
                     Text(
@@ -740,7 +781,7 @@ fun InvoiceItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "GRAND TOTAL", fontSize = 10.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Text(text = "TOTAL", fontSize = 10.sp, color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 Text(
                     text = FormatUtils.formatRupiah(invoice.totalAmount),
                     fontSize = 18.sp,
@@ -996,6 +1037,41 @@ fun InvoiceDetailDialog(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        Text(text = "Status Keanggotaan", fontSize = 12.sp, color = TextMuted)
+                                        val detailBadge = remember(invoice) { FormatUtils.getInvoiceMemberBadgeInfo(invoice, context) }
+                                        if (detailBadge.isMember) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(CyberEmerald)
+                                                    .border(0.8.dp, AgedGold, RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                    Icon(imageVector = Icons.Outlined.Star, contentDescription = null, tint = AgedGold, modifier = Modifier.size(11.dp))
+                                                    Text(text = detailBadge.badgeLabel, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                                                }
+                                            }
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(DeepTeal.copy(alpha = 0.6f))
+                                                    .border(0.8.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                    Icon(imageVector = Icons.Outlined.PersonOutline, contentDescription = null, tint = HighlightSoftCyan, modifier = Modifier.size(11.dp))
+                                                    Text(text = "NON-MEMBER (INPUT MANUAL)", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = HighlightSoftCyan)
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Text(text = "Status Pembayaran", fontSize = 12.sp, color = TextMuted)
                                         val statusColor = when (currentStatus.trim().uppercase()) {
                                             "LUNAS" -> AlertGreen
@@ -1182,46 +1258,103 @@ fun InvoiceDetailDialog(
                                 }
                                 HorizontalDivider(color = BorderGrey.copy(alpha = 0.3f), thickness = 0.5.dp)
 
-                                val subtotalProduk = remember(invoiceItems) {
-                                    invoiceItems.filter { !it.description.startsWith("__") }.sumOf { it.quantity * it.price }
-                                }
+                                val qtyPendek = remember(invoiceItems) { InvoiceItemSorter.getShortSleeveTotalQty(invoiceItems) }
+                                val qtyPanjang = remember(invoiceItems) { InvoiceItemSorter.getLongSleeveTotalQty(invoiceItems) }
+                                val totalQty = remember(invoiceItems) { InvoiceItemSorter.getGlobalTotalQty(invoiceItems) }
 
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                val subtotalProduk = remember(invoiceItems) {
+                                    val calc = InvoiceItemSorter.calcSubtotal(invoiceItems)
+                                    if (calc > 0.0) calc else (invoice.totalAmount + invoice.discount)
+                                }
+                                val diskonVal = invoice.discount
+                                val totalVal = (subtotalProduk - diskonVal).coerceAtLeast(0.0)
+                                val pembayaranVal = currentPaid
+                                val sisaPembayaranVal = (totalVal - pembayaranVal).coerceAtLeast(0.0)
+
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(text = "Subtotal Produk", fontSize = 12.sp, color = TextMuted)
+                                        Text(text = "QTY PENDEK :", fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                        Text(text = "$qtyPendek Pcs", fontSize = 12.sp, color = TextLight, fontWeight = FontWeight.Bold)
+                                    }
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(text = "QTY PANJANG :", fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                        Text(text = "$qtyPanjang Pcs", fontSize = 12.sp, color = TextLight, fontWeight = FontWeight.Bold)
+                                    }
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(text = "TOTAL QTY :", fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                        Text(text = "$totalQty Pcs", fontSize = 12.sp, color = HighlightSoftCyan, fontWeight = FontWeight.Black)
+                                    }
+
+                                    HorizontalDivider(color = BorderGrey.copy(alpha = 0.2f), thickness = 0.5.dp)
+
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(text = "SUB TOTAL :", fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Bold)
                                         Text(text = FormatUtils.formatRupiah(subtotalProduk), fontSize = 12.sp, color = TextLight)
                                     }
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(text = "Diskon", fontSize = 12.sp, color = TextMuted)
-                                        Text(text = "- ${FormatUtils.formatRupiah(invoice.discount)}", fontSize = 12.sp, color = AlertRed)
+                                        Text(text = "DISKON :", fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                        Text(text = "- ${FormatUtils.formatRupiah(diskonVal)}", fontSize = 12.sp, color = AlertRed, fontWeight = FontWeight.Bold)
                                     }
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(text = "Total Terbayar", fontSize = 12.sp, color = TextMuted)
-                                        Text(text = FormatUtils.formatRupiah(currentPaid), fontSize = 12.sp, color = AlertGreen, fontWeight = FontWeight.Bold)
-                                    }
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(text = "Sisa Pembayaran", fontSize = 12.sp, color = TextMuted)
-                                        Text(
-                                            text = FormatUtils.formatRupiah(currentRemaining),
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (currentRemaining > 0) AlertOrange else AlertGreen
-                                        )
-                                    }
-                                }
 
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(SecondaryShadowBlackTeal)
-                                        .border(1.5.dp, AgedGold, RoundedCornerShape(12.dp))
-                                        .padding(14.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(text = "GRAND TOTAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AgedGold, letterSpacing = 2.sp)
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = FormatUtils.formatRupiah(invoice.totalAmount), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                                    // SUB HERO TOTAL
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(SecondaryShadowBlackTeal)
+                                            .border(1.dp, AgedGold, RoundedCornerShape(10.dp))
+                                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = "TOTAL :", fontSize = 12.sp, fontWeight = FontWeight.Black, color = AgedGold, letterSpacing = 1.sp)
+                                            Text(text = FormatUtils.formatRupiah(totalVal), fontSize = 18.sp, fontWeight = FontWeight.Black, color = AgedGold)
+                                        }
+                                    }
+
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(text = "PEMBAYARAN :", fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Bold)
+                                        Text(text = FormatUtils.formatRupiah(pembayaranVal), fontSize = 12.sp, color = AlertGreen, fontWeight = FontWeight.Bold)
+                                    }
+
+                                    // HERO INFORMASI SISA PEMBAYARAN
+                                    val heroBg = if (sisaPembayaranVal > 0) AlertRed.copy(alpha = 0.15f) else AlertGreen.copy(alpha = 0.15f)
+                                    val heroBorder = if (sisaPembayaranVal > 0) AlertRed else AlertGreen
+                                    val heroTextColor = if (sisaPembayaranVal > 0) AlertRed else AlertGreen
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(heroBg)
+                                            .border(1.8.dp, heroBorder, RoundedCornerShape(14.dp))
+                                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
+                                                Text(text = "SISA PEMBAYARAN :", fontSize = 11.sp, fontWeight = FontWeight.Black, color = heroTextColor, letterSpacing = 1.2.sp)
+                                                Text(
+                                                    text = if (sisaPembayaranVal > 0) "BELUM LUNAS" else "LUNAS 100%",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = heroTextColor.copy(alpha = 0.8f)
+                                                )
+                                            }
+                                            Text(
+                                                text = FormatUtils.formatRupiah(sisaPembayaranVal),
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = heroTextColor
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1490,7 +1623,7 @@ fun InvoiceDetailDialog(
                                     val refundNotes = invoiceItems.filter { it.description.startsWith("__NOTE__: Refund") }.map { it.description.removePrefix("__NOTE__:") }
                                     if (refundNotes.isNotEmpty()) {
                                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            Text(text = "Catatan Audit Refund:", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                                            Text(text = "Catatan Refund:", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
                                             refundNotes.forEach { noteText ->
                                                 Box(
                                                     modifier = Modifier
@@ -3501,13 +3634,34 @@ fun AddSaleDialog(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(text = "5. RINGKASAN & PEMBAYARAN", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+
+                                val cartItemsDetails = cartList.map { (st, q) -> InvoiceItemDetail(description = st.name, quantity = q, price = st.price) }
+                                val cartShortQty = InvoiceItemSorter.getShortSleeveTotalQty(cartItemsDetails)
+                                val cartLongQty = InvoiceItemSorter.getLongSleeveTotalQty(cartItemsDetails)
+                                val cartGlobalQty = InvoiceItemSorter.getGlobalTotalQty(cartItemsDetails)
+
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(text = "Total Item Penjualan", fontSize = 11.sp, color = TextMuted)
-                                    Text(text = "$totalQuantity Pcs", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                    Text(text = "QTY PENDEK :", fontSize = 11.sp, color = TextMuted)
+                                    Text(text = "$cartShortQty Pcs", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Bold)
                                 }
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(text = "Grand Total Penjualan:", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
-                                    Text(text = FormatUtils.formatRupiah(grandTotal), fontSize = 13.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
+                                    Text(text = "QTY PANJANG :", fontSize = 11.sp, color = TextMuted)
+                                    Text(text = "$cartLongQty Pcs", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Bold)
+                                }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(text = "TOTAL QTY :", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                                    Text(text = "$cartGlobalQty Pcs", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
+                                }
+
+                                HorizontalDivider(color = BorderGrey.copy(alpha = 0.3f), thickness = 0.5.dp)
+
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(text = "SUB TOTAL :", fontSize = 11.sp, color = TextMuted)
+                                    Text(text = FormatUtils.formatRupiah(grandTotal), fontSize = 11.sp, color = TextLight)
+                                }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Text(text = "TOTAL :", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                                    Text(text = FormatUtils.formatRupiah(grandTotal), fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
                                 }
 
                                 HorizontalDivider(color = BorderGrey, thickness = 1.dp)
@@ -3564,17 +3718,20 @@ fun AddSaleDialog(
                                     }
                                 }
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = if (remainingPayment > 0) Color(0x33FF5252) else Color(0x3336D0A7)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, if (remainingPayment > 0) AlertRed else AlertGreen),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text(text = "Sisa Tagihan Penjualan:", fontSize = 12.sp, color = TextMuted)
-                                    Text(
-                                        text = FormatUtils.formatRupiah(remainingPayment),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (remainingPayment > 0) AlertOrange else AlertGreen
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(text = "SISA PEMBAYARAN :", fontSize = 12.sp, fontWeight = FontWeight.Black, color = if (remainingPayment > 0) AlertRed else AlertGreen)
+                                        Text(text = FormatUtils.formatRupiah(remainingPayment), fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = if (remainingPayment > 0) AlertRed else AlertGreen)
+                                    }
                                 }
                             }
                         }
@@ -3802,9 +3959,8 @@ fun YansRefundDialog(
 
     val accounts = listOf(
         "CASH" to "Kas Tunai",
-        "BCA" to "Bank BCA",
-        "MANDIRI" to "Bank Mandiri",
-        "QRIS" to "QRIS / E-Wallet"
+        "TRANSFER" to "Transfer Bank",
+        "LAINNYA" to "Kas Lainnya"
     )
 
     AlertDialog(
@@ -3888,59 +4044,148 @@ fun YansRefundDialog(
                     }
                 }
 
-                // If PARTIAL refund, show item quantity selector
+                // If PARTIAL refund, show item quantity matrix selector
                 if (refundMode == "PARTIAL" && parsedItems.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Tentukan Jumlah Pcs Dikembalikan ke Gudang:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Matriks Item Dikembalikan ke Gudang:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                TextButton(
+                                    onClick = { parsedItems.indices.forEach { i -> refundQtyMap[i] = parsedItems[i].quantity } },
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Semua Max", fontSize = 10.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                                }
+                                TextButton(
+                                    onClick = { parsedItems.indices.forEach { i -> refundQtyMap[i] = 0 } },
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Reset (0)", fontSize = 10.sp, color = TextMuted)
+                                }
+                            }
+                        }
+
                         parsedItems.forEachIndexed { idx, item ->
                             val currentQty = refundQtyMap[idx] ?: item.quantity
+                            val itemSubtotalRefund = currentQty * item.price
+
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
-                                border = BorderStroke(0.8.dp, BorderGrey.copy(alpha = 0.6f)),
-                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(0.8.dp, if (currentQty > 0) Color(0xFFE289F2).copy(alpha = 0.6f) else BorderGrey.copy(alpha = 0.4f)),
+                                shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(
-                                        text = item.description,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = TextLight,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                Column(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Row 1: Item Description & Buy Quantity Tag
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Text(
+                                            text = item.description,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = TextLight,
+                                            modifier = Modifier.weight(1f).padding(end = 6.dp)
+                                        )
+                                        Surface(
+                                            color = DeepTeal,
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Text(
+                                                text = "Beli: ${item.quantity} Pcs",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = AgedGold,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+
+                                    // Row 2: Price / Subtotal Info & Stepper Controls
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(
-                                            text = "${FormatUtils.formatRupiah(item.price)} (Beli: ${item.quantity} pcs)",
-                                            fontSize = 10.sp,
-                                            color = TextMuted
-                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "@ ${FormatUtils.formatRupiah(item.price)}",
+                                                fontSize = 10.sp,
+                                                color = TextMuted
+                                            )
+                                            Text(
+                                                text = if (currentQty > 0) "Refund: ${FormatUtils.formatRupiah(itemSubtotalRefund)}" else "Tanpa Retur",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (currentQty > 0) AlertRed else TextMuted
+                                            )
+                                        }
+
+                                        // Stepper: ( - [Qty Pcs] + ) + MAX
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
                                             IconButton(
                                                 onClick = { if (currentQty > 0) refundQtyMap[idx] = currentQty - 1 },
-                                                modifier = Modifier.size(26.dp).background(DeepTeal, CircleShape)
+                                                enabled = currentQty > 0,
+                                                modifier = Modifier
+                                                    .size(28.dp)
+                                                    .background(
+                                                        if (currentQty > 0) DeepTeal else DeepTeal.copy(alpha = 0.3f),
+                                                        CircleShape
+                                                    )
                                             ) {
-                                                Text("-", color = TextLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                                Text("-", color = if (currentQty > 0) TextLight else TextMuted, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                             }
-                                            Text(
-                                                text = "$currentQty pcs",
-                                                color = AgedGold,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontSize = 11.sp,
-                                                modifier = Modifier.padding(horizontal = 4.dp)
-                                            )
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(ShadowBlack, RoundedCornerShape(6.dp))
+                                                    .border(1.dp, if (currentQty > 0) Color(0xFFE289F2) else BorderGrey.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "$currentQty Pcs",
+                                                    color = if (currentQty > 0) Color(0xFFE289F2) else TextMuted,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    fontSize = 11.sp
+                                                )
+                                            }
+
                                             IconButton(
                                                 onClick = { if (currentQty < item.quantity) refundQtyMap[idx] = currentQty + 1 },
-                                                modifier = Modifier.size(26.dp).background(DeepTeal, CircleShape)
+                                                enabled = currentQty < item.quantity,
+                                                modifier = Modifier
+                                                    .size(28.dp)
+                                                    .background(
+                                                        if (currentQty < item.quantity) DeepTeal else DeepTeal.copy(alpha = 0.3f),
+                                                        CircleShape
+                                                    )
                                             ) {
-                                                Text("+", color = TextLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                                Text("+", color = if (currentQty < item.quantity) TextLight else TextMuted, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .padding(start = 2.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(AgedGold.copy(alpha = 0.2f))
+                                                    .clickable { refundQtyMap[idx] = item.quantity }
+                                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text("MAX", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = AgedGold)
                                             }
                                         }
                                     }
@@ -3977,32 +4222,35 @@ fun YansRefundDialog(
                 // Payment Account Selection
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Sumber Kas/Bank Pengeluaran Refund:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AgedGold)
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        accounts.chunked(2).forEach { rowAccounts ->
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                rowAccounts.forEach { (accKey, accLabel) ->
-                                    val isSelected = selectedAccount == accKey
-                                    Card(
-                                        onClick = { selectedAccount = accKey },
-                                        modifier = Modifier.weight(1f),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = if (isSelected) Color(0xFFE289F2).copy(alpha = 0.2f) else SurfaceDarkTealSurface
-                                        ),
-                                        border = BorderStroke(
-                                            1.dp,
-                                            if (isSelected) Color(0xFFE289F2) else BorderGrey
-                                        ),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text(
-                                            text = accLabel,
-                                            fontSize = 11.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) Color(0xFFE289F2) else TextLight,
-                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                        )
-                                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        accounts.forEach { (accKey, accLabel) ->
+                            val isSelected = selectedAccount == accKey
+                            Card(
+                                onClick = { selectedAccount = accKey },
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) Color(0xFFE289F2).copy(alpha = 0.2f) else SurfaceDarkTealSurface
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelected) Color(0xFFE289F2) else BorderGrey
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 10.dp, horizontal = 2.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = accLabel,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color(0xFFE289F2) else TextLight,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        maxLines = 1
+                                    )
                                 }
                             }
                         }
@@ -4043,7 +4291,7 @@ fun YansRefundDialog(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Restock Barang Otomatis", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextLight)
-                            Text("Kembalikan $calculatedRefundPcs pcs ke stok gudang Ajibqobul", fontSize = 10.sp, color = TextMuted)
+                            Text("Kembalikan $calculatedRefundPcs pcs ke stok gudang utama", fontSize = 10.sp, color = TextMuted)
                         }
                         Switch(
                             checked = restoreStock,
@@ -4068,7 +4316,7 @@ fun YansRefundDialog(
                     ) {
                         Icon(imageVector = Icons.Outlined.Info, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
                         Text(
-                            text = "Refund akan mengembalikan stok ke gudang secara realtime, mengupdate status invoice, serta mencatat Pengeluaran Kas/Bank (${FormatUtils.formatRupiah(actualCashOutflow)}) untuk menyelaraskan Dashboard Keuangan & Stok.",
+                            text = "Refund akan mengembalikan stok ke gudang, memperbarui status invoice, serta mencatat Pengeluaran Kas (${FormatUtils.formatRupiah(actualCashOutflow)}).",
                             fontSize = 11.sp,
                             color = TextLight,
                             lineHeight = 15.sp

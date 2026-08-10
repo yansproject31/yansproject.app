@@ -44,13 +44,48 @@ class StockManagerViewModel(application: Application) : AndroidViewModel(applica
             _state.update { it.copy(isLoading = true, isError = false, errorMessage = null) }
             try {
                 val summariesList = appDb.inventorySummaryDao().getSummariesList()
-                
-                // Calculate total inventory value from database summaries
                 val totalVal = summariesList.sumOf { it.nilaiPersediaan }
 
-                // Seed some return logs if empty to prevent empty UI
-                val existingReturns = mutableListOf<ReturnTransaction>()
-                val existingDamaged = mutableListOf<DamagedItemLog>()
+                val ledgers = appDb.inventoryLedgerDao().getLedgerList()
+                val returnLedgers = ledgers.filter { 
+                    it.transactionType.equals("Retur", ignoreCase = true) ||
+                    it.transactionType.equals("Barang Rusak", ignoreCase = true) ||
+                    it.transactionType.equals("Retur Invoice", ignoreCase = true) ||
+                    it.transactionType.equals("Retur Logistik", ignoreCase = true) ||
+                    it.transactionType.equals("Batal Invoice", ignoreCase = true)
+                }.sortedByDescending { it.timestamp }
+
+                val existingReturns = returnLedgers.map { ledger ->
+                    ReturnTransaction(
+                        id = ledger.id.toString(),
+                        catalogId = ledger.catalogId,
+                        seriesName = if (ledger.seriesName.isNotBlank()) ledger.seriesName else ledger.catalogName,
+                        varianId = ledger.varianId,
+                        varianName = ledger.varianName,
+                        sleeve = ledger.sleeve,
+                        size = ledger.size,
+                        returnedQuantity = kotlin.math.abs(ledger.quantity),
+                        destination = if (ledger.transactionType.equals("Barang Rusak", ignoreCase = true)) "Damaged Stock" else "Available Stock",
+                        notes = ledger.notes,
+                        timestamp = ledger.timestamp
+                    )
+                }
+
+                val damagedLedgers = ledgers.filter { it.transactionType.equals("Barang Rusak", ignoreCase = true) }.sortedByDescending { it.timestamp }
+                val existingDamaged = damagedLedgers.map { ledger ->
+                    DamagedItemLog(
+                        id = ledger.id.toString(),
+                        catalogId = ledger.catalogId,
+                        seriesName = if (ledger.seriesName.isNotBlank()) ledger.seriesName else ledger.catalogName,
+                        varianId = ledger.varianId,
+                        varianName = ledger.varianName,
+                        sleeve = ledger.sleeve,
+                        size = ledger.size,
+                        quantity = kotlin.math.abs(ledger.quantity),
+                        reason = ledger.notes,
+                        timestamp = ledger.timestamp
+                    )
+                }
 
                 _state.update { currentState ->
                     currentState.copy(
@@ -162,6 +197,7 @@ class StockManagerViewModel(application: Application) : AndroidViewModel(applica
                 } else {
                     repository.updateInventorySummaryForVarian(variantId)
                 }
+                repository.reconcileAllInventorySummaries()
 
                 // 3. Insert into audit logs
                 appDb.auditLogDao().insertLog(
@@ -216,6 +252,21 @@ class StockManagerViewModel(application: Application) : AndroidViewModel(applica
                         "DATABASE ERROR: Gagal memproses penyesuaian inventory secara aman. Detil: ${e.localizedMessage}"
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * Memanggil fungsi Reconcile Inventory untuk memverifikasi total produksi vs invoice valid vs stok fisik.
+     * Mengembalikan daftar log audit lengkap ketidaksesuaian data untuk keperluan debugging.
+     */
+    fun runReconcileInventory(callback: (List<String>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val repository = BusinessRepository(appDb)
+            val logs = repository.reconcileInventory()
+            loadData()
+            withContext(Dispatchers.Main) {
+                callback(logs)
             }
         }
     }

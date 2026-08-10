@@ -83,21 +83,32 @@ object PdfUtils {
             nextY += 15f
         }
 
-        val tableHeaderY = (nextY + 15f).coerceAtLeast(180f)
+        val (catalogName, colorName) = InvoiceItemSorter.extractCatalogAndColor(items)
+        nextY += 5f
+        paint.color = android.graphics.Color.parseColor("#0F3D3E")
+        paint.isFakeBoldText = true
+        paint.textSize = 9.5f
+        canvas.drawText("CATALOG : $catalogName", 40f, nextY, paint)
+        nextY += 14f
+        canvas.drawText("WARNA   : $colorName", 40f, nextY, paint)
+        nextY += 10f
+
+        val tableHeaderY = (nextY + 10f).coerceAtLeast(200f)
         paint.color = android.graphics.Color.LTGRAY
         canvas.drawRect(40f, tableHeaderY, 555f, tableHeaderY + 20f, paint)
         paint.color = android.graphics.Color.BLACK
         paint.isFakeBoldText = true
-        canvas.drawText("Description", 50f, tableHeaderY + 14f, paint)
-        canvas.drawText("Qty", 380f, tableHeaderY + 14f, paint)
-        canvas.drawText("Price", 430f, tableHeaderY + 14f, paint)
-        canvas.drawText("Total", 500f, tableHeaderY + 14f, paint)
+        canvas.drawText("RINCIAN PEMESANAN", 50f, tableHeaderY + 14f, paint)
+        canvas.drawText("QTY", 380f, tableHeaderY + 14f, paint)
+        canvas.drawText("PRICE", 430f, tableHeaderY + 14f, paint)
+        canvas.drawText("TOTAL", 500f, tableHeaderY + 14f, paint)
 
         paint.isFakeBoldText = false
-        var currentY = tableHeaderY + 40f
+        var currentY = tableHeaderY + 35f
         val filteredItems = InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
         for (item in filteredItems) {
-            val shortDesc = if (item.description.length > 45) item.description.take(42) + "..." else item.description
+            val cleanDesc = InvoiceItemSorter.cleanDescriptionForDisplay(item.description)
+            val shortDesc = if (cleanDesc.length > 45) cleanDesc.take(42) + "..." else cleanDesc
             canvas.drawText(shortDesc, 50f, currentY, paint)
             canvas.drawText(item.quantity.toString(), 380f, currentY, paint)
             canvas.drawText(FormatUtils.formatRupiah(item.price), 430f, currentY, paint)
@@ -113,46 +124,59 @@ object PdfUtils {
         val longQty = InvoiceItemSorter.getLongSleeveTotalQty(filteredItems)
         val globalQty = InvoiceItemSorter.getGlobalTotalQty(filteredItems)
 
+        val calculatedSubtotal = InvoiceItemSorter.calcSubtotal(filteredItems)
+        val subtotalToDisplay = if (calculatedSubtotal > 0.0) calculatedSubtotal else (invoice.totalAmount + invoice.discount)
+        val totalAmount = (subtotalToDisplay - invoice.discount).coerceAtLeast(0.0)
+
         // Quantity summary on left
+        paint.textSize = 9.5f
         paint.isFakeBoldText = true
-        canvas.drawText("Ringkasan Qty:", 50f, currentY, paint)
+        paint.color = android.graphics.Color.parseColor("#0F3D3E")
+        canvas.drawText("RINGKASAN KUANTITAS:", 50f, currentY, paint)
+
+        paint.textSize = 8.5f
         paint.isFakeBoldText = false
-        canvas.drawText("Pendek: $shortQty | Panjang: $longQty | Total: $globalQty Pcs", 50f, currentY + 16f, paint)
+        paint.color = android.graphics.Color.BLACK
+        canvas.drawText("QTY PENDEK  : $shortQty Pcs", 50f, currentY + 16f, paint)
+        canvas.drawText("QTY PANJANG : $longQty Pcs", 50f, currentY + 32f, paint)
+        paint.isFakeBoldText = true
+        canvas.drawText("TOTAL QTY   : $globalQty Pcs", 50f, currentY + 48f, paint)
 
         // Financial summary on right
-        val calculatedSubtotal = InvoiceItemSorter.calcSubtotal(filteredItems)
-        val subtotalToDisplay = if (calculatedSubtotal > 0.0) calculatedSubtotal else invoice.totalAmount
-        val grandTotal = (subtotalToDisplay - invoice.discount).coerceAtLeast(0.0)
-
+        paint.textSize = 8.5f
         paint.isFakeBoldText = true
-        canvas.drawText("Subtotal:", 360f, currentY, paint)
+        paint.color = android.graphics.Color.BLACK
+        canvas.drawText("SUB TOTAL :", 340f, currentY, paint)
         paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(subtotalToDisplay), 470f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(subtotalToDisplay), 450f, currentY, paint)
 
-        if (invoice.discount > 0) {
-            currentY += 18f
-            paint.isFakeBoldText = true
-            canvas.drawText("Diskon:", 360f, currentY, paint)
-            paint.isFakeBoldText = false
-            canvas.drawText("- " + FormatUtils.formatRupiah(invoice.discount), 470f, currentY, paint)
-        }
+        currentY += 16f
+        paint.isFakeBoldText = true
+        canvas.drawText("DISKON :", 340f, currentY, paint)
+        paint.isFakeBoldText = false
+        canvas.drawText("- " + FormatUtils.formatRupiah(invoice.discount), 450f, currentY, paint)
 
         currentY += 18f
+        // SUB HERO TOTAL
         paint.isFakeBoldText = true
-        canvas.drawText("Grand Total:", 360f, currentY, paint)
-        canvas.drawText(FormatUtils.formatRupiah(grandTotal), 470f, currentY, paint)
+        paint.color = android.graphics.Color.parseColor("#0F3D3E")
+        canvas.drawText("TOTAL :", 340f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(totalAmount), 450f, currentY, paint)
+
+        currentY += 16f
+        paint.isFakeBoldText = true
+        paint.color = android.graphics.Color.BLACK
+        canvas.drawText("PEMBAYARAN :", 340f, currentY, paint)
+        paint.isFakeBoldText = false
+        canvas.drawText(FormatUtils.formatRupiah(invoice.paidAmount), 450f, currentY, paint)
 
         currentY += 18f
+        // HERO INFORMASI SISA PEMBAYARAN
         paint.isFakeBoldText = true
-        canvas.drawText("Total Terbayar:", 360f, currentY, paint)
-        paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(invoice.paidAmount), 470f, currentY, paint)
-
-        currentY += 18f
-        paint.isFakeBoldText = true
-        canvas.drawText("Sisa Pembayaran:", 360f, currentY, paint)
-        paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(invoice.remainingPayment), 470f, currentY, paint)
+        val remainingColor = if (invoice.remainingPayment > 0) android.graphics.Color.parseColor("#C62828") else android.graphics.Color.parseColor("#2E7D32")
+        paint.color = remainingColor
+        canvas.drawText("SISA PEMBAYARAN :", 340f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(invoice.remainingPayment), 450f, currentY, paint)
 
         paint.textSize = 50f
         paint.color = when (invoice.status) {
@@ -180,7 +204,7 @@ object PdfUtils {
         paint.textSize = 9f
         paint.isFakeBoldText = false
         paint.textAlign = Paint.Align.CENTER
-        canvas.drawText("Terima kasih telah mempercayakan kebutuhan apparel Anda kepada YANSPROJECT.ID.", 297f, 790f, paint)
+        canvas.drawText("Hatur Tengkyu telah menjadi bagian dari perjalanan YANSPROJECT.ID", 297f, 790f, paint)
 
         pdfDocument.finishPage(page)
 

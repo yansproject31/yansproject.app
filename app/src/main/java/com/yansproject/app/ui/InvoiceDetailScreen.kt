@@ -708,6 +708,135 @@ fun InvoiceDetailScreen(
                 }
             }
 
+            // 3.1 INFORMASI KEUANGAN & RINCIAN TAGIHAN Card
+            item {
+                val qtyPendek = InvoiceItemSorter.getShortSleeveTotalQty(invoiceItems)
+                val qtyPanjang = InvoiceItemSorter.getLongSleeveTotalQty(invoiceItems)
+                val totalQty = InvoiceItemSorter.getGlobalTotalQty(invoiceItems)
+                
+                val calculatedSubtotal = InvoiceItemSorter.calcSubtotal(invoiceItems)
+                val subTotal = if (calculatedSubtotal > 0.0) calculatedSubtotal else (invoice.totalAmount + invoice.discount)
+                val diskon = invoice.discount
+                val total = (subTotal - diskon).coerceAtLeast(0.0)
+                val pembayaran = currentPaidAmount
+                val sisaPembayaran = (total - pembayaran).coerceAtLeast(0.0)
+
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = SecondaryShadowBlackTeal),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.2.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "INFORMASI KEUANGAN & RINCIAN TAGIHAN",
+                            color = AgedGold,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
+                        HorizontalDivider(color = AgedGold.copy(alpha = 0.2f), thickness = 1.dp)
+
+                        // 1. QTY PENDEK
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("QTY PENDEK :", color = TextNonActive, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("$qtyPendek Pcs", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // 2. QTY PANJANG
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("QTY PANJANG :", color = TextNonActive, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("$qtyPanjang Pcs", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // 3. TOTAL QTY
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("TOTAL QTY :", color = TextNonActive, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("$totalQty Pcs", color = HighlightSoftCyan, fontSize = 12.sp, fontWeight = FontWeight.Black)
+                        }
+
+                        HorizontalDivider(color = AgedGold.copy(alpha = 0.15f), thickness = 0.8.dp)
+
+                        // 4. SUB TOTAL
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("SUB TOTAL :", color = TextNonActive, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(FormatUtils.formatRupiah(subTotal), color = Color.White, fontSize = 13.sp)
+                        }
+
+                        // 5. DISKON
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("DISKON :", color = TextNonActive, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("- ${FormatUtils.formatRupiah(diskon)}", color = AlertRed, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // 6. TOTAL (SUB HERO)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(SurfaceDarkTeal)
+                                .border(1.dp, AgedGold.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 14.dp, vertical = 10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("TOTAL :", color = AgedGold, fontSize = 13.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                                Text(FormatUtils.formatRupiah(total), color = AgedGold, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                            }
+                        }
+
+                        // 7. PEMBAYARAN
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("PEMBAYARAN :", color = TextNonActive, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(FormatUtils.formatRupiah(pembayaran), color = HighlightSoftCyan, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // 8. SISA PEMBAYARAN (HERO INFORMASI)
+                        val heroBg = if (sisaPembayaran > 0) AlertRed.copy(alpha = 0.15f) else HighlightSoftCyan.copy(alpha = 0.15f)
+                        val heroBorder = if (sisaPembayaran > 0) AlertRed else HighlightSoftCyan
+                        val heroText = if (sisaPembayaran > 0) AlertRed else HighlightSoftCyan
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(heroBg)
+                                .border(1.8.dp, heroBorder, RoundedCornerShape(14.dp))
+                                .padding(horizontal = 16.dp, vertical = 14.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("SISA PEMBAYARAN :", color = heroText, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                                    Text(
+                                        text = if (sisaPembayaran > 0) "SISA BELUM LUNAS" else "LUNAS 100%",
+                                        color = heroText.copy(alpha = 0.8f),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = FormatUtils.formatRupiah(sisaPembayaran),
+                                    color = heroText,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // 4. Hardware, PDF, PNG Export & WhatsApp Share Actions
             item {
                 Spacer(modifier = Modifier.height(10.dp))

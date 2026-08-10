@@ -249,31 +249,88 @@ fun ProfessionalInvoiceDetailScreen(
                 colors = CardDefaults.cardColors(containerColor = EmeraldSlateGreen),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, MutedSilver, RoundedCornerShape(12.dp))
+                    .border(1.2.dp, LuxuryGold.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("INFORMASI KEUANGAN & RINCIAN TAGIHAN", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    
+                    Text("INFORMASI KEUANGAN & RINCIAN TAGIHAN", color = LuxuryGold, fontWeight = FontWeight.Black, fontSize = 12.sp, letterSpacing = 1.sp)
+                    Divider(color = MutedSilver.copy(alpha = 0.4f), thickness = 0.8.dp)
+
+                    val shortQty = project.adultMatrix.filter { it.sleeve == com.yansproject.app.data.SleeveType.PENDEK }.sumOf { it.quantity }
+                    val longQty = project.adultMatrix.filter { it.sleeve == com.yansproject.app.data.SleeveType.PANJANG }.sumOf { it.quantity }
+                    val kidsQty = project.kidsMatrix.sumOf { it.quantity }
+                    val totalQty = shortQty + longQty + kidsQty
+
+                    val subtotalVal = project.grandTotal
+                    val diskonVal = 0.0
+                    val totalVal = project.grandTotal
+                    val paidVal = project.paidAmount
+                    val remainingVal = project.remainingBalance
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Subtotal Biaya", color = Color.Gray, fontSize = 13.sp)
-                        Text(IdrAccountingEngine.formatRupiah(project.grandTotal), color = Color.White, fontSize = 14.sp)
+                        Text("QTY PENDEK :", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("$shortQty Pcs", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Grand Total Tagihan", color = Color.Gray, fontSize = 13.sp)
-                        Text(IdrAccountingEngine.formatRupiah(project.grandTotal), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("QTY PANJANG :", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("$longQty Pcs", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total Terbayar", color = Color.Gray, fontSize = 13.sp)
-                        Text(IdrAccountingEngine.formatRupiah(project.paidAmount), color = HijauMint, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("TOTAL QTY :", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("$totalQty Pcs", color = HijauMint, fontSize = 12.sp, fontWeight = FontWeight.Black)
                     }
 
-                    Divider(color = MutedSilver, thickness = 0.5.dp)
+                    Divider(color = MutedSilver.copy(alpha = 0.3f), thickness = 0.5.dp)
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("SISA PEMBAYARAN", color = LuxuryGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        Text(IdrAccountingEngine.formatRupiah(project.remainingBalance), color = LuxuryGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("SUB TOTAL :", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(IdrAccountingEngine.formatRupiah(subtotalVal), color = Color.White, fontSize = 13.sp)
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("DISKON :", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("- ${IdrAccountingEngine.formatRupiah(diskonVal)}", color = Color.Red, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // SUB HERO TOTAL
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF0F3536))
+                            .border(1.dp, LuxuryGold, RoundedCornerShape(10.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("TOTAL :", color = LuxuryGold, fontSize = 13.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                            Text(IdrAccountingEngine.formatRupiah(totalVal), color = LuxuryGold, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                        }
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("PEMBAYARAN :", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(IdrAccountingEngine.formatRupiah(paidVal), color = HijauMint, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // HERO INFORMASI SISA PEMBAYARAN
+                    val heroColor = if (remainingVal > 0) LuxuryGold else HijauMint
+                    val heroBg = if (remainingVal > 0) Color(0x33C8A25D) else Color(0x3336D0A7)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(heroBg)
+                            .border(1.8.dp, heroColor, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column {
+                                Text("SISA PEMBAYARAN :", color = heroColor, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                                Text(if (remainingVal > 0) "BELUM LUNAS" else "LUNAS 100%", color = heroColor.copy(alpha = 0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text(IdrAccountingEngine.formatRupiah(remainingVal), color = heroColor, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                        }
                     }
                 }
             }

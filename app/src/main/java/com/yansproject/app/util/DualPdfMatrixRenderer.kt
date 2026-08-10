@@ -285,8 +285,9 @@ object DualPdfMatrixRenderer {
             } else {
                 for (item in filteredItems) {
                     val sleeveName = if (InvoiceItemSorter.extractSleeve(item.description) == "PANJANG") "Panjang" else "Pendek"
-                    val desc = if (item.description.length > 20) item.description.take(18) + ".." else item.description
-                    canvas.drawText(desc, 45f, yPos, textPaint)
+                    val desc = InvoiceItemSorter.cleanDescriptionForDisplay(item.description)
+                    val shortDesc = if (desc.length > 20) desc.take(18) + ".." else desc
+                    canvas.drawText(shortDesc, 45f, yPos, textPaint)
                     canvas.drawText(sleeveName, 160f, yPos, textPaint)
                     canvas.drawText("-", 200f, yPos, textPaint)
                     canvas.drawText("-", 225f, yPos, textPaint)

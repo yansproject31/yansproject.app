@@ -57,8 +57,25 @@ fun AjibqobulReturnAdjustmentScreen(
     var selectedReason by remember { mutableStateOf("Cacat Jahitan") }
     var notes by remember { mutableStateOf("") }
 
-    // Search/filter catalogs
+    // Search/filter catalogs & returns
     var catalogSearchQuery by remember { mutableStateOf("") }
+    var filterDestination by remember { mutableStateOf("ALL") } // "ALL", "AVAILABLE", "DAMAGED"
+    var returnSearchQuery by remember { mutableStateOf("") }
+
+    val filteredReturns = remember(state.returns, filterDestination, returnSearchQuery) {
+        state.returns.filter { ret ->
+            val matchDest = when (filterDestination) {
+                "AVAILABLE" -> ret.destination != "Damaged Stock"
+                "DAMAGED" -> ret.destination == "Damaged Stock"
+                else -> true
+            }
+            val matchSearch = returnSearchQuery.isBlank() ||
+                    ret.seriesName.contains(returnSearchQuery, ignoreCase = true) ||
+                    ret.varianName.contains(returnSearchQuery, ignoreCase = true) ||
+                    ret.notes.contains(returnSearchQuery, ignoreCase = true)
+            matchDest && matchSearch
+        }
+    }
 
     // List of predefined exclusive series
     val ajibqobulSeries = listOf(
@@ -213,27 +230,86 @@ fun AjibqobulReturnAdjustmentScreen(
                 }
             }
 
-            // Subtitle Section
+            // Subtitle & Search/Filter Section
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "KRONOLOGI RETUR & CACAT",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = AccentAgedGold,
-                            letterSpacing = 1.sp
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "KRONOLOGI RETUR & CACAT (${filteredReturns.size})",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = AccentAgedGold,
+                                letterSpacing = 1.sp
+                            )
+                        )
+                        Text(
+                            text = "Verifikasi Otomatis",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = HighlightSoftCyan
+                            )
+                        )
+                    }
+
+                    // Search Field
+                    OutlinedTextField(
+                        value = returnSearchQuery,
+                        onValueChange = { returnSearchQuery = it },
+                        placeholder = { Text("Cari seri, varian, atau catatan retur...", fontSize = 12.sp, color = TextNonActive) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = HighlightSoftCyan, modifier = Modifier.size(18.dp)) },
+                        trailingIcon = {
+                            if (returnSearchQuery.isNotBlank()) {
+                                IconButton(onClick = { returnSearchQuery = "" }) {
+                                    Icon(Icons.Default.Close, contentDescription = null, tint = TextNonActive, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = HighlightSoftCyan,
+                            unfocusedBorderColor = DividerDarkCyanGray,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
                         )
                     )
-                    Text(
-                        text = "Verifikasi Otomatis",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = HighlightSoftCyan
+
+                    // Filter Chips Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = filterDestination == "ALL",
+                            onClick = { filterDestination = "ALL" },
+                            label = { Text("Semua (${state.returns.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = AccentAgedGold.copy(alpha = 0.2f),
+                                selectedLabelColor = AccentAgedGold
+                            )
                         )
-                    )
+                        FilterChip(
+                            selected = filterDestination == "AVAILABLE",
+                            onClick = { filterDestination = "AVAILABLE" },
+                            label = { Text("Kembali Ready", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = HighlightSoftCyan.copy(alpha = 0.2f),
+                                selectedLabelColor = HighlightSoftCyan
+                            )
+                        )
+                        FilterChip(
+                            selected = filterDestination == "DAMAGED",
+                            onClick = { filterDestination = "DAMAGED" },
+                            label = { Text("Barang Rusak", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = StatusDangerRed.copy(alpha = 0.2f),
+                                selectedLabelColor = Color.Red
+                            )
+                        )
+                    }
                 }
             }
 
@@ -249,7 +325,7 @@ fun AjibqobulReturnAdjustmentScreen(
                         CircularProgressIndicator(color = HighlightSoftCyan)
                     }
                 }
-            } else if (state.returns.isEmpty()) {
+            } else if (filteredReturns.isEmpty()) {
                 item {
                     Card(
                         modifier = Modifier
@@ -272,7 +348,7 @@ fun AjibqobulReturnAdjustmentScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Belum ada riwayat retur atau adjustment",
+                                text = "Belum ada data retur sesuai filter",
                                 color = TextIsiSoftGray,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -280,7 +356,7 @@ fun AjibqobulReturnAdjustmentScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Gunakan tombol di atas untuk memproses retur logistik aman.",
+                                text = "Gunakan tombol 'PROSES RETUR' di atas untuk menambah transaksi retur baru.",
                                 color = TextNonActive,
                                 fontSize = 11.sp,
                                 textAlign = TextAlign.Center
@@ -291,7 +367,7 @@ fun AjibqobulReturnAdjustmentScreen(
             }
 
             // Return items logs list
-            items(state.returns) { ret ->
+            items(filteredReturns) { ret ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = CardDarkCard),

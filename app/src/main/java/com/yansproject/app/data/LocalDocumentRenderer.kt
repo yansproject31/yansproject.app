@@ -175,6 +175,13 @@ class LocalDocumentRenderer(private val context: Context) {
             canvas.drawText(phoneText, 320f, cardTop + 62f, paint)
 
             // 4. Table Header
+            val (catalogName, colorName) = InvoiceItemSorter.extractCatalogAndColor(items)
+            paint.color = Color.parseColor("#0F3D3E")
+            paint.textSize = 9f
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            canvas.drawText("CATALOG : $catalogName", 40f, 218f, paint)
+            canvas.drawText("WARNA   : $colorName", 250f, 218f, paint)
+
             val tableHeadY = 230f
             paint.color = Color.parseColor("#0F3D3E")
             canvas.drawRect(40f, tableHeadY, 555f, tableHeadY + 24f, paint)
@@ -183,7 +190,7 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.textSize = 9.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             canvas.drawText("NO", 50f, tableHeadY + 16f, paint)
-            canvas.drawText("DESKRIPSI PESANAN / ARTIKEL", 80f, tableHeadY + 16f, paint)
+            canvas.drawText("RINCIAN PEMESANAN", 80f, tableHeadY + 16f, paint)
             canvas.drawText("QTY", 330f, tableHeadY + 16f, paint)
             canvas.drawText("HARGA (RP)", 385f, tableHeadY + 16f, paint)
             canvas.drawText("SUBTOTAL (RP)", 470f, tableHeadY + 16f, paint)
@@ -207,7 +214,7 @@ class LocalDocumentRenderer(private val context: Context) {
                     paint.color = Color.parseColor("#222222")
                     canvas.drawText("${idx + 1}", 50f, currentY, paint)
 
-                    var desc = item.description
+                    var desc = InvoiceItemSorter.cleanDescriptionForDisplay(item.description)
                     if (desc.length > 40) desc = desc.substring(0, 37) + "..."
                     canvas.drawText(desc, 80f, currentY, paint)
 
@@ -252,11 +259,11 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.textSize = 8f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             paint.color = Color.parseColor("#444444")
-            canvas.drawText("• Lengan Pendek  : $shortQty Pcs", 52f, summaryBoxTop + 42f, paint)
-            canvas.drawText("• Lengan Panjang : $longQty Pcs", 52f, summaryBoxTop + 60f, paint)
+            canvas.drawText("QTY PENDEK  : $shortQty Pcs", 52f, summaryBoxTop + 42f, paint)
+            canvas.drawText("QTY PANJANG : $longQty Pcs", 52f, summaryBoxTop + 60f, paint)
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             paint.color = Color.parseColor("#0F3D3E")
-            canvas.drawText("• Total Global   : $globalQty Pcs", 52f, summaryBoxTop + 80f, paint)
+            canvas.drawText("TOTAL QTY   : $globalQty Pcs", 52f, summaryBoxTop + 80f, paint)
 
             // Divider vertical
             paint.color = Color.parseColor("#CCCCCC")
@@ -265,31 +272,33 @@ class LocalDocumentRenderer(private val context: Context) {
 
             // Right Box: Financial Summary
             val subtotalCalculated = InvoiceItemSorter.calcSubtotal(filteredItems)
-            val displaySubtotal = if (subtotalCalculated > 0.0) subtotalCalculated else invoice.totalAmount
+            val displaySubtotal = if (subtotalCalculated > 0.0) subtotalCalculated else (invoice.totalAmount + invoice.discount)
             val grandTotal = (displaySubtotal - invoice.discount).coerceAtLeast(0.0)
 
             paint.textSize = 8.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             paint.color = Color.parseColor("#333333")
-            canvas.drawText("Subtotal Barang :", 285f, summaryBoxTop + 20f, paint)
+            canvas.drawText("SUB TOTAL       :", 285f, summaryBoxTop + 20f, paint)
             canvas.drawText("Rp " + formatCompactPrice(displaySubtotal), 445f, summaryBoxTop + 20f, paint)
 
             if (invoice.discount > 0) {
                 paint.color = Color.parseColor("#888888")
-                canvas.drawText("Potongan Diskon :", 285f, summaryBoxTop + 38f, paint)
+                canvas.drawText("DISKON          :", 285f, summaryBoxTop + 38f, paint)
                 canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), 445f, summaryBoxTop + 38f, paint)
             }
 
+            // SUB HERO TOTAL
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             paint.color = Color.parseColor("#0F3D3E")
-            canvas.drawText("GRAND TOTAL     :", 285f, summaryBoxTop + 56f, paint)
+            canvas.drawText("TOTAL           :", 285f, summaryBoxTop + 56f, paint)
             canvas.drawText("Rp " + formatCompactPrice(grandTotal), 445f, summaryBoxTop + 56f, paint)
 
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             paint.color = Color.parseColor("#2E7D32")
-            canvas.drawText("Total Terbayar  :", 285f, summaryBoxTop + 74f, paint)
+            canvas.drawText("PEMBAYARAN      :", 285f, summaryBoxTop + 74f, paint)
             canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), 445f, summaryBoxTop + 74f, paint)
 
+            // HERO INFORMASI SISA PEMBAYARAN
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             paint.color = if (remaining > 0) Color.parseColor("#C62828") else Color.parseColor("#2E7D32")
             canvas.drawText("SISA PEMBAYARAN :", 285f, summaryBoxTop + 95f, paint)
@@ -563,32 +572,32 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.color = Color.parseColor("#C6A15B")
             paint.textSize = 20f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            canvas.drawText("Subtotal Barang", cardLeft + 60f, curY + 88f, paint)
+            canvas.drawText("SUB TOTAL :", cardLeft + 60f, curY + 88f, paint)
             canvas.drawText("Rp " + formatCompactPrice(displaySub), cardRight - 380f, curY + 88f, paint)
 
             if (invoice.discount > 0) {
                 paint.color = Color.parseColor("#A0A0A0")
                 paint.textSize = 18f
-                canvas.drawText("Potongan Diskon", cardLeft + 60f, curY + 124f, paint)
+                canvas.drawText("DISKON :", cardLeft + 60f, curY + 124f, paint)
                 canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), cardRight - 380f, curY + 124f, paint)
             }
 
             paint.color = Color.WHITE
             paint.textSize = 20f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("GRAND TOTAL", cardLeft + 60f, curY + 160f, paint)
+            canvas.drawText("TOTAL :", cardLeft + 60f, curY + 160f, paint)
             canvas.drawText("Rp " + formatCompactPrice(grandTot), cardRight - 380f, curY + 160f, paint)
 
             paint.color = Color.parseColor("#36D0A7")
             paint.textSize = 20f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            canvas.drawText("Total Terbayar", cardLeft + 60f, curY + 196f, paint)
+            canvas.drawText("PEMBAYARAN :", cardLeft + 60f, curY + 196f, paint)
             canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), cardRight - 380f, curY + 196f, paint)
 
             paint.color = if (remaining > 0) Color.parseColor("#FF5252") else Color.parseColor("#36D0A7")
             paint.textSize = 22f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            canvas.drawText("SISA PEMBAYARAN", cardLeft + 60f, curY + 236f, paint)
+            canvas.drawText("SISA PEMBAYARAN :", cardLeft + 60f, curY + 236f, paint)
             canvas.drawText("Rp " + formatCompactPrice(remaining), cardRight - 380f, curY + 236f, paint)
 
             // Akad Syar'i Box Footer

@@ -462,6 +462,7 @@ class BusinessRepository(private val db: AppDatabase) {
             // Deduct physical stock & update realtime inventory summaries atomically
             deductStockForInvoice(finalInvoice)
             updateSummariesForInvoice(finalInvoice)
+            reconcileAllInventorySummaries()
         }
     }
 
@@ -579,6 +580,7 @@ class BusinessRepository(private val db: AppDatabase) {
                 
                 // Update inventory summary
                 updateSummariesForInvoice(updatedInvoice)
+                reconcileAllInventorySummaries()
 
                 // Sync back to cloud
                 val invCloudKey = updatedInvoice.invoiceNumber.ifEmpty { updatedInvoice.id.toString() }
@@ -622,6 +624,16 @@ class BusinessRepository(private val db: AppDatabase) {
         val existingLocalPayment = invoicePaymentDao.getPaymentById(paymentId)
         if (existingLocalPayment != null) {
             android.util.Log.w("BusinessRepository", "Payment transaction $paymentId already recorded locally. Skipping duplicate.")
+            return true
+        }
+
+        // Window-based duplicate check to prevent double-click / rapid duplicate payment creation
+        val existingPaymentsForInv = invoicePaymentDao.getPaymentsForInvoiceList(cloudKey, invoice.invoiceNumber)
+        val windowDuplicate = existingPaymentsForInv.find { p ->
+            p.amount == amount && kotlin.math.abs(p.date - paymentDate) < 10000
+        }
+        if (windowDuplicate != null) {
+            android.util.Log.w("BusinessRepository", "Duplicate payment entry detected for Invoice $cloudKey (Amount: $amount). Skipping.")
             return true
         }
 
@@ -739,7 +751,7 @@ class BusinessRepository(private val db: AppDatabase) {
                     val dateCode = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault()).format(java.util.Date(paymentDate))
                     val clientPart = if (updatedInvoice.clientName.isNotBlank()) " (${updatedInvoice.clientName})" else ""
                     val cleanUserNotes = if (notes.isNotBlank() && !notes.startsWith("Pembayaran", ignoreCase = true) && !notes.startsWith("DP Awal", ignoreCase = true) && !notes.startsWith("Uang Muka", ignoreCase = true) && !notes.contains("tagihan", ignoreCase = true)) ". $notes" else ""
-                    val formattedNote = "${updatedInvoice.invoiceNumber}$clientPart - [PAY_${payIndex}:${dateCode}]$cleanUserNotes".trim()
+                    val formattedNote = "${updatedInvoice.invoiceNumber}$clientPart - [PAY_${payIndex}:${dateCode}]$cleanUserNotes [PAY_REF:$paymentId]".trim()
 
                     val inflow = Inflow(
                         transactionNumber = transactionNumber,
@@ -785,6 +797,11 @@ class BusinessRepository(private val db: AppDatabase) {
                         FirebaseSyncManager.syncItemToCloud("orders", updatedOrder.id.toString(), updatedOrder)
                     }
                 }
+
+                // Ensure stock deduction & inventory summary reconciliation run atomically on new payment
+                deductStockForInvoice(updatedInvoice)
+                updateSummariesForInvoice(updatedInvoice)
+                reconcileAllInventorySummaries()
 
                 isCommittedSuccessfully = true
             }
@@ -960,6 +977,11 @@ class BusinessRepository(private val db: AppDatabase) {
                     val insertedId = inflowDao.insertInflow(newInflow).toInt()
                     FirebaseSyncManager.syncItemToCloud("inflows", insertedId.toString(), newInflow.copy(id = insertedId))
                 }
+
+                // Ensure stock deduction & inventory summary reconciliation run atomically on payment edit
+                deductStockForInvoice(updatedInvoice)
+                updateSummariesForInvoice(updatedInvoice)
+                reconcileAllInventorySummaries()
             }
         }
         return true
@@ -977,6 +999,7 @@ class BusinessRepository(private val db: AppDatabase) {
             val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             val invoiceDocRef = firestore.collection("invoices").document(cloudKey)
             val paymentDocRef = invoiceDocRef.collection("payments").document(paymentId)
+            val topLevelPaymentDocRef = firestore.collection("invoice_payments").document(paymentId)
 
             firestore.runTransaction { transaction ->
                 val invoiceSnapshot = transaction.get(invoiceDocRef)
@@ -990,6 +1013,7 @@ class BusinessRepository(private val db: AppDatabase) {
                 val tStatus = if (tNewPaid >= totalAmount && totalAmount > 0) "LUNAS" else if (tNewPaid > 0) "DP" else "BELUM LUNAS"
 
                 transaction.delete(paymentDocRef)
+                transaction.delete(topLevelPaymentDocRef)
                 transaction.set(invoiceDocRef, mapOf(
                     "paidAmount" to tNewPaid,
                     "status" to tStatus,
@@ -1029,8 +1053,8 @@ class BusinessRepository(private val db: AppDatabase) {
                     val project = projectDao.getProjectById(pId4)
                     if (project != null) {
                         val updatedProject = project.copy(
-                            paidAmount = newPaid,
-                            status = if (newPaid >= project.totalCost) "Completed" else project.status
+                            paidAmount = calculatedPaid,
+                            status = if (calculatedPaid >= project.totalCost) "Completed" else project.status
                         )
                         projectDao.updateProject(updatedProject)
                         FirebaseSyncManager.syncItemToCloud("projects", updatedProject.id.toString(), updatedProject)
@@ -1043,9 +1067,9 @@ class BusinessRepository(private val db: AppDatabase) {
                     val order = orderDao.getOrderById(oId4)
                     if (order != null) {
                         val updatedOrder = order.copy(
-                            paidAmount = newPaid,
-                            isPaid = newPaid >= order.totalAmount,
-                            status = if (newPaid >= order.totalAmount) "Completed" else order.status
+                            paidAmount = calculatedPaid,
+                            isPaid = calculatedPaid >= order.totalAmount,
+                            status = if (calculatedPaid >= order.totalAmount) "Completed" else order.status
                         )
                         orderDao.updateOrder(updatedOrder)
                         FirebaseSyncManager.syncItemToCloud("orders", updatedOrder.id.toString(), updatedOrder)
@@ -1053,11 +1077,11 @@ class BusinessRepository(private val db: AppDatabase) {
                 }
 
                 // Soft-delete / sync deleted Inflow record
-                val payRefTag = "[PAY_REF:$paymentId]"
+                val payRefTag = "PAY_REF:$paymentId"
                 val allInflows = inflowDao.getAllInflowsList()
                 val matchedInflow = allInflows.find { 
                     it.notes.contains(payRefTag) || 
-                    (it.notes.contains(updatedInvoice.invoiceNumber) && it.amount == currentPayment.amount) 
+                    (it.notes.contains(updatedInvoice.invoiceNumber) && it.amount == currentPayment.amount && kotlin.math.abs(it.date - currentPayment.date) < 86400000L) 
                 }
 
                 if (matchedInflow != null) {
@@ -1070,6 +1094,9 @@ class BusinessRepository(private val db: AppDatabase) {
                     FirebaseSyncManager.syncItemToCloud("inflows", matchedInflow.id.toString(), deletedInflow)
                     FirebaseSyncManager.deleteItemFromCloud("inflows", matchedInflow.id.toString())
                 }
+
+                updateSummariesForInvoice(updatedInvoice)
+                reconcileAllInventorySummaries()
             }
         }
         return true
@@ -1182,16 +1209,21 @@ class BusinessRepository(private val db: AppDatabase) {
         )
         if (!isDeductingStatus) return
 
+        val existingLedgers = db.inventoryLedgerDao().getLedgerList()
+        val invNumClean = invoice.invoiceNumber.trim()
+        
         // Prevent duplicate stock deduction for the same invoice
-        if (invoice.invoiceNumber.isNotBlank()) {
-            val existingLedgers = db.inventoryLedgerDao().getLedgerList()
-            val hasDeductedStock = existingLedgers.any { 
-                it.invoiceNumber == invoice.invoiceNumber && 
-                (it.transactionType.equals("Penjualan", ignoreCase = true) || it.quantity < 0)
-            }
-            if (hasDeductedStock) {
-                return
-            }
+        val hasDeductedStock = existingLedgers.any { ledger ->
+            (invNumClean.isNotBlank() && ledger.invoiceNumber == invNumClean) ||
+            ledger.notes.contains("Invoice #${invoice.id}", ignoreCase = true) ||
+            (invNumClean.isNotBlank() && ledger.notes.contains(invNumClean, ignoreCase = true))
+        } && existingLedgers.any { ledger ->
+            ((invNumClean.isNotBlank() && ledger.invoiceNumber == invNumClean) || ledger.notes.contains(invNumClean, ignoreCase = true)) &&
+            (ledger.transactionType.equals("Penjualan", ignoreCase = true) || ledger.quantity < 0)
+        }
+
+        if (hasDeductedStock) {
+            return
         }
 
         val converters = AppTypeConverters()
@@ -1258,7 +1290,7 @@ class BusinessRepository(private val db: AppDatabase) {
                             quantity = -item.quantity, // Negative for sale deduction
                             user = currentUser,
                             timestamp = System.currentTimeMillis(),
-                            notes = "Penjualan Invoice ${invoice.invoiceNumber}"
+                            notes = "Penjualan Invoice #${invoice.id} ${invoice.invoiceNumber}"
                         )
                         val insertedLedgerId = db.inventoryLedgerDao().insertLedger(ledgerEntry)
                         FirebaseSyncManager.syncItemToCloud("inventory_ledger", insertedLedgerId.toString(), ledgerEntry.copy(id = insertedLedgerId.toInt()))
@@ -1337,6 +1369,7 @@ class BusinessRepository(private val db: AppDatabase) {
             FirebaseSyncManager.syncItemToCloud("invoices", cloudKey, finalInvoice)
             result = finalInvoice
         }
+        reconcileAllInventorySummaries()
         return result
     }
 
@@ -1347,34 +1380,32 @@ class BusinessRepository(private val db: AppDatabase) {
         }
 
         val existingLedgers = db.inventoryLedgerDao().getLedgerList()
+        val invNumClean = invoice.invoiceNumber.trim()
 
         // 1. Prevent duplicate restoration for the same invoice
-        if (invoice.invoiceNumber.isNotBlank()) {
-            val alreadyRestored = existingLedgers.any { 
-                it.invoiceNumber == invoice.invoiceNumber && 
-                (it.transactionType.equals("Batal Invoice", ignoreCase = true) || it.transactionType.equals("Refund Invoice", ignoreCase = true) || it.notes.contains("Batal/Hapus Invoice", ignoreCase = true)) 
-            }
-            if (alreadyRestored) {
-                return
-            }
+        val alreadyRestored = existingLedgers.any { ledger ->
+            ((invNumClean.isNotBlank() && ledger.invoiceNumber == invNumClean) ||
+             ledger.notes.contains("Invoice #${invoice.id}", ignoreCase = true) ||
+             (invNumClean.isNotBlank() && ledger.notes.contains(invNumClean, ignoreCase = true))) &&
+            (ledger.transactionType.equals("Batal Invoice", ignoreCase = true) ||
+             ledger.transactionType.equals("Refund Invoice", ignoreCase = true) ||
+             ledger.notes.contains("Batal/Hapus Invoice", ignoreCase = true))
+        }
+        if (alreadyRestored) {
+            return
         }
 
-        // 2. Determine if physical stock was actually deducted for this invoice
-        val statusClean = invoice.status.uppercase().trim()
-        val isDeductingStatus = statusClean in listOf(
-            "DISETUJUI", "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "BELUM LUNAS", "COMPLETED", "PAID", "REFUND", "REFUNDED", "PARTIAL_REFUND"
-        )
-        val hasDeductedLedger = if (invoice.invoiceNumber.isNotBlank()) {
-            existingLedgers.any { 
-                it.invoiceNumber == invoice.invoiceNumber && 
-                (it.transactionType.equals("Penjualan", ignoreCase = true) || it.quantity < 0)
-            }
-        } else false
+        // 2. STRICT CHECK: Determine if physical stock was ACTUALLY deducted previously
+        // Physical stock is ONLY restored if a corresponding "Penjualan" ledger entry exists for this invoice
+        val hasDeductedLedger = existingLedgers.any { ledger ->
+            ((invNumClean.isNotBlank() && ledger.invoiceNumber == invNumClean) ||
+             ledger.notes.contains("Invoice #${invoice.id}", ignoreCase = true) ||
+             (invNumClean.isNotBlank() && ledger.notes.contains(invNumClean, ignoreCase = true))) &&
+            (ledger.transactionType.equals("Penjualan", ignoreCase = true) || ledger.quantity < 0)
+        }
 
-        val hasDeductedStock = isDeductingStatus || hasDeductedLedger
-
-        // If stock was never deducted (e.g. invoice was PENDING/DRAFT or Custom Project), exit early
-        if (!hasDeductedStock) {
+        // If stock was NEVER physically deducted (e.g., invoice was PENDING/DRAFT/MENUNGGU PERSETUJUAN), exit early!
+        if (!hasDeductedLedger) {
             return
         }
 
@@ -1404,14 +1435,14 @@ class BusinessRepository(private val db: AppDatabase) {
                 if (catalog != null && varian != null) {
                     val masterStock = db.masterStockDao().getStockByVarian(varian.id_varian)
                     if (masterStock != null) {
-                        // Restore stock physically
+                        // Restore stock physically (add back quantity)
                         val updatedStock = updateStockQtyForSizeSleeve(masterStock, parsed.size, parsed.sleeve, item.quantity)
                         val finalStock = recalculateTotalStock(updatedStock)
                         db.masterStockDao().updateStockMaster(finalStock)
                         FirebaseSyncManager.syncItemToCloud("master_stock", finalStock.id_stock.toString(), finalStock)
                         syncMasterStockToStockItems(varian.id_varian)
 
-                        // Insert stock history
+                        // Insert stock history entry for restore
                         val historyEntry = StockHistory(
                             date = System.currentTimeMillis(),
                             series = "${catalog.nama_catalog} (${varian.nama_warna})",
@@ -1419,14 +1450,14 @@ class BusinessRepository(private val db: AppDatabase) {
                             size = parsed.size,
                             quantity = item.quantity,
                             type = "Masuk",
-                            notes = "Batal/Hapus Invoice ${invoice.invoiceNumber}",
+                            notes = "Restorasi Stok Batal Invoice #${invoice.id} ${invoice.invoiceNumber}",
                             user = currentUser
                         )
                         db.stockHistoryDao().insertHistory(historyEntry)
                         val docId = "${System.currentTimeMillis()}_${parsed.size}_${parsed.sleeve}"
                         FirebaseSyncManager.syncItemToCloud("stock_history", docId, historyEntry)
 
-                        // Insert restoration ledger entry (marked Batal Invoice so it doesn't inflate totalPenyesuaianManual)
+                        // Log "Batal Invoice" in InventoryLedger for audit trail
                         val ledgerEntry = InventoryLedger(
                             id = 0,
                             transactionType = "Batal Invoice",
@@ -1439,10 +1470,10 @@ class BusinessRepository(private val db: AppDatabase) {
                             varianName = varian.nama_warna,
                             sleeve = parsed.sleeve,
                             size = parsed.size,
-                            quantity = item.quantity, // Positive to restore stock
+                            quantity = item.quantity,
                             user = currentUser,
                             timestamp = System.currentTimeMillis(),
-                            notes = "Batal/Hapus Invoice ${invoice.invoiceNumber}"
+                            notes = "Batal/Hapus Invoice #${invoice.id} ${invoice.invoiceNumber}"
                         )
                         val insertedLedgerId = db.inventoryLedgerDao().insertLedger(ledgerEntry)
                         FirebaseSyncManager.syncItemToCloud("inventory_ledger", insertedLedgerId.toString(), ledgerEntry.copy(id = insertedLedgerId.toInt()))
@@ -1743,8 +1774,8 @@ class BusinessRepository(private val db: AppDatabase) {
             val now = System.currentTimeMillis()
 
             if (isFullRefund) {
-                val dateStr = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale("id", "ID")).format(java.util.Date(now))
-                val refundNoteText = "__NOTE__: Refund Total Invoice ${invoice.invoiceNumber} (Nilai Kas: ${com.yansproject.app.ui.FormatUtils.formatRupiah(totalPaid)}) pada $dateStr. Alasan: ${reason.ifBlank { "Permintaan Pelanggan / Retur Total" }}"
+                val dateStr = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("id", "ID")).format(java.util.Date(now))
+                val refundNoteText = "__NOTE__: Refund Total (${com.yansproject.app.ui.FormatUtils.formatRupiah(totalPaid)}) • $dateStr${if (reason.isNotBlank()) " • $reason" else ""}"
                 val updatedItemsList = items.toMutableList()
                 updatedItemsList.add(InvoiceItemDetail(description = refundNoteText, quantity = 0, price = 0.0))
                 val newItemsJson = converters.fromInvoiceItemList(updatedItemsList)
@@ -1756,7 +1787,7 @@ class BusinessRepository(private val db: AppDatabase) {
                         category = "Refund Penjualan",
                         amount = totalPaid,
                         date = now,
-                        notes = "Refund Total Invoice ${invoice.invoiceNumber} (${invoice.clientName}). Alasan: ${reason.ifBlank { "Permintaan Pelanggan" }}",
+                        notes = "Refund Total INV ${invoice.invoiceNumber} (${invoice.clientName})${if (reason.isNotBlank()) " • $reason" else ""}",
                         transactionNumber = "",
                         paymentMethod = paymentAccount,
                         createdBy = currentUser,
@@ -1804,7 +1835,7 @@ class BusinessRepository(private val db: AppDatabase) {
                 var totalRefundValue = 0.0
                 var totalRefundPcs = 0
 
-                val updatedItemsList = items.toMutableList()
+                val newNonMetaItems = mutableListOf<InvoiceItemDetail>()
                 val catalogs = db.catalogDao().getCatalogsList()
                 val variants = db.varianWarnaDao().getAllVarianList()
 
@@ -1884,25 +1915,23 @@ class BusinessRepository(private val db: AppDatabase) {
                                 restoreFallbackStockItem(originalItem.copy(quantity = actualRefundQty))
                             }
                         }
+                    }
 
-                        // Adjust quantity in updated items list
-                        val targetIndex = updatedItemsList.indexOfFirst { it.description == originalItem.description && it.price == originalItem.price }
-                        if (targetIndex != -1) {
-                            val newQty = originalItem.quantity - actualRefundQty
-                            if (newQty > 0) {
-                                updatedItemsList[targetIndex] = originalItem.copy(quantity = newQty)
-                            } else {
-                                updatedItemsList.removeAt(targetIndex)
-                            }
-                        }
+                    val remainingQty = originalItem.quantity - actualRefundQty
+                    if (remainingQty > 0) {
+                        newNonMetaItems.add(originalItem.copy(quantity = remainingQty))
                     }
                 }
 
                 if (totalRefundPcs <= 0) return@withTransaction false
 
+                val updatedItemsList = mutableListOf<InvoiceItemDetail>()
+                updatedItemsList.addAll(newNonMetaItems)
+                updatedItemsList.addAll(items.filter { it.description.startsWith("__") })
+
                 // Record metadata note
-                val dateStr = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale("id", "ID")).format(java.util.Date(now))
-                val refundNoteText = "__NOTE__: Refund $totalRefundPcs pcs (Rp${String.format("%,.0f", totalRefundValue)}) pada $dateStr. Alasan: ${reason.ifBlank { "Retur Sebagian" }}"
+                val dateStr = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("id", "ID")).format(java.util.Date(now))
+                val refundNoteText = "__NOTE__: Refund Sebagian $totalRefundPcs pcs (${com.yansproject.app.ui.FormatUtils.formatRupiah(totalRefundValue)}) • $dateStr${if (reason.isNotBlank()) " • $reason" else ""}"
                 updatedItemsList.add(InvoiceItemDetail(description = refundNoteText, quantity = 0, price = 0.0))
 
                 // Outflow Expense for partial refund
@@ -1913,7 +1942,7 @@ class BusinessRepository(private val db: AppDatabase) {
                         category = "Refund Penjualan",
                         amount = actualCashRefund,
                         date = now,
-                        notes = "Refund Sebagian Invoice ${invoice.invoiceNumber} ($totalRefundPcs pcs - ${invoice.clientName}). Alasan: ${reason.ifBlank { "Retur Sebagian" }}",
+                        notes = "Refund Sebagian INV ${invoice.invoiceNumber} ($totalRefundPcs pcs - ${invoice.clientName})${if (reason.isNotBlank()) " • $reason" else ""}",
                         transactionNumber = "",
                         paymentMethod = paymentAccount,
                         createdBy = currentUser,
@@ -2659,33 +2688,39 @@ class BusinessRepository(private val db: AppDatabase) {
             }
             for (item in items) {
                 val parsed = parseInvoiceItemDetails(item.description)
-                if (parsed != null) {
+                val isMatch = if (parsed != null) {
                     val matchesCat = parsed.catalogName.trim().equals(catalog.nama_catalog.trim(), ignoreCase = true) ||
                                      parsed.catalogName.contains(catalog.nama_catalog, ignoreCase = true) ||
                                      catalog.nama_catalog.contains(parsed.catalogName, ignoreCase = true)
                     val matchesVar = parsed.varianName.trim().equals(varian.nama_warna.trim(), ignoreCase = true) ||
                                      parsed.varianName.contains(varian.nama_warna, ignoreCase = true) ||
                                      varian.nama_warna.contains(parsed.varianName, ignoreCase = true)
-                    if (matchesCat && matchesVar) {
-                        if (parsed.sleeve.equals("Pendek", ignoreCase = true)) {
-                            invoicesApprovedQtyPendek += item.quantity
-                        } else {
-                            invoicesApprovedQtyPanjang += item.quantity
-                        }
+                    matchesCat && matchesVar
+                } else {
+                    val descLower = item.description.lowercase()
+                    descLower.contains(catalog.nama_catalog.lowercase().trim()) &&
+                    descLower.contains(varian.nama_warna.lowercase().trim())
+                }
+
+                if (isMatch) {
+                    val sleeve = parsed?.sleeve ?: if (item.description.lowercase().contains("panjang")) "Panjang" else "Pendek"
+                    if (sleeve.equals("Pendek", ignoreCase = true)) {
+                        invoicesApprovedQtyPendek += item.quantity
+                    } else {
+                        invoicesApprovedQtyPanjang += item.quantity
                     }
                 }
             }
         }
         
-        val returTypes = setOf("retur", "retur invoice", "refund invoice", "batal invoice", "refund")
+        // returTypes ONLY contains physical goods returns back to warehouse stock (logistics/manual returns).
+        // Batal Invoice / Refund Invoice generated during cancellation MUST NOT be included here to prevent double-counting reversals!
+        val returTypes = setOf("retur", "retur logistik", "retur barang")
         val totalReturAvailablePendek = ledgersPendek.filter { it.transactionType.lowercase().trim() in returTypes }.sumOf { it.quantity }
         val totalReturAvailablePanjang = ledgersPanjang.filter { it.transactionType.lowercase().trim() in returTypes }.sumOf { it.quantity }
         
         val totalReturDamagedPendek = ledgersPendek.filter { it.transactionType.equals("Barang Rusak", ignoreCase = true) }.sumOf { java.lang.Math.abs(it.quantity) }
         val totalReturDamagedPanjang = ledgersPanjang.filter { it.transactionType.equals("Barang Rusak", ignoreCase = true) }.sumOf { java.lang.Math.abs(it.quantity) }
-        
-        val totalReturnedPendek = totalReturAvailablePendek + totalReturDamagedPendek
-        val totalReturnedPanjang = totalReturAvailablePanjang + totalReturDamagedPanjang
         
         val totalTerjualPendek = invoicesApprovedQtyPendek.coerceAtLeast(0)
         val totalTerjualPanjang = invoicesApprovedQtyPanjang.coerceAtLeast(0)
@@ -2714,19 +2749,32 @@ class BusinessRepository(private val db: AppDatabase) {
         }.sumOf { it.quantity }
         
         val masterStock = db.masterStockDao().getStockByVarian(idVarian)
-        val readyStockPendek = if (masterStock != null) {
-            masterStock.xs_pendek + masterStock.s_pendek + masterStock.m_pendek + masterStock.l_pendek + masterStock.xl_pendek + masterStock.xxl_pendek + masterStock.three_xl_pendek + masterStock.four_xl_pendek
+
+        // Strict calculation of ready stock derived from Total Production + Restock + Returns - Sales - Damaged
+        val maxPossiblePendek = (totalProduksiPendek + totalRestockPendek + totalReturAvailablePendek + totalPenyesuaianManualPendek).coerceAtLeast(0)
+        val calculatedReadyStockPendek = (maxPossiblePendek - totalTerjualPendek - totalDamagedPendek).coerceIn(0, maxPossiblePendek)
+
+        val maxPossiblePanjang = (totalProduksiPanjang + totalRestockPanjang + totalReturAvailablePanjang + totalPenyesuaianManualPanjang).coerceAtLeast(0)
+        val calculatedReadyStockPanjang = (maxPossiblePanjang - totalTerjualPanjang - totalDamagedPanjang).coerceIn(0, maxPossiblePanjang)
+
+        val readyStockPendek = if (masterStock != null && masterStock.total_stock <= (maxPossiblePendek + maxPossiblePanjang)) {
+            val msTotalPendek = masterStock.xs_pendek + masterStock.s_pendek + masterStock.m_pendek + masterStock.l_pendek + masterStock.xl_pendek + masterStock.xxl_pendek + masterStock.three_xl_pendek + masterStock.four_xl_pendek
+            msTotalPendek.coerceIn(0, maxPossiblePendek)
         } else {
-            (totalProduksiPendek + totalRestockPendek + totalReturAvailablePendek - totalDamagedPendek - totalTerjualPendek + totalPenyesuaianManualPendek).coerceAtLeast(0)
+            calculatedReadyStockPendek
         }
-        val readyStockPanjang = if (masterStock != null) {
-            masterStock.xs_panjang + masterStock.s_panjang + masterStock.m_panjang + masterStock.l_panjang + masterStock.xl_panjang + masterStock.xxl_panjang + masterStock.three_xl_panjang + masterStock.four_xl_panjang
+
+        val readyStockPanjang = if (masterStock != null && masterStock.total_stock <= (maxPossiblePendek + maxPossiblePanjang)) {
+            val msTotalPanjang = masterStock.xs_panjang + masterStock.s_panjang + masterStock.m_panjang + masterStock.l_panjang + masterStock.xl_panjang + masterStock.xxl_panjang + masterStock.three_xl_panjang + masterStock.four_xl_panjang
+            msTotalPanjang.coerceIn(0, maxPossiblePanjang)
         } else {
-            (totalProduksiPanjang + totalRestockPanjang + totalReturAvailablePanjang - totalDamagedPanjang - totalTerjualPanjang + totalPenyesuaianManualPanjang).coerceAtLeast(0)
+            calculatedReadyStockPanjang
         }
+
         val readyStock = readyStockPendek + readyStockPanjang
         
-        val reservedStatuses = listOf("MENUNGGU PERSETUJUAN", "MENUNGGU APPROVAL", "PENDING", "DRAFT", "UNPAID", "MENUNGGU PEMBAYARAN", "MENUNGGU VERIFIKASI PEMBAYARAN")
+        // Includes ALL pending, draft, and approval status variations
+        val reservedStatuses = setOf("MENUNGGU PERSETUJUAN", "MENUNGGU PERSETUJUAN OWNER", "MENUNGGU APPROVAL", "PENDING", "DRAFT", "UNPAID", "MENUNGGU PEMBAYARAN", "MENUNGGU VERIFIKASI PEMBAYARAN", "WAITING_APPROVAL")
         val reservedInvoices = invoices.filter { !it.isDeleted && it.status.uppercase().trim() in reservedStatuses }
         
         var reservedStockPendek = 0
@@ -2740,19 +2788,26 @@ class BusinessRepository(private val db: AppDatabase) {
             }
             for (item in items) {
                 val parsed = parseInvoiceItemDetails(item.description)
-                if (parsed != null) {
+                val isMatch = if (parsed != null) {
                     val matchesCat = parsed.catalogName.trim().equals(catalog.nama_catalog.trim(), ignoreCase = true) ||
                                      parsed.catalogName.contains(catalog.nama_catalog, ignoreCase = true) ||
                                      catalog.nama_catalog.contains(parsed.catalogName, ignoreCase = true)
                     val matchesVar = parsed.varianName.trim().equals(varian.nama_warna.trim(), ignoreCase = true) ||
                                      parsed.varianName.contains(varian.nama_warna, ignoreCase = true) ||
                                      varian.nama_warna.contains(parsed.varianName, ignoreCase = true)
-                    if (matchesCat && matchesVar) {
-                        if (parsed.sleeve.equals("Pendek", ignoreCase = true)) {
-                            reservedStockPendek += item.quantity
-                        } else {
-                            reservedStockPanjang += item.quantity
-                        }
+                    matchesCat && matchesVar
+                } else {
+                    val descLower = item.description.lowercase()
+                    descLower.contains(catalog.nama_catalog.lowercase().trim()) &&
+                    descLower.contains(varian.nama_warna.lowercase().trim())
+                }
+
+                if (isMatch) {
+                    val sleeve = parsed?.sleeve ?: if (item.description.lowercase().contains("panjang")) "Panjang" else "Pendek"
+                    if (sleeve.equals("Pendek", ignoreCase = true)) {
+                        reservedStockPendek += item.quantity
+                    } else {
+                        reservedStockPanjang += item.quantity
                     }
                 }
             }
@@ -2797,8 +2852,16 @@ class BusinessRepository(private val db: AppDatabase) {
         for (item in items) {
             val parsed = parseInvoiceItemDetails(item.description)
             if (parsed != null) {
-                val catalog = catalogs.find { it.nama_catalog.equals(parsed.catalogName, ignoreCase = true) }
-                val varian = variants.find { it.id_catalog == catalog?.id_catalog && it.nama_warna.equals(parsed.varianName, ignoreCase = true) }
+                val catalog = catalogs.find { 
+                    it.nama_catalog.trim().equals(parsed.catalogName.trim(), ignoreCase = true) ||
+                    it.nama_catalog.contains(parsed.catalogName, ignoreCase = true) ||
+                    parsed.catalogName.contains(it.nama_catalog, ignoreCase = true)
+                }
+                val varian = variants.find { 
+                    (catalog == null || it.id_catalog == catalog.id_catalog) && 
+                    it.nama_warna.trim().equals(parsed.varianName.trim(), ignoreCase = true) 
+                } ?: variants.find { it.nama_warna.trim().equals(parsed.varianName.trim(), ignoreCase = true) }
+
                 if (varian != null) {
                     updateInventorySummaryForVarian(varian.id_varian)
                 }
@@ -2806,18 +2869,31 @@ class BusinessRepository(private val db: AppDatabase) {
         }
     }
 
-    suspend fun reconcileAllInventorySummaries() {
-        // Audit & reconcile physical stock deduction for all active stock invoices
+    suspend fun reconcileInventory(logListener: ((String) -> Unit)? = null): List<String> {
+        val auditLogs = mutableListOf<String>()
+        fun emitLog(msg: String) {
+            val formatted = "[RECONCILE_INVENTORY] $msg"
+            auditLogs.add(formatted)
+            android.util.Log.i("InventoryReconciliation", formatted)
+            logListener?.invoke(formatted)
+        }
+
+        emitLog("=== MEMULAI PROSES RECONCILE INVENTORY ===")
+
+        // 1. Audit & Deduct Stock for all active Stock Invoices
         val allInvoices = db.invoiceDao().getInvoicesList()
         val activeStockInvoices = allInvoices.filter { invoice ->
             !invoice.isDeleted &&
             (invoice.projectId == null && !invoice.invoiceNumber.startsWith("PRJ-") && !invoice.invoiceNumber.startsWith("YP-")) &&
-            invoice.status.uppercase().trim() in listOf("DISETUJUI", "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "BELUM LUNAS", "COMPLETED", "PAID")
+            invoice.status.uppercase().trim() in listOf("DISETUJUI", "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "BELUM LUNAS", "COMPLETED", "PAID", "PARTIAL_REFUND")
         }
+
+        emitLog("Menganalisis ${activeStockInvoices.size} invoice stok aktif untuk verifikasi pemotongan fisik...")
         for (inv in activeStockInvoices) {
             deductStockForInvoice(inv)
         }
 
+        // 2. Clean up orphaned summaries
         val activeCatalogs = db.catalogDao().getCatalogsList().filter { !it.isDeleted }
         val activeVariants = db.varianWarnaDao().getAllVarianList().filter { !it.isDeleted }
         val activeCatalogIds = activeCatalogs.map { it.id_catalog }.toSet()
@@ -2826,16 +2902,68 @@ class BusinessRepository(private val db: AppDatabase) {
         val existingSummaries = db.inventorySummaryDao().getSummariesList()
         for (s in existingSummaries) {
             if (s.id_catalog !in activeCatalogIds || s.id_varian !in activeVariantIds) {
+                emitLog("DISCREPANCY DETECTED: InventorySummary orphaned untuk varian ID ${s.id_varian} (${s.seriesName} - ${s.varianName}). Berhasil dibersihkan.")
                 db.inventorySummaryDao().deleteSummary(s)
                 FirebaseSyncManager.deleteItemFromCloud("inventory_summary", s.id_varian.toString())
             }
         }
 
+        // 3. Detailed Audit per Varian: Total Produksi vs Total Terjual vs Physical Stock (Ready / Reserved / Available)
         for (v in activeVariants) {
-            if (v.id_catalog in activeCatalogIds) {
-                updateInventorySummaryForVarian(v.id_varian)
+            if (v.id_catalog !in activeCatalogIds) continue
+
+            val oldSummary = db.inventorySummaryDao().getSummaryByVarian(v.id_varian)
+
+            // Recompute summary
+            updateInventorySummaryForVarian(v.id_varian)
+            val newSummary = db.inventorySummaryDao().getSummaryByVarian(v.id_varian) ?: continue
+
+            val catalog = db.catalogDao().getCatalogById(v.id_catalog)
+            val catalogName = catalog?.nama_catalog ?: newSummary.seriesName
+            val varianName = v.nama_warna
+
+            val totalProduksi = newSummary.totalProduksi
+            val totalTerjual = newSummary.totalTerjual
+            val readyStock = newSummary.readyStock
+            val reservedStock = newSummary.reservedStock
+            val availableStock = newSummary.availableStock
+
+            // Check ledgers
+            val ledgers = db.inventoryLedgerDao().getLedgerList().filter { it.varianId == v.id_varian }
+            val restockQty = ledgers.filter { it.transactionType.equals("Restock", ignoreCase = true) }.sumOf { it.quantity }
+            val returQty = ledgers.filter { it.transactionType.lowercase().trim() in setOf("retur", "retur logistik", "retur barang") }.sumOf { it.quantity }
+            val damagedQty = ledgers.filter { it.transactionType.equals("Barang Rusak", ignoreCase = true) }.sumOf { java.lang.Math.abs(it.quantity) }
+
+            val expectedPhysicalSupply = totalProduksi + restockQty + returQty - damagedQty
+            val expectedReadyBalance = (expectedPhysicalSupply - totalTerjual).coerceAtLeast(0)
+
+            if (oldSummary != null) {
+                if (oldSummary.readyStock != newSummary.readyStock) {
+                    emitLog("DISCREPANCY DETECTED [$catalogName - $varianName]: Ready Stock fisik terdeteksi selisih (Semula: ${oldSummary.readyStock} Pcs -> Terkoreksi: ${newSummary.readyStock} Pcs). Koreksi otomatis diterapkan.")
+                }
+                if (oldSummary.reservedStock != newSummary.reservedStock) {
+                    emitLog("DISCREPANCY DETECTED [$catalogName - $varianName]: Reserved Stock terpesan selisih (Semula: ${oldSummary.reservedStock} Pcs -> Terkoreksi: ${newSummary.reservedStock} Pcs). Koreksi otomatis diterapkan.")
+                }
+                if (oldSummary.totalTerjual != newSummary.totalTerjual) {
+                    emitLog("DISCREPANCY DETECTED [$catalogName - $varianName]: Total Terjual invoice selisih (Semula: ${oldSummary.totalTerjual} Pcs -> Terkoreksi: ${newSummary.totalTerjual} Pcs). Koreksi otomatis diterapkan.")
+                }
+            } else {
+                emitLog("INITIALIZED INVENTORY SUMMARY [$catalogName - $varianName]: Summary baru berhasil dibuat dan disinkronkan.")
             }
+
+            if ((readyStock - reservedStock).coerceAtLeast(0) != availableStock) {
+                emitLog("DISCREPANCY DETECTED [$catalogName - $varianName]: Available Stock ($availableStock Pcs) != Ready ($readyStock Pcs) - Reserved ($reservedStock Pcs). Penyeimbangan otomatis dilakukan.")
+            }
+
+            emitLog("VERIFIED [$catalogName - $varianName]: Total Produksi=$totalProduksi Pcs | Invoice Terjual=$totalTerjual Pcs | Ready Stock=$readyStock Pcs | Reserved=$reservedStock Pcs | Available=$availableStock Pcs | Nilai Persediaan=${com.yansproject.app.ui.FormatUtils.formatRupiah(newSummary.nilaiPersediaan)}")
         }
+
+        emitLog("=== RECONCILE INVENTORY SELESAI DENGAN SUKSES ===")
+        return auditLogs
+    }
+
+    suspend fun reconcileAllInventorySummaries() {
+        reconcileInventory()
     }
 
     suspend fun syncMasterStockToStockItems(idVarian: Int) {
@@ -3406,6 +3534,7 @@ class BusinessRepository(private val db: AppDatabase) {
             
             try {
                 deduplicateInvoicesInLocalDb()
+                reconcileAllInventorySummaries()
             } catch (e: Exception) {
                 android.util.Log.e("BusinessRepository", "Non-fatal deduplication error: ${e.message}")
             }

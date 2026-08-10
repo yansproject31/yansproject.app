@@ -187,15 +187,46 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             try {
+                val now = System.currentTimeMillis()
                 val returLog = com.yansproject.app.data.ReturLogistik(
                     itemName = s.returnItemName,
                     quantity = qty,
                     reason = s.returnReason,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = now
                 )
 
                 withContext(Dispatchers.IO) {
                     returDao.insertRetur(returLog)
+
+                    val db = com.yansproject.app.data.AppDatabase.getDatabase(getApplication())
+                    val catalogs = db.catalogDao().getCatalogsList()
+                    val variants = db.varianWarnaDao().getAllVarianList()
+
+                    val catalog = catalogs.find { s.returnItemName.contains(it.nama_catalog, ignoreCase = true) } ?: catalogs.firstOrNull()
+                    val varian = variants.find { catalog != null && it.id_catalog == catalog.id_catalog } ?: variants.firstOrNull()
+
+                    val ledgerEntry = com.yansproject.app.data.InventoryLedger(
+                        id = 0,
+                        transactionType = "Barang Rusak",
+                        batchNumber = "",
+                        invoiceNumber = "",
+                        catalogId = catalog?.id_catalog ?: 0,
+                        catalogName = catalog?.nama_catalog ?: s.returnItemName,
+                        seriesName = catalog?.nama_catalog ?: s.returnItemName,
+                        varianId = varian?.id_varian ?: 0,
+                        varianName = varian?.nama_warna ?: "Defisit Logistik",
+                        sleeve = "Pendek",
+                        size = "M",
+                        quantity = qty,
+                        user = com.yansproject.app.data.BusinessIdentityProvider.getCompanyName(getApplication()),
+                        timestamp = now,
+                        notes = "Retur Logistik & Cacat: ${s.returnItemName} ($qty pcs). Alasan: ${s.returnReason}"
+                    )
+                    val insertedLedgerId = db.inventoryLedgerDao().insertLedger(ledgerEntry)
+                    com.yansproject.app.data.FirebaseSyncManager.syncItemToCloud("inventory_ledger", insertedLedgerId.toString(), ledgerEntry.copy(id = insertedLedgerId.toInt()))
+
+                    val repository = com.yansproject.app.data.BusinessRepository(db)
+                    repository.reconcileAllInventorySummaries()
                 }
 
                 _state.value = s.copy(
@@ -203,7 +234,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     returnReason = "",
                     returnQuantity = ""
                 )
-                Toast.makeText(context, "Retur logistik terdaftar. Stok available dialihkan ke damaged.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Retur logistik terdaftar & disinkronisasi ke Dashboard Stok.", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e("MatrixViewModel", "Failed to submit logistics return: ${e.message}", e)
                 Toast.makeText(context, "Gagal menyimpan retur logistik: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()

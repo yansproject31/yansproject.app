@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Color
 import kotlin.jvm.JvmName
 
 // ==========================================
-// OFFICIAL YANSPROJECT.ID COLOR SYSTEM (VERSI 1.3.3)
+// OFFICIAL YANSPROJECT.ID COLOR SYSTEM (VERSI 1.4.0)
 // ==========================================
 // Static base defaults for non-composable initializations
 val StaticDarkTealBase = Color(0xFF071516)
@@ -91,6 +91,7 @@ val ErrorRed = YansError
 
 val PrimaryDarkTeal: Color get() = dynamicPrimaryDarkTeal
 val DeepTeal: Color = Color(0xFF163536)
+val CyberEmerald: Color = Color(0xFF0F433F)
 val SecondaryShadowBlackTeal: Color get() = dynamicSecondaryShadowBlackTeal
 val AccentAgedGold: Color get() = dynamicAgedGold
 val HighlightSoftCyan: Color get() = dynamicHighlightSoftCyan

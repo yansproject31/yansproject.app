@@ -9,6 +9,7 @@ import android.widget.Toast
 import com.yansproject.app.data.Invoice
 import com.yansproject.app.data.InvoiceItemDetail
 import com.yansproject.app.ui.FormatUtils
+import com.yansproject.app.ui.InvoiceItemSorter
 import com.yansproject.app.ui.MainViewModel
 import com.yansproject.app.ui.MemberCartItem
 import java.io.File
@@ -36,10 +37,16 @@ object BitmapUtils {
         paint.color = android.graphics.Color.WHITE
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 
-        paint.color = android.graphics.Color.rgb(33, 33, 33)
+        val logoDrawable = androidx.core.content.ContextCompat.getDrawable(context, com.yansproject.app.R.drawable.ic_logo)
+        if (logoDrawable != null) {
+            logoDrawable.setBounds(60, 45, 125, 110)
+            logoDrawable.draw(canvas)
+        }
+
+        paint.color = android.graphics.Color.rgb(15, 61, 62)
         paint.textSize = 26f
         paint.isFakeBoldText = true
-        canvas.drawText(com.yansproject.app.data.BusinessIdentityProvider.getCompanyName(context), 60f, 80f, paint)
+        canvas.drawText(com.yansproject.app.data.BusinessIdentityProvider.getCompanyName(context), 140f, 85f, paint)
 
         paint.textSize = 22f
         paint.isFakeBoldText = true
@@ -73,21 +80,32 @@ object BitmapUtils {
             nextY += 20f
         }
 
-        val tableHeaderY = (nextY + 20f).coerceAtLeast(260f)
+        val (catName, colorName) = com.yansproject.app.ui.InvoiceItemSorter.extractCatalogAndColor(items)
+        nextY += 10f
+        paint.color = android.graphics.Color.rgb(15, 61, 62)
+        paint.isFakeBoldText = true
+        paint.textSize = 14f
+        canvas.drawText("CATALOG : $catName", 60f, nextY, paint)
+        nextY += 22f
+        canvas.drawText("WARNA   : $colorName", 60f, nextY, paint)
+        nextY += 15f
+
+        val tableHeaderY = (nextY + 15f).coerceAtLeast(290f)
         paint.color = android.graphics.Color.rgb(240, 240, 240)
         canvas.drawRect(60f, tableHeaderY, 740f, tableHeaderY + 30f, paint)
         paint.color = android.graphics.Color.BLACK
         paint.isFakeBoldText = true
-        canvas.drawText("Description", 75f, tableHeaderY + 20f, paint)
-        canvas.drawText("Qty", 520f, tableHeaderY + 20f, paint)
-        canvas.drawText("Price", 580f, tableHeaderY + 20f, paint)
-        canvas.drawText("Total", 670f, tableHeaderY + 20f, paint)
+        canvas.drawText("RINCIAN PEMESANAN", 75f, tableHeaderY + 20f, paint)
+        canvas.drawText("QTY", 520f, tableHeaderY + 20f, paint)
+        canvas.drawText("PRICE", 580f, tableHeaderY + 20f, paint)
+        canvas.drawText("TOTAL", 670f, tableHeaderY + 20f, paint)
 
         paint.isFakeBoldText = false
         var currentY = tableHeaderY + 50f
-        val filteredItems = items.filter { !it.description.startsWith("__") }
+        val filteredItems = com.yansproject.app.ui.InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
         for (item in filteredItems) {
-            val shortDesc = if (item.description.length > 45) item.description.take(42) + "..." else item.description
+            val cleanDesc = com.yansproject.app.ui.InvoiceItemSorter.cleanDescriptionForDisplay(item.description)
+            val shortDesc = if (cleanDesc.length > 45) cleanDesc.take(42) + "..." else cleanDesc
             canvas.drawText(shortDesc, 75f, currentY, paint)
             canvas.drawText(item.quantity.toString(), 520f, currentY, paint)
             canvas.drawText(FormatUtils.formatRupiah(item.price), 580f, currentY, paint)
@@ -97,36 +115,68 @@ object BitmapUtils {
 
         currentY += 20f
         canvas.drawLine(60f, currentY, 740f, currentY, paint)
-        currentY += 30f
-
-        paint.isFakeBoldText = true
-        canvas.drawText("Subtotal:", 500f, currentY, paint)
-        paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(invoice.totalAmount + invoice.discount), 650f, currentY, paint)
-
         currentY += 25f
-        paint.isFakeBoldText = true
-        canvas.drawText("Diskon:", 500f, currentY, paint)
-        paint.isFakeBoldText = false
-        canvas.drawText("- " + FormatUtils.formatRupiah(invoice.discount), 650f, currentY, paint)
 
-        currentY += 25f
-        paint.isFakeBoldText = true
-        canvas.drawText("Uang Muka (DP):", 500f, currentY, paint)
-        paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(invoice.dpAmount), 650f, currentY, paint)
+        val shortQty = InvoiceItemSorter.getShortSleeveTotalQty(items)
+        val longQty = InvoiceItemSorter.getLongSleeveTotalQty(items)
+        val globalQty = InvoiceItemSorter.getGlobalTotalQty(items)
 
-        currentY += 25f
-        paint.isFakeBoldText = true
-        canvas.drawText("Sisa Tagihan:", 500f, currentY, paint)
-        paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(invoice.remainingPayment), 650f, currentY, paint)
+        val calculatedSubtotal = InvoiceItemSorter.calcSubtotal(items)
+        val subtotalVal = if (calculatedSubtotal > 0.0) calculatedSubtotal else (invoice.totalAmount + invoice.discount)
+        val totalVal = (subtotalVal - invoice.discount).coerceAtLeast(0.0)
 
-        currentY += 35f
+        // Left Box: Qty Breakdown
+        paint.textSize = 13f
         paint.isFakeBoldText = true
-        paint.textSize = 15f
-        canvas.drawText("GRAND TOTAL:", 500f, currentY, paint)
-        canvas.drawText(FormatUtils.formatRupiah(invoice.totalAmount), 650f, currentY, paint)
+        paint.color = android.graphics.Color.parseColor("#0F3D3E")
+        canvas.drawText("RINGKASAN QTY:", 60f, currentY, paint)
+
+        paint.textSize = 12f
+        paint.isFakeBoldText = false
+        paint.color = android.graphics.Color.BLACK
+        canvas.drawText("• QTY PENDEK  : $shortQty Pcs", 60f, currentY + 22f, paint)
+        canvas.drawText("• QTY PANJANG : $longQty Pcs", 60f, currentY + 44f, paint)
+        paint.isFakeBoldText = true
+        canvas.drawText("• TOTAL QTY   : $globalQty Pcs", 60f, currentY + 66f, paint)
+
+        // Right Box: Financial Breakdown
+        paint.textSize = 12f
+        paint.isFakeBoldText = true
+        paint.color = android.graphics.Color.BLACK
+        canvas.drawText("SUB TOTAL :", 460f, currentY, paint)
+        paint.isFakeBoldText = false
+        canvas.drawText(FormatUtils.formatRupiah(subtotalVal), 610f, currentY, paint)
+
+        currentY += 22f
+        paint.isFakeBoldText = true
+        canvas.drawText("DISKON :", 460f, currentY, paint)
+        paint.isFakeBoldText = false
+        canvas.drawText("- " + FormatUtils.formatRupiah(invoice.discount), 610f, currentY, paint)
+
+        currentY += 22f
+        // SUB HERO TOTAL
+        paint.isFakeBoldText = true
+        paint.textSize = 14f
+        paint.color = android.graphics.Color.parseColor("#0F3D3E")
+        canvas.drawText("TOTAL :", 460f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(totalVal), 610f, currentY, paint)
+
+        currentY += 22f
+        paint.textSize = 12f
+        paint.isFakeBoldText = true
+        paint.color = android.graphics.Color.BLACK
+        canvas.drawText("PEMBAYARAN :", 460f, currentY, paint)
+        paint.isFakeBoldText = false
+        canvas.drawText(FormatUtils.formatRupiah(invoice.paidAmount), 610f, currentY, paint)
+
+        currentY += 24f
+        // HERO INFORMASI SISA PEMBAYARAN
+        paint.isFakeBoldText = true
+        paint.textSize = 13f
+        val remColor = if (invoice.remainingPayment > 0) android.graphics.Color.parseColor("#C62828") else android.graphics.Color.parseColor("#2E7D32")
+        paint.color = remColor
+        canvas.drawText("SISA PEMBAYARAN :", 460f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(invoice.remainingPayment), 610f, currentY, paint)
 
         // Watermark
         paint.textSize = 70f
@@ -156,7 +206,7 @@ object BitmapUtils {
         paint.textSize = 12f
         paint.isFakeBoldText = false
         paint.textAlign = Paint.Align.CENTER
-        canvas.drawText("Terima kasih telah mempercayakan kebutuhan apparel Anda kepada ${com.yansproject.app.data.BusinessIdentityProvider.getCompanyName(context)}.", 400f, 1040f, paint)
+        canvas.drawText("Hatur Tengkyu telah menjadi bagian dari perjalanan YANSPROJECT.ID", 400f, 1040f, paint)
 
         return try {
             val safeNum = invoice.invoiceNumber.replace("/", "_").replace("\\", "_").replace(":", "_").ifEmpty { invoice.id.toString() }

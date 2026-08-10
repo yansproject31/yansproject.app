@@ -167,6 +167,8 @@ fun RiwayatScreen(
             // Apply filter status & date
             val matchesFilter = when (selectedFilter) {
                 "Semua", "Semua Status" -> true
+                "Member Mitra", "Member", "Akun Member" -> FormatUtils.getInvoiceMemberBadgeInfo(invoice, context).isMember
+                "Non-Member", "Non-Member (Manual)", "Non-Member (Owner Input)" -> !FormatUtils.getInvoiceMemberBadgeInfo(invoice, context).isMember
                 "Hari Ini" -> isToday(invoice.issueDate)
                 "Minggu Ini" -> isThisWeek(invoice.issueDate)
                 "Bulan Ini" -> isThisMonth(invoice.issueDate)
@@ -634,7 +636,7 @@ fun RiwayatScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(listOf("Semua", "Hari Ini", "Minggu Ini", "Bulan Ini", "Tahun Ini", "Belum Lunas", "Lunas", "Batal")) { filter ->
+                    items(listOf("Semua", "Member Mitra", "Non-Member", "Hari Ini", "Minggu Ini", "Bulan Ini", "Tahun Ini", "Belum Lunas", "Lunas", "Batal")) { filter ->
                         val isSelected = filter == selectedFilter
                         Box(
                             modifier = Modifier
@@ -871,20 +873,48 @@ fun RiwayatItemCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Main Info Row: Customer Name & Item Summary + Nominal
+            val context = LocalContext.current
+            val memberBadge = remember(invoice) { FormatUtils.getInvoiceMemberBadgeInfo(invoice, context) }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = invoice.clientName.ifEmpty { "Customer Umum" },
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = invoice.clientName.ifEmpty { "Customer Umum" },
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (memberBadge.isMember) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(CyberEmerald)
+                                    .border(0.6.dp, AgedGold, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Text(text = memberBadge.badgeLabel, fontSize = 7.5.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(DarkTeal.copy(alpha = 0.5f))
+                                    .border(0.6.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Text(text = "NON-MEMBER", fontSize = 7.5.sp, color = HighlightSoftCyan, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "$summaryText • $totalQuantity Pcs",
@@ -1116,6 +1146,31 @@ fun DetailRiwayatBottomSheet(
                                 Text(text = invoice.clientName.ifEmpty { "Customer Umum" }, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextLight)
                             }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = "Kategori Customer", fontSize = 11.sp, color = TextMuted)
+                                val bInfo = remember(invoice) { FormatUtils.getInvoiceMemberBadgeInfo(invoice, context) }
+                                if (bInfo.isMember) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(CyberEmerald)
+                                            .border(0.8.dp, AgedGold, RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(text = "★ ${bInfo.badgeLabel}", fontSize = 8.5.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
+                                    }
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(DarkTeal.copy(alpha = 0.5f))
+                                            .border(0.8.dp, HighlightSoftCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(text = "NON-MEMBER (INPUT MANUAL OWNER)", fontSize = 8.5.sp, color = HighlightSoftCyan, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Text(text = "Nomor WhatsApp", fontSize = 11.sp, color = TextMuted)
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1285,6 +1340,10 @@ fun DetailRiwayatBottomSheet(
                                 .padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
+                            val shortQty = InvoiceItemSorter.getShortSleeveTotalQty(nonSystemItems)
+                            val longQty = InvoiceItemSorter.getLongSleeveTotalQty(nonSystemItems)
+                            val globalQty = InvoiceItemSorter.getGlobalTotalQty(nonSystemItems)
+
                             if (!isProject && pricePerPcs > 0) {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(text = "Harga per Pcs", fontSize = 11.sp, color = TextMuted)
@@ -1292,36 +1351,54 @@ fun DetailRiwayatBottomSheet(
                                 }
                             }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(text = "Subtotal", fontSize = 11.sp, color = TextMuted)
+                                Text(text = "QTY PENDEK :", fontSize = 11.sp, color = TextMuted)
+                                Text(text = "$shortQty Pcs", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Bold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = "QTY PANJANG :", fontSize = 11.sp, color = TextMuted)
+                                Text(text = "$longQty Pcs", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Bold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = "TOTAL QTY :", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                                Text(text = "$globalQty Pcs", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.ExtraBold)
+                            }
+
+                            HorizontalDivider(color = BorderGrey.copy(alpha = 0.3f), thickness = 0.5.dp)
+
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = "SUB TOTAL :", fontSize = 11.sp, color = TextMuted)
                                 Text(text = FormatUtils.formatRupiah(subtotal), fontSize = 11.sp, color = TextLight)
                             }
                             if (invoice.discount > 0) {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(text = "Diskon", fontSize = 11.sp, color = TextMuted)
+                                    Text(text = "DISKON :", fontSize = 11.sp, color = TextMuted)
                                     Text(text = "- " + FormatUtils.formatRupiah(invoice.discount), fontSize = 11.sp, color = AlertRed)
                                 }
                             }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = "TOTAL :", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                                Text(text = FormatUtils.formatRupiah(invoice.totalAmount), fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                            }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(text = "Nominal Terbayar", fontSize = 11.sp, color = TextMuted)
+                                Text(text = "PEMBAYARAN :", fontSize = 11.sp, color = TextMuted)
                                 Text(text = FormatUtils.formatRupiah(invoice.paidAmount), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AlertGreen)
                             }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(text = "Sisa Piutang", fontSize = 11.sp, color = TextMuted)
-                                Text(
-                                    text = FormatUtils.formatRupiah(remainingPayment),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (remainingPayment > 0) StatusWarningGold else AlertGreen
-                                )
-                            }
 
-                            Spacer(modifier = Modifier.height(4.dp))
-                            HorizontalDivider(color = BorderGrey.copy(alpha = 0.3f), thickness = 0.5.dp)
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "Grand Total Nominal", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextLight)
-                                Text(text = FormatUtils.formatRupiah(invoice.totalAmount), fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = AgedGold)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = if (remainingPayment > 0) Color(0x33FF5252) else Color(0x3336D0A7)),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, if (remainingPayment > 0) AlertRed else AlertGreen),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "SISA PEMBAYARAN :", fontSize = 12.sp, fontWeight = FontWeight.Black, color = if (remainingPayment > 0) AlertRed else AlertGreen)
+                                    Text(text = FormatUtils.formatRupiah(remainingPayment), fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = if (remainingPayment > 0) AlertRed else AlertGreen)
+                                }
                             }
                         }
                     }

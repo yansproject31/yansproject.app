@@ -5301,9 +5301,9 @@ fun AboutYansScreen(onBack: () -> Unit) {
     val versionName = remember(context) {
         try {
             val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "1.3.3"
+            pInfo.versionName ?: "1.4.0"
         } catch (e: Exception) {
-            "1.3.3"
+            "1.4.0"
         }
     }
 
