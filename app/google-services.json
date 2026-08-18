@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "912734977404",
+    "project_id": "yansapp-login",
+    "storage_bucket": "yansapp-login.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:912734977404:android:ea5373adc8a941f4a678f9",
+        "android_client_info": {
+          "package_name": "com.yansproject.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDM3mtB_X3ejNY4MfuOP1CrUKLloM8-AIg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
