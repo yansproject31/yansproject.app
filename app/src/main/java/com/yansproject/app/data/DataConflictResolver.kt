@@ -38,7 +38,7 @@ class DataConflictResolver(private val context: Context) {
         offlineActionDao: OfflineActionDao
     ): List<ConflictLog> = withContext(Dispatchers.IO) {
         val conflictLogs = mutableListOf<ConflictLog>()
-        val actions = offlineActionDao.getAllActions()
+        val actions = offlineActionDao.getPendingBatch(50)
 
         if (actions.isEmpty()) {
             Log.d(TAG, "No pending offline actions found for conflict resolution.")
@@ -48,25 +48,52 @@ class DataConflictResolver(private val context: Context) {
         Log.d(TAG, "Processing ${actions.size} offline actions under Anti-Split-Brain protocol.")
 
         for (action in actions) {
+            // Mark action as PROCESSING
+            offlineActionDao.updateAction(action.copy(status = "PROCESSING"))
+
             val collection = action.targetCollection
             val payloadString = action.stringPayload
 
             try {
                 val json = JSONObject(payloadString)
-                
+
+                // Validation: Missing historical timestamp check
+                if (action.timestamp <= 0L) {
+                    val log = ConflictLog(
+                        id = java.util.UUID.randomUUID().toString(),
+                        entityName = "Collection: $collection (Action ID: ${action.id})",
+                        localValue = "Missing Timestamp",
+                        remoteValue = "N/A",
+                        resolvedValue = "UNKNOWN/CONFLICT",
+                        strategyApplied = "UNKNOWN/CONFLICT - Missing historical timestamp",
+                        timestamp = System.currentTimeMillis()
+                    )
+                    conflictLogs.add(log)
+                    offlineActionDao.updateAction(action.copy(status = "BLOCKED"))
+                    continue
+                }
+
                 when (collection) {
                     "stock_items" -> {
                         val id = json.optInt("id", 0)
                         val name = json.optString("name", "Unknown Item")
                         val localQty = json.optInt("stockCount", 0)
-                        val lastUpdated = json.optLong("lastUpdated", System.currentTimeMillis())
+                        val lastUpdated = json.optLong("lastUpdated", action.timestamp)
                         
+                        // Extract intendedDelta from stored mutation base rather than moving local snapshot
+                        val storedBaseQty = if (json.has("baseQuantity")) json.optInt("baseQuantity") else null
+                        val storedDelta = if (json.has("intendedDelta")) json.optInt("intendedDelta")
+                            else if (json.has("delta")) json.optInt("delta")
+                            else null
+
                         val localItem = appDatabase.stockDao().getStockById(id)
                         if (localItem != null) {
                             val serverRef = firestore?.collection("stock_items")?.document(id.toString())
                             val resolvedQty: Int
                             val strategy: String
                             
+                            val localDelta = storedDelta ?: if (storedBaseQty != null) (localQty - storedBaseQty) else (localQty - localItem.stockCount)
+
                             if (serverRef != null) {
                                 val snapshot = try {
                                     serverRef.get().await()
@@ -78,27 +105,20 @@ class DataConflictResolver(private val context: Context) {
                                     val serverQty = snapshot.getLong("stockCount")?.toInt() ?: localItem.stockCount
                                     val serverLastUpdated = snapshot.getLong("lastUpdated") ?: 0L
                                     
-                                    // 1. Delta calculation: how much did the offline transaction intend to change?
-                                    // Let's assume the action payload contains the pre-calculated delta or we compute it.
-                                    // If not explicit, we compare offline payload vs local db or last known.
-                                    val localDelta = localQty - localItem.stockCount
-                                    
                                     if (serverLastUpdated > action.timestamp) {
-                                        // Server has newer concurrent update: merge field-level
+                                        // Server has newer concurrent update: merge field-level delta using stored mutation base
                                         resolvedQty = serverQty + localDelta
-                                        strategy = "Server-Timestamp-Priority + Field-Level Delta Merge"
+                                        strategy = "Server-Timestamp-Priority + Stored Base Delta Merge"
                                         
-                                        // Update Firestore with the merged count
                                         serverRef.update(
                                             "stockCount", resolvedQty,
                                             "lastUpdated", System.currentTimeMillis()
                                         ).await()
                                     } else {
-                                        // Local offline update is newer: apply local fields but preserve server modifications if any
+                                        // Local offline update is newer: apply local fields
                                         resolvedQty = serverQty + localDelta
-                                        strategy = "Offline-Client Priority + Field-Level Delta Merge"
+                                        strategy = "Offline-Client Priority + Stored Base Delta Merge"
                                         
-                                        // Update Firestore completely with local item merged
                                         val data = hashMapOf(
                                             "id" to localItem.id,
                                             "name" to localItem.name,
@@ -112,7 +132,6 @@ class DataConflictResolver(private val context: Context) {
                                         serverRef.set(data).await()
                                     }
                                 } else {
-                                    // Document doesn't exist on server yet, upload it
                                     resolvedQty = localItem.stockCount
                                     strategy = "Initial Upload (No Conflict)"
                                     val data = hashMapOf(
@@ -138,7 +157,7 @@ class DataConflictResolver(private val context: Context) {
                             val log = ConflictLog(
                                 id = java.util.UUID.randomUUID().toString(),
                                 entityName = "StockItem: $name (ID: $id)",
-                                localValue = "Qty: $localQty",
+                                localValue = "Qty: $localQty (Delta: $localDelta)",
                                 remoteValue = "Merged Server Priority",
                                 resolvedValue = "Final Qty: $resolvedQty",
                                 strategyApplied = strategy,
@@ -146,7 +165,6 @@ class DataConflictResolver(private val context: Context) {
                             )
                             conflictLogs.add(log)
                             
-                            // Insert into audit logs
                             appDatabase.auditLogDao().insertLog(
                                 AuditLog(
                                     activity = "CONFLICT_RESOLVED",
@@ -159,12 +177,19 @@ class DataConflictResolver(private val context: Context) {
                         val idStock = json.optInt("id_stock", 0)
                         val localTotal = json.optInt("total_stock", 0)
                         
+                        val storedDelta = if (json.has("intendedDelta")) json.optInt("intendedDelta")
+                            else if (json.has("delta")) json.optInt("delta")
+                            else null
+                        val storedBaseQty = if (json.has("baseQuantity")) json.optInt("baseQuantity") else null
+                        
                         val localStock = appDatabase.masterStockDao().getStockMasterList().find { it.id_stock == idStock }
                         if (localStock != null) {
                             val serverRef = firestore?.collection("master_stock")?.document(idStock.toString())
                             val resolvedTotal: Int
                             val strategy: String
                             
+                            val delta = storedDelta ?: if (storedBaseQty != null) (localTotal - storedBaseQty) else (localTotal - localStock.total_stock)
+
                             if (serverRef != null) {
                                 val snapshot = try {
                                     serverRef.get().await()
@@ -175,7 +200,6 @@ class DataConflictResolver(private val context: Context) {
                                 if (snapshot != null && snapshot.exists()) {
                                     val serverTotal = snapshot.getLong("total_stock")?.toInt() ?: localStock.total_stock
                                     val serverLastUpdated = snapshot.getLong("updated_at") ?: 0L
-                                    val delta = localTotal - localStock.total_stock
                                     
                                     if (serverLastUpdated > action.timestamp) {
                                         resolvedTotal = serverTotal + delta
@@ -193,7 +217,6 @@ class DataConflictResolver(private val context: Context) {
                                     resolvedTotal = localStock.total_stock
                                     strategy = "Initial MasterStock Sync"
                                     
-                                    // Save entire master stock item to Firestore
                                     val data = hashMapOf(
                                         "id_stock" to localStock.id_stock,
                                         "id_varian" to localStock.id_varian,
@@ -210,14 +233,13 @@ class DataConflictResolver(private val context: Context) {
                                 strategy = "Simulated Local Resolution"
                             }
                             
-                            // Sync Room DB
                             appDatabase.masterStockDao().updateStockMaster(localStock.copy(total_stock = resolvedTotal, updated_at = System.currentTimeMillis()))
                             
                             conflictLogs.add(
                                 ConflictLog(
                                     id = java.util.UUID.randomUUID().toString(),
                                     entityName = "MasterStock ID: $idStock",
-                                    localValue = "Qty: $localTotal",
+                                    localValue = "Qty: $localTotal (Delta: $delta)",
                                     remoteValue = "Delta Merged",
                                     resolvedValue = "Total: $resolvedTotal",
                                     strategyApplied = strategy,
@@ -227,7 +249,6 @@ class DataConflictResolver(private val context: Context) {
                         }
                     }
                     else -> {
-                        // General merge policy for standard forms or static receipts
                         Log.d(TAG, "Standard field-level serialization merge for collection: $collection")
                         val isDeleted = json.optBoolean("isDeleted", false)
                         val serverRef = firestore?.collection(collection)?.document(action.additionalMeta)
@@ -259,8 +280,11 @@ class DataConflictResolver(private val context: Context) {
                     }
                 }
                 
-                // Once synced successfully, purge from the local queue to prevent double-processing
-                offlineActionDao.deleteAction(action)
+                // Update collection checkpoint
+                SyncCheckpointManager.updateCheckpoint(context, collection, System.currentTimeMillis(), action.idempotencyKey, 1, "SUCCESS")
+
+                // Mark action as SYNCED (Never delete permanent/rejected actions immediately)
+                offlineActionDao.updateAction(action.copy(status = "SYNCED"))
                 
             } catch (e: Exception) {
                 val isPermanentError = e is org.json.JSONException ||
@@ -282,7 +306,6 @@ class DataConflictResolver(private val context: Context) {
 
                 Log.e(TAG, "Failed resolving sync action ID ${action.id} ($errorCategory): ${e.message}", e)
 
-                // Log error event to database audit trail
                 try {
                     appDatabase.auditLogDao().insertLog(
                         AuditLog(
@@ -294,11 +317,9 @@ class DataConflictResolver(private val context: Context) {
                     Log.e(TAG, "Failed inserting conflict error audit log: ${logErr.message}")
                 }
 
-                // If permanent corrupt payload or auth error, discard or flag to prevent infinite blocking loop
-                if (isPermanentError) {
-                    Log.w(TAG, "Purging unrecoverable permanent sync action ID ${action.id} from queue.")
-                    offlineActionDao.deleteAction(action)
-                }
+                // Never delete permanent or failed actions immediately. Keep recoverable & auditable via DEAD_LETTER or FAILED status!
+                val newStatus = if (isPermanentError) "DEAD_LETTER" else "FAILED"
+                offlineActionDao.updateAction(action.copy(status = newStatus, retryCount = action.retryCount + 1))
             }
         }
         

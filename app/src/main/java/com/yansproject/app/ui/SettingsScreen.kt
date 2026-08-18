@@ -165,13 +165,15 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
             if (uri != null) {
-                DataImportExportHelper.importStockFromCsv(context, uri, viewModel) { count ->
-                    if (count >= 0) {
-                        Toast.makeText(context, "Berhasil impor $count baris stok matrix!", Toast.LENGTH_LONG).show()
-                        viewModel.addAuditLog("Import Stock", "Berhasil mengimpor $count item stok via CSV/Excel.")
-                        viewModel.triggerNotification("Import Berhasil", "Sistem berhasil mengimpor data stok via file.", "Stock", "STOCK")
-                    } else {
-                        Toast.makeText(context, "Gagal mengimpor data stok. Periksa format file Anda!", Toast.LENGTH_LONG).show()
+                coroutineScope.launch {
+                    DataImportExportHelper.importStockFromCsv(context, uri, viewModel) { count ->
+                        if (count >= 0) {
+                            Toast.makeText(context, "Berhasil impor $count baris stok matrix!", Toast.LENGTH_LONG).show()
+                            viewModel.addAuditLog("Import Stock", "Berhasil mengimpor $count item stok via CSV/Excel.")
+                            viewModel.triggerNotification("Import Berhasil", "Sistem berhasil mengimpor data stok via file.", "Stock", "STOCK")
+                        } else {
+                            Toast.makeText(context, "Gagal mengimpor data stok. Periksa format file Anda!", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }
@@ -182,12 +184,14 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
             if (uri != null) {
-                DataImportExportHelper.importCatalogFromCsv(context, uri, viewModel) { count ->
-                    if (count >= 0) {
-                        Toast.makeText(context, "Berhasil impor $count catalog baru!", Toast.LENGTH_LONG).show()
-                        viewModel.addAuditLog("Import Catalog", "Berhasil mengimpor $count catalog via CSV/Excel.")
-                    } else {
-                        Toast.makeText(context, "Gagal mengimpor catalog!", Toast.LENGTH_LONG).show()
+                coroutineScope.launch {
+                    DataImportExportHelper.importCatalogFromCsv(context, uri, viewModel) { count ->
+                        if (count >= 0) {
+                            Toast.makeText(context, "Berhasil impor $count catalog baru!", Toast.LENGTH_LONG).show()
+                            viewModel.addAuditLog("Import Catalog", "Berhasil mengimpor $count catalog via CSV/Excel.")
+                        } else {
+                            Toast.makeText(context, "Gagal mengimpor catalog!", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }
@@ -198,12 +202,14 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
             if (uri != null) {
-                DataImportExportHelper.importCustomerFromCsv(context, uri, viewModel) { count ->
-                    if (count >= 0) {
-                        Toast.makeText(context, "Berhasil impor $count customer baru!", Toast.LENGTH_LONG).show()
-                        viewModel.addAuditLog("Import Customer", "Berhasil mengimpor $count data pelanggan via CSV/Excel.")
-                    } else {
-                        Toast.makeText(context, "Gagal mengimpor data pelanggan!", Toast.LENGTH_LONG).show()
+                coroutineScope.launch {
+                    DataImportExportHelper.importCustomerFromCsv(context, uri, viewModel) { count ->
+                        if (count >= 0) {
+                            Toast.makeText(context, "Berhasil impor $count customer baru!", Toast.LENGTH_LONG).show()
+                            viewModel.addAuditLog("Import Customer", "Berhasil mengimpor $count data pelanggan via CSV/Excel.")
+                        } else {
+                            Toast.makeText(context, "Gagal mengimpor data pelanggan!", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }
@@ -2268,7 +2274,7 @@ fun renderNestedSubScreen(
 
         "akun" -> {
             val currentEmail = (currentUser?.email ?: AppSettings.getEmail(context)).trim().lowercase()
-            val cleanEmail = currentEmail.ifBlank { "yansart31@gmail.com" }
+            val cleanEmail = currentEmail.ifBlank { "yansproject.id31@gmail.com" }
             val userPrefs = remember(currentEmail) { 
                 context.getSharedPreferences("yans_user_prefs_${if (currentEmail.isNotBlank()) currentEmail else "guest"}", android.content.Context.MODE_PRIVATE) 
             }
@@ -5146,6 +5152,8 @@ fun renderNestedSubScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                StockRecalculationDiagnosticCard()
+
                 PremiumGlassCard(modifier = Modifier.fillMaxWidth()) {
                     Text("DEVELOPER DIAGNOSTIC PANEL", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
                     Spacer(modifier = Modifier.height(14.dp))
@@ -5219,6 +5227,214 @@ fun DiagnosticRow(label: String, value: String, statusColor: Color) {
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(text = value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = statusColor)
+        }
+    }
+}
+
+@Composable
+fun StockRecalculationDiagnosticCard() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val repo = remember(context) { BusinessRepository(AppDatabase.getDatabase(context)) }
+
+    var isRunningDiagnostic by remember { mutableStateOf(false) }
+    var isRunningReconcile by remember { mutableStateOf(false) }
+    var diagnosticReport by remember { mutableStateOf<InvoiceInventoryDiagnosticReport?>(null) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+
+    PremiumGlassCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Analytics,
+                        contentDescription = "Diagnostic",
+                        tint = AccentAgedGold,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "DIAGNOSTIK REKALKULASI STOK & INVOICE",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AccentAgedGold
+                    )
+                }
+
+                diagnosticReport?.let { report ->
+                    Surface(
+                        color = if (report.isHealthy) AlertGreen.copy(alpha = 0.15f) else AlertRed.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (report.isHealthy) AlertGreen else AlertRed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = if (report.isHealthy) "SISTEM SEHAT" else "${report.discrepancyCount} DISKREPANSI",
+                            color = if (report.isHealthy) AlertGreen else AlertRed,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = "Alat diagnostik internal untuk merekalkulasi total stok terpotong dari seluruh invoice aktif (non-batal/non-refund) dan membandingkannya dengan data koleksi 'Inventory' & Room summary.",
+                fontSize = 11.sp,
+                color = TextMuted
+            )
+
+            HorizontalDivider(color = BorderGrey.copy(alpha = 0.2f), thickness = 0.5.dp)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isRunningDiagnostic = true
+                            statusMessage = "Menganalisis invoice & merekalkulasi stok..."
+                            try {
+                                val report = repo.runInvoiceInventoryDiagnosticTest(context = context)
+                                diagnosticReport = report
+                                statusMessage = if (report.isHealthy) {
+                                    "Rekalkulasi selesai. Tidak ditemukan selisih atau diskrepansi stok."
+                                } else {
+                                    "Ditemukan ${report.discrepancyCount} diskrepansi pada data stok."
+                                }
+                            } catch (e: Exception) {
+                                statusMessage = "Gagal menjalankan diagnostik: ${e.localizedMessage}"
+                            } finally {
+                                isRunningDiagnostic = false
+                            }
+                        }
+                    },
+                    enabled = !isRunningDiagnostic && !isRunningReconcile,
+                    colors = ButtonDefaults.buttonColors(containerColor = CyberEmerald),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    if (isRunningDiagnostic) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("MEMPROSES...", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    } else {
+                        Icon(imageVector = Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("DIAGNOSA REKALKULASI", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                diagnosticReport?.let { report ->
+                    if (!report.isHealthy) {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    isRunningReconcile = true
+                                    statusMessage = "Menyinkronkan & memulihkan stok summary..."
+                                    try {
+                                        repo.reconcileAllInventorySummaries()
+                                        val newReport = repo.runInvoiceInventoryDiagnosticTest(context = context)
+                                        diagnosticReport = newReport
+                                        statusMessage = "Stok berhasil disinkronkan & direkonsiliasi otomatis."
+                                    } catch (e: Exception) {
+                                        statusMessage = "Gagal merekonsiliasi stok: ${e.localizedMessage}"
+                                    } finally {
+                                        isRunningReconcile = false
+                                    }
+                                }
+                            },
+                            enabled = !isRunningDiagnostic && !isRunningReconcile,
+                            colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            if (isRunningReconcile) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("RECONCILING...", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            } else {
+                                Icon(imageVector = Icons.Outlined.Build, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("PERBAIKI STOK", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
+            statusMessage?.let { msg ->
+                Text(
+                    text = msg,
+                    fontSize = 11.sp,
+                    color = if (msg.contains("Gagal") || msg.contains("diskrepansi")) AlertRed else AlertGreen,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            diagnosticReport?.let { report ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SecondaryShadowBlackTeal, RoundedCornerShape(8.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "HASIL ANALISIS DIAGNOSTIK:",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AccentAgedGold
+                    )
+
+                    DiagnosticRow("Total Invoice Dianalisis", "${report.totalInvoicesAnalyzed} Invoice", HighlightSoftCyan)
+                    DiagnosticRow("Item Ter-invoiced Active", "${report.totalInvoicedItemQty} Pcs", AlertGreen)
+                    DiagnosticRow("Terjual Recorded di Summary", "${report.totalStockDecrementedQty} Pcs", HighlightSoftCyan)
+                    DiagnosticRow("Jumlah Diskrepansi", "${report.discrepancyCount} Isu", if (report.isHealthy) AlertGreen else AlertRed)
+
+                    if (report.duplicateInvoiceDiscrepancies.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("DUPLIKASI NOMOR INVOICE:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AlertRed)
+                        report.duplicateInvoiceDiscrepancies.forEach { item ->
+                            Text("• $item", fontSize = 10.sp, color = TextLight)
+                        }
+                    }
+
+                    if (report.incompleteRefundDiscrepancies.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("BATAL/REFUND BELUM TUNTAS:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AlertRed)
+                        report.incompleteRefundDiscrepancies.forEach { item ->
+                            Text("• $item", fontSize = 10.sp, color = TextLight)
+                        }
+                    }
+
+                    if (report.availableStockDiscrepancies.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("SELISIH STOK INVOICE VS SUMMARY:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AlertRed)
+                        report.availableStockDiscrepancies.forEach { item ->
+                            Text("• $item", fontSize = 10.sp, color = TextLight)
+                        }
+                    }
+
+                    if (report.cloudSyncDiscrepancies.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("SELISIH CLOUD FIRESTORE VS ROOM:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AlertRed)
+                        report.cloudSyncDiscrepancies.forEach { item ->
+                            Text("• $item", fontSize = 10.sp, color = TextLight)
+                        }
+                    }
+                }
+            }
         }
     }
 }

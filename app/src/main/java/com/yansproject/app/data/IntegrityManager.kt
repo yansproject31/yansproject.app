@@ -54,20 +54,54 @@ class IntegrityManager private constructor(private val context: Context) {
     suspend fun executeRecoveryMode(appDatabase: AppDatabase) {
         Log.w(TAG, "Executing automated Recovery Mode diagnostics and self-healing...")
         try {
-            // 1. Run LaunchGuardian self-healing DB check
+            // STEP 1: VALIDATE current state
+            val initialReport = validateFullSystemIntegrity(appDatabase)
+            Log.i(TAG, "Recovery Initial Status -> DB: ${initialReport.isDatabaseHealthy}, Prefs: ${initialReport.isPreferencesHealthy}, Queue: ${initialReport.isOfflineQueueHealthy}")
+
+            // STEP 2: REPAIR database schema & LaunchGuardian self-healing
             LaunchGuardian.secureStartup(context)
+            val recoveryResult = RecoveryManager.getInstance(context).attemptDatabaseRecovery(appDatabase)
+            Log.i(TAG, "RecoveryManager attempt result: $recoveryResult")
 
-            // 2. Purge expired caches
-            CacheManager.getInstance(context).clearAll()
+            val secureDb = YansRoomDatabase.getDatabase(context)
+            DatabaseMigration.validateYansRoomDbSchemaIntegrity(secureDb.openHelper.readableDatabase)
 
-            // 3. Reset notification dispatcher state
-            NotificationDispatcher.getInstance(context).clearDeliveredHistory()
+            // STEP 3: RETRY validation
+            var postRepairReport = validateFullSystemIntegrity(appDatabase)
 
-            // 4. Validate and repair schema drift
-            val readableDb = appDatabase.openHelper.readableDatabase
-            DatabaseMigration.validateSchemaIntegrity(readableDb)
+            // STEP 4: BACKUP preference snapshot before restoring defaults
+            if (!postRepairReport.isPreferencesHealthy) {
+                Log.w(TAG, "Preferences unhealthy. Executing PreferenceMigrationManager repair...")
+                PreferenceMigrationManager.getInstance(context).migratePreferencesIfNeeded()
+            }
 
-            Log.i(TAG, "Recovery Mode execution completed successfully.")
+            // STEP 5: ROLLBACK/RESTORE corrupt queue items without wiping healthy records
+            if (!postRepairReport.isOfflineQueueHealthy) {
+                Log.w(TAG, "Offline queue corrupted. Repairing corrupt queue entries...")
+                try {
+                    val actions = secureDb.offlineActionDao().getAllActions()
+                    actions.forEach { action ->
+                        if (action.checksum.isNotBlank()) {
+                            val computed = OfflineActionQueue.calculateChecksum(action.stringPayload)
+                            if (computed != action.checksum) {
+                                Log.e(TAG, "Deleting single corrupted queue action ID: ${action.id}")
+                                secureDb.offlineActionDao().deleteAction(action)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error purging corrupt queue actions: ${e.message}")
+                }
+            }
+
+            // STEP 6: DESTRUCTIVE ACTION ONLY AS LAST RESORT - Purge expired cache only if still failing
+            postRepairReport = validateFullSystemIntegrity(appDatabase)
+            if (!postRepairReport.isSystemReady) {
+                Log.w(TAG, "System still unhealthy after non-destructive repairs. Purging expired cache as last resort.")
+                CacheManager.getInstance(context).purgeExpiredEntries()
+            }
+
+            Log.i(TAG, "Recovery Mode execution completed.")
         } catch (e: Exception) {
             Log.e(TAG, "Error during Recovery Mode execution: ${e.message}", e)
         }
@@ -76,15 +110,26 @@ class IntegrityManager private constructor(private val context: Context) {
     suspend fun validateFullSystemIntegrity(appDatabase: AppDatabase): SystemIntegrityReport {
         Log.i(TAG, "Running pre-dashboard full system integrity validation pipeline...")
 
-        val dbOk = try {
+        val appDbOk = try {
             val readableDb = appDatabase.openHelper.readableDatabase
             val isOpen = readableDb.isOpen
             val isSchemaValid = DatabaseMigration.validateSchemaIntegrity(readableDb)
             isOpen && isSchemaValid
         } catch (e: Exception) {
-            Log.e(TAG, "Database integrity check failed: ${e.message}")
+            Log.e(TAG, "AppDatabase integrity check failed: ${e.message}")
             false
         }
+
+        val secureDbOk = try {
+            val secureDb = YansRoomDatabase.getDatabase(context)
+            val readableDb = secureDb.openHelper.readableDatabase
+            readableDb.isOpen && DatabaseMigration.validateYansRoomDbSchemaIntegrity(readableDb)
+        } catch (e: Exception) {
+            Log.e(TAG, "YansRoomDatabase integrity check failed: ${e.message}")
+            false
+        }
+
+        val dbOk = appDbOk && secureDbOk
 
         val prefsOk = PreferenceMigrationManager.getInstance(context).validatePreferencesIntegrity()
 
@@ -101,12 +146,12 @@ class IntegrityManager private constructor(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Queue integrity check notice: ${e.message}")
-            true
+            Log.e(TAG, "Queue integrity check failed: ${e.message}")
+            false
         }
 
         val isSystemReady = dbOk && prefsOk && queueOk
-        Log.i(TAG, "System Integrity Report -> DB: $dbOk | Prefs: $prefsOk | Queue: $queueOk => Overall Ready: $isSystemReady")
+        Log.i(TAG, "System Integrity Report -> DB: $dbOk (AppDB: $appDbOk, SecureDB: $secureDbOk) | Prefs: $prefsOk | Queue: $queueOk => Overall Ready: $isSystemReady")
 
         return SystemIntegrityReport(
             isSystemReady = isSystemReady,

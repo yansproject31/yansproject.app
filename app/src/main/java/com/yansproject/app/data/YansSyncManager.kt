@@ -494,7 +494,6 @@ class YansSyncManager private constructor(private val context: Context) {
                 }
 
                 if (fetchedOrders.isNotEmpty()) {
-                    db.orderDao().clearAllOrders()
                     fetchedOrders.forEach { order ->
                         db.orderDao().insertOrder(order)
                     }
@@ -504,6 +503,13 @@ class YansSyncManager private constructor(private val context: Context) {
                     fetchedPayments.forEach { payment ->
                         db.invoicePaymentDao().insertPayment(payment)
                     }
+                }
+
+                try {
+                    val businessRepo = BusinessRepository(db)
+                    businessRepo.reconcileAllInventorySummaries()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Reconcile on sync completion exception: ${e.message}")
                 }
             }
             Log.d(TAG, "Successfully synchronized ${fetchedInvoices.size} invoices, ${fetchedOrders.size} orders, and ${fetchedPayments.size} payments.")

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -65,7 +66,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
               }
               ctx as? MainActivity
           }
-          val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+          val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
           LaunchedEffect(isLoggedIn, activity?.intent) {
             if (isLoggedIn && activity != null) {
               activity.intent.getStringExtra("TARGET_TAB")?.let { target ->
@@ -81,7 +82,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
           }
 
           LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(1500) // 1.5 seconds splash duration
+            val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
+            com.yansproject.app.data.AppStartupManager.getInstance(context).executeStartupSequence(db)
             showSplash = false
           }
 
@@ -93,8 +95,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             if (isSplash) {
               SplashScreen()
             } else {
-              val isLoggedIn by viewModel.isLoggedIn.collectAsState()
-              val currentTab by viewModel.currentTab.collectAsState()
+              val isLoggedInState by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+              val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
 
               val securityPrefs = remember { context.getSharedPreferences("yans_security_prefs", android.content.Context.MODE_PRIVATE) }
               val appLockEnabled = remember { securityPrefs.getBoolean("app_lock_enabled", false) || securityPrefs.getBoolean("pin_lock_enabled", false) }
@@ -112,7 +114,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
               }
 
               Crossfade(
-                targetState = isLoggedIn,
+                targetState = isLoggedInState,
                 animationSpec = tween(400),
                 modifier = Modifier.fillMaxSize(),
                 label = "LoginTransition"
@@ -207,9 +209,9 @@ fun MainAppContainer(
   var showGlobalSearchDialog by remember { mutableStateOf(false) }
   var showLogoutConfirmDialog by remember { mutableStateOf(false) }
   var showNotificationDialog by remember { mutableStateOf(false) }
-  val notifications by viewModel.notifications.collectAsState()
+  val notifications by viewModel.notifications.collectAsStateWithLifecycle()
   val unreadCount = remember(notifications) { notifications.count { !it.isRead } }
-  val currentUser by FirebaseSyncManager.currentUser.collectAsState()
+  val currentUser by FirebaseSyncManager.currentUser.collectAsStateWithLifecycle()
   val userRole = currentUser?.role ?: UserRole.MEMBER
   val isOwner = userRole.hasFullERPChainAccess()
   val canAccessDashboard = userRole.canAccessFinancials()
@@ -441,16 +443,16 @@ fun GlobalSearchDialog(
   var query by remember { mutableStateOf("") }
   var searchTabMode by remember { mutableStateOf(0) } // 0 = Global (Lokal), 1 = Produksi (Firestore Snapshot)
 
-  val catalogs by viewModel.allCatalogs.collectAsState()
-  val projects by viewModel.allProjects.collectAsState()
-  val invoices by viewModel.allInvoices.collectAsState()
+  val catalogs by viewModel.allCatalogs.collectAsStateWithLifecycle()
+  val projects by viewModel.allProjects.collectAsStateWithLifecycle()
+  val invoices by viewModel.allInvoices.collectAsStateWithLifecycle()
 
   // Firestore Search States
-  val prodSeries by viewModel.productionFilterSeries.collectAsState()
-  val prodCode by viewModel.productionFilterCode.collectAsState()
-  val prodColor by viewModel.productionFilterColor.collectAsState()
-  val prodStatus by viewModel.productionFilterStatus.collectAsState()
-  val prodResults by viewModel.productionSearchResults.collectAsState()
+  val prodSeries by viewModel.productionFilterSeries.collectAsStateWithLifecycle()
+  val prodCode by viewModel.productionFilterCode.collectAsStateWithLifecycle()
+  val prodColor by viewModel.productionFilterColor.collectAsStateWithLifecycle()
+  val prodStatus by viewModel.productionFilterStatus.collectAsStateWithLifecycle()
+  val prodResults by viewModel.productionSearchResults.collectAsStateWithLifecycle()
 
   Dialog(
     onDismissRequest = onDismiss,

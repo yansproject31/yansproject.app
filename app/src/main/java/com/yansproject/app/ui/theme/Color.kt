@@ -130,6 +130,7 @@ val DarkGrey: Color get() = dynamicPrimaryDarkTeal
 val CardGrey: Color get() = dynamicCardDarkCard
 val BorderGrey: Color get() = dynamicBorderGrey
 val AccentGoldLight: Color get() = dynamicAgedGold
+val GoldMuted: Color = Color(0xFF8C7240)
 
 // Semantic colors
 @get:JvmName("TextWhite_upper")

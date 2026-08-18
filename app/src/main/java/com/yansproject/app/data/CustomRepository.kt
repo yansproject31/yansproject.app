@@ -5,6 +5,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+sealed class CustomProjectResult {
+    object SUCCESS : CustomProjectResult()
+    object PENDING_SYNC : CustomProjectResult()
+    data class VALIDATION_ERROR(val message: String) : CustomProjectResult()
+    data class DATABASE_ERROR(val throwable: Throwable) : CustomProjectResult()
+    data class SYNC_ERROR(val message: String) : CustomProjectResult()
+}
+
 class CustomRepository(private val db: AppDatabase) {
 
     private val projectDao = db.projectDao()
@@ -14,70 +22,81 @@ class CustomRepository(private val db: AppDatabase) {
     // All Custom Project operations
     val allProjects: Flow<List<ProjectCustom>> = projectDao.getAllProjects()
 
-    suspend fun createProject(project: ProjectCustom, invoicePrefix: String) {
-        db.withTransaction {
-            val invoiceNum = generateInvoiceNumber(invoicePrefix, project.startDate)
-            
-            // Build initial timeline
-            var updatedProject = project.copy(
-                invoiceNumber = invoiceNum,
-                currentStage = "Project Dibuat"
-            )
-            
-            updatedProject = updatedProject.withTimelineEntry("Customer Datang", "Klien menghubungi untuk pesanan kustom.")
-            updatedProject = updatedProject.withTimelineEntry("Project Dibuat", "Proyek '${project.projectName}' didaftarkan.")
-            updatedProject = updatedProject.withTimelineEntry("Invoice", "Invoice $invoiceNum diterbitkan otomatis.")
-            
-            if (project.paidAmount > 0.0) {
-                updatedProject = updatedProject.copy(
-                    paymentStatus = "DP Awal",
-                    currentStage = "DP Awal"
-                ).withTimelineEntry("DP Awal", "Pembayaran DP awal sebesar ${com.yansproject.app.ui.FormatUtils.formatRupiah(project.paidAmount)} diterima.")
-            }
-            
-            val projectId = projectDao.insertProject(updatedProject).toInt()
-            
-            val calculatedDueDate = if (project.endDate > project.startDate) project.endDate else 0L
-            val itemsList = com.yansproject.app.ui.ProjectItemParser.getProjectItems(project.description)
-            val invoiceItems = if (itemsList.isNotEmpty()) {
-                itemsList.map { item ->
-                    InvoiceItemDetail(
-                        description = "Custom: ${item.productType} - ${item.sleeveType} - ${item.size}",
-                        quantity = item.qty,
-                        price = item.price
-                    )
-                }
-            } else {
-                val fallbackDesc = if (project.description.isNotBlank()) {
-                    "Layanan Project Custom: ${project.projectName} [Unparsed Details: ${project.description.take(40)}...]"
-                } else {
-                    "Layanan Project Custom: ${project.projectName} [Standard Project Package]"
-                }
-                listOf(
-                    InvoiceItemDetail(
-                        description = fallbackDesc,
-                        quantity = 1,
-                        price = project.totalCost
-                    )
+    suspend fun createProject(project: ProjectCustom, invoicePrefix: String): CustomProjectResult {
+        if (project.projectName.isBlank()) {
+            return CustomProjectResult.VALIDATION_ERROR("Nama project tidak boleh kosong.")
+        }
+        if (project.totalCost < 0) {
+            return CustomProjectResult.VALIDATION_ERROR("Total biaya tidak boleh negatif.")
+        }
+        return try {
+            db.withTransaction {
+                val invoiceNum = generateInvoiceNumber(invoicePrefix, project.startDate)
+                
+                // Build initial timeline
+                var updatedProject = project.copy(
+                    invoiceNumber = invoiceNum,
+                    currentStage = "Project Dibuat"
                 )
+                
+                updatedProject = updatedProject.withTimelineEntry("Customer Datang", "Klien menghubungi untuk pesanan kustom.")
+                updatedProject = updatedProject.withTimelineEntry("Project Dibuat", "Proyek '${project.projectName}' didaftarkan.")
+                updatedProject = updatedProject.withTimelineEntry("Invoice", "Invoice $invoiceNum diterbitkan otomatis.")
+                
+                if (project.paidAmount > 0.0) {
+                    updatedProject = updatedProject.copy(
+                        paymentStatus = "DP Awal",
+                        currentStage = "DP Awal"
+                    ).withTimelineEntry("DP Awal", "Pembayaran DP awal sebesar ${com.yansproject.app.ui.FormatUtils.formatRupiah(project.paidAmount)} diterima.")
+                }
+                
+                val projectId = projectDao.insertProject(updatedProject).toInt()
+                
+                val calculatedDueDate = if (project.endDate > project.startDate) project.endDate else 0L
+                val itemsList = com.yansproject.app.ui.ProjectItemParser.getProjectItems(project.description)
+                val invoiceItems = if (itemsList.isNotEmpty()) {
+                    itemsList.map { item ->
+                        InvoiceItemDetail(
+                            description = "Custom: ${item.productType} - ${item.sleeveType} - ${item.size}",
+                            quantity = item.qty,
+                            price = item.price
+                        )
+                    }
+                } else {
+                    val fallbackDesc = if (project.description.isNotBlank()) {
+                        "Layanan Project Custom: ${project.projectName} [Unparsed Details: ${project.description.take(40)}...]"
+                    } else {
+                        "Layanan Project Custom: ${project.projectName} [Standard Project Package]"
+                    }
+                    listOf(
+                        InvoiceItemDetail(
+                            description = fallbackDesc,
+                            quantity = 1,
+                            price = project.totalCost
+                        )
+                    )
+                }
+                val converters = AppTypeConverters()
+                val invoice = Invoice(
+                    invoiceNumber = invoiceNum,
+                    clientName = project.clientName,
+                    clientPhone = project.clientPhone,
+                    issueDate = project.startDate,
+                    dueDate = calculatedDueDate,
+                    totalAmount = project.totalCost,
+                    paidAmount = project.paidAmount,
+                    status = determineInvoiceStatus(project.totalCost, project.paidAmount),
+                    projectId = projectId,
+                    orderId = null,
+                    itemsJson = converters.fromInvoiceItemList(invoiceItems),
+                    discount = 0.0,
+                    dpAmount = project.paidAmount
+                )
+                invoiceDao.insertInvoice(invoice)
             }
-            val converters = AppTypeConverters()
-            val invoice = Invoice(
-                invoiceNumber = invoiceNum,
-                clientName = project.clientName,
-                clientPhone = project.clientPhone,
-                issueDate = project.startDate,
-                dueDate = calculatedDueDate,
-                totalAmount = project.totalCost,
-                paidAmount = project.paidAmount,
-                status = determineInvoiceStatus(project.totalCost, project.paidAmount),
-                projectId = projectId,
-                orderId = null,
-                itemsJson = converters.fromInvoiceItemList(invoiceItems),
-                discount = 0.0,
-                dpAmount = project.paidAmount
-            )
-            invoiceDao.insertInvoice(invoice)
+            CustomProjectResult.SUCCESS
+        } catch (e: Exception) {
+            CustomProjectResult.DATABASE_ERROR(e)
         }
     }
 

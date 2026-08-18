@@ -45,7 +45,7 @@ data class OperationalInvoice(
             return maxOf(paidAmount, paidStagedSum)
         }
 
-    val remainingBalance: Double get() = maxOf(0.0, totalAmount - effectivePaidAmount - discount)
+    val remainingBalance: Double get() = maxOf(0.0, totalAmount - effectivePaidAmount)
 }
 
 data class OperationalStockItem(

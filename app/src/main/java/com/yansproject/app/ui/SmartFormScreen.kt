@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.yansproject.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +42,15 @@ fun SmartFormScreen(
     var field2 by remember { mutableStateOf("") } // Client Name / Phone
     var field3 by remember { mutableStateOf("") } // Desc / Email
     var field4 by remember { mutableStateOf("") } // Amount / Budget
+
+    // Validation & Submission states
+    var field1Error by remember { mutableStateOf<String?>(null) }
+    var field2Error by remember { mutableStateOf<String?>(null) }
+    var field4Error by remember { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var submissionError by remember { mutableStateOf<String?>(null) }
+
+    val coroutineScope = rememberCoroutineScope()
 
     val titleText = when {
         isProject -> "TAMBAH PROJECT BARU"
@@ -110,53 +120,98 @@ fun SmartFormScreen(
                     .fillMaxWidth()
                     .navigationBarsPadding()
             ) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 16.dp)
                 ) {
+                    if (submissionError != null) {
+                        Text(
+                            text = submissionError ?: "",
+                            color = AlertRed,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
                     Button(
                         onClick = {
-                            if (field1.isBlank() || field2.isBlank()) {
-                                Toast.makeText(context, "Mohon lengkapi data wajib!", Toast.LENGTH_SHORT).show()
-                                return@Button
+                            // Reset errors
+                            field1Error = null
+                            field2Error = null
+                            field4Error = null
+                            submissionError = null
+
+                            // Strict typed validation
+                            var hasError = false
+                            if (field1.trim().isBlank()) {
+                                field1Error = if (isProject) "Nama project tidak boleh kosong" else if (isInvoice) "Nomor invoice tidak boleh kosong" else "Nama item wajib diisi"
+                                hasError = true
                             }
-                            
-                            // Simple simulation of business rules logic
-                            if (isProject) {
-                                val cost = field4.toDoubleOrNull() ?: 0.0
-                                viewModel.addProject(
-                                    projectName = field1,
-                                    clientName = field2,
-                                    clientPhone = "",
-                                    description = field3,
-                                    totalCost = cost,
-                                    paidAmount = 0.0,
-                                    status = "Planning",
-                                    startDate = System.currentTimeMillis(),
-                                    endDate = System.currentTimeMillis() + (86400000L * 14L)
-                                )
-                                Toast.makeText(context, "Proyek '$field1' berhasil disimpan ke database!", Toast.LENGTH_SHORT).show()
-                            } else if (isInvoice) {
-                                val totalVal = field4.toDoubleOrNull() ?: 0.0
-                                viewModel.addOrder(
-                                    clientName = field2,
-                                    clientPhone = "",
-                                    clientAddress = "",
-                                    selectedItems = emptyList(),
-                                    paidAmount = 0.0,
-                                    status = "MENUNGGU PEMBAYARAN",
-                                    priceType = "Retail",
-                                    paymentMethod = "CASH"
-                                )
-                                Toast.makeText(context, "Invoice #$field1 berhasil diterbitkan!", Toast.LENGTH_SHORT).show()
-                            } else {
-                                viewModel.addAuditLog("Form Submit", "Memproses formulir universal '$field1' untuk '$field2'.")
-                                Toast.makeText(context, "Formulir berhasil diproses.", Toast.LENGTH_SHORT).show()
+                            if (field2.trim().isBlank()) {
+                                field2Error = if (isProject) "Nama klien tidak boleh kosong" else if (isInvoice) "Nama pelanggan tidak boleh kosong" else "Kategori wajib diisi"
+                                hasError = true
                             }
 
-                            navController.popBackStack()
+                            val cleanAmountStr = field4.trim().replace(".", "").replace(",", "")
+                            val parsedAmount = cleanAmountStr.toDoubleOrNull()
+                            if ((isProject || isInvoice) && (parsedAmount == null || parsedAmount <= 0.0)) {
+                                field4Error = "Nominal finansial harus berupa angka valid lebih dari 0 (tidak boleh 0 atau teks kosong)"
+                                hasError = true
+                            }
+
+                            if (hasError) {
+                                Toast.makeText(context, "Mohon periksa dan perbaiki isian form!", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+
+                            isSubmitting = true
+                            coroutineScope.launch {
+                                try {
+                                    if (isProject) {
+                                        val validCost = parsedAmount ?: 0.0
+                                        viewModel.addProject(
+                                            projectName = field1.trim(),
+                                            clientName = field2.trim(),
+                                            clientPhone = "",
+                                            description = field3.trim(),
+                                            totalCost = validCost,
+                                            paidAmount = 0.0,
+                                            status = "Planning",
+                                            startDate = System.currentTimeMillis(),
+                                            endDate = System.currentTimeMillis() + (86400000L * 14L)
+                                        )
+                                        Toast.makeText(context, "Proyek '${field1.trim()}' berhasil diverifikasi dan disimpan ke database!", Toast.LENGTH_SHORT).show()
+                                        navController.popBackStack()
+                                    } else if (isInvoice) {
+                                        val validTotal = parsedAmount ?: 0.0
+                                        viewModel.addOrder(
+                                            clientName = field2.trim(),
+                                            clientPhone = "",
+                                            clientAddress = "",
+                                            selectedItems = emptyList(),
+                                            paidAmount = 0.0,
+                                            status = "MENUNGGU PEMBAYARAN",
+                                            priceType = "Retail",
+                                            paymentMethod = "CASH"
+                                        )
+                                        Toast.makeText(context, "Invoice #${field1.trim()} berhasil diterbitkan dan terverifikasi!", Toast.LENGTH_SHORT).show()
+                                        navController.popBackStack()
+                                    } else {
+                                        viewModel.addAuditLog("Form Submit", "Memproses formulir universal '${field1.trim()}' untuk '${field2.trim()}'.")
+                                        Toast.makeText(context, "Formulir berhasil diverifikasi dan diproses.", Toast.LENGTH_SHORT).show()
+                                        navController.popBackStack()
+                                    }
+                                } catch (e: Exception) {
+                                    submissionError = "Gagal memproses data: ${e.localizedMessage}"
+                                    Toast.makeText(context, "Gagal menyimpan: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                } finally {
+                                    isSubmitting = false
+                                }
+                            }
                         },
+                        enabled = !isSubmitting,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)
@@ -174,12 +229,27 @@ fun SmartFormScreen(
                             contentColor = ShadowBlack
                         )
                     ) {
-                        Text(
-                            text = "SIMPAN DATA",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.5.sp
-                        )
+                        if (isSubmitting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = ShadowBlack,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "MEMVERIFIKASI...",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
+                        } else {
+                            Text(
+                                text = "SIMPAN DATA TERVERIFIKASI",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.2.sp
+                            )
+                        }
                     }
                 }
             }
@@ -192,41 +262,67 @@ fun SmartFormScreen(
                 .background(ShadowBlack)
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(28.dp) // Extremely spacious gaps to reduce cognitive load
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // First Field
-            SmartTextField(
-                value = field1,
-                onValueChange = { field1 = it },
-                label = if (isProject) "Nama Project" else if (isInvoice) "Nomor Invoice" else "Nama Item",
-                placeholder = if (isProject) "Masukkan nama proyek baru" else if (isInvoice) "INV/2026/XXXX" else "Masukkan nama data",
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (isProject) Icons.Outlined.Assignment else if (isInvoice) Icons.Outlined.ReceiptLong else Icons.Outlined.Label,
-                        contentDescription = "Field 1 Icon",
-                        tint = AgedGold,
-                        modifier = Modifier.size(20.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SmartTextField(
+                    value = field1,
+                    onValueChange = { 
+                        field1 = it
+                        field1Error = null
+                    },
+                    label = if (isProject) "Nama Project" else if (isInvoice) "Nomor Invoice" else "Nama Item",
+                    placeholder = if (isProject) "Masukkan nama proyek baru" else if (isInvoice) "INV/2026/XXXX" else "Masukkan nama data",
+                    leadingIcon = {
+                        Icon(
+                            imageVector = if (isProject) Icons.Outlined.Assignment else if (isInvoice) Icons.Outlined.ReceiptLong else Icons.Outlined.Label,
+                            contentDescription = "Field 1 Icon",
+                            tint = AgedGold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    modifier = Modifier.testTag("form_field_1")
+                )
+                if (field1Error != null) {
+                    Text(
+                        text = field1Error ?: "",
+                        color = AlertRed,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
                     )
-                },
-                modifier = Modifier.testTag("form_field_1")
-            )
+                }
+            }
 
             // Second Field
-            SmartTextField(
-                value = field2,
-                onValueChange = { field2 = it },
-                label = if (isProject) "Nama Client" else if (isInvoice) "Nama Pelanggan" else "Kategori",
-                placeholder = "Masukkan nama klien",
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Person,
-                        contentDescription = "Field 2 Icon",
-                        tint = AgedGold,
-                        modifier = Modifier.size(20.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SmartTextField(
+                    value = field2,
+                    onValueChange = { 
+                        field2 = it
+                        field2Error = null
+                    },
+                    label = if (isProject) "Nama Client" else if (isInvoice) "Nama Pelanggan" else "Kategori",
+                    placeholder = "Masukkan nama klien",
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Person,
+                            contentDescription = "Field 2 Icon",
+                            tint = AgedGold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    modifier = Modifier.testTag("form_field_2")
+                )
+                if (field2Error != null) {
+                    Text(
+                        text = field2Error ?: "",
+                        color = AlertRed,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
                     )
-                },
-                modifier = Modifier.testTag("form_field_2")
-            )
+                }
+            }
 
             // Third Field
             SmartTextField(
@@ -247,25 +343,38 @@ fun SmartFormScreen(
                 modifier = Modifier.testTag("form_field_3")
             )
 
-            // Fourth Field (Numeric Input)
-            SmartTextField(
-                value = field4,
-                onValueChange = { field4 = it },
-                label = if (isProject) "Anggaran / Budget Proyek (Rp)" else if (isInvoice) "Total Nominal Tagihan (Rp)" else "Nilai Finansial (Rp)",
-                placeholder = "0",
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Payments,
-                        contentDescription = "Field 4 Icon",
-                        tint = AgedGold,
-                        modifier = Modifier.size(20.dp)
+            // Fourth Field (Numeric Input with strict validation)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SmartTextField(
+                    value = field4,
+                    onValueChange = { 
+                        field4 = it
+                        field4Error = null
+                    },
+                    label = if (isProject) "Anggaran / Budget Proyek (Rp)" else if (isInvoice) "Total Nominal Tagihan (Rp)" else "Nilai Finansial (Rp)",
+                    placeholder = "0",
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Payments,
+                            contentDescription = "Field 4 Icon",
+                            tint = AgedGold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.testTag("form_field_4")
+                )
+                if (field4Error != null) {
+                    Text(
+                        text = field4Error ?: "",
+                        color = AlertRed,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
                     )
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.testTag("form_field_4")
-            )
+                }
+            }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }

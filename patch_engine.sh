@@ -1,0 +1,1 @@
+sed -i 's/val readyStockPendek = masterStock/val masterStock = db.masterStockDao().getStockByVarian(varian.id_varian)\n                    val readyStockPendek = masterStock/' app/src/main/java/com/yansproject/app/data/EnterpriseBootstrapEngine.kt

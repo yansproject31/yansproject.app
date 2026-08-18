@@ -318,9 +318,8 @@ object EnterpriseBootstrapEngine {
                     val ledgersPendek = varianLedgers.filter { it.sleeve.equals("Pendek", ignoreCase = true) }
                     val ledgersPanjang = varianLedgers.filter { !it.sleeve.equals("Pendek", ignoreCase = true) }
                     
-                    val approvedStatuses = listOf("DISETUJUI", "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "BELUM LUNAS", "COMPLETED", "PAID")
                     val approvedInvoices = invoices.filter { 
-                        !it.isDeleted && it.status.uppercase().trim() in approvedStatuses
+                        !it.isDeleted && InvoiceStatusCategory.isApproved(it.status)
                     }
                     
                     var invoicesApprovedQty = 0
@@ -389,12 +388,13 @@ object EnterpriseBootstrapEngine {
                         it.transactionType in listOf("Koreksi", "Penyesuaian", "Update Manual") && it.batchNumber.isEmpty() 
                     }.sumOf { it.quantity }
                     
+                    
+                    val masterStock = db.masterStockDao().getStockByVarian(varian.id_varian)
                     val readyStockPendek = (totalProduksiPendek + totalRestockPendek + totalReturAvailablePendek - totalDamagedPendek - totalTerjualPendek + totalPenyesuaianManualPendek).coerceAtLeast(0)
                     val readyStockPanjang = (totalProduksiPanjang + totalRestockPanjang + totalReturAvailablePanjang - totalDamagedPanjang - totalTerjualPanjang + totalPenyesuaianManualPanjang).coerceAtLeast(0)
                     val readyStock = readyStockPendek + readyStockPanjang
                     
-                    val reservedStatuses = listOf("MENUNGGU PERSETUJUAN", "MENUNGGU APPROVAL", "PENDING", "DRAFT", "UNPAID", "MENUNGGU PEMBAYARAN", "MENUNGGU VERIFIKASI PEMBAYARAN")
-                    val reservedInvoices = invoices.filter { !it.isDeleted && it.status.uppercase().trim() in reservedStatuses }
+                    val reservedInvoices = invoices.filter { !it.isDeleted && InvoiceStatusCategory.isReserved(it.status) }
                     
                     var reservedStockPendek = 0
                     var reservedStockPanjang = 0
@@ -427,7 +427,7 @@ object EnterpriseBootstrapEngine {
                     val reservedStock = reservedStockPendek + reservedStockPanjang
                     
                     val availableStock = (readyStock - reservedStock).coerceAtLeast(0)
-                    val masterStock = db.masterStockDao().getStockByVarian(idVarian)
+                    
                     val hppPendek = if (masterStock != null && masterStock.hpp_pendek > 0.0) masterStock.hpp_pendek else AppSettings.getAjibqobulHppPendek(context)
                     val hppPanjang = if (masterStock != null && masterStock.hpp_panjang > 0.0) masterStock.hpp_panjang else AppSettings.getAjibqobulHppPanjang(context)
                     

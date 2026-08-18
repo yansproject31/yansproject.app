@@ -61,6 +61,8 @@ object EnterpriseSyncEngine {
 
         stopRealtimeSyncListeners()
 
+        AuditRealtimeNotificationListener.startAuditRealtimeListener(context)
+
         val collections = listOf("stock_items", "projects", "invoices", "invoice_payments", "orders", "expenses", "inflows", "master_catalog", "master_varian_warna", "master_stock", "stock_history", "audit_logs", "inventory_ledger", "production_batch", "inventory_summary")
         val failedListeners = mutableListOf<String>()
 
@@ -115,6 +117,8 @@ object EnterpriseSyncEngine {
                                             try {
                                                 val repo = BusinessRepository(db)
                                                 repo.updateSummariesForInvoice(item)
+                                                repo.deductStockForInvoice(item)
+                                                repo.reconcileAllInventorySummaries()
                                             } catch (summaryEx: Exception) {
                                                 Log.w(TAG, "Failed updating summaries for invoice ${item.invoiceNumber}: ${summaryEx.message}")
                                             }
@@ -129,15 +133,24 @@ object EnterpriseSyncEngine {
                                             }
                                             val invNum = item.invoiceId
                                             if (invNum.isNotBlank()) {
-                                                val inv = db.invoiceDao().getInvoiceByNumber(invNum)
+                                                val inv = if (invNum.toIntOrNull() != null) {
+                                                    db.invoiceDao().getInvoiceById(invNum.toInt()) ?: db.invoiceDao().getInvoiceByNumber(invNum)
+                                                } else {
+                                                    db.invoiceDao().getInvoiceByNumber(invNum)
+                                                }
                                                 if (inv != null) {
-                                                    val payments = db.invoicePaymentDao().getPaymentsForInvoiceList(inv.invoiceNumber, inv.invoiceNumber)
+                                                    val payments = db.invoicePaymentDao().getPaymentsForInvoiceList(inv.id.toString(), inv.invoiceNumber)
                                                     val unique = payments.distinctBy { Pair(it.id.ifEmpty { "${it.date}_${it.amount}" }, Pair(it.date, Pair(it.amount, it.paymentMethod))) }
                                                     val totalPaid = unique.sumOf { it.amount }
-                                                    val newStatus = if (totalPaid >= inv.totalAmount && inv.totalAmount > 0) "LUNAS" else if (totalPaid > 0) "DP" else "BELUM LUNAS"
-                                                    if (inv.paidAmount != totalPaid || inv.status != newStatus) {
-                                                        db.invoiceDao().updateInvoice(inv.copy(paidAmount = totalPaid, status = newStatus))
+                                                    val newStatus = if (totalPaid >= inv.totalAmount && inv.totalAmount > 0) "LUNAS" else if (totalPaid > 0) "DP" else inv.status
+                                                    val updatedInv = inv.copy(paidAmount = totalPaid, status = newStatus)
+                                                    if (inv.paidAmount != totalPaid || (newStatus == "LUNAS" && inv.status != "LUNAS")) {
+                                                        db.invoiceDao().updateInvoice(updatedInv)
                                                     }
+                                                    val repo = BusinessRepository(db)
+                                                    repo.deductStockForInvoice(updatedInv)
+                                                    repo.updateSummariesForInvoice(updatedInv)
+                                                    repo.reconcileAllInventorySummaries()
                                                 }
                                             }
                                         }
@@ -187,7 +200,15 @@ object EnterpriseSyncEngine {
                                         }
                                         "inventory_ledger" -> {
                                             val item = doc.toObject(InventoryLedger::class.java) ?: return@launch
-                                            if (!isRemove) db.inventoryLedgerDao().insertLedger(item)
+                                            if (!isRemove) {
+                                                db.inventoryLedgerDao().insertLedger(item)
+                                                try {
+                                                    val repo = BusinessRepository(db)
+                                                    repo.updateInventorySummaryForVarian(item.varianId)
+                                                } catch (e: Exception) {
+                                                    Log.w(TAG, "Failed updating summary for varian ${item.varianId}: ${e.message}")
+                                                }
+                                            }
                                         }
                                         "production_batch" -> {
                                             val item = doc.toObject(ProductionBatch::class.java) ?: return@launch
@@ -195,8 +216,22 @@ object EnterpriseSyncEngine {
                                         }
                                         "inventory_summary" -> {
                                             val item = doc.toObject(InventorySummary::class.java) ?: return@launch
-                                            if (isRemove) db.inventorySummaryDao().deleteSummaryByVarian(item.id_varian)
-                                            else db.inventorySummaryDao().insertSummary(item)
+                                            if (isRemove) {
+                                                db.inventorySummaryDao().deleteSummaryByVarian(item.id_varian)
+                                            } else {
+                                                val local = db.inventorySummaryDao().getSummaryByVarian(item.id_varian)
+                                                // Prevent overwriting newer local pending mutations with stale Firestore data
+                                                val isLocalNewer = local != null && local.updated_at > item.updated_at
+                                                if (local == null || !isLocalNewer) {
+                                                    db.inventorySummaryDao().insertSummary(item)
+                                                    val master = db.masterStockDao().getStockByVarian(item.id_varian)
+                                                    if (master != null) {
+                                                        db.masterStockDao().updateStockMaster(master.copy(total_stock = item.readyStock))
+                                                    }
+                                                } else {
+                                                    Log.d(TAG, "Conflict validation: Preserved local inventory summary for id_varian=${item.id_varian} (local timestamp ${local?.updated_at} > remote ${item.updated_at})")
+                                                }
+                                            }
                                         }
                                     }
                                 } catch (ex: Exception) { Log.e(TAG, "Sync error col $col: ${ex.message}", ex) }
@@ -234,6 +269,7 @@ object EnterpriseSyncEngine {
             }
             listenerRegistrations.clear()
         }
+        AuditRealtimeNotificationListener.stopAuditRealtimeListener()
         _syncStatus.value = "Sync listeners dinonaktifkan."
         Log.i(TAG, "All realtime sync listeners successfully detached.")
     }

@@ -497,6 +497,15 @@ fun InstantCheckoutScreen(
 
                                     // 4. Record stock invoice transaction in ViewModel for persistence
                                     val sampleInvoiceNumber = "INV-CO-${System.currentTimeMillis().toString().takeLast(6)}"
+                                    val converters = com.yansproject.app.data.AppTypeConverters()
+                                    val invoiceItems = cartItems.map { item ->
+                                        val sleeveLabel = if (item.sleeve == SleeveType.PANJANG) "Panjang" else "Pendek"
+                                        com.yansproject.app.data.InvoiceItemDetail(
+                                            description = "AJIBQOBUL: ${item.series.displayName} - ${item.color} - ${item.size.name} - $sleeveLabel",
+                                            quantity = item.qty,
+                                            price = item.unitPrice.toDouble()
+                                        )
+                                    }
                                     val coInvoice = com.yansproject.app.data.Invoice(
                                         id = 0,
                                         invoiceNumber = sampleInvoiceNumber,
@@ -506,7 +515,8 @@ fun InstantCheckoutScreen(
                                         paidAmount = totalCartSum.toDouble(),
                                         issueDate = System.currentTimeMillis(),
                                         dueDate = System.currentTimeMillis(),
-                                        status = "LUNAS"
+                                        status = "LUNAS",
+                                        itemsJson = converters.fromInvoiceItemList(invoiceItems)
                                     )
                                     invoiceViewModel.addStockInvoice(coInvoice, totalCartSum.toDouble(), "CASH")
 

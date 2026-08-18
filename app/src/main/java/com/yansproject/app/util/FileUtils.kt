@@ -13,28 +13,46 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import java.io.File
 
+enum class MirrorResult {
+    SUCCESS,
+    SOURCE_ONLY,
+    FAILED
+}
+
 object FileUtils {
 
     private const val TAG = "FileUtils"
 
-    fun getRootDirectory(context: Context): File {
-        val publicDoc = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
-        try {
-            if (!publicDoc.exists()) {
-                publicDoc.mkdirs()
-            }
-            if (publicDoc.exists()) {
-                return publicDoc
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Public Documents directory creation failed, falling back to app-private storage: ${e.message}")
-        }
+    // ZONE 1: PRIVATE (App-scoped storage)
+    fun getPrivateDirectory(context: Context, subFolder: String = "data"): File {
+        val dir = File(context.filesDir, subFolder)
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
 
-        val appDoc = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID")
-        if (!appDoc.exists()) {
-            appDoc.mkdirs()
+    // ZONE 2: PUBLIC_EXPORT (External Documents / Downloads)
+    fun getPublicExportDirectory(context: Context, subFolder: String = "Export"): File {
+        val publicDoc = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID/$subFolder")
+        try {
+            if (!publicDoc.exists()) publicDoc.mkdirs()
+            if (publicDoc.exists()) return publicDoc
+        } catch (e: Exception) {
+            Log.w(TAG, "Public Documents directory creation failed, falling back to app-specific external files: ${e.message}")
         }
+        val appDoc = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "YANSPROJECT.ID/$subFolder")
+        if (!appDoc.exists()) appDoc.mkdirs()
         return appDoc
+    }
+
+    // ZONE 3: SHARE (Cache / FileProvider temporary share directory)
+    fun getShareDirectory(context: Context): File {
+        val shareDir = File(context.cacheDir, "share")
+        if (!shareDir.exists()) shareDir.mkdirs()
+        return shareDir
+    }
+
+    fun getRootDirectory(context: Context): File {
+        return getPublicExportDirectory(context, "")
     }
 
     fun initFolderStructure(context: Context) {
@@ -56,8 +74,6 @@ object FileUtils {
     }
 
     fun getExportDirectory(context: Context, type: String): File {
-        initFolderStructure(context)
-        val parentDir = getRootDirectory(context)
         val subFolderName = when (type.lowercase()) {
             "invoice", "invoices" -> "Invoice"
             "backup", "backups", "db" -> "Backup"
@@ -69,17 +85,18 @@ object FileUtils {
             "import", "imports" -> "Import"
             else -> "Export"
         }
-        val targetDir = File(parentDir, subFolderName)
-        if (!targetDir.exists()) targetDir.mkdirs()
-        return targetDir
+        return getPublicExportDirectory(context, subFolderName)
     }
 
-    fun mirrorToDownloads(context: Context, file: File, subFolder: String = "Export"): File? {
+    fun mirrorToDownloads(context: Context, file: File, subFolder: String = "Export"): MirrorResult {
         if (!file.exists()) {
             Log.e(TAG, "Source file does not exist for mirroring: ${file.absolutePath}")
-            return null
+            return MirrorResult.FAILED
         }
-        return try {
+        var mediaStoreMirrored = false
+        var appFolderMirrored = false
+
+        try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val mimeType = when {
                     file.name.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
@@ -106,6 +123,7 @@ object FileUtils {
                     contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
                     resolver.update(itemUri, contentValues, null, null)
                     Log.i(TAG, "Successfully mirrored ${file.name} to MediaStore Downloads: $itemUri")
+                    mediaStoreMirrored = true
                 }
             }
 
@@ -114,14 +132,16 @@ object FileUtils {
             if (!publicDownloads.exists()) publicDownloads.mkdirs()
             val dest = File(publicDownloads, file.name)
             file.copyTo(dest, overwrite = true)
+            appFolderMirrored = dest.exists()
             Log.i(TAG, "Successfully mirrored ${file.name} to app-specific Downloads: ${dest.absolutePath}")
-            dest
+
+            return if (mediaStoreMirrored || appFolderMirrored) MirrorResult.SUCCESS else MirrorResult.SOURCE_ONLY
         } catch (e: SecurityException) {
             Log.w(TAG, "Permission denied mirroring ${file.name} to public Downloads: ${e.message}")
-            file
+            return MirrorResult.SOURCE_ONLY
         } catch (e: Exception) {
             Log.e(TAG, "Failed mirroring file to Downloads directory: ${e.message}", e)
-            file
+            return MirrorResult.SOURCE_ONLY
         }
     }
 

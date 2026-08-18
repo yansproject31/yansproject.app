@@ -45,7 +45,7 @@ fun ProjectScreen(
     val context = LocalContext.current
     val projects by viewModel.allProjects.collectAsState()
     val currentUser by com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState()
-    val isOwner = currentUser?.role == com.yansproject.app.data.UserRole.OWNER
+    val isOwner = com.yansproject.app.data.RoleAccessManager.isSuperAdmin(currentUser?.role)
     var showAddDialog by remember { mutableStateOf(false) }
     val searchQuery by viewModel.projectSearchQuery.collectAsState()
     val selectedStatusFilter by viewModel.projectStatusFilter.collectAsState()
@@ -67,7 +67,7 @@ fun ProjectScreen(
             }
     }
 
-    val calendarNow = remember { java.util.Calendar.getInstance() }
+    val jakartaZone = remember { java.time.ZoneId.of("Asia/Jakarta") }
 
     BackHandler(enabled = showAddDialog || projectToDelete != null || selectedProjectForDetail != null) {
         if (showAddDialog) {
@@ -80,46 +80,54 @@ fun ProjectScreen(
     }
 
     fun isToday(timestamp: Long): Boolean {
-        val cal = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
-        return calendarNow.get(java.util.Calendar.YEAR) == cal.get(java.util.Calendar.YEAR) &&
-               calendarNow.get(java.util.Calendar.DAY_OF_YEAR) == cal.get(java.util.Calendar.DAY_OF_YEAR)
+        if (timestamp <= 0L) return false
+        val today = java.time.LocalDate.now(jakartaZone)
+        val projectDate = java.time.Instant.ofEpochMilli(timestamp).atZone(jakartaZone).toLocalDate()
+        return today == projectDate
     }
 
     fun isThisWeek(timestamp: Long): Boolean {
-        val cal = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
-        return calendarNow.get(java.util.Calendar.YEAR) == cal.get(java.util.Calendar.YEAR) &&
-               calendarNow.get(java.util.Calendar.WEEK_OF_YEAR) == cal.get(java.util.Calendar.WEEK_OF_YEAR)
+        if (timestamp <= 0L) return false
+        val today = java.time.LocalDate.now(jakartaZone)
+        val startOfWeek = today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+        val endOfWeek = today.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY))
+        val projectDate = java.time.Instant.ofEpochMilli(timestamp).atZone(jakartaZone).toLocalDate()
+        return !projectDate.isBefore(startOfWeek) && !projectDate.isAfter(endOfWeek)
     }
 
     fun isThisMonth(timestamp: Long): Boolean {
-        val cal = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
-        return calendarNow.get(java.util.Calendar.YEAR) == cal.get(java.util.Calendar.YEAR) &&
-               calendarNow.get(java.util.Calendar.MONTH) == cal.get(java.util.Calendar.MONTH)
+        if (timestamp <= 0L) return false
+        val today = java.time.LocalDate.now(jakartaZone)
+        val projectDate = java.time.Instant.ofEpochMilli(timestamp).atZone(jakartaZone).toLocalDate()
+        return today.year == projectDate.year && today.month == projectDate.month
     }
 
     fun isThisYear(timestamp: Long): Boolean {
-        val cal = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
-        return calendarNow.get(java.util.Calendar.YEAR) == cal.get(java.util.Calendar.YEAR)
+        if (timestamp <= 0L) return false
+        val today = java.time.LocalDate.now(jakartaZone)
+        val projectDate = java.time.Instant.ofEpochMilli(timestamp).atZone(jakartaZone).toLocalDate()
+        return today.year == projectDate.year
     }
 
     fun isDeadlineToday(timestamp: Long): Boolean {
-        val cal = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
-        return calendarNow.get(java.util.Calendar.YEAR) == cal.get(java.util.Calendar.YEAR) &&
-               calendarNow.get(java.util.Calendar.DAY_OF_YEAR) == cal.get(java.util.Calendar.DAY_OF_YEAR)
+        if (timestamp <= 0L) return false
+        val today = java.time.LocalDate.now(jakartaZone)
+        val deadlineDate = java.time.Instant.ofEpochMilli(timestamp).atZone(jakartaZone).toLocalDate()
+        return today == deadlineDate
     }
 
     fun isDeadlineTomorrow(timestamp: Long): Boolean {
-        val tomorrow = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_YEAR, 1) }
-        val cal = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
-        val res = tomorrow.get(java.util.Calendar.YEAR) == cal.get(java.util.Calendar.YEAR) &&
-               tomorrow.get(java.util.Calendar.DAY_OF_YEAR) == cal.get(java.util.Calendar.DAY_OF_YEAR)
-        // Reset calendarNow to current instant
-        calendarNow.timeInMillis = System.currentTimeMillis()
-        return res
+        if (timestamp <= 0L) return false
+        val tomorrow = java.time.LocalDate.now(jakartaZone).plusDays(1)
+        val deadlineDate = java.time.Instant.ofEpochMilli(timestamp).atZone(jakartaZone).toLocalDate()
+        return tomorrow == deadlineDate
     }
 
     fun isDeadlineOverdue(timestamp: Long, isClosed: Boolean): Boolean {
-        return !isClosed && timestamp < System.currentTimeMillis() && !isDeadlineToday(timestamp)
+        if (isClosed || timestamp <= 0L) return false
+        val today = java.time.LocalDate.now(jakartaZone)
+        val deadlineDate = java.time.Instant.ofEpochMilli(timestamp).atZone(jakartaZone).toLocalDate()
+        return deadlineDate.isBefore(today)
     }
 
     val filteredProjects = projects.filter {
@@ -1408,7 +1416,7 @@ fun ProjectDetailDialog(
 ) {
     val context = LocalContext.current
     val currentUser by com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState()
-    val isOwner = currentUser?.role == com.yansproject.app.data.UserRole.OWNER
+    val isOwner = com.yansproject.app.data.RoleAccessManager.isSuperAdmin(currentUser?.role)
 
     var activeTab by remember { mutableStateOf("Workflow") } // "Workflow", "Klien & Items", "Timeline"
 

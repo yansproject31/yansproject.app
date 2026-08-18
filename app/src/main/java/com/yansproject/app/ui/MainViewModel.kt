@@ -557,17 +557,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
-        // Run invoice deduplication, payment recalibration & reconcile inventory summaries
+        // Versioned maintenance task execution
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                repository.recalibrateAllInvoicesPaidAmount()
+                val prefs = application.getSharedPreferences("yans_maintenance_prefs", android.content.Context.MODE_PRIVATE)
+                val lastVer = prefs.getInt("last_maintenance_ver", 0)
+                val currentVer = 1
+                if (lastVer < currentVer) {
+                    repository.recalibrateAllInvoicesPaidAmount()
+                    repository.reconcileAllInventorySummaries()
+                    prefs.edit().putInt("last_maintenance_ver", currentVer).apply()
+                }
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Error recalibrating invoices: ${e.message}")
-            }
-            try {
-                repository.reconcileAllInventorySummaries()
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "Error reconciling inventory summaries: ${e.message}")
+                Log.e("MainViewModel", "Error executing versioned maintenance tasks: ${e.message}")
             }
         }
 
@@ -582,35 +584,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Initialize Firebase SDK with Offline Persistence
         FirebaseSyncManager.initialize(application)
 
-        // Observe current user changes to dynamically register notification listeners and trigger sync
+        // Observe current user changes by distinct email to prevent duplicate listener registrations
         viewModelScope.launch {
-            FirebaseSyncManager.currentUser.collect { user ->
-                notificationListenerReg?.remove()
-                notificationListenerReg = null
+            FirebaseSyncManager.currentUser
+                .distinctUntilChanged { old, new -> old?.email == new?.email }
+                .collect { user ->
+                    notificationListenerReg?.remove()
+                    notificationListenerReg = null
 
-                if (user != null) {
-                    // Trigger silent automatic background synchronization of all collections
-                    refreshData(application)
+                    if (user != null) {
+                        SecuritySession.updateSession(application)
+                        refreshData(application)
+                        draftSalesOrderManager.autoPopulateFromAccountCenter(user.email)
 
-                    // Auto-populate cart and checkout details from user's Account Center profile
-                    draftSalesOrderManager.autoPopulateFromAccountCenter(user.email)
-
-                    android.util.Log.d("MainViewModel", "Registering notification listener for email: ${user.email}, role: ${user.role.name}")
-                    notificationListenerReg = FirebaseSyncManager.startNotificationListener(
-                        getApplication(),
-                        userEmail = user.email,
-                        userRole = user.role.name,
-                        onUpdate = { list ->
-                            viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
-                                _notifications.value = list
-                                AppSettings.saveNotifications(getApplication(), list)
+                        android.util.Log.d("MainViewModel", "Registering notification listener for email: ${user.email}, role: ${user.role.name}")
+                        notificationListenerReg = FirebaseSyncManager.startNotificationListener(
+                            getApplication(),
+                            userEmail = user.email,
+                            userRole = user.role.name,
+                            onUpdate = { list ->
+                                viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                                    _notifications.value = list
+                                    AppSettings.saveNotifications(getApplication(), list)
+                                }
                             }
-                        }
-                    )
-                } else {
-                    _notifications.value = AppSettings.getNotifications(getApplication())
+                        )
+                    } else {
+                        _notifications.value = AppSettings.getNotifications(getApplication())
+                    }
                 }
-            }
         }
 
         // Automatically monitor database changes for alerting and local notification triggers (no cloud sync here to prevent infinite loop write storms)
@@ -708,12 +710,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loginWithBiometrics(savedEmail: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _loginError.value = null
+            _isLoginLoading.value = true
+            val success = FirebaseSyncManager.unlockWithBiometrics(getApplication(), savedEmail)
+            _isLoginLoading.value = false
+            if (success) {
+                AppFeedbackManager.triggerSuccess()
+                val role = FirebaseSyncManager.currentUser.value?.role?.name ?: "MEMBER"
+                addAuditLog("Biometric Login Berhasil", "$role '$savedEmail' berhasil masuk via autentikasi sidik jari.")
+                onSuccess()
+            } else {
+                AppFeedbackManager.triggerError()
+                _loginError.value = "Autentikasi biometrik tidak valid atau sesi kadaluarsa."
+                addAuditLog("Biometric Login Gagal", "Autentikasi biometrik gagal untuk: '$savedEmail'.")
+            }
+        }
+    }
+
     fun logout() {
         viewModelScope.launch {
             AppFeedbackManager.triggerSuccess()
             val user = FirebaseSyncManager.currentUser.value
             val userName = user?.displayName ?: "User"
             addAuditLog("Logout", "$userName berhasil keluar dari aplikasi.")
+            SecuritySession.resetOnLogout(getApplication())
             FirebaseSyncManager.clearSession(getApplication())
             _currentTab.value = AppTab.DASHBOARD
         }
@@ -1502,9 +1524,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- Expense Actions ---
     fun addExpense(category: String, amount: Double, date: Long, notes: String, paymentMethod: String = "Cash") {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val user = FirebaseSyncManager.currentUser.value
             val userName = user?.displayName ?: "Owner"
+            val actorId = user?.email ?: "SYSTEM_ACTOR"
             val normalizedPm = when {
                 paymentMethod.isBlank() || paymentMethod.equals("Tunai", ignoreCase = true) -> "Cash"
                 else -> paymentMethod
@@ -1515,20 +1538,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 date = date,
                 notes = notes,
                 paymentMethod = normalizedPm,
-                createdBy = userName,
+                createdBy = if (userName.isBlank()) actorId else userName,
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis()
             )
-            val id = repository.insertExpense(expense).toInt()
-            val insertedExpense = expense.copy(
-                id = id,
-                transactionNumber = repository.generateExpenseTransactionNumber(date)
-            )
-            repository.updateExpense(insertedExpense)
-            FirebaseSyncManager.syncItemToCloud("expenses", id.toString(), insertedExpense)
+            val id = repository.insertExpenseValidated(expense, actorId).toInt()
             addAuditLog(
                 "Tambah Pengeluaran",
-                "Mencatat pengeluaran '${insertedExpense.transactionNumber}' ($category) sebesar ${FormatUtils.formatRupiah(amount)}."
+                "Mencatat pengeluaran ID '$id' ($category) sebesar ${FormatUtils.formatRupiah(amount)}."
             )
             AppFeedbackManager.triggerSuccess()
         }

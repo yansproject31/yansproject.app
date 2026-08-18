@@ -57,7 +57,7 @@ class PreferenceMigrationManager private constructor(private val context: Contex
                     appSettingsEditor.putString("official_company_name", "YANSPROJECT.ID")
                 }
                 if (!appSettingsPrefs.contains("official_support_email")) {
-                    appSettingsEditor.putString("official_support_email", "yansart31@gmail.com")
+                    appSettingsEditor.putString("official_support_email", "yansproject.id31@gmail.com")
                 }
                 if (!appSettingsPrefs.contains("official_support_whatsapp")) {
                     appSettingsEditor.putString("official_support_whatsapp", "+62 877-7739-8813")
@@ -81,7 +81,7 @@ class PreferenceMigrationManager private constructor(private val context: Contex
             val email = appSettingsPrefs.getString("official_support_email", null)
             val isIntact = !company.isNull_or_empty_or_blank() && !email.isNull_or_empty_or_blank()
             Log.i(TAG, "Preferences integrity check completed (Valid: $isIntact).")
-            true
+            isIntact
         } catch (e: Exception) {
             Log.e(TAG, "Failed validating preferences integrity: ${e.message}")
             false

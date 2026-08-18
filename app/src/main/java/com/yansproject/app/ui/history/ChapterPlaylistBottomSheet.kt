@@ -47,12 +47,8 @@ fun ChapterPlaylistBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
     
-    // Query local preferences to see which chapters have been completed in real time
-    val activeUserId = com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState().value?.uid?.takeIf { it.isNotBlank() } ?: "guest"
-    val prefs = remember(context, activeUserId) { context.getSharedPreferences("kitab_prefs_$activeUserId", Context.MODE_PRIVATE) }
-    val completedSet = remember(activeUserId, prefs) { 
-        prefs.getStringSet("completed", emptySet()) ?: emptySet()
-    }
+    val readingProgress by com.yansproject.app.data.KitabReadingProgressManager.progressState.collectAsState()
+    val completedSet = readingProgress.completedBabs
 
     // Static manuscript catalog index for Juz I chapters
     val chapters = remember {

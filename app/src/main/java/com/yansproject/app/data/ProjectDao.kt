@@ -8,6 +8,40 @@ interface ProjectDao : BaseDao<ProjectCustom> {
     @Query("SELECT * FROM projects WHERE isDeleted = 0 ORDER BY startDate DESC")
     fun getAllProjects(): Flow<List<ProjectCustom>>
 
+    @Query("""
+        SELECT * FROM projects 
+        WHERE isDeleted = 0 
+        AND (:query = '' OR projectName LIKE '%' || :query || '%' OR clientName LIKE '%' || :query || '%' OR invoiceNumber LIKE '%' || :query || '%' OR clientPhone LIKE '%' || :query || '%')
+        AND (:status = '' OR status = :status)
+        AND (:startDateMin <= 0 OR startDate >= :startDateMin)
+        AND (:startDateMax <= 0 OR startDate <= :startDateMax)
+        ORDER BY startDate DESC 
+        LIMIT :limit OFFSET :offset
+    """)
+    fun searchProjectsPaged(
+        query: String = "",
+        status: String = "",
+        startDateMin: Long = 0L,
+        startDateMax: Long = 0L,
+        limit: Int = 50,
+        offset: Int = 0
+    ): Flow<List<ProjectCustom>>
+
+    @Query("""
+        SELECT COUNT(*) FROM projects 
+        WHERE isDeleted = 0 
+        AND (:query = '' OR projectName LIKE '%' || :query || '%' OR clientName LIKE '%' || :query || '%' OR invoiceNumber LIKE '%' || :query || '%' OR clientPhone LIKE '%' || :query || '%')
+        AND (:status = '' OR status = :status)
+        AND (:startDateMin <= 0 OR startDate >= :startDateMin)
+        AND (:startDateMax <= 0 OR startDate <= :startDateMax)
+    """)
+    fun countProjectsQuery(
+        query: String = "",
+        status: String = "",
+        startDateMin: Long = 0L,
+        startDateMax: Long = 0L
+    ): Flow<Int>
+
     @Query("SELECT * FROM projects")
     suspend fun getAllProjectsList(): List<ProjectCustom>
 
@@ -31,6 +65,9 @@ interface ProjectDao : BaseDao<ProjectCustom> {
 
     @Query("DELETE FROM projects")
     suspend fun clearAllProjects(): Int
+
+    @Query("SELECT COUNT(*) FROM projects WHERE isDeleted = 0")
+    suspend fun getActiveProjectsCount(): Int
 
     @Transaction
     @Query("UPDATE projects SET status = :newStatus, paidAmount = :newPaidAmount WHERE id = :projectId")

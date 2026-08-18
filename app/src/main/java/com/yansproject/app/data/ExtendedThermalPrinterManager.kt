@@ -5,6 +5,9 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.OutputStream
 import java.util.UUID
 
@@ -34,71 +37,94 @@ object ExtendedThermalPrinterManager {
      * Structured result for thermal printer operation states
      */
     sealed class PrinterResult {
-        object Success : PrinterResult()
-        object AdapterUnavailable : PrinterResult()
-        object BluetoothDisabled : PrinterResult()
+        object Connected : PrinterResult()
+        object DataSent : PrinterResult()
+        data class Failed(val error: String, val cause: Throwable? = null) : PrinterResult()
+        data class Timeout(val message: String) : PrinterResult()
         data class DeviceNotFound(val address: String) : PrinterResult()
-        data class ConnectionFailed(val message: String) : PrinterResult()
-        data class ConnectionTimeout(val message: String) : PrinterResult()
-        data class PrintFailed(val error: String) : PrinterResult()
+        object BluetoothDisabled : PrinterResult()
+
+        // Backward compatibility getters
+        object Success : PrinterResult()
+        val isSuccess: Boolean get() = this is DataSent || this is Connected || this is Success
     }
 
     /**
-     * Connects to a paired bluetooth device and streams the formatted invoice commands with detailed PrinterResult.
+     * Connects to a paired bluetooth device on Dispatchers.IO and streams the formatted invoice commands.
+     * Uses real persisted invoice numbers exclusively (never generates timestamps inside printer code).
      */
-    fun printInvoiceBluetoothDetailed(
+    suspend fun printInvoiceBluetoothDetailed(
         context: Context,
         deviceAddress: String,
+        invoiceNumber: String,
         projectName: String,
         clientName: String,
         totalAmount: Double,
         paidAmount: Double,
         remainingBalance: Double,
         status: String,
-        isPaper80mm: Boolean = false
-    ): PrinterResult {
+        isPaper80mm: Boolean = false,
+        encodingName: String = "UTF-8"
+    ): PrinterResult = withContext(Dispatchers.IO) {
+        if (deviceAddress.isBlank()) {
+            Log.w(TAG, "Printer MAC device address is blank")
+            return@withContext PrinterResult.DeviceNotFound(deviceAddress)
+        }
+
         val bluetoothAdapter = try {
             BluetoothAdapter.getDefaultAdapter()
         } catch (e: SecurityException) {
             Log.e(TAG, "Bluetooth security permission missing: ${e.message}", e)
-            return PrinterResult.AdapterUnavailable
-        } ?: return PrinterResult.AdapterUnavailable
+            return@withContext PrinterResult.Failed("Bluetooth security permission missing: ${e.message}", e)
+        } ?: return@withContext PrinterResult.Failed("Bluetooth hardware adapter unavailable")
 
         if (!bluetoothAdapter.isEnabled) {
             Log.w(TAG, "Bluetooth hardware adapter is disabled")
-            return PrinterResult.BluetoothDisabled
+            return@withContext PrinterResult.BluetoothDisabled
         }
 
-        if (deviceAddress.isBlank()) {
-            Log.w(TAG, "Printer MAC device address is blank")
-            return PrinterResult.DeviceNotFound(deviceAddress)
+        val device: BluetoothDevice = try {
+            bluetoothAdapter.getRemoteDevice(deviceAddress)
+        } catch (e: Exception) {
+            Log.e(TAG, "Invalid printer device address: $deviceAddress", e)
+            return@withContext PrinterResult.DeviceNotFound(deviceAddress)
+        }
+
+        val charset = try {
+            java.nio.charset.Charset.forName(encodingName)
+        } catch (e: Exception) {
+            try {
+                java.nio.charset.Charset.forName("GBK")
+            } catch (_: Exception) {
+                Charsets.UTF_8
+            }
         }
 
         var socket: BluetoothSocket? = null
         var outputStream: OutputStream? = null
 
-        return try {
-            val device: BluetoothDevice = try {
-                bluetoothAdapter.getRemoteDevice(deviceAddress)
-            } catch (e: Exception) {
-                Log.e(TAG, "Invalid printer device address: $deviceAddress", e)
-                return PrinterResult.DeviceNotFound(deviceAddress)
-            }
-
-            socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
-            try {
-                socket.connect()
-            } catch (e: java.io.IOException) {
-                val errMsg = e.message ?: "IO Socket Exception"
-                if (errMsg.lowercase().contains("timeout")) {
-                    Log.e(TAG, "Printer connection timeout to $deviceAddress", e)
-                    return PrinterResult.ConnectionTimeout(errMsg)
+        return@withContext try {
+            // Enforce explicit socket connect timeout (10 seconds)
+            val connectCompleted = withTimeoutOrNull(10000L) {
+                try {
+                    socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
+                    bluetoothAdapter.cancelDiscovery()
+                    socket?.connect()
+                    true
+                } catch (e: Exception) {
+                    Log.e(TAG, "RFCOMM socket connection attempt failed to $deviceAddress: ${e.message}", e)
+                    false
                 }
-                Log.e(TAG, "Failed connecting RFCOMM socket to $deviceAddress: $errMsg", e)
-                return PrinterResult.ConnectionFailed(errMsg)
             }
 
-            outputStream = socket.outputStream
+            if (connectCompleted != true || socket?.isConnected != true) {
+                try { socket?.close() } catch (_: Exception) {}
+                Log.e(TAG, "Printer connection timeout (10000ms) to $deviceAddress")
+                return@withContext PrinterResult.Timeout("Printer connection timeout (10000ms)")
+            }
+
+            outputStream = socket?.outputStream
+                ?: return@withContext PrinterResult.Failed("Failed acquiring printer output stream")
 
             // 1. Initialize printer and alignments
             outputStream.write(ESC_INIT)
@@ -109,49 +135,49 @@ object ExtendedThermalPrinterManager {
             val csWa = BusinessIdentityProvider.getSupportWhatsApp(context)
             outputStream.write(ESC_TEXT_DOUBLE_HEIGHT)
             outputStream.write(ESC_TEXT_DOUBLE_WIDTH)
-            outputStream.write("$storeName\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("$storeName\n".toByteArray(charset))
             
             // 3. Subtitle / Tagline
             outputStream.write(ESC_TEXT_NORMAL)
-            outputStream.write("${BusinessIdentityProvider.DEFAULT_STORE_TAGLINE}\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("Makna Sebelum Estetika\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("CS WA: $csWa\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("${BusinessIdentityProvider.DEFAULT_STORE_TAGLINE}\n".toByteArray(charset))
+            outputStream.write("Makna Sebelum Estetika\n".toByteArray(charset))
+            outputStream.write("CS WA: $csWa\n".toByteArray(charset))
             
             val lineCharLimit = if (isPaper80mm) 48 else 32
             val dividerLine = "=".repeat(lineCharLimit) + "\n"
-            outputStream.write(dividerLine.toByteArray(Charsets.US_ASCII))
+            outputStream.write(dividerLine.toByteArray(charset))
 
-            // 4. Details (Left Aligned)
+            // 4. Details (Left Aligned) - Uses actual persisted invoice number
             outputStream.write(ESC_ALIGN_LEFT)
-            outputStream.write("No. Invoice: INV-PRJ-${System.currentTimeMillis().toString().takeLast(6)}\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("Project    : $projectName\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("Pelanggan  : $clientName\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("Status     : $status\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("-".repeat(lineCharLimit).toByteArray(Charsets.US_ASCII) + "\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("No. Invoice: $invoiceNumber\n".toByteArray(charset))
+            outputStream.write("Project    : $projectName\n".toByteArray(charset))
+            outputStream.write("Pelanggan  : $clientName\n".toByteArray(charset))
+            outputStream.write("Status     : $status\n".toByteArray(charset))
+            outputStream.write("-".repeat(lineCharLimit).toByteArray(charset) + "\n".toByteArray(charset))
 
             // 5. High-Precision Totals
             outputStream.write(ESC_TEXT_BOLD_ON)
-            outputStream.write(formatLineItem("TOTAL BELANJA", IdrAccountingEngine.formatRupiah(totalAmount), lineCharLimit).toByteArray(Charsets.US_ASCII))
-            outputStream.write(formatLineItem("TERBAYAR", IdrAccountingEngine.formatRupiah(paidAmount), lineCharLimit).toByteArray(Charsets.US_ASCII))
-            outputStream.write(formatLineItem("SISA TAGIHAN", IdrAccountingEngine.formatRupiah(remainingBalance), lineCharLimit).toByteArray(Charsets.US_ASCII))
+            outputStream.write(formatLineItem("TOTAL BELANJA", IdrAccountingEngine.formatRupiah(totalAmount), lineCharLimit).toByteArray(charset))
+            outputStream.write(formatLineItem("TERBAYAR", IdrAccountingEngine.formatRupiah(paidAmount), lineCharLimit).toByteArray(charset))
+            outputStream.write(formatLineItem("SISA TAGIHAN", IdrAccountingEngine.formatRupiah(remainingBalance), lineCharLimit).toByteArray(charset))
             outputStream.write(ESC_TEXT_NORMAL)
-            outputStream.write(dividerLine.toByteArray(Charsets.US_ASCII))
+            outputStream.write(dividerLine.toByteArray(charset))
 
             // 6. Centered Akad / Qobul Footer Contract
             outputStream.write(ESC_ALIGN_CENTER)
-            outputStream.write("Akad Jual-Beli (Ajib & Qobul) Sah,\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("Halal & Terverifikasi YANSPROJECT.ID\n\n".toByteArray(Charsets.US_ASCII))
-            outputStream.write("Hatur Tengkyu atas kepercayaan Anda!\n".toByteArray(Charsets.US_ASCII))
+            outputStream.write("Akad Jual-Beli (Ajib & Qobul) Sah,\n".toByteArray(charset))
+            outputStream.write("Halal & Terverifikasi YANSPROJECT.ID\n\n".toByteArray(charset))
+            outputStream.write("Hatur Tengkyu atas kepercayaan Anda!\n".toByteArray(charset))
 
-            // Feed and Cut paper commands
+            // Feed paper commands
             outputStream.write(ESC_FEED_LINES_4)
             outputStream.flush()
-            Log.d(TAG, "Thermal receipt printed successfully to $deviceAddress")
-            PrinterResult.Success
+            Log.d(TAG, "Thermal receipt byte stream handed to printer output for invoice $invoiceNumber")
+            PrinterResult.DataSent
         } catch (e: Exception) {
             val errorMsg = e.localizedMessage ?: e.message ?: "Unknown Printing Exception"
             Log.e(TAG, "Bluetooth ESC/POS printing failed: $errorMsg", e)
-            PrinterResult.PrintFailed(errorMsg)
+            PrinterResult.Failed(errorMsg, e)
         } finally {
             try {
                 outputStream?.close()
@@ -165,9 +191,10 @@ object ExtendedThermalPrinterManager {
     /**
      * Backward-compatible boolean wrapper for printInvoiceBluetooth
      */
-    fun printInvoiceBluetooth(
+    suspend fun printInvoiceBluetooth(
         context: Context,
         deviceAddress: String,
+        invoiceNumber: String = "",
         projectName: String,
         clientName: String,
         totalAmount: Double,
@@ -176,9 +203,19 @@ object ExtendedThermalPrinterManager {
         status: String,
         isPaper80mm: Boolean = false
     ): Boolean {
+        val safeInvNumber = if (invoiceNumber.isBlank()) "INV-OFFLINE" else invoiceNumber
         return printInvoiceBluetoothDetailed(
-            context, deviceAddress, projectName, clientName, totalAmount, paidAmount, remainingBalance, status, isPaper80mm
-        ) is PrinterResult.Success
+            context = context,
+            deviceAddress = deviceAddress,
+            invoiceNumber = safeInvNumber,
+            projectName = projectName,
+            clientName = clientName,
+            totalAmount = totalAmount,
+            paidAmount = paidAmount,
+            remainingBalance = remainingBalance,
+            status = status,
+            isPaper80mm = isPaper80mm
+        ).isSuccess
     }
 
     /**

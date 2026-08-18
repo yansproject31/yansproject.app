@@ -9,10 +9,14 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.yansproject.app.R
+import com.yansproject.app.data.ExportManager
 import com.yansproject.app.data.FirebaseSyncManager
+import com.yansproject.app.data.HistoricalDataState
 import com.yansproject.app.data.Invoice
 import com.yansproject.app.data.InvoiceItemDetail
+import com.yansproject.app.data.InvoicePresentationModel
 import com.yansproject.app.data.ProjectCustom
+import com.yansproject.app.data.toPresentationModel
 import com.yansproject.app.ui.AppSettings
 import com.yansproject.app.ui.FormatUtils
 import com.yansproject.app.ui.InvoiceItemSorter
@@ -57,8 +61,12 @@ object PdfUtils {
 
         paint.textSize = 9f
         paint.isFakeBoldText = false
+        // Financial presentation model from authoritative InvoiceFinancialCalculator
+        val presentation = invoice.toPresentationModel(items)
+
+        val formattedDate = presentation.formattedDate
         canvas.drawText("No: ${invoice.invoiceNumber}", 450f, 75f, paint)
-        canvas.drawText("Date: ${FormatUtils.formatDate(invoice.issueDate)}", 450f, 88f, paint)
+        canvas.drawText("Date: $formattedDate", 450f, 88f, paint)
 
         paint.color = android.graphics.Color.GRAY
         canvas.drawLine(40f, 105f, 555f, 105f, paint)
@@ -106,14 +114,26 @@ object PdfUtils {
         paint.isFakeBoldText = false
         var currentY = tableHeaderY + 35f
         val filteredItems = InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
-        for (item in filteredItems) {
-            val cleanDesc = InvoiceItemSorter.cleanDescriptionForDisplay(item.description)
-            val shortDesc = if (cleanDesc.length > 45) cleanDesc.take(42) + "..." else cleanDesc
-            canvas.drawText(shortDesc, 50f, currentY, paint)
-            canvas.drawText(item.quantity.toString(), 380f, currentY, paint)
-            canvas.drawText(FormatUtils.formatRupiah(item.price), 430f, currentY, paint)
-            canvas.drawText(FormatUtils.formatRupiah(item.price * item.quantity), 500f, currentY, paint)
+        if (filteredItems.isEmpty()) {
+            val emptyNotice = when (presentation.dataState) {
+                HistoricalDataState.NO_ITEMS -> "(Tidak ada rincian item / NO_ITEMS)"
+                HistoricalDataState.INVALID_DATA -> "(Data rincian tidak valid / INVALID_DATA)"
+                HistoricalDataState.RECOVERY_REQUIRED -> "(Memerlukan pemulihan / RECOVERY_REQUIRED)"
+                else -> "(Tidak ada rincian item)"
+            }
+            paint.color = android.graphics.Color.DKGRAY
+            canvas.drawText(emptyNotice, 50f, currentY, paint)
             currentY += 20f
+        } else {
+            for (item in filteredItems) {
+                val cleanDesc = InvoiceItemSorter.cleanDescriptionForDisplay(item.description)
+                val shortDesc = if (cleanDesc.length > 45) cleanDesc.take(42) + "..." else cleanDesc
+                canvas.drawText(shortDesc, 50f, currentY, paint)
+                canvas.drawText(item.quantity.toString(), 380f, currentY, paint)
+                canvas.drawText(FormatUtils.formatRupiah(item.price), 430f, currentY, paint)
+                canvas.drawText(FormatUtils.formatRupiah(item.price * item.quantity), 500f, currentY, paint)
+                currentY += 20f
+            }
         }
 
         currentY += 15f
@@ -122,11 +142,7 @@ object PdfUtils {
 
         val shortQty = InvoiceItemSorter.getShortSleeveTotalQty(filteredItems)
         val longQty = InvoiceItemSorter.getLongSleeveTotalQty(filteredItems)
-        val globalQty = InvoiceItemSorter.getGlobalTotalQty(filteredItems)
-
-        val calculatedSubtotal = InvoiceItemSorter.calcSubtotal(filteredItems)
-        val subtotalToDisplay = if (calculatedSubtotal > 0.0) calculatedSubtotal else (invoice.totalAmount + invoice.discount)
-        val totalAmount = (subtotalToDisplay - invoice.discount).coerceAtLeast(0.0)
+        val globalQty = if (filteredItems.isNotEmpty()) InvoiceItemSorter.getGlobalTotalQty(filteredItems) else presentation.quantity
 
         // Quantity summary on left
         paint.textSize = 9.5f
@@ -142,41 +158,41 @@ object PdfUtils {
         paint.isFakeBoldText = true
         canvas.drawText("TOTAL QTY   : $globalQty Pcs", 50f, currentY + 48f, paint)
 
-        // Financial summary on right
+        // Financial summary on right using canonical InvoicePresentationModel
         paint.textSize = 8.5f
         paint.isFakeBoldText = true
         paint.color = android.graphics.Color.BLACK
         canvas.drawText("SUB TOTAL :", 340f, currentY, paint)
         paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(subtotalToDisplay), 450f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(presentation.subtotalDouble), 450f, currentY, paint)
 
         currentY += 16f
         paint.isFakeBoldText = true
         canvas.drawText("DISKON :", 340f, currentY, paint)
         paint.isFakeBoldText = false
-        canvas.drawText("- " + FormatUtils.formatRupiah(invoice.discount), 450f, currentY, paint)
+        canvas.drawText("- " + FormatUtils.formatRupiah(presentation.discountDouble), 450f, currentY, paint)
 
         currentY += 18f
         // SUB HERO TOTAL
         paint.isFakeBoldText = true
         paint.color = android.graphics.Color.parseColor("#0F3D3E")
         canvas.drawText("TOTAL :", 340f, currentY, paint)
-        canvas.drawText(FormatUtils.formatRupiah(totalAmount), 450f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(presentation.grandTotalDouble), 450f, currentY, paint)
 
         currentY += 16f
         paint.isFakeBoldText = true
         paint.color = android.graphics.Color.BLACK
         canvas.drawText("PEMBAYARAN :", 340f, currentY, paint)
         paint.isFakeBoldText = false
-        canvas.drawText(FormatUtils.formatRupiah(invoice.paidAmount), 450f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(presentation.paidDouble), 450f, currentY, paint)
 
         currentY += 18f
         // HERO INFORMASI SISA PEMBAYARAN
         paint.isFakeBoldText = true
-        val remainingColor = if (invoice.remainingPayment > 0) android.graphics.Color.parseColor("#C62828") else android.graphics.Color.parseColor("#2E7D32")
+        val remainingColor = if (presentation.remaining > 0) android.graphics.Color.parseColor("#C62828") else android.graphics.Color.parseColor("#2E7D32")
         paint.color = remainingColor
         canvas.drawText("SISA PEMBAYARAN :", 340f, currentY, paint)
-        canvas.drawText(FormatUtils.formatRupiah(invoice.remainingPayment), 450f, currentY, paint)
+        canvas.drawText(FormatUtils.formatRupiah(presentation.remainingDouble), 450f, currentY, paint)
 
         paint.textSize = 50f
         paint.color = when (invoice.status) {
@@ -212,18 +228,23 @@ object PdfUtils {
             val safeNum = invoice.invoiceNumber.replace("/", "_").replace("\\", "_")
             val dir = FileUtils.getExportDirectory(context, "invoice")
             val file = File(dir, "Invoice-${safeNum}.pdf")
-            FileOutputStream(file).use { outputStream ->
+            
+            val exportResult = ExportManager.getInstance().exportToFile(file) { outputStream ->
                 pdfDocument.writeTo(outputStream)
-                outputStream.flush()
             }
             pdfDocument.close()
 
+            val exportedFile = exportResult.getOrThrow()
+            if (!exportedFile.exists() || exportedFile.length() <= 0L) {
+                throw java.io.IOException("Validasi berkas PDF gagal: berkas tidak ditemukan atau ukuran 0 byte.")
+            }
+
             // Separate mirror copy to public Downloads folder using FileUtils
-            val mirroredFile = FileUtils.mirrorToDownloads(context, file, "Invoice")
-            if (mirroredFile != null) {
-                Log.i(TAG, "Invoice PDF successfully mirrored to public Downloads: ${mirroredFile.absolutePath}")
+            val mirrorResult = FileUtils.mirrorToDownloads(context, exportedFile, "Invoice")
+            if (mirrorResult != MirrorResult.FAILED) {
+                Log.i(TAG, "Invoice PDF successfully mirrored to public Downloads: ${exportedFile.name}")
             } else {
-                Log.w(TAG, "Primary Invoice PDF saved at ${file.absolutePath}, but public Downloads mirror skipped or failed.")
+                Log.w(TAG, "Primary Invoice PDF saved at ${exportedFile.absolutePath}, but public Downloads mirror skipped or failed.")
             }
 
             if (viewModel != null) {
@@ -239,14 +260,10 @@ object PdfUtils {
                 putString("type", "Invoice")
             }
             FirebaseSyncManager.logEvent("export_pdf", params)
-            file
-        } catch (e: java.io.IOException) {
-            Log.e(TAG, "I/O Error exporting PDF Invoice: ${e.message}", e)
-            Toast.makeText(context, "Gagal mengekspor PDF Invoice: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-            null
+            exportedFile
         } catch (e: Exception) {
-            Log.e(TAG, "Failed exporting PDF: ${e.message}", e)
-            Toast.makeText(context, "Gagal mengekspor PDF: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "Technical failure during PDF invoice export: ${e.message}", e)
+            Toast.makeText(context, "Gagal membuat berkas PDF Invoice. Silakan coba beberapa saat lagi.", Toast.LENGTH_SHORT).show()
             null
         }
     }

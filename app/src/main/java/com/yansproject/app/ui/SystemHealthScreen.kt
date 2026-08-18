@@ -48,22 +48,21 @@ fun SystemHealthScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    // Real-time Status state
+    // Real-time Status state: strictly initialized as UNKNOWN / N/A
     var isChecking by remember { mutableStateOf(false) }
-    var firebaseStatus by remember { mutableStateOf("ONLINE") }
-    var n8nStatus by remember { mutableStateOf("ACTIVE") }
-    var paperIdStatus by remember { mutableStateOf("CONNECTED") }
+    var firebaseStatus by remember { mutableStateOf("UNKNOWN") }
+    var n8nStatus by remember { mutableStateOf("UNKNOWN") }
+    var paperIdStatus by remember { mutableStateOf("UNKNOWN") }
 
-    // Latency metrics
-    var firebaseLatency by remember { mutableStateOf("45 ms") }
-    var n8nLatency by remember { mutableStateOf("120 ms") }
-    var paperIdLatency by remember { mutableStateOf("180 ms") }
-    var developerTapCount by remember { mutableStateOf(0) }
+    // Latency metrics: strictly initialized as N/A
+    var firebaseLatency by remember { mutableStateOf("N/A") }
+    var n8nLatency by remember { mutableStateOf("N/A") }
+    var paperIdLatency by remember { mutableStateOf("N/A") }
 
     // Fetch actual states
     val actualFirebaseActive = FirebaseSyncManager.isFirebaseActive
 
-    // Shared Preferences for API Health settings to make it persistent and custom-configurable
+    // Shared Preferences for API Health settings with URL validation
     val prefs = remember(context) { context.getSharedPreferences("api_health_prefs", Context.MODE_PRIVATE) }
     var n8nWebhookUrl by remember { mutableStateOf(prefs.getString("n8n_url", "https://primary-production.shared.n8n.cloud") ?: "") }
     var paperIdApiKey by remember { mutableStateOf(prefs.getString("paper_api_key", "") ?: "") }
@@ -82,7 +81,14 @@ fun SystemHealthScreen(
 
     fun performDiagnosticCheck() {
         isChecking = true
-        viewModel.addAuditLog("System Health Check", "Diagnostik sistem real-time dipicu oleh Admin.")
+        firebaseStatus = "CHECKING"
+        n8nStatus = "CHECKING"
+        paperIdStatus = "CHECKING"
+        firebaseLatency = "Measuring..."
+        n8nLatency = "Measuring..."
+        paperIdLatency = "Measuring..."
+
+        viewModel.addAuditLog("System Health Check", "Diagnostik sistem real-time dipicu.")
         coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             // Check Firebase Active Status and measure real local check time
             val fbStartTime = System.currentTimeMillis()
@@ -91,35 +97,56 @@ fun SystemHealthScreen(
             
             // Actual Web Diagnostics with real HTTP response timing
             val n8nStartTime = System.currentTimeMillis()
-            val isN8nReach = runCatching {
-                val connection = URL(n8nWebhookUrl.ifEmpty { "https://n8n.io" }).openConnection() as HttpURLConnection
+            val n8nResult = runCatching {
+                val urlToTest = if (n8nWebhookUrl.isNotBlank() && (n8nWebhookUrl.startsWith("http://") || n8nWebhookUrl.startsWith("https://"))) {
+                    n8nWebhookUrl
+                } else {
+                    "https://n8n.io"
+                }
+                val connection = URL(urlToTest).openConnection() as HttpURLConnection
                 connection.connectTimeout = 3000
+                connection.readTimeout = 3000
                 connection.requestMethod = "GET"
-                connection.responseCode in 200..399
-            }.getOrDefault(false)
+                val code = connection.responseCode
+                code
+            }
             val n8nElapsed = System.currentTimeMillis() - n8nStartTime
 
             val paperStartTime = System.currentTimeMillis()
-            val isPaperReach = runCatching {
+            val paperResult = runCatching {
                 val connection = URL("https://api.paper.id").openConnection() as HttpURLConnection
                 connection.connectTimeout = 3000
+                connection.readTimeout = 3000
                 connection.requestMethod = "GET"
-                connection.responseCode in 200..499
-            }.getOrDefault(false)
+                val code = connection.responseCode
+                code
+            }
             val paperElapsed = System.currentTimeMillis() - paperStartTime
 
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 firebaseStatus = if (fbActive) "ONLINE" else "OFFLINE"
                 firebaseLatency = if (fbActive) "$fbElapsed ms" else "N/A"
 
-                n8nStatus = if (isN8nReach) "ACTIVE" else "TRIAL EXPIRED / UNREACHABLE"
-                n8nLatency = if (isN8nReach) "$n8nElapsed ms" else "DISCONNECTED"
+                val n8nCode = n8nResult.getOrNull()
+                n8nStatus = when {
+                    n8nCode in 200..399 -> "API_HEALTHY"
+                    n8nCode == 401 || n8nCode == 403 -> "AUTH_REQUIRED"
+                    n8nCode != null -> "NETWORK_REACHABLE"
+                    else -> "API_UNAVAILABLE"
+                }
+                n8nLatency = if (n8nCode != null) "$n8nElapsed ms" else "N/A"
 
-                paperIdStatus = if (isPaperReach && paperIdApiKey.isNotEmpty()) "CONNECTED" else if (isPaperReach) "CONNECTED (NO API KEY)" else "DISCONNECTED"
-                paperIdLatency = if (isPaperReach) "$paperElapsed ms" else "DISCONNECTED"
+                val paperCode = paperResult.getOrNull()
+                paperIdStatus = when {
+                    paperIdApiKey.isNotBlank() && paperCode in 200..399 -> "API_HEALTHY"
+                    paperCode in 200..499 -> if (paperIdApiKey.isBlank()) "AUTH_REQUIRED" else "API_HEALTHY"
+                    paperCode != null -> "NETWORK_REACHABLE"
+                    else -> "API_UNAVAILABLE"
+                }
+                paperIdLatency = if (paperCode != null) "$paperElapsed ms" else "N/A"
 
                 isChecking = false
-                Toast.makeText(context, "Sistem & API Diagnostics Selesai!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Diagnostik sistem selesai.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -175,18 +202,12 @@ fun SystemHealthScreen(
                         Column(
                             modifier = Modifier.clickable {
                                 val currentUser = com.yansproject.app.data.FirebaseSyncManager.currentUser.value
-                                val isOwner = currentUser?.role == com.yansproject.app.data.UserRole.OWNER || currentUser?.role == com.yansproject.app.data.UserRole.ADMIN
-                                if (isOwner) {
-                                    developerTapCount++
-                                    if (developerTapCount >= 13) {
-                                        developerTapCount = 0
-                                        navController.navigate("telemetry")
-                                        Toast.makeText(context, "Developer Mode: Telemetry Activated", Toast.LENGTH_SHORT).show()
-                                    } else if (developerTapCount > 5) {
-                                        Toast.makeText(context, "Sisa ${13 - developerTapCount} ketukan lagi untuk diagnostik lanjut.", Toast.LENGTH_SHORT).show()
-                                    }
+                                val isAuthorized = currentUser?.role == com.yansproject.app.data.UserRole.OWNER || currentUser?.role == com.yansproject.app.data.UserRole.ADMIN
+                                if (isAuthorized) {
+                                    navController.navigate("telemetry")
+                                    Toast.makeText(context, "Membuka Panel Telemetri Diagnostik Lanjutan.", Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(context, "Akses Terbatas: Hanya OWNER/ADMIN yang berhak mengakses Mode Diagnostik Pengembang.", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Akses Terbatas: Hanya Administrator Berwenang yang dapat membuka Telemetri Lanjutan.", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         ) {

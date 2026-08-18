@@ -24,15 +24,22 @@ import com.yansproject.app.ui.theme.*
 import kotlinx.coroutines.tasks.await
 
 sealed class RouteAccessResult {
-    object Granted : RouteAccessResult()
-    data class Denied(val reason: String) : RouteAccessResult()
     object Checking : RouteAccessResult()
+    object VerifiedSuperAdmin : RouteAccessResult()
+    data class OfflineSessionValid(val role: UserRole) : RouteAccessResult()
+    object AuthRequired : RouteAccessResult()
+    data class Denied(val reason: String) : RouteAccessResult()
+    data class AuthCheckFailed(val reason: String) : RouteAccessResult()
+
+    val isGranted: Boolean
+        get() = this is VerifiedSuperAdmin || this is OfflineSessionValid
 }
 
 /**
  * RouteGuard Utility for YANSPROJECT.ID ERP
  * Validates user permissions against UserRole and Firebase Auth Custom Claims.
  * Protects financial dashboard metrics, ledgers, and sensitive settings.
+ * Business Policy: OWNER + ADMIN = ONE SUPER_ADMIN.
  */
 object RouteGuard {
 
@@ -51,6 +58,22 @@ object RouteGuard {
         Routes.AddInvoice
     )
 
+    // Session-scoped Verified Claims Cache
+    private var cachedUid: String? = null
+    private var cachedToken: String? = null
+    private var cachedResult: RouteAccessResult? = null
+    private var lastClaimCheckTime: Long = 0L
+    private const val CACHE_TTL_MS = 300_000L // 5 minutes cache
+
+    fun invalidateClaimCache() {
+        synchronized(this) {
+            cachedUid = null
+            cachedToken = null
+            cachedResult = null
+            lastClaimCheckTime = 0L
+        }
+    }
+
     fun isFinancialRoute(route: String?): Boolean {
         if (route.isNullOrBlank()) return false
         val baseRoute = route.split("?", "{")[0].trim()
@@ -63,93 +86,113 @@ object RouteGuard {
         return INVOICE_MANAGEMENT_ROUTES.contains(baseRoute)
     }
 
+    /**
+     * Checks if local role is authorized (OWNER or ADMIN treated as SUPER_ADMIN).
+     */
     fun isUserAuthorizedForFinancials(role: UserRole?): Boolean {
         if (role == null) return false
-        return role.canAccessFinancials() || role == UserRole.OWNER || role == UserRole.ADMIN
+        return role == UserRole.OWNER || role == UserRole.ADMIN || role.canAccessFinancials()
     }
 
     fun isUserAuthorizedForInvoices(role: UserRole?): Boolean {
         if (role == null) return false
-        return role.canManageInvoices()
+        return role == UserRole.OWNER || role == UserRole.ADMIN || role.canManageInvoices()
     }
 
     /**
      * Async verification of Firebase Auth custom claims & local session role for Invoices
      */
-    suspend fun verifyInvoiceAccessWithCustomClaims(fallbackRole: UserRole?): RouteAccessResult {
-        if (!isUserAuthorizedForInvoices(fallbackRole)) {
-            return RouteAccessResult.Denied("Peran Pengguna (${fallbackRole?.name ?: "MEMBER"}) tidak memiliki izin untuk mengelola atau mengakses Manajemen Invoice ERP YANSPROJECT.ID.")
-        }
-
-        val firebaseUser = try {
-            FirebaseAuth.getInstance().currentUser
-        } catch (e: Exception) {
-            null
-        }
-
-        if (firebaseUser != null) {
-            try {
-                val idTokenResult = firebaseUser.getIdToken(false).await()
-                val claims = idTokenResult.claims
-                val claimRole = claims["role"] as? String
-                val isOwnerClaim = (claims["isOwner"] as? Boolean) ?: (claims["owner"] as? Boolean) ?: false
-                val isAdminClaim = (claims["isAdmin"] as? Boolean) ?: (claims["admin"] as? Boolean) ?: false
-
-                if (isOwnerClaim || isAdminClaim || claimRole.equals("OWNER", ignoreCase = true) || claimRole.equals("ADMIN", ignoreCase = true)) {
-                    return RouteAccessResult.Granted
-                } else if (claimRole != null && !claimRole.equals("OWNER", ignoreCase = true) && !claimRole.equals("ADMIN", ignoreCase = true)) {
-                    return RouteAccessResult.Denied("Custom Claim Firebase Auth ('$claimRole') membatasi akses Manajemen Invoice ERP.")
-                }
-            } catch (e: Exception) {
-                if (fallbackRole == UserRole.OWNER || fallbackRole == UserRole.ADMIN) {
-                    return RouteAccessResult.Granted
-                }
-            }
-        }
-
-        return if (isUserAuthorizedForInvoices(fallbackRole)) RouteAccessResult.Granted
-        else RouteAccessResult.Denied("Akses ditolak oleh kebijakan otorisasi YANSPROJECT.ID.")
+    suspend fun verifyInvoiceAccessWithCustomClaims(fallbackRole: UserRole?, forceRefresh: Boolean = false): RouteAccessResult {
+        return verifyAccessInternal(fallbackRole, isInvoiceModule = true, forceRefresh = forceRefresh)
     }
 
     /**
      * Async verification of Firebase Auth custom claims & local session role for Financials
      */
-    suspend fun verifyFinancialAccessWithCustomClaims(fallbackRole: UserRole?): RouteAccessResult {
-        // 1. Check local session role first
-        if (!isUserAuthorizedForFinancials(fallbackRole)) {
-            return RouteAccessResult.Denied("Peran Pengguna (${fallbackRole?.name ?: "MEMBER"}) tidak memiliki izin akses data keuangan.")
+    suspend fun verifyFinancialAccessWithCustomClaims(fallbackRole: UserRole?, forceRefresh: Boolean = false): RouteAccessResult {
+        return verifyAccessInternal(fallbackRole, isInvoiceModule = false, forceRefresh = forceRefresh)
+    }
+
+    private suspend fun verifyAccessInternal(
+        fallbackRole: UserRole?,
+        isInvoiceModule: Boolean,
+        forceRefresh: Boolean
+    ): RouteAccessResult {
+        // 1. Validate local session role authorization
+        val isLocallySuperAdmin = if (isInvoiceModule) isUserAuthorizedForInvoices(fallbackRole) else isUserAuthorizedForFinancials(fallbackRole)
+        if (!isLocallySuperAdmin) {
+            return RouteAccessResult.Denied("Peran Pengguna (${fallbackRole?.name ?: "MEMBER"}) tidak memiliki otorisasi SUPER_ADMIN untuk modul ini.")
         }
 
-        // 2. Inspect Firebase Auth Custom Claims if active
         val firebaseUser = try {
             FirebaseAuth.getInstance().currentUser
         } catch (e: Exception) {
             null
         }
 
-        if (firebaseUser != null) {
-            try {
-                val idTokenResult = firebaseUser.getIdToken(false).await()
-                val claims = idTokenResult.claims
-                val claimRole = claims["role"] as? String
-                val isOwnerClaim = (claims["isOwner"] as? Boolean) ?: (claims["owner"] as? Boolean) ?: false
-                val isAdminClaim = (claims["isAdmin"] as? Boolean) ?: (claims["admin"] as? Boolean) ?: false
+        if (firebaseUser == null) {
+            // Unauthenticated
+            if (fallbackRole == UserRole.OWNER || fallbackRole == UserRole.ADMIN) {
+                return RouteAccessResult.OfflineSessionValid(fallbackRole)
+            }
+            return RouteAccessResult.AuthRequired
+        }
 
-                if (isOwnerClaim || isAdminClaim || claimRole.equals("OWNER", ignoreCase = true) || claimRole.equals("ADMIN", ignoreCase = true)) {
-                    return RouteAccessResult.Granted
-                } else if (claimRole != null && !claimRole.equals("OWNER", ignoreCase = true) && !claimRole.equals("ADMIN", ignoreCase = true)) {
-                    return RouteAccessResult.Denied("Custom Claim Firebase Auth ('$claimRole') membatasi akses keuangan ERP.")
-                }
-            } catch (e: Exception) {
-                // Network error or offline mode: Fallback safely to local session role
-                if (fallbackRole == UserRole.OWNER || fallbackRole == UserRole.ADMIN) {
-                    return RouteAccessResult.Granted
-                }
+        val now = System.currentTimeMillis()
+        synchronized(this) {
+            if (!forceRefresh &&
+                cachedUid == firebaseUser.uid &&
+                cachedResult != null &&
+                (now - lastClaimCheckTime) < CACHE_TTL_MS
+            ) {
+                return cachedResult!!
             }
         }
 
-        return if (isUserAuthorizedForFinancials(fallbackRole)) RouteAccessResult.Granted
-        else RouteAccessResult.Denied("Akses ditolak oleh kebijakan keamanan YANSPROJECT.ID.")
+        // 2. Fetch remote claims
+        return try {
+            val idTokenResult = firebaseUser.getIdToken(forceRefresh).await()
+            val tokenString = idTokenResult.token
+            val claims = idTokenResult.claims
+            val claimRole = (claims["role"] as? String)?.uppercase()
+            val isOwnerClaim = (claims["isOwner"] as? Boolean) ?: (claims["owner"] as? Boolean) ?: false
+            val isAdminClaim = (claims["isAdmin"] as? Boolean) ?: (claims["admin"] as? Boolean) ?: false
+
+            val isSuperAdminByClaim = isOwnerClaim || isAdminClaim || claimRole == "OWNER" || claimRole == "ADMIN" || claimRole == "SUPER_ADMIN"
+
+            val result = if (isSuperAdminByClaim) {
+                RouteAccessResult.VerifiedSuperAdmin
+            } else if (claimRole != null && claimRole != "OWNER" && claimRole != "ADMIN" && claimRole != "SUPER_ADMIN") {
+                RouteAccessResult.Denied("Custom Claim Firebase Auth ('$claimRole') membatasi akses SUPER_ADMIN.")
+            } else if (fallbackRole == UserRole.OWNER || fallbackRole == UserRole.ADMIN) {
+                RouteAccessResult.VerifiedSuperAdmin
+            } else {
+                RouteAccessResult.Denied("Otorisasi tidak terpenuhi.")
+            }
+
+            synchronized(this) {
+                cachedUid = firebaseUser.uid
+                cachedToken = tokenString
+                cachedResult = result
+                lastClaimCheckTime = now
+            }
+
+            result
+        } catch (e: Exception) {
+            // Network error / Offline claim verification failure:
+            // Permit ONLY previously verified offline session behavior without elevating authority beyond verified local role
+            if (fallbackRole == UserRole.OWNER || fallbackRole == UserRole.ADMIN) {
+                val result = RouteAccessResult.OfflineSessionValid(fallbackRole)
+                synchronized(this) {
+                    cachedUid = firebaseUser.uid
+                    cachedResult = result
+                    lastClaimCheckTime = now
+                }
+                result
+            } else {
+                RouteAccessResult.AuthCheckFailed("Gagal memverifikasi klaim otorisasi: ${e.localizedMessage}")
+            }
+        }
     }
 }
 
@@ -165,16 +208,11 @@ fun GuardedInvoiceRoute(
     content: @Composable () -> Unit
 ) {
     var accessState by remember(userRole) {
-        mutableStateOf<RouteAccessResult>(
-            if (RouteGuard.isUserAuthorizedForInvoices(userRole)) RouteAccessResult.Granted
-            else RouteAccessResult.Checking
-        )
+        mutableStateOf<RouteAccessResult>(RouteAccessResult.Checking)
     }
 
     LaunchedEffect(userRole) {
-        if (!RouteGuard.isUserAuthorizedForInvoices(userRole)) {
-            accessState = RouteGuard.verifyInvoiceAccessWithCustomClaims(userRole)
-        }
+        accessState = RouteGuard.verifyInvoiceAccessWithCustomClaims(userRole)
     }
 
     when (val state = accessState) {
@@ -188,8 +226,24 @@ fun GuardedInvoiceRoute(
                 CircularProgressIndicator(color = AgedGold)
             }
         }
-        is RouteAccessResult.Granted -> {
+        is RouteAccessResult.VerifiedSuperAdmin, is RouteAccessResult.OfflineSessionValid -> {
             content()
+        }
+        is RouteAccessResult.AuthRequired -> {
+            AccessDeniedScreen(
+                title = "OTENTIKASI DIPERLUKAN",
+                reason = "Sesi Anda telah berakhir atau belum terotentikasi. Silakan login kembali.",
+                onNavigateBack = onNavigateBack,
+                onNavigateToHistory = onNavigateToHistory
+            )
+        }
+        is RouteAccessResult.AuthCheckFailed -> {
+            AccessDeniedScreen(
+                title = "GAGAL VERIFIKASI OTORISASI",
+                reason = state.reason,
+                onNavigateBack = onNavigateBack,
+                onNavigateToHistory = onNavigateToHistory
+            )
         }
         is RouteAccessResult.Denied -> {
             AccessDeniedScreen(
@@ -213,16 +267,11 @@ fun GuardedFinancialRoute(
     content: @Composable () -> Unit
 ) {
     var accessState by remember(userRole) {
-        mutableStateOf<RouteAccessResult>(
-            if (RouteGuard.isUserAuthorizedForFinancials(userRole)) RouteAccessResult.Granted
-            else RouteAccessResult.Checking
-        )
+        mutableStateOf<RouteAccessResult>(RouteAccessResult.Checking)
     }
 
     LaunchedEffect(userRole) {
-        if (!RouteGuard.isUserAuthorizedForFinancials(userRole)) {
-            accessState = RouteGuard.verifyFinancialAccessWithCustomClaims(userRole)
-        }
+        accessState = RouteGuard.verifyFinancialAccessWithCustomClaims(userRole)
     }
 
     when (val state = accessState) {
@@ -236,8 +285,22 @@ fun GuardedFinancialRoute(
                 CircularProgressIndicator(color = AgedGold)
             }
         }
-        is RouteAccessResult.Granted -> {
+        is RouteAccessResult.VerifiedSuperAdmin, is RouteAccessResult.OfflineSessionValid -> {
             content()
+        }
+        is RouteAccessResult.AuthRequired -> {
+            AccessDeniedScreen(
+                title = "OTENTIKASI DIPERLUKAN",
+                reason = "Sesi Anda telah berakhir atau belum terotentikasi. Silakan login kembali.",
+                onNavigateBack = onNavigateBack
+            )
+        }
+        is RouteAccessResult.AuthCheckFailed -> {
+            AccessDeniedScreen(
+                title = "GAGAL VERIFIKASI OTORISASI",
+                reason = state.reason,
+                onNavigateBack = onNavigateBack
+            )
         }
         is RouteAccessResult.Denied -> {
             AccessDeniedScreen(

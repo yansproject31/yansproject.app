@@ -38,6 +38,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yansproject.app.data.VariantCell
+import com.yansproject.app.data.BusinessRepository
 import com.yansproject.app.ui.AppSettings
 import com.yansproject.app.data.SleeveType
 import com.yansproject.app.data.AppDatabase
@@ -155,19 +156,72 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun checkoutCart(context: Context, onCheckoutSuccess: () -> Unit) {
-        if (_state.value.cart.isEmpty()) {
+        val currentCart = _state.value.cart
+        if (currentCart.isEmpty()) {
             Toast.makeText(context, "Keranjang belanja kosong!", Toast.LENGTH_SHORT).show()
             return
         }
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                kotlinx.coroutines.delay(800) // Transaksi POS Engine
-                Toast.makeText(context, "POS CHECKOUT BERHASIL! Invoice Tergenerate.", Toast.LENGTH_LONG).show()
-                _state.value = _state.value.copy(cart = emptyList())
-                onCheckoutSuccess()
+                val appDb = AppDatabase.getDatabase(context)
+                val repository = BusinessRepository(appDb)
+                val prefix = AppSettings.getInvoicePrefix(context)
+                val now = System.currentTimeMillis()
+                val invoiceNum = repository.generateInvoiceNumber(prefix, now)
+                val totalAmount = currentCart.sumOf { it.totalPrice }
+
+                val invoiceItems = mutableListOf<com.yansproject.app.data.InvoiceItemDetail>()
+                for (cartItem in currentCart) {
+                    for (cell in cartItem.variantCells) {
+                        if (cell.quantity > 0) {
+                            val sleeveLabel = if (cell.sleeve == SleeveType.PANJANG) "Panjang" else "Pendek"
+                            val desc = "AJIBQOBUL: ${cartItem.name} - ${cell.color} - ${cell.size} - $sleeveLabel"
+                            val unitPrice = cartItem.priceMap[cell.size] ?: (cartItem.totalPrice / cartItem.totalQty.coerceAtLeast(1))
+                            invoiceItems.add(com.yansproject.app.data.InvoiceItemDetail(description = desc, quantity = cell.quantity, price = unitPrice))
+                        }
+                    }
+                }
+
+                val converters = com.yansproject.app.data.AppTypeConverters()
+                val invoice = com.yansproject.app.data.Invoice(
+                    id = 0,
+                    invoiceNumber = invoiceNum,
+                    clientName = "POS Kasir (Tatap Muka)",
+                    clientPhone = "",
+                    issueDate = now,
+                    dueDate = now,
+                    totalAmount = totalAmount,
+                    paidAmount = totalAmount,
+                    status = "LUNAS",
+                    orderId = 1,
+                    itemsJson = converters.fromInvoiceItemList(invoiceItems),
+                    discount = 0.0,
+                    dpAmount = 0.0,
+                    isDeleted = false
+                )
+
+                val savedInv = repository.createDirectInvoice(invoice)
+                repository.addInvoicePayment(
+                    invoiceId = savedInv.id,
+                    amount = totalAmount,
+                    method = "CASH",
+                    methodDetail = "Pelunasan POS Kasir",
+                    notes = "Checkout POS Kasir ${savedInv.invoiceNumber}",
+                    adminName = AppSettings.getStoreName(context).ifBlank { "Kasir" },
+                    adminUid = "kasir_pos"
+                )
+                repository.reconcileAllInventorySummaries()
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "POS CHECKOUT BERHASIL! Invoice $invoiceNum tergenerate & stok diperbarui.", Toast.LENGTH_LONG).show()
+                    _state.value = _state.value.copy(cart = emptyList())
+                    onCheckoutSuccess()
+                }
             } catch (e: Exception) {
                 Log.e("MatrixViewModel", "Checkout failed: ${e.message}", e)
-                Toast.makeText(context, "Gagal checkout POS: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Gagal checkout POS: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

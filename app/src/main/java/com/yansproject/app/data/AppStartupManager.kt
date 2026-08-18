@@ -121,23 +121,47 @@ class AppStartupManager private constructor(private val context: Context) {
             // Stage 8: Offline Queue Validation
             currentStage = StartupStage.OfflineQueueValidation
             onStageCompleted(currentStage)
-            OfflineActionQueue.getInstance(context).processQueueSafely(currentActiveUserId = "SYSTEM_SESSION")
+            val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
+            val activeUserId = FirebaseSyncManager.currentUser.value?.email
+                ?: authPrefs.getString("logged_in_email", null)
+                ?: authPrefs.getString("last_logged_in_user", null)
+                ?: "SYSTEM_SESSION"
+            OfflineActionQueue.getInstance(context).processQueueSafely(currentActiveUserId = activeUserId)
 
             // Stage 9: Cache Validation & Warmup
             currentStage = StartupStage.CacheValidation
             onStageCompleted(currentStage)
             CacheManager.getInstance(context).purgeExpiredEntries()
-            DatabaseInitializer.initializeDatabase(context, appDatabase, allowDemoSeed = false)
+            val initResult = DatabaseInitializer.initialize(context, appDatabase, allowDemoSeed = false)
+            if (initResult.status == DatabaseInitStatus.FAILED || initResult.status == DatabaseInitStatus.INVALID) {
+                Log.e(TAG, "Database initialization failed: ${initResult.details}")
+                val failure = StartupStage.StartupFailed(
+                    "Database initialization returned ${initResult.status}: ${initResult.details}",
+                    initResult.cause ?: IllegalStateException(initResult.details)
+                )
+                currentStage = failure
+                crashReporter.recordPreFatalDiagnostic(initResult.cause ?: IllegalStateException(initResult.details), "Database initialization failed during startup")
+                onStageCompleted(failure)
+                return@withContext failure
+            }
 
             // Stage 10: System Integrity Final Verification
             currentStage = StartupStage.IntegrityVerification
             onStageCompleted(currentStage)
             val integrityReport = integrityManager.validateFullSystemIntegrity(appDatabase)
             if (!integrityReport.isSystemReady) {
-                Log.w(TAG, "System integrity report notice: ${integrityReport}")
+                Log.e(TAG, "System mandatory integrity check failed: $integrityReport")
+                val failure = StartupStage.StartupFailed(
+                    "Mandatory system integrity verification failed (DB=${integrityReport.isDatabaseHealthy}, Prefs=${integrityReport.isPreferencesHealthy}, Queue=${integrityReport.isOfflineQueueHealthy})",
+                    IllegalStateException("Mandatory system integrity failed")
+                )
+                currentStage = failure
+                crashReporter.recordPreFatalDiagnostic(IllegalStateException("System integrity failed"), "Startup sequence failed mandatory integrity")
+                onStageCompleted(failure)
+                return@withContext failure
             }
 
-            // Reset crash tracker on successful pipeline execution
+            // Reset crash tracker ONLY on complete successful pipeline execution
             integrityManager.markStartupSuccessful()
 
             currentStage = StartupStage.FullServicesInitialized

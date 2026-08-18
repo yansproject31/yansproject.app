@@ -22,6 +22,12 @@ interface CustomerDao : BaseDao<CustomerEntity> {
     @Query("SELECT * FROM customers WHERE isDeleted = 0 ORDER BY name ASC")
     fun getAllCustomers(): Flow<List<CustomerEntity>>
 
+    @Query("SELECT * FROM customers WHERE isDeleted = 0 ORDER BY createdAt DESC LIMIT :limit")
+    fun getRecentCustomers(limit: Int = 20): Flow<List<CustomerEntity>>
+
+    @Query("SELECT * FROM customers WHERE isDeleted = 0 AND (:query = '' OR name LIKE '%' || :query || '%' OR phone LIKE '%' || :query || '%' OR whatsapp LIKE '%' || :query || '%' OR email LIKE '%' || :query || '%') ORDER BY createdAt DESC LIMIT :limit")
+    fun searchCustomers(query: String, limit: Int = 20): Flow<List<CustomerEntity>>
+
     @Query("SELECT * FROM customers WHERE id = :id")
     suspend fun getCustomerById(id: Int): CustomerEntity?
 

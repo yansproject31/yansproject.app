@@ -4,32 +4,119 @@ import androidx.annotation.Keep
 import java.math.BigDecimal
 import java.math.RoundingMode
 
+@Keep
+enum class FinancialIntegrityStatus {
+    VALID,
+    INVALID,
+    UNVERIFIABLE,
+    INVALID_HISTORICAL_DATA,
+    RECOVERY_REQUIRED
+}
+
+@Keep
+data class PricingSnapshot(
+    val snapshotId: String = java.util.UUID.randomUUID().toString(),
+    val batchId: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val hppPendekRupiah: Long = 0L,
+    val hppPanjangRupiah: Long = 0L,
+    val sellingPriceRupiah: Long = 0L,
+    val hppUpsizeXXLRupiah: Long = 5000L,
+    val hppUpsize3XLRupiah: Long = 10000L,
+    val hppUpsize4XLRupiah: Long = 15000L,
+    val sleeveLongSurchargeRupiah: Long = 10000L,
+    val upsizeXXLRupiah: Long = 10000L,
+    val upsize3XLRupiah: Long = 10000L,
+    val upsize4XLRupiah: Long = 20000L
+)
+
 /**
  * Dedicated financial service module responsible for production batch cost calculations.
- * Calculates total costs strictly based on the specific HPP batch price defined during
- * production entry, and locks these values immutably once saved to prevent miscalculations
- * or retro-active edits from changing historical financial records.
+ * Source-of-truth domain calculations use Long Rupiah units and BigDecimal.
+ * Historical production batch financials are immutable and rely on exact batch snapshots.
  */
 @Keep
 data class ProductionBatchFinancials(
     val totalQuantity: Int = 0,
     val shortSleeveQty: Int = 0,
     val longSleeveQty: Int = 0,
-    val hppPendek: Double = 0.0,
-    val hppPanjang: Double = 0.0,
-    val totalProductionCost: Double = 0.0,
-    val averageHppPerUnit: Double = 0.0,
-    val estimatedRevenue: Double = 0.0,
-    val expectedProfit: Double = 0.0,
-    val profitMarginPercent: Double = 0.0,
-    val isImmutableSavedBatch: Boolean = true
+    val hppPendekRupiah: Long = 0L,
+    val hppPanjangRupiah: Long = 0L,
+    val totalProductionCostRupiah: Long = 0L,
+    val averageHppPerUnitRupiah: Long = 0L,
+    val estimatedRevenueRupiah: Long = 0L,
+    val expectedProfitRupiah: Long = 0L,
+    val profitMarginPercentBd: BigDecimal = BigDecimal.ZERO,
+    val integrityStatus: FinancialIntegrityStatus = FinancialIntegrityStatus.VALID,
+    val isImmutableSavedBatch: Boolean = true,
+    
+    // Double properties for UI backward compatibility
+    val hppPendek: Double = hppPendekRupiah.toDouble(),
+    val hppPanjang: Double = hppPanjangRupiah.toDouble(),
+    val totalProductionCost: Double = totalProductionCostRupiah.toDouble(),
+    val averageHppPerUnit: Double = averageHppPerUnitRupiah.toDouble(),
+    val estimatedRevenue: Double = estimatedRevenueRupiah.toDouble(),
+    val expectedProfit: Double = expectedProfitRupiah.toDouble(),
+    val profitMarginPercent: Double = profitMarginPercentBd.setScale(2, RoundingMode.HALF_UP).toDouble()
 )
 
 object ProductionFinancialService {
 
     /**
-     * Calculates precise total production cost (Total HPP) using BigDecimal for financial precision.
-     * Uses specific batch HPP prices defined during production entry.
+     * Creates an immutable PricingSnapshot for a production batch at creation time.
+     */
+    fun createPricingSnapshot(
+        batchId: String,
+        hppPendek: Double,
+        hppPanjang: Double,
+        sellingPrice: Double,
+        hppUpsizeXXL: Double = 5000.0,
+        hppUpsize3XL: Double = 10000.0,
+        hppUpsize4XL: Double = 15000.0,
+        sleeveLongSurcharge: Double = 10000.0,
+        upsizeXXL: Double = 10000.0,
+        upsize3XL: Double = 10000.0,
+        upsize4XL: Double = 20000.0
+    ): PricingSnapshot {
+        return PricingSnapshot(
+            batchId = batchId,
+            timestamp = System.currentTimeMillis(),
+            hppPendekRupiah = hppPendek.toLong().coerceAtLeast(0L),
+            hppPanjangRupiah = hppPanjang.toLong().coerceAtLeast(0L),
+            sellingPriceRupiah = sellingPrice.toLong().coerceAtLeast(0L),
+            hppUpsizeXXLRupiah = hppUpsizeXXL.toLong().coerceAtLeast(0L),
+            hppUpsize3XLRupiah = hppUpsize3XL.toLong().coerceAtLeast(0L),
+            hppUpsize4XLRupiah = hppUpsize4XL.toLong().coerceAtLeast(0L),
+            sleeveLongSurchargeRupiah = sleeveLongSurcharge.toLong().coerceAtLeast(0L),
+            upsizeXXLRupiah = upsizeXXL.toLong().coerceAtLeast(0L),
+            upsize3XLRupiah = upsize3XL.toLong().coerceAtLeast(0L),
+            upsize4XLRupiah = upsize4XL.toLong().coerceAtLeast(0L)
+        )
+    }
+
+    /**
+     * Calculates precise total production cost (Total HPP) using BigDecimal/Long Rupiah.
+     */
+    fun calculateBatchTotalCost(
+        shortSleeveQty: Int,
+        longSleeveQty: Int,
+        hppPendekRupiah: Long,
+        hppPanjangRupiah: Long
+    ): Long {
+        val safeShortQty = shortSleeveQty.coerceAtLeast(0).toLong()
+        val safeLongQty = longSleeveQty.coerceAtLeast(0).toLong()
+        val safeHppPendek = hppPendekRupiah.coerceAtLeast(0L)
+        val safeHppPanjang = hppPanjangRupiah.coerceAtLeast(0L)
+
+        val totalBd = BigDecimal(safeShortQty)
+            .multiply(BigDecimal(safeHppPendek))
+            .add(BigDecimal(safeLongQty).multiply(BigDecimal(safeHppPanjang)))
+
+        return totalBd.longValueExact()
+    }
+
+    /**
+     * Compatibility wrapper for Double parameters returning Double total cost.
      */
     fun calculateBatchTotalCost(
         shortSleeveQty: Int,
@@ -37,26 +124,16 @@ object ProductionFinancialService {
         hppPendek: Double,
         hppPanjang: Double
     ): Double {
-        val safeShortQty = shortSleeveQty.coerceAtLeast(0)
-        val safeLongQty = longSleeveQty.coerceAtLeast(0)
-        val safeHppPendek = hppPendek.coerceAtLeast(0.0)
-        val safeHppPanjang = hppPanjang.coerceAtLeast(0.0)
-
-        val totalCostBd = BigDecimal(safeShortQty)
-            .multiply(BigDecimal.valueOf(safeHppPendek))
-            .add(BigDecimal(safeLongQty).multiply(BigDecimal.valueOf(safeHppPanjang)))
-            .setScale(2, RoundingMode.HALF_UP)
-
-        return totalCostBd.toDouble()
+        return calculateBatchTotalCost(
+            shortSleeveQty,
+            longSleeveQty,
+            hppPendek.toLong(),
+            hppPanjang.toLong()
+        ).toDouble()
     }
 
     /**
      * Calculates complete financial metrics for a NEW production batch during entry.
-     *
-     * @param addedQuantities Map of (Size, Sleeve) -> Quantity added in this batch.
-     * @param hppPendek Specific HPP for short sleeve items in this batch.
-     * @param hppPanjang Specific HPP for long sleeve items in this batch.
-     * @param sellingPrice Selling price per item (e.g. Retail or Member price).
      */
     fun calculateProductionFinancials(
         addedQuantities: Map<Pair<String, String>, Int>,
@@ -78,9 +155,9 @@ object ProductionFinancialService {
         var totalCostBd = BigDecimal.ZERO
         var estRevenueBd = BigDecimal.ZERO
 
-        val safeHppPendek = hppPendek.coerceAtLeast(0.0)
-        val safeHppPanjang = hppPanjang.coerceAtLeast(0.0)
-        val safeSellingPrice = sellingPrice.coerceAtLeast(0.0)
+        val hppPendekRupiah = hppPendek.toLong().coerceAtLeast(0L)
+        val hppPanjangRupiah = hppPanjang.toLong().coerceAtLeast(0L)
+        val sellingPriceRupiah = sellingPrice.toLong().coerceAtLeast(0L)
 
         addedQuantities.forEach { (pair, qty) ->
             if (qty > 0) {
@@ -89,136 +166,144 @@ object ProductionFinancialService {
                 val sleeve = pair.second.trim()
                 val isPanjang = sleeve.equals("Panjang", ignoreCase = true)
 
-                if (isPanjang) {
-                    longQty += qty
-                } else {
-                    shortQty += qty
-                }
+                if (isPanjang) longQty += qty else shortQty += qty
 
-                val baseHpp = if (isPanjang) safeHppPanjang else safeHppPendek
+                val baseHpp = if (isPanjang) hppPanjangRupiah else hppPendekRupiah
                 val upsizeHppCost = when (size) {
-                    "XXL" -> hppUpsizeXXL
-                    "3XL" -> hppUpsize3XL
-                    "4XL" -> hppUpsize4XL
-                    else -> 0.0
+                    "XXL" -> hppUpsizeXXL.toLong()
+                    "3XL" -> hppUpsize3XL.toLong()
+                    "4XL" -> hppUpsize4XL.toLong()
+                    else -> 0L
                 }
                 val itemHpp = baseHpp + upsizeHppCost
 
-                val sleeveCharge = if (isPanjang) sleeveLongSurcharge else 0.0
+                val sleeveCharge = if (isPanjang) sleeveLongSurcharge.toLong() else 0L
                 val upsizePriceCharge = when (size) {
-                    "XXL" -> upsizeXXL
-                    "3XL" -> upsize3XL
-                    "4XL" -> upsize4XL
-                    else -> 0.0
+                    "XXL" -> upsizeXXL.toLong()
+                    "3XL" -> upsize3XL.toLong()
+                    "4XL" -> upsize4XL.toLong()
+                    else -> 0L
                 }
-                val itemSellingPrice = safeSellingPrice + sleeveCharge + upsizePriceCharge
+                val itemSellingPrice = sellingPriceRupiah + sleeveCharge + upsizePriceCharge
 
-                totalCostBd = totalCostBd.add(BigDecimal(qty).multiply(BigDecimal.valueOf(itemHpp)))
-                estRevenueBd = estRevenueBd.add(BigDecimal(qty).multiply(BigDecimal.valueOf(itemSellingPrice)))
+                totalCostBd = totalCostBd.add(BigDecimal(qty).multiply(BigDecimal(itemHpp)))
+                estRevenueBd = estRevenueBd.add(BigDecimal(qty).multiply(BigDecimal(itemSellingPrice)))
             }
         }
 
-        totalCostBd = totalCostBd.setScale(2, RoundingMode.HALF_UP)
-        estRevenueBd = estRevenueBd.setScale(2, RoundingMode.HALF_UP)
+        val totalCostRupiah = totalCostBd.longValueExact()
+        val estRevenueRupiah = estRevenueBd.longValueExact()
 
-        val totalCost = totalCostBd.toDouble()
-        val estRevenue = estRevenueBd.toDouble()
+        val avgHppRupiah = if (totalQty > 0) {
+            totalCostBd.divide(BigDecimal(totalQty), 0, RoundingMode.HALF_UP).longValueExact()
+        } else 0L
 
-        val avgHpp = if (totalQty > 0) {
-            totalCostBd.divide(BigDecimal(totalQty), 2, RoundingMode.HALF_UP).toDouble()
-        } else {
-            0.0
-        }
+        val profitBd = estRevenueBd.subtract(totalCostBd)
+        val profitRupiah = profitBd.longValueExact()
 
-        val profitBd = estRevenueBd.subtract(totalCostBd).setScale(2, RoundingMode.HALF_UP)
-        val profit = profitBd.toDouble()
-
-        val marginPct = if (estRevenue > 0.0) {
+        val marginPct = if (estRevenueRupiah > 0L) {
             profitBd.divide(estRevenueBd, 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal("100"))
-                .setScale(2, RoundingMode.HALF_UP)
-                .toDouble()
-        } else {
-            0.0
-        }
+        } else BigDecimal.ZERO
 
         return ProductionBatchFinancials(
             totalQuantity = totalQty,
             shortSleeveQty = shortQty,
             longSleeveQty = longQty,
-            hppPendek = safeHppPendek,
-            hppPanjang = safeHppPanjang,
-            totalProductionCost = totalCost,
-            averageHppPerUnit = avgHpp,
-            estimatedRevenue = estRevenue,
-            expectedProfit = profit,
-            profitMarginPercent = marginPct,
+            hppPendekRupiah = hppPendekRupiah,
+            hppPanjangRupiah = hppPanjangRupiah,
+            totalProductionCostRupiah = totalCostRupiah,
+            averageHppPerUnitRupiah = avgHppRupiah,
+            estimatedRevenueRupiah = estRevenueRupiah,
+            expectedProfitRupiah = profitRupiah,
+            profitMarginPercentBd = marginPct,
+            integrityStatus = FinancialIntegrityStatus.VALID,
             isImmutableSavedBatch = true
         )
     }
 
     /**
      * Evaluates a SAVED production batch and retrieves immutable batch financial metrics.
-     * Strictly respects the batch's saved HPP rates (`batch.hppPendek`, `batch.hppPanjang`, `batch.totalProductionCost`),
-     * guaranteeing that global price settings or future catalog changes NEVER modify historical batch costs.
+     * NEVER substitutes current global pricing if historical HPP is missing.
+     * Flags INVALID_HISTORICAL_DATA or RECOVERY_REQUIRED instead.
      */
     fun getBatchFinancials(
         batch: ProductionBatch,
         batchLedgers: List<InventoryLedger> = emptyList(),
+        pricingSnapshot: PricingSnapshot? = null,
         fallbackHppPendek: Double = 0.0,
         fallbackHppPanjang: Double = 0.0
     ): ProductionBatchFinancials {
-        val hppPendek = if (batch.hppPendek > 0.0) batch.hppPendek else fallbackHppPendek
-        val hppPanjang = if (batch.hppPanjang > 0.0) batch.hppPanjang else fallbackHppPanjang
+        val hasBatchHpp = batch.hppPendek > 0.0 || batch.hppPanjang > 0.0
+        val hasSnapshot = pricingSnapshot != null && (pricingSnapshot.hppPendekRupiah > 0L || pricingSnapshot.hppPanjangRupiah > 0L)
+
+        // Strict Policy: If saved HPP is missing and no pricing snapshot exists, NEVER substitute global pricing!
+        if (!hasBatchHpp && !hasSnapshot) {
+            return ProductionBatchFinancials(
+                totalQuantity = batch.totalQuantity,
+                integrityStatus = FinancialIntegrityStatus.INVALID_HISTORICAL_DATA,
+                isImmutableSavedBatch = true
+            )
+        }
+
+        val hppPendekRupiah = when {
+            hasSnapshot -> pricingSnapshot!!.hppPendekRupiah
+            hasBatchHpp -> batch.hppPendek.toLong()
+            else -> 0L
+        }
+
+        val hppPanjangRupiah = when {
+            hasSnapshot -> pricingSnapshot!!.hppPanjangRupiah
+            hasBatchHpp -> batch.hppPanjang.toLong()
+            else -> 0L
+        }
 
         val shortQty = if (batchLedgers.isNotEmpty()) {
             batchLedgers.filter { it.sleeve.equals("Pendek", ignoreCase = true) }.sumOf { it.quantity }
-        } else {
-            0
-        }
+        } else 0
 
         val longQty = if (batchLedgers.isNotEmpty()) {
             batchLedgers.filter { it.sleeve.equals("Panjang", ignoreCase = true) }.sumOf { it.quantity }
-        } else {
-            0
-        }
+        } else 0
 
         val totalQty = if (batch.totalQuantity > 0) batch.totalQuantity else (shortQty + longQty)
 
-        val totalCost = if (batch.totalProductionCost > 0.0) {
-            batch.totalProductionCost
+        val totalCostRupiah = if (batch.totalProductionCost > 0.0) {
+            batch.totalProductionCost.toLong()
         } else if (shortQty > 0 || longQty > 0) {
-            calculateBatchTotalCost(shortQty, longQty, hppPendek, hppPanjang)
-        } else {
-            0.0
-        }
+            calculateBatchTotalCost(shortQty, longQty, hppPendekRupiah, hppPanjangRupiah)
+        } else 0L
 
-        val avgHpp = if (totalQty > 0 && totalCost > 0.0) {
-            BigDecimal.valueOf(totalCost)
-                .divide(BigDecimal(totalQty), 2, RoundingMode.HALF_UP)
-                .toDouble()
-        } else {
-            0.0
-        }
+        val avgHppRupiah = if (totalQty > 0 && totalCostRupiah > 0L) {
+            totalCostRupiah / totalQty
+        } else 0L
+
+        val estRevenueRupiah = batch.estimatedRevenue.toLong()
+        val expectedProfitRupiah = batch.expectedProfit.toLong()
+
+        val marginPct = if (estRevenueRupiah > 0L) {
+            BigDecimal(expectedProfitRupiah).divide(BigDecimal(estRevenueRupiah), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal("100"))
+        } else BigDecimal.ZERO
 
         return ProductionBatchFinancials(
             totalQuantity = totalQty,
             shortSleeveQty = shortQty,
             longSleeveQty = longQty,
-            hppPendek = hppPendek,
-            hppPanjang = hppPanjang,
-            totalProductionCost = totalCost,
-            averageHppPerUnit = avgHpp,
-            estimatedRevenue = batch.estimatedRevenue,
-            expectedProfit = batch.expectedProfit,
-            profitMarginPercent = batch.profitMarginPercent,
+            hppPendekRupiah = hppPendekRupiah,
+            hppPanjangRupiah = hppPanjangRupiah,
+            totalProductionCostRupiah = totalCostRupiah,
+            averageHppPerUnitRupiah = avgHppRupiah,
+            estimatedRevenueRupiah = estRevenueRupiah,
+            expectedProfitRupiah = expectedProfitRupiah,
+            profitMarginPercentBd = marginPct,
+            integrityStatus = FinancialIntegrityStatus.VALID,
             isImmutableSavedBatch = true
         )
     }
 
     /**
      * Binds immutable financial metrics to a ProductionBatch instance before persistence.
-     * Marks status as "Final" and locks all financial attributes.
      */
     fun freezeBatchFinancials(
         batch: ProductionBatch,
@@ -237,14 +322,16 @@ object ProductionFinancialService {
     }
 
     /**
-     * Validates whether a saved batch's recorded total cost matches its recorded HPP rates.
+     * Validates historical financial integrity returning explicit FinancialIntegrityStatus.
      */
     fun validateBatchFinancialIntegrity(
         batch: ProductionBatch,
         batchLedgers: List<InventoryLedger> = emptyList()
-    ): Boolean {
-        if (batch.totalProductionCost <= 0.0) return true
-        
+    ): FinancialIntegrityStatus {
+        if (batch.hppPendek <= 0.0 && batch.hppPanjang <= 0.0 && batch.totalProductionCost <= 0.0) {
+            return FinancialIntegrityStatus.INVALID_HISTORICAL_DATA
+        }
+
         val shortQty: Int
         val longQty: Int
         if (batchLedgers.isNotEmpty()) {
@@ -254,16 +341,22 @@ object ProductionFinancialService {
             shortQty = batch.totalQuantity
             longQty = 0
         } else {
-            // Unverifiable without explicit sleeve ledger breakdown; avoid false invalidation
-            return true
+            return FinancialIntegrityStatus.UNVERIFIABLE
         }
 
         val expectedCost = calculateBatchTotalCost(
             shortSleeveQty = shortQty,
             longSleeveQty = longQty,
-            hppPendek = batch.hppPendek,
-            hppPanjang = batch.hppPanjang
+            hppPendekRupiah = batch.hppPendek.toLong(),
+            hppPanjangRupiah = batch.hppPanjang.toLong()
         )
-        return kotlin.math.abs(batch.totalProductionCost - expectedCost) < 1.0
+
+        val actualCost = batch.totalProductionCost.toLong()
+        return if (kotlin.math.abs(actualCost - expectedCost) <= 10L) {
+            FinancialIntegrityStatus.VALID
+        } else {
+            FinancialIntegrityStatus.INVALID
+        }
     }
 }
+

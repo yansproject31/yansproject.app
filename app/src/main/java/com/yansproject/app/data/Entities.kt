@@ -151,7 +151,7 @@ data class Invoice(
     val remainingPayment: Double
         get() {
             val effectivePaid = maxOf(paidAmount, dpAmount)
-            return maxOf(0.0, totalAmount - effectivePaid - discount)
+            return maxOf(0.0, totalAmount - effectivePaid)
         }
 }
 
@@ -409,7 +409,9 @@ data class ReturLogistik(
 @Entity(tableName = "draft_sales_orders")
 data class DraftSalesOrder(
     @PrimaryKey
+    @get:PropertyName("draftKey") @set:PropertyName("draftKey") var draftKey: String = "DEFAULT_OWNER",
     @get:PropertyName("id") @set:PropertyName("id") var id: Int = 1,
+    @get:PropertyName("ownerUid") @set:PropertyName("ownerUid") var ownerUid: String = "",
     @get:PropertyName("clientName") @set:PropertyName("clientName") var clientName: String = "",
     @get:PropertyName("clientPhone") @set:PropertyName("clientPhone") var clientPhone: String = "",
     @get:PropertyName("clientAddress") @set:PropertyName("clientAddress") var clientAddress: String = "",
@@ -445,3 +447,67 @@ typealias AjibqobulProductEntity = MasterCatalog
 typealias AjibqobulStockEntity = MasterStock
 typealias AjibqobulOrderEntity = OrderHistory
 typealias AjibqobulInvoiceEntity = Invoice
+
+@Keep
+data class BatchInventorySyncResult(
+    val timestamp: Long = System.currentTimeMillis(),
+    val totalInvoicesProcessed: Int = 0,
+    val totalCategoriesProcessed: Int = 0,
+    val totalItemsUpdated: Int = 0,
+    val logs: List<String> = emptyList()
+)
+
+@Keep
+data class InvoiceInventoryDiagnosticReport(
+    val timestamp: Long = System.currentTimeMillis(),
+    val totalInvoicesAnalyzed: Int = 0,
+    val statusCounts: Map<String, Int> = emptyMap(),
+    val totalInvoicedItemQty: Int = 0,
+    val totalStockDecrementedQty: Int = 0,
+    val duplicateInvoiceDiscrepancies: List<String> = emptyList(),
+    val incompleteRefundDiscrepancies: List<String> = emptyList(),
+    val availableStockDiscrepancies: List<String> = emptyList(),
+    val cloudSyncDiscrepancies: List<String> = emptyList(),
+    val discrepancyCount: Int = 0,
+    val isHealthy: Boolean = false,
+    val logs: List<String> = emptyList()
+)
+
+object InvoiceStatusCategory {
+    val APPROVED_STATUSES = setOf(
+        "DISETUJUI", "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", 
+        "BELUM LUNAS", "COMPLETED", "PAID", "PARTIAL_REFUND", 
+        "PARTIAL", "PROCESSED", "DIPROSES", "SEBAGIAN", "PELUNASAN", "BERJALAN"
+    )
+
+    val RESERVED_STATUSES = setOf(
+        "MENUNGGU PERSETUJUAN", "MENUNGGU PERSETUJUAN OWNER", 
+        "MENUNGGU APPROVAL", "PENDING", "DRAFT", "UNPAID", 
+        "BELUM BAYAR", "MENUNGGU PEMBAYARAN", "MENUNGGU VERIFIKASI PEMBAYARAN", 
+        "WAITING_APPROVAL", "WAITING_PAYMENT", "LOCAL_SAVED", "PERSIS_MEMBERSHIP"
+    )
+
+    val CANCELLED_STATUSES = setOf(
+        "BATAL", "CANCELLED", "DITOLAK", "REFUND", "REFUNDED", "VOID", "DELETED"
+    )
+
+    fun isApproved(status: String): Boolean {
+        val s = status.uppercase().trim()
+        if (s in APPROVED_STATUSES) return true
+        if (isCancelled(s)) return false
+        return s.contains("LUNAS") || s.contains("DP") || s.contains("PAID") || s.contains("DISETUJUI") || s.contains("PROCESSED")
+    }
+
+    fun isReserved(status: String): Boolean {
+        val s = status.uppercase().trim()
+        if (s in RESERVED_STATUSES) return true
+        if (isApproved(s) || isCancelled(s)) return false
+        return s.contains("MENUNGGU") || s.contains("PENDING") || s.contains("DRAFT") || s.contains("BELUM") || s.contains("UNPAID") || s.contains("WAITING")
+    }
+
+    fun isCancelled(status: String): Boolean {
+        val s = status.uppercase().trim()
+        if (s in CANCELLED_STATUSES) return true
+        return s.contains("BATAL") || s.contains("CANCEL") || s.contains("REFUND") || s.contains("VOID") || s.contains("DITOLAK")
+    }
+}

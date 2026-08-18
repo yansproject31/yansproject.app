@@ -27,12 +27,7 @@ class YansBootReceiver : BroadcastReceiver() {
                 // 1. Initialize Notification Channels
                 NotificationHandler.initNotificationChannels(context)
 
-                // 2. Re-subscribe to FCM topics based on stored user role
-                val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
-                val userRole = authPrefs.getString("user_role", "MEMBER") ?: "MEMBER"
-                FirebaseSyncManager.subscribeUserToFcmTopics(context, userRole)
-
-                // 3. Ensure Periodic Background Notification Sync Worker is scheduled
+                // 2. Schedule idempotent Periodic Background Worker
                 val syncRequest = PeriodicWorkRequest.Builder(
                     RealtimeNotificationWorker::class.java,
                     15, TimeUnit.MINUTES
@@ -44,10 +39,11 @@ class YansBootReceiver : BroadcastReceiver() {
                     syncRequest
                 )
 
-                Log.i(TAG, "Notification system successfully restored after boot/update.")
+                Log.i(TAG, "Notification system infrastructure successfully restored after boot/update.")
             } catch (e: Exception) {
                 Log.e(TAG, "Error restoring notification system on boot: ${e.message}", e)
             }
         }
     }
 }
+

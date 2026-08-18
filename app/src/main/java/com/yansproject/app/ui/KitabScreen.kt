@@ -213,6 +213,7 @@ fun KitabScreen(viewModel: MainViewModel) {
         if (isBookmarked) updated.add(babId) else updated.remove(babId)
         bookmarkedBabs = updated
         prefs.edit().putStringSet("bookmarks", updated).apply()
+        com.yansproject.app.data.KitabReadingProgressManager.toggleBookmark(context, babId, isBookmarked)
     }
 
     fun saveCompleted(babId: String, isCompleted: Boolean) {
@@ -220,6 +221,7 @@ fun KitabScreen(viewModel: MainViewModel) {
         if (isCompleted) updated.add(babId) else updated.remove(babId)
         completedBabs = updated
         prefs.edit().putStringSet("completed", updated).apply()
+        com.yansproject.app.data.KitabReadingProgressManager.markChapterCompleted(context, babId, isCompleted)
     }
 
     fun saveLastOpened(juzIdx: Int, babIdx: Int, title: String) {
@@ -231,6 +233,7 @@ fun KitabScreen(viewModel: MainViewModel) {
             .putInt("last_opened_bab", babIdx)
             .putString("last_opened_title", title)
             .apply()
+        com.yansproject.app.data.KitabReadingProgressManager.saveLastOpened(context, juzIdx, babIdx, title)
     }
 
     fun saveTextSize(size: Float) {

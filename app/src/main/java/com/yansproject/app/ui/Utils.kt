@@ -9,6 +9,7 @@ import com.yansproject.app.data.InvoiceItemDetail
 import com.yansproject.app.data.ProjectCustom
 import com.yansproject.app.util.BitmapUtils
 import com.yansproject.app.util.FileUtils
+import com.yansproject.app.util.MirrorResult
 import com.yansproject.app.util.PdfUtils
 import com.yansproject.app.util.ShareUtils
 import java.io.File
@@ -446,7 +447,8 @@ object DocumentExporter {
     }
 
     fun mirrorToDownloads(context: Context, file: File, subFolder: String = "Export"): File? {
-        return FileUtils.mirrorToDownloads(context, file, subFolder)
+        val result = FileUtils.mirrorToDownloads(context, file, subFolder)
+        return if (result != MirrorResult.FAILED) file else null
     }
 
     fun openFolder(context: Context, folder: File) {

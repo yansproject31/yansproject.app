@@ -37,6 +37,7 @@ class MemberRepository(private val context: Context) {
 
                     for (doc in snapshot.documents) {
                         val email = doc.getString("email") ?: doc.id
+                        val memberUid = doc.getString("uid") ?: doc.getString("memberUid") ?: doc.id
                         val displayName = doc.getString("displayName") ?: ""
                         val role = doc.getString("role") ?: "MEMBER"
                         val priceCategory = doc.getString("priceCategory") ?: "Member"
@@ -48,23 +49,24 @@ class MemberRepository(private val context: Context) {
                         val statusAkun = doc.getString("statusAkun") ?: doc.getString("status") ?: "Aktif"
                         val statusVerifikasi = doc.getString("statusVerifikasi") ?: doc.getString("status_verifikasi") ?: "Terverifikasi"
 
-                        // System Role separation: Dashboard / Member Management only handles actual registered "MEMBER" role
-                        // Filter out OWNER accounts completely so Owner is never listed as a Member
+                        // Authoritative Role Verification: Never determine Super Admin by name.contains("Owner")
                         val isOwner = role.equals("OWNER", ignoreCase = true) ||
                                 role.equals("ADMIN", ignoreCase = true) ||
-                                displayName.contains("Owner", ignoreCase = true) ||
                                 BusinessIdentityProvider.isOwnerEmail(email, context)
 
-                        if (!isOwner && displayName.isNotBlank() && (role.equals("MEMBER", ignoreCase = true) || role.isBlank())) {
-                            val normalizedName = displayName.trim().lowercase()
+                        if (!isOwner && (role.equals("MEMBER", ignoreCase = true) || role.isBlank())) {
                             val normalizedEmail = email.lowercase().trim()
                             
                             // Synchronize with local offline cache
-                            com.yansproject.app.ui.AppSettings.addMember(context, displayName)
+                            if (displayName.isNotBlank()) {
+                                com.yansproject.app.ui.AppSettings.addMember(context, displayName)
+                            }
                             com.yansproject.app.ui.AppSettings.saveLocalUserCredential(
                                 context, email, passwordOrPin, displayName, "MEMBER", priceCategory, whatsapp, address
                             )
-                            com.yansproject.app.ui.AppSettings.saveMemberPriceCategory(context, displayName, priceCategory)
+                            if (displayName.isNotBlank()) {
+                                com.yansproject.app.ui.AppSettings.saveMemberPriceCategory(context, displayName, priceCategory)
+                            }
 
                             val activeUser = FirebaseSyncManager.currentUser.value
                             if (activeUser != null && activeUser.email.equals(email.trim(), ignoreCase = true)) {
@@ -102,10 +104,12 @@ class MemberRepository(private val context: Context) {
                                 createdAt = createdAt,
                                 lastLogin = lastLogin,
                                 statusAkun = "Aktif",
-                                statusVerifikasi = statusVerifikasi
+                                statusVerifikasi = statusVerifikasi,
+                                memberUid = memberUid
                             )
-                            // Deduplicate by display name
-                            if (membersList.none { it.displayName.equals(displayName.trim(), ignoreCase = true) }) {
+                            // Strict deduplication by immutable memberUid / external ID
+                            val effectiveKey = finalModel.effectiveUid
+                            if (membersList.none { it.effectiveUid.equals(effectiveKey, ignoreCase = true) }) {
                                 membersList.add(finalModel)
                             }
                         }

@@ -29,6 +29,9 @@ interface StockDao : BaseDao<StockItem> {
     @Query("DELETE FROM stock_items")
     suspend fun clearAllStock(): Int
 
+    @Query("SELECT COUNT(*) FROM stock_items WHERE isDeleted = 0")
+    suspend fun getStockCount(): Int
+
     @Query("UPDATE stock_items SET stockCount = :newCount WHERE id = :id AND :newCount >= 0")
     suspend fun updateStockCount(id: Int, newCount: Int): Int
 

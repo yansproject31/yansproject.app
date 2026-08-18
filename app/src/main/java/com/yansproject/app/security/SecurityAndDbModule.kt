@@ -2,16 +2,41 @@ package com.yansproject.app.security
 
 import android.app.Activity
 import android.content.Context
-import android.os.Build
+import android.util.Log
 
 /**
- * SecurityGuardian: Environment checks.
+ * SecurityGuardian: Authoritative environment verification module.
+ * Evaluates explicit security state without killing the application as recovery.
  */
 object SecurityGuardian {
-    fun isEmulator(): Boolean = false
-    fun isDeviceRooted(context: Context): Boolean = false
+
+    @Volatile
+    private var currentState: SecurityState = SecurityState.UNKNOWN
+
+    fun evaluateEnvironment(context: Context): SecurityState {
+        currentState = SecurityState.CHECKING
+        val result = try {
+            OmniverseSecurity.evaluateSecurityState(context)
+        } catch (e: Exception) {
+            SecurityState.CHECK_FAILED
+        }
+        currentState = result
+        return result
+    }
+
+    fun getSecurityState(): SecurityState = currentState
+
+    fun isEmulator(): Boolean {
+        return currentState == SecurityState.EMULATOR
+    }
+
+    fun isDeviceRooted(context: Context): Boolean {
+        return evaluateEnvironment(context) == SecurityState.ROOTED
+    }
+
     fun checkEnvironmentAndKillIfNeeded(activity: Activity) {
-        // No-op for maximum app compatibility and zero crash risk
+        val state = evaluateEnvironment(activity)
+        Log.i("SecurityGuardian", "Evaluated security environment state: $state")
     }
 }
 

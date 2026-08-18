@@ -35,12 +35,15 @@ class StockManagerViewModel(application: Application) : AndroidViewModel(applica
     private val _state = MutableStateFlow(StockManagerUiState())
     val state: StateFlow<StockManagerUiState> = _state.asStateFlow()
 
+    private var loadJob: kotlinx.coroutines.Job? = null
+
     init {
         loadData()
     }
 
     fun loadData() {
-        viewModelScope.launch(Dispatchers.IO) {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true, isError = false, errorMessage = null) }
             try {
                 val summariesList = appDb.inventorySummaryDao().getSummariesList()

@@ -40,6 +40,7 @@ fun BottomNavigationBar(
     canAccessInvoices: Boolean,
     canManageInventory: Boolean,
     isSyncing: Boolean = false,
+    syncState: com.yansproject.app.data.SystemSyncState? = null,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -48,15 +49,25 @@ fun BottomNavigationBar(
         onTabSelected(tab)
     }
 
+    val effectiveSyncState = syncState ?: if (isSyncing) com.yansproject.app.data.SystemSyncState.SYNC_PENDING else com.yansproject.app.data.SystemSyncState.ONLINE_SYNCED
+    val showBanner = effectiveSyncState == com.yansproject.app.data.SystemSyncState.SYNC_PENDING || 
+                     effectiveSyncState == com.yansproject.app.data.SystemSyncState.SYNC_FAILED ||
+                     effectiveSyncState == com.yansproject.app.data.SystemSyncState.RECOVERY_REQUIRED ||
+                     isSyncing
+
     Column(modifier = modifier.fillMaxWidth()) {
         // Subtle, premium-styled Firestore Sync Progress Indicator during background reconciliation
         AnimatedVisibility(
-            visible = isSyncing,
+            visible = showBanner,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
             Surface(
-                color = Color(0xFF081F20), // Shadow Black Teal
+                color = when (effectiveSyncState) {
+                    com.yansproject.app.data.SystemSyncState.SYNC_FAILED -> Color(0xFF2D0E0E)
+                    com.yansproject.app.data.SystemSyncState.RECOVERY_REQUIRED -> Color(0xFF331400)
+                    else -> Color(0xFF081F20)
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -70,31 +81,49 @@ fun BottomNavigationBar(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(10.dp),
-                            color = Color(0xFF4FD1C5), // Highlight Soft Cyan
-                            strokeWidth = 1.5.dp
-                        )
+                        if (effectiveSyncState == com.yansproject.app.data.SystemSyncState.SYNC_PENDING || isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(10.dp),
+                                color = Color(0xFF4FD1C5), // Highlight Soft Cyan
+                                strokeWidth = 1.5.dp
+                            )
+                        }
                         Text(
-                            text = "Sinkronisasi Cloud Firestore...",
+                            text = when (effectiveSyncState) {
+                                com.yansproject.app.data.SystemSyncState.SYNC_FAILED -> "Sinkronisasi Cloud Terkendala"
+                                com.yansproject.app.data.SystemSyncState.RECOVERY_REQUIRED -> "Mode Pemulihan Sistem Aktif"
+                                com.yansproject.app.data.SystemSyncState.AUTH_REQUIRED -> "Otentikasi Diperlukan"
+                                else -> "Sinkronisasi Cloud Firestore..."
+                            },
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = when (effectiveSyncState) {
+                                com.yansproject.app.data.SystemSyncState.SYNC_FAILED -> Color(0xFFFF5252)
+                                com.yansproject.app.data.SystemSyncState.RECOVERY_REQUIRED -> Color(0xFFFFC107)
+                                else -> MaterialTheme.colorScheme.primary
+                            },
                             letterSpacing = 0.5.sp
                         )
                     }
                     Text(
-                        text = "REKONSILIASI OFFLINE",
+                        text = when (effectiveSyncState) {
+                            com.yansproject.app.data.SystemSyncState.SYNC_FAILED -> "OFFLINE RETRY"
+                            com.yansproject.app.data.SystemSyncState.RECOVERY_REQUIRED -> "DIAGNOSTIC"
+                            else -> "REKONSILIASI OFFLINE"
+                        },
                         fontSize = 8.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF4FD1C5).copy(alpha = 0.8f)
+                        color = when (effectiveSyncState) {
+                            com.yansproject.app.data.SystemSyncState.SYNC_FAILED -> Color(0xFFFF5252).copy(alpha = 0.8f)
+                            else -> Color(0xFF4FD1C5).copy(alpha = 0.8f)
+                        }
                     )
                 }
             }
         }
 
         AnimatedVisibility(
-            visible = isSyncing,
+            visible = effectiveSyncState == com.yansproject.app.data.SystemSyncState.SYNC_PENDING || isSyncing,
             enter = fadeIn(),
             exit = fadeOut()
         ) {

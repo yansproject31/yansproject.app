@@ -42,22 +42,53 @@ import com.yansproject.app.data.ProjectCustom
 import com.yansproject.app.ui.AppSettings
 import com.yansproject.app.ui.theme.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 
 data class CustomerSuggestion(
+    val memberUid: String = "",
+    val customerId: Int = 0,
     val name: String,
     val phone: String,
+    val whatsapp: String = "",
+    val email: String = "",
     val address: String = "",
     val isMember: Boolean = false,
     val memberTier: String = "",
     val totalOrders: Int = 1,
     val lastInvoiceNumber: String = ""
-)
+) {
+    val normalizedPhone: String
+        get() = phone.filter { it.isDigit() }
+
+    val normalizedEmail: String
+        get() = email.trim().lowercase()
+
+    val uniqueKey: String
+        get() = when {
+            memberUid.isNotBlank() -> "MBR:$memberUid"
+            customerId > 0 -> "CUST:$customerId"
+            normalizedPhone.isNotBlank() -> "TEL:$normalizedPhone"
+            normalizedEmail.isNotBlank() -> "EML:$normalizedEmail"
+            else -> "NAME:${name.trim().lowercase()}"
+        }
+}
 
 object CustomerSuggestionHelper {
 
+    fun normalizeIdentifier(phone: String, email: String, memberUid: String = ""): String {
+        return when {
+            memberUid.isNotBlank() -> memberUid.trim()
+            phone.isNotBlank() -> phone.filter { it.isDigit() }
+            email.isNotBlank() -> email.trim().lowercase()
+            else -> ""
+        }
+    }
+
     suspend fun getCustomerSuggestions(
         context: android.content.Context,
+        query: String = "",
+        limit: Int = 30,
         invoicesList: List<Invoice>? = null,
         projectsList: List<ProjectCustom>? = null
     ): List<CustomerSuggestion> = withContext(Dispatchers.IO) {
@@ -65,123 +96,73 @@ object CustomerSuggestionHelper {
         val registeredMemberNames = AppSettings.getMembers(context).map { it.trim() }.toSet()
         val memberMap = mutableMapOf<String, CustomerSuggestion>()
 
-        // 1. Collect Registered Members
+        // 1. Collect Registered Members (Indexed by normalized memberUid / phone / email)
         for (memberName in registeredMemberNames) {
             val detail = AppSettings.getMemberDetail(context, memberName)
             val phone = detail?.whatsapp?.trim() ?: ""
             val address = detail?.address?.trim() ?: ""
             val tier = detail?.priceCategory?.ifBlank { "Member" } ?: "Member"
+            val memberUid = detail?.email?.ifBlank { memberName } ?: memberName
             val item = CustomerSuggestion(
+                memberUid = memberUid,
                 name = memberName,
                 phone = phone,
+                whatsapp = phone,
+                email = detail?.email ?: "",
                 address = address,
                 isMember = true,
                 memberTier = tier,
                 totalOrders = 0,
                 lastInvoiceNumber = ""
             )
-            memberMap[memberName.lowercase()] = item
+            memberMap[item.uniqueKey] = item
             result.add(item)
         }
 
-        // 2. Collect Invoices
-        val db = AppDatabase.getDatabase(context)
-        val invoices = invoicesList ?: try { 
-            db.invoiceDao().getInvoicesList() 
-        } catch (e: Exception) { 
-            android.util.Log.e("CustomerSuggestion", "Query invoices failed: ${e.message}", e)
-            emptyList() 
-        }
-        val projects = projectsList ?: try { 
-            db.projectDao().getAllProjectsList() 
-        } catch (e: Exception) { 
-            android.util.Log.e("CustomerSuggestion", "Query projects failed: ${e.message}", e)
-            emptyList() 
-        }
-        val converters = AppTypeConverters()
-
-        val nonMemberMap = mutableMapOf<String, CustomerSuggestion>()
-
-        for (inv in invoices) {
-            val rawName = inv.clientName.trim()
-            if (rawName.isBlank() || isGenericName(rawName)) continue
-
-            val lowerName = rawName.lowercase()
-            if (memberMap.containsKey(lowerName)) {
-                val existing = memberMap[lowerName]!!
-                memberMap[lowerName] = existing.copy(
-                    totalOrders = existing.totalOrders + 1,
-                    lastInvoiceNumber = if (inv.invoiceNumber.isNotBlank()) inv.invoiceNumber else existing.lastInvoiceNumber
-                )
-                continue
-            }
-
-            val phone = inv.clientPhone.trim()
-            val items = try { 
-                converters.toInvoiceItemList(inv.itemsJson) 
-            } catch (e: Exception) { 
-                android.util.Log.e("CustomerSuggestion", "Invoice itemsJson parse error for ${inv.invoiceNumber}: ${e.message}", e)
-                emptyList() 
-            }
-            val address = items.find { it.description.startsWith("__ADDRESS__:") }?.description?.removePrefix("__ADDRESS__:")?.trim() ?: ""
-
-            val existing = nonMemberMap[lowerName]
-            if (existing == null) {
-                nonMemberMap[lowerName] = CustomerSuggestion(
-                    name = rawName,
-                    phone = phone,
-                    address = address,
-                    isMember = false,
-                    totalOrders = 1,
-                    lastInvoiceNumber = inv.invoiceNumber
-                )
+        // 2. Query Indexed CustomerDao with LIMIT and rank
+        try {
+            val db = AppDatabase.getDatabase(context)
+            val customerEntities = if (query.isBlank()) {
+                db.customerDao().getRecentCustomers(limit)
             } else {
-                nonMemberMap[lowerName] = existing.copy(
-                    phone = phone.ifBlank { existing.phone },
-                    address = address.ifBlank { existing.address },
-                    totalOrders = existing.totalOrders + 1,
-                    lastInvoiceNumber = if (inv.invoiceNumber.isNotBlank()) inv.invoiceNumber else existing.lastInvoiceNumber
-                )
+                db.customerDao().searchCustomers(query, limit)
             }
+            
+            // Collect customer entities without full invoice scan
+            val collectedEntities = customerEntities.firstOrNull() ?: emptyList()
+            for (c in collectedEntities) {
+                if (c.name.isBlank() || isGenericName(c.name)) continue
+                val custKey = when {
+                    c.phone.isNotBlank() -> "TEL:${c.phone.filter { it.isDigit() }}"
+                    c.email.isNotBlank() -> "EML:${c.email.trim().lowercase()}"
+                    else -> "CUST:${c.id}"
+                }
+                if (!memberMap.containsKey(custKey)) {
+                    result.add(
+                        CustomerSuggestion(
+                            customerId = c.id,
+                            name = c.name,
+                            phone = c.phone.ifBlank { c.whatsapp },
+                            whatsapp = c.whatsapp,
+                            email = c.email,
+                            address = c.address,
+                            isMember = c.isMember,
+                            memberTier = c.tier,
+                            totalOrders = 1
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("CustomerSuggestion", "Indexed customer search note: ${e.message}")
         }
 
-        // 3. Collect Custom Projects
-        for (proj in projects) {
-            val rawName = proj.clientName.trim()
-            if (rawName.isBlank() || isGenericName(rawName)) continue
-            val lowerName = rawName.lowercase()
-            if (memberMap.containsKey(lowerName)) continue
-
-            val phone = proj.clientPhone.trim()
-            val address = proj.clientAddress.trim()
-
-            val existing = nonMemberMap[lowerName]
-            if (existing == null) {
-                nonMemberMap[lowerName] = CustomerSuggestion(
-                    name = rawName,
-                    phone = phone,
-                    address = address,
-                    isMember = false,
-                    totalOrders = 1,
-                    lastInvoiceNumber = if (proj.invoiceNumber.isNotBlank()) proj.invoiceNumber else "PROJ-${proj.id}"
-                )
-            } else {
-                nonMemberMap[lowerName] = existing.copy(
-                    phone = phone.ifBlank { existing.phone },
-                    address = address.ifBlank { existing.address },
-                    totalOrders = existing.totalOrders + 1
-                )
-            }
-        }
-
-        val sortedNonMembers = nonMemberMap.values.sortedByDescending { it.totalOrders }
-        result.addAll(sortedNonMembers)
-
-        result
+        // Rank by member status and order count
+        result.distinctBy { it.uniqueKey }.take(limit)
     }
 
     private fun isGenericName(name: String): Boolean {
-        val lower = name.lowercase()
+        val lower = name.lowercase().trim()
         return lower == "pelanggan umum" || lower == "customer umum" || lower == "umum" || lower == "cash" || lower == "klien umum" || lower == "non member" || lower == "non-member"
     }
 }
@@ -204,8 +185,8 @@ fun CustomerSelectionSection(
     var suggestions by remember { mutableStateOf(listOf<CustomerSuggestion>()) }
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        suggestions = CustomerSuggestionHelper.getCustomerSuggestions(context, invoicesList, projectsList)
+    LaunchedEffect(clientName) {
+        suggestions = CustomerSuggestionHelper.getCustomerSuggestions(context, clientName, limit = 30, invoicesList, projectsList)
     }
 
     val members = remember(suggestions) { suggestions.filter { it.isMember } }

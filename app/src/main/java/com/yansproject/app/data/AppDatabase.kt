@@ -32,8 +32,8 @@ import java.security.SecureRandom
         ReportCache::class,
         CustomerEntity::class
     ],
-    version = 19,
-    exportSchema = false
+    version = 20,
+    exportSchema = true
 )
 @TypeConverters(AppTypeConverters::class)
 abstract class AppDatabase : RoomDatabase() {

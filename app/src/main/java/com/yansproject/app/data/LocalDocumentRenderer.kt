@@ -111,11 +111,12 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             canvas.drawText("FAKTUR INVOICE", 425f, 42f, paint)
 
-            val remaining = (invoice.totalAmount - invoice.paidAmount - invoice.discount).coerceAtLeast(0.0)
-            val isPaid = remaining <= 0
-            paint.color = if (isPaid) Color.parseColor("#2E7D32") else if (invoice.paidAmount > 0) Color.parseColor("#EF6C00") else Color.parseColor("#C62828")
+            val presentation = invoice.toPresentationModel()
+            val remaining = presentation.remainingDouble
+            val isPaid = remaining <= 0.0
+            paint.color = if (isPaid) Color.parseColor("#2E7D32") else if (presentation.paidDouble > 0) Color.parseColor("#EF6C00") else Color.parseColor("#C62828")
             paint.textSize = 9.5f
-            val statusText = if (isPaid) "[ LUNAS ]" else if (invoice.paidAmount > 0) "[ DIBAYAR SEBAGIAN ]" else "[ BELUM LUNAS ]"
+            val statusText = if (isPaid) "[ LUNAS ]" else if (presentation.paidDouble > 0) "[ DIBAYAR SEBAGIAN ]" else "[ BELUM LUNAS ]"
             canvas.drawText(statusText, 425f, 65f, paint)
 
             // 2. Subtle Security Watermark (A4)
@@ -271,9 +272,8 @@ class LocalDocumentRenderer(private val context: Context) {
             canvas.drawLine(275f, summaryBoxTop + 10f, 275f, summaryBoxTop + 105f, paint)
 
             // Right Box: Financial Summary
-            val subtotalCalculated = InvoiceItemSorter.calcSubtotal(filteredItems)
-            val displaySubtotal = if (subtotalCalculated > 0.0) subtotalCalculated else (invoice.totalAmount + invoice.discount)
-            val grandTotal = (displaySubtotal - invoice.discount).coerceAtLeast(0.0)
+            val displaySubtotal = presentation.subtotalDouble
+            val grandTotal = presentation.grandTotalDouble
 
             paint.textSize = 8.5f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
@@ -281,10 +281,10 @@ class LocalDocumentRenderer(private val context: Context) {
             canvas.drawText("SUB TOTAL       :", 285f, summaryBoxTop + 20f, paint)
             canvas.drawText("Rp " + formatCompactPrice(displaySubtotal), 445f, summaryBoxTop + 20f, paint)
 
-            if (invoice.discount > 0) {
+            if (presentation.discount > 0) {
                 paint.color = Color.parseColor("#888888")
                 canvas.drawText("DISKON          :", 285f, summaryBoxTop + 38f, paint)
-                canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), 445f, summaryBoxTop + 38f, paint)
+                canvas.drawText("- Rp " + formatCompactPrice(presentation.discountDouble), 445f, summaryBoxTop + 38f, paint)
             }
 
             // SUB HERO TOTAL
@@ -296,7 +296,7 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             paint.color = Color.parseColor("#2E7D32")
             canvas.drawText("PEMBAYARAN      :", 285f, summaryBoxTop + 74f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), 445f, summaryBoxTop + 74f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(presentation.paidDouble), 445f, summaryBoxTop + 74f, paint)
 
             // HERO INFORMASI SISA PEMBAYARAN
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
@@ -451,11 +451,12 @@ class LocalDocumentRenderer(private val context: Context) {
             canvas.drawText("FAKTUR INVOICE RESMI", cardLeft + 40f, curY, paint)
 
             // Status Pill
-            val remaining = (invoice.totalAmount - invoice.paidAmount - invoice.discount).coerceAtLeast(0.0)
-            val isPaid = remaining <= 0
-            val statusStr = if (isPaid) "LUNAS" else if (invoice.paidAmount > 0) "DIBAYAR SEBAGIAN" else "BELUM LUNAS"
-            val statusBg = if (isPaid) Color.parseColor("#1B4D3E") else if (invoice.paidAmount > 0) Color.parseColor("#5A3A10") else Color.parseColor("#4A1818")
-            val statusColor = if (isPaid) Color.parseColor("#4FD1C5") else if (invoice.paidAmount > 0) Color.parseColor("#FFC107") else Color.parseColor("#FF5252")
+            val presentation = invoice.toPresentationModel()
+            val remaining = presentation.remainingDouble
+            val isPaid = remaining <= 0.0
+            val statusStr = if (isPaid) "LUNAS" else if (presentation.paidDouble > 0) "DIBAYAR SEBAGIAN" else "BELUM LUNAS"
+            val statusBg = if (isPaid) Color.parseColor("#1B4D3E") else if (presentation.paidDouble > 0) Color.parseColor("#5A3A10") else Color.parseColor("#4A1818")
+            val statusColor = if (isPaid) Color.parseColor("#4FD1C5") else if (presentation.paidDouble > 0) Color.parseColor("#FFC107") else Color.parseColor("#FF5252")
 
             paint.color = statusBg
             canvas.drawRoundRect(cardRight - 340f, curY - 42f, cardRight - 40f, curY + 15f, 20f, 20f, paint)
@@ -565,9 +566,8 @@ class LocalDocumentRenderer(private val context: Context) {
             canvas.drawLine(cardLeft + 50f, curY + 52f, cardRight - 50f, curY + 52f, paint)
 
             // Financial Breakdown
-            val subtotalCalc = InvoiceItemSorter.calcSubtotal(filteredItems)
-            val displaySub = if (subtotalCalc > 0.0) subtotalCalc else invoice.totalAmount
-            val grandTot = (displaySub - invoice.discount).coerceAtLeast(0.0)
+            val displaySub = presentation.subtotalDouble
+            val grandTot = presentation.grandTotalDouble
 
             paint.color = Color.parseColor("#C6A15B")
             paint.textSize = 20f
@@ -575,11 +575,11 @@ class LocalDocumentRenderer(private val context: Context) {
             canvas.drawText("SUB TOTAL :", cardLeft + 60f, curY + 88f, paint)
             canvas.drawText("Rp " + formatCompactPrice(displaySub), cardRight - 380f, curY + 88f, paint)
 
-            if (invoice.discount > 0) {
+            if (presentation.discount > 0) {
                 paint.color = Color.parseColor("#A0A0A0")
                 paint.textSize = 18f
                 canvas.drawText("DISKON :", cardLeft + 60f, curY + 124f, paint)
-                canvas.drawText("- Rp " + formatCompactPrice(invoice.discount), cardRight - 380f, curY + 124f, paint)
+                canvas.drawText("- Rp " + formatCompactPrice(presentation.discountDouble), cardRight - 380f, curY + 124f, paint)
             }
 
             paint.color = Color.WHITE
@@ -592,7 +592,7 @@ class LocalDocumentRenderer(private val context: Context) {
             paint.textSize = 20f
             paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             canvas.drawText("PEMBAYARAN :", cardLeft + 60f, curY + 196f, paint)
-            canvas.drawText("Rp " + formatCompactPrice(invoice.paidAmount), cardRight - 380f, curY + 196f, paint)
+            canvas.drawText("Rp " + formatCompactPrice(presentation.paidDouble), cardRight - 380f, curY + 196f, paint)
 
             paint.color = if (remaining > 0) Color.parseColor("#FF5252") else Color.parseColor("#36D0A7")
             paint.textSize = 22f

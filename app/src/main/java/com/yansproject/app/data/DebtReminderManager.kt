@@ -36,15 +36,16 @@ class DebtReminderManager(private val context: Context) {
     /**
      * Compiles secure payload and triggers a debt collector message for partially paid/unpaid invoices.
      */
-    suspend fun triggerInvoiceReminder(invoice: Invoice): Boolean = withContext(Dispatchers.IO) {
+    suspend fun triggerInvoiceReminder(invoice: Invoice, reminderType: String = "WHATSAPP_DEBT"): Boolean = withContext(Dispatchers.IO) {
         val remaining = invoice.remainingPayment
         if (remaining <= 0.0) {
             Log.w(TAG, "Cannot trigger reminder for fully paid invoice: ${invoice.invoiceNumber}")
             return@withContext false
         }
 
-        // 1. Compile clean secure payload
-        val token = "TXN-SEC-${UUID.randomUUID().toString().uppercase().take(8)}"
+        // 1. Compile deterministic transaction token / idempotency key (Invoice ID + Type + Date Bucket)
+        val dateBucket = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
+        val deterministicToken = "REM-${invoice.id}_${reminderType}_$dateBucket"
         
         val reminderMessage = "Halo ${invoice.clientName},\n\n" +
                 "Kami dari YANSPROJECT.ID ingin menginfokan mengenai Invoice No: *${invoice.invoiceNumber}* " +
@@ -53,7 +54,7 @@ class DebtReminderManager(private val context: Context) {
                 "Terima kasih atas kepercayaan Anda bermitra dengan YANSPROJECT.ID!"
 
         val payload = DebtReminderPayload(
-            transactionToken = token,
+            transactionToken = deterministicToken,
             invoiceNumber = invoice.invoiceNumber,
             clientName = invoice.clientName,
             clientPhone = invoice.clientPhone,
@@ -64,25 +65,11 @@ class DebtReminderManager(private val context: Context) {
             reminderText = reminderMessage
         )
 
-        // 2. Load Endpoint URL
-        val prefs = context.getSharedPreferences("api_health_prefs", Context.MODE_PRIVATE)
-        val rawN8nUrl = prefs.getString("n8n_url", "https://primary-production.shared.n8n.cloud")?.trim() ?: "https://primary-production.shared.n8n.cloud"
-        if (rawN8nUrl.isBlank()) {
-            val failureDetail = "Configuration failure: Empty n8n webhook URL setting."
-            Log.e(TAG, failureDetail)
-            appDb.auditLogDao().insertLog(
-                AuditLog(
-                    activity = "DEBT_COLLECTOR_FAILED",
-                    details = "Failed triggering WhatsApp reminder for Invoice ${invoice.invoiceNumber}. $failureDetail"
-                )
-            )
-            return@withContext false
-        }
+        // 2. Production Webhook Endpoint
+        val productionBase = "https://primary-production.shared.n8n.cloud"
+        val reminderWebhookUrl = "$productionBase/webhook/yans-debt-reminder"
 
-        val n8nBase = if (rawN8nUrl.startsWith("http://") || rawN8nUrl.startsWith("https://")) rawN8nUrl else "https://$rawN8nUrl"
-        val reminderWebhookUrl = "$n8nBase/webhook/yans-debt-reminder"
-
-        Log.d(TAG, "Triggering WhatsApp Reminder Webhook -> $reminderWebhookUrl")
+        Log.d(TAG, "Triggering WhatsApp Reminder Webhook (Token: $deterministicToken) -> $reminderWebhookUrl")
 
         // 3. Post asynchronously to n8n Webhook
         var connection: HttpURLConnection? = null
@@ -97,9 +84,11 @@ class DebtReminderManager(private val context: Context) {
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
             connection.setRequestProperty("Accept", "application/json")
             connection.setRequestProperty("X-Secure-Trigger", "YANSPROJECT-DEBT-COLLECTOR")
+            connection.setRequestProperty("X-Idempotency-Key", deterministicToken)
 
             val jsonBody = JSONObject().apply {
                 put("transactionToken", payload.transactionToken)
+                put("idempotencyKey", deterministicToken)
                 put("invoiceNumber", payload.invoiceNumber)
                 put("clientName", payload.clientName)
                 put("clientPhone", payload.clientPhone)
@@ -108,6 +97,7 @@ class DebtReminderManager(private val context: Context) {
                 put("remainingBalance", payload.remainingBalance)
                 put("dueDate", payload.dueDate)
                 put("reminderText", payload.reminderText)
+                put("dateBucket", dateBucket)
                 put("timestamp", System.currentTimeMillis())
             }
 
@@ -141,19 +131,25 @@ class DebtReminderManager(private val context: Context) {
             connection?.disconnect()
         }
 
-        // 4. Trace in local AuditLog
+        // 4. Trace in local AuditLog (Sanitize sensitive phone details)
+        val maskedPhone = if (invoice.clientPhone.length > 4) {
+            "*".repeat(invoice.clientPhone.length - 4) + invoice.clientPhone.takeLast(4)
+        } else {
+            "****"
+        }
+
         if (success) {
             appDb.auditLogDao().insertLog(
                 AuditLog(
                     activity = "DEBT_COLLECTOR_TRIGGERED",
-                    details = "WhatsApp debt reminder successfully sent for Invoice ${invoice.invoiceNumber} to client ${invoice.clientName} (${invoice.clientPhone}). Sisa: ${IdrAccountingEngine.formatRupiah(remaining)}."
+                    details = "WhatsApp debt reminder sent for Invoice ${invoice.invoiceNumber} to client ${invoice.clientName} ($maskedPhone). Token: $deterministicToken. Sisa: ${IdrAccountingEngine.formatRupiah(remaining)}."
                 )
             )
         } else {
             appDb.auditLogDao().insertLog(
                 AuditLog(
                     activity = "DEBT_COLLECTOR_FAILED",
-                    details = "Failed triggering WhatsApp reminder for Invoice ${invoice.invoiceNumber}. Reason: ${failureReason ?: "Unknown"}"
+                    details = "Failed triggering WhatsApp reminder for Invoice ${invoice.invoiceNumber}. Token: $deterministicToken. Reason: ${failureReason ?: "Unknown"}"
                 )
             )
         }

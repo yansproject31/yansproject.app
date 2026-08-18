@@ -873,17 +873,21 @@ fun DashboardScreen(
     var selectedInvoiceForDetail by remember { mutableStateOf<Invoice?>(null) }
     var isRecentActivitiesVisible by remember { mutableStateOf(true) }
 
+    val importCoroutineScope = rememberCoroutineScope()
+
     // CSV Import Launchers
     val importStockLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
         onResult = { uri ->
             if (uri != null) {
-                DataImportExportHelper.importStockFromCsv(context, uri, viewModel) { count ->
-                    if (count > 0) {
-                        Toast.makeText(context, "Berhasil mengimpor $count data stok!", Toast.LENGTH_LONG).show()
-                        viewModel.addAuditLog("Import Stock", "Berhasil mengimpor $count data stok via CSV.")
-                    } else {
-                        Toast.makeText(context, "Gagal mengimpor data stok!", Toast.LENGTH_LONG).show()
+                importCoroutineScope.launch {
+                    DataImportExportHelper.importStockFromCsv(context, uri, viewModel) { count ->
+                        if (count > 0) {
+                            Toast.makeText(context, "Berhasil mengimpor $count data stok!", Toast.LENGTH_LONG).show()
+                            viewModel.addAuditLog("Import Stock", "Berhasil mengimpor $count data stok via CSV.")
+                        } else {
+                            Toast.makeText(context, "Gagal mengimpor data stok!", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }
@@ -894,12 +898,14 @@ fun DashboardScreen(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
         onResult = { uri ->
             if (uri != null) {
-                DataImportExportHelper.importCatalogFromCsv(context, uri, viewModel) { count ->
-                    if (count > 0) {
-                        Toast.makeText(context, "Berhasil mengimpor $count katalog baru!", Toast.LENGTH_LONG).show()
-                        viewModel.addAuditLog("Import Catalog", "Berhasil mengimpor $count data katalog via CSV.")
-                    } else {
-                        Toast.makeText(context, "Gagal mengimpor data katalog!", Toast.LENGTH_LONG).show()
+                importCoroutineScope.launch {
+                    DataImportExportHelper.importCatalogFromCsv(context, uri, viewModel) { count ->
+                        if (count > 0) {
+                            Toast.makeText(context, "Berhasil mengimpor $count katalog baru!", Toast.LENGTH_LONG).show()
+                            viewModel.addAuditLog("Import Catalog", "Berhasil mengimpor $count data katalog via CSV.")
+                        } else {
+                            Toast.makeText(context, "Gagal mengimpor data katalog!", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }
@@ -910,12 +916,14 @@ fun DashboardScreen(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
         onResult = { uri ->
             if (uri != null) {
-                DataImportExportHelper.importCustomerFromCsv(context, uri, viewModel) { count ->
-                    if (count > 0) {
-                        Toast.makeText(context, "Berhasil mengimpor $count customer baru!", Toast.LENGTH_LONG).show()
-                        viewModel.addAuditLog("Import Customer", "Berhasil mengimpor $count data pelanggan via CSV.")
-                    } else {
-                        Toast.makeText(context, "Gagal mengimpor data pelanggan!", Toast.LENGTH_LONG).show()
+                importCoroutineScope.launch {
+                    DataImportExportHelper.importCustomerFromCsv(context, uri, viewModel) { count ->
+                        if (count > 0) {
+                            Toast.makeText(context, "Berhasil mengimpor $count customer baru!", Toast.LENGTH_LONG).show()
+                            viewModel.addAuditLog("Import Customer", "Berhasil mengimpor $count data pelanggan via CSV.")
+                        } else {
+                            Toast.makeText(context, "Gagal mengimpor data pelanggan!", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }
@@ -1197,23 +1205,8 @@ fun DashboardScreen(
         }
     }
     val nilaiTotalStock = remember(inventorySummaries, stockItems, masterStocks) {
-        val summaryNilai = inventorySummaries.sumOf { it.nilaiPersediaan }
         val context = com.yansproject.app.YansApplication.instance
-        val defaultHppPendek = AppSettings.getAjibqobulHppPendek(context)
-        val masterNilai = masterStocks.filter { !it.isDeleted }.sumOf { stock ->
-            val hppP = if (stock.hpp_pendek > 0.0) stock.hpp_pendek else defaultHppPendek
-            val hppL = if (stock.hpp_panjang > 0.0) stock.hpp_panjang else defaultHppPendek
-            val qtyP = stock.xs_pendek + stock.s_pendek + stock.m_pendek + stock.l_pendek + stock.xl_pendek + stock.xxl_pendek + stock.three_xl_pendek + stock.four_xl_pendek
-            val qtyL = stock.xs_panjang + stock.s_panjang + stock.m_panjang + stock.l_panjang + stock.xl_panjang + stock.xxl_panjang + stock.three_xl_panjang + stock.four_xl_panjang
-            (qtyP * hppP) + (qtyL * hppL)
-        }
-        if (summaryNilai > 0 || inventorySummaries.isNotEmpty()) {
-            summaryNilai
-        } else if (masterNilai > 0.0) {
-            masterNilai
-        } else {
-            stockItems.filter { !it.isDeleted }.sumOf { (it.stockCount * it.costPrice) }
-        }
+        com.yansproject.app.data.DashboardAggregator.computeStockValue(context, masterStocks, inventorySummaries, stockItems)
     }
 
     // 8. Piutang Dagang & Invoice Unpaid (Hanya invoice aktif yang belum lunas)
