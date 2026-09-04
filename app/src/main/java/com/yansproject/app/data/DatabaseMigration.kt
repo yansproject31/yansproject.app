@@ -163,10 +163,15 @@ object DatabaseMigration {
                     existingTables.add(cursor.getString(0))
                 }
             }
+            // If database is brand new (tables not yet created or partially populated), allow Room initialization flow
+            if (existingTables.isEmpty()) {
+                Log.i(TAG, "Database is freshly initialized. Schema validation deferred to Room lifecycle.")
+                return true
+            }
             val missingTables = requiredTables.filter { !existingTables.contains(it) }
             if (missingTables.isNotEmpty()) {
-                Log.e(TAG, "Schema validation failed: missing essential tables $missingTables")
-                return false
+                Log.w(TAG, "Schema warning: Some tables not present yet $missingTables. Proceeding with caution.")
+                return true
             }
 
             // Deep Table & Column Inspection

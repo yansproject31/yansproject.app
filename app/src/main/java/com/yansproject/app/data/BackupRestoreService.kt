@@ -142,8 +142,12 @@ class BackupRestoreService private constructor(private val context: Context) {
                         action = operationId,
                         utcTimestamp = java.time.Instant.now().toString()
                     )
-                    kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                        db.auditLogDao().insertLog(auditLog)
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        try {
+                            db.auditLogDao().insertLog(auditLog)
+                        } catch (ie: Exception) {
+                            Log.w(TAG, "Non-fatal: failed inserting backup audit log: ${ie.message}")
+                        }
                     }
                 } catch (ae: Exception) {
                     Log.e(TAG, "Failed logging backup completion to audit log.", ae)

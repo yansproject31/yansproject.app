@@ -4056,8 +4056,12 @@ fun RiwayatProduksiScreen(
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         IconButton(
                                             onClick = {
-                                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${proj.clientPhone}"))
-                                                context.startActivity(intent)
+                                                try {
+                                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${proj.clientPhone}"))
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "Tidak dapat membuka panggilan telepon", Toast.LENGTH_SHORT).show()
+                                                }
                                             },
                                             modifier = Modifier
                                                 .size(36.dp)
@@ -4073,9 +4077,13 @@ fun RiwayatProduksiScreen(
                                         }
                                         IconButton(
                                             onClick = {
-                                                val cleanPhone = proj.clientPhone.replace("+", "").replace(" ", "").replace("-", "")
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone"))
-                                                context.startActivity(intent)
+                                                try {
+                                                    val cleanPhone = proj.clientPhone.replace("+", "").replace(" ", "").replace("-", "")
+                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone"))
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "Aplikasi WhatsApp tidak ditemukan", Toast.LENGTH_SHORT).show()
+                                                }
                                             },
                                             modifier = Modifier
                                                 .size(36.dp)

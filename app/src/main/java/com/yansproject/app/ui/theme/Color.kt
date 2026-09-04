@@ -91,6 +91,7 @@ val ErrorRed = YansError
 
 val PrimaryDarkTeal: Color get() = dynamicPrimaryDarkTeal
 val DeepTeal: Color = Color(0xFF163536)
+val DeepCanvas: Color = Color(0xFF0B1B1C)
 val CyberEmerald: Color = Color(0xFF0F433F)
 val SecondaryShadowBlackTeal: Color get() = dynamicSecondaryShadowBlackTeal
 val AccentAgedGold: Color get() = dynamicAgedGold

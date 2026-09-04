@@ -715,7 +715,11 @@ fun StockScreen(
                                                             putExtra(android.content.Intent.EXTRA_SUBJECT, "Inventory Ledger YANSPROJECT.ID")
                                                             putExtra(android.content.Intent.EXTRA_TEXT, csvContent)
                                                         }
-                                                        context.startActivity(android.content.Intent.createChooser(intent, "Ekspor Ledger Keuangan"))
+                                                        try {
+                                                            context.startActivity(android.content.Intent.createChooser(intent, "Ekspor Ledger Keuangan"))
+                                                        } catch (e: Exception) {
+                                                            Toast.makeText(context, "Tidak ada aplikasi untuk membuka CSV: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                                        }
                                                     },
                                                     modifier = Modifier
                                                         .size(32.dp)
@@ -1248,7 +1252,11 @@ fun BatchDetailDialog(
                             putExtra(android.content.Intent.EXTRA_SUBJECT, "Laporan Produksi Batch ${batch.batchNumber}")
                             putExtra(android.content.Intent.EXTRA_TEXT, csvContent)
                         }
-                        context.startActivity(android.content.Intent.createChooser(intent, "Cetak / Ekspor Laporan Batch"))
+                        try {
+                            context.startActivity(android.content.Intent.createChooser(intent, "Cetak / Ekspor Laporan Batch"))
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Tidak ada aplikasi untuk membuka CSV: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack)
                 ) {
@@ -3840,13 +3848,13 @@ fun MemberDetailStockView(
         
         val totalQtyPendek = qtyStatesList.filter { it.first.endsWith("-Pendek") }.sumOf { it.second }
         val totalHargaPendek = qtyStatesList.filter { it.first.endsWith("-Pendek") && it.second > 0 }.map { (key, qty) ->
-            val size = key.split("-")[0]
+            val size = key.substringBeforeLast("-")
             calculateAjibqobulItemPrice(size, "Pendek") * qty
         }.sum()
 
         val totalQtyPanjang = qtyStatesList.filter { it.first.endsWith("-Panjang") }.sumOf { it.second }
         val totalHargaPanjang = qtyStatesList.filter { it.first.endsWith("-Panjang") && it.second > 0 }.map { (key, qty) ->
-            val size = key.split("-")[0]
+            val size = key.substringBeforeLast("-")
             calculateAjibqobulItemPrice(size, "Panjang") * qty
         }.sum()
 
@@ -3916,16 +3924,17 @@ fun MemberDetailStockView(
                         coroutineScope.launch {
                             delay(600) // brief loading animation
                             val updatedList = qtyStates.filter { it.value > 0 }.map { (k, v) ->
-                                val parts = k.split("-")
-                                val finalPrice = calculateAjibqobulItemPrice(parts[0], parts[1])
+                                val itemSize = k.substringBeforeLast("-")
+                                val itemSleeve = k.substringAfterLast("-", "Pendek")
+                                val finalPrice = calculateAjibqobulItemPrice(itemSize, itemSleeve)
                                 MemberCartItem(
-                                    id = "${catalog.id_catalog}_${varian.id_varian}_${parts[0]}_${parts[1]}",
+                                    id = "${catalog.id_catalog}_${varian.id_varian}_${itemSize}_${itemSleeve}",
                                     catalogId = catalog.id_catalog,
                                     catalogName = catalog.nama_catalog,
                                     varianId = varian.id_varian,
                                     varianName = varian.nama_warna,
-                                    size = parts[0],
-                                    sleeve = parts[1],
+                                    size = itemSize,
+                                    sleeve = itemSleeve,
                                     qty = v,
                                     price = finalPrice
                                 )

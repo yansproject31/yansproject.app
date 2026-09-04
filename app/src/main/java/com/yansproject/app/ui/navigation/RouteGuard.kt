@@ -76,13 +76,13 @@ object RouteGuard {
 
     fun isFinancialRoute(route: String?): Boolean {
         if (route.isNullOrBlank()) return false
-        val baseRoute = route.split("?", "{")[0].trim()
+        val baseRoute = route.split("?", "{").firstOrNull()?.trim() ?: route.trim()
         return FINANCIAL_SENSITIVE_ROUTES.contains(baseRoute)
     }
 
     fun isInvoiceRoute(route: String?): Boolean {
         if (route.isNullOrBlank()) return false
-        val baseRoute = route.split("?", "{")[0].trim()
+        val baseRoute = route.split("?", "{").firstOrNull()?.trim() ?: route.trim()
         return INVOICE_MANAGEMENT_ROUTES.contains(baseRoute)
     }
 
@@ -140,12 +140,13 @@ object RouteGuard {
 
         val now = System.currentTimeMillis()
         synchronized(this) {
+            val result = cachedResult
             if (!forceRefresh &&
                 cachedUid == firebaseUser.uid &&
-                cachedResult != null &&
+                result != null &&
                 (now - lastClaimCheckTime) < CACHE_TTL_MS
             ) {
-                return cachedResult!!
+                return result
             }
         }
 

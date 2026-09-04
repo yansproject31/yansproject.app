@@ -706,10 +706,11 @@ object FirebaseSyncManager {
                     Log.w(TAG, "Recent login required to update Firebase Auth password. Attempting re-auth...")
                     val oldCred = AppSettings.getLocalUserCredential(context, cleanEmail)
                     val oldPass = oldCred?.passwordOrPin
-                    if (oldPass != null && fbUser.email != null) {
+                    val userEmail = fbUser.email
+                    if (oldPass != null && userEmail != null) {
                         try {
                             val oldFbPass = if (oldPass.length < 6) "yans_$oldPass" else oldPass
-                            val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(fbUser.email!!, oldFbPass)
+                            val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(userEmail, oldFbPass)
                             fbUser.reauthenticate(credential).await()
                             fbUser.updatePassword(firebasePassword).await()
                             authSuccess = true
@@ -1085,12 +1086,13 @@ object FirebaseSyncManager {
             isActive = true
         )
 
-        if (!isFirebaseActive || firestore == null) {
+        val fs = firestore
+        if (!isFirebaseActive || fs == null) {
             return listOf(currentSession)
         }
 
         return try {
-            val sessionRef = firestore!!.collection("users").document(cleanEmail).collection("active_sessions")
+            val sessionRef = fs.collection("users").document(cleanEmail).collection("active_sessions")
 
             val currentMap = mapOf(
                 "device_id" to currentDeviceId,
@@ -1147,12 +1149,13 @@ object FirebaseSyncManager {
         val userPrefs = context.getSharedPreferences("yans_user_prefs_${cleanEmail}", Context.MODE_PRIVATE)
         userPrefs.edit().putBoolean("other_devices_logged_out", true).apply()
 
-        if (!isFirebaseActive || firestore == null) {
+        val fs = firestore
+        if (!isFirebaseActive || fs == null) {
             return Pair(true, "Koneksi sesi lain berhasil diputuskan secara lokal!")
         }
 
         return try {
-            val sessionRef = firestore!!.collection("users").document(cleanEmail).collection("active_sessions")
+            val sessionRef = fs.collection("users").document(cleanEmail).collection("active_sessions")
             val snapshots = sessionRef.get().await()
             var revokedCount = 0
 
@@ -1168,7 +1171,7 @@ object FirebaseSyncManager {
                 }
             }
 
-            firestore!!.collection("users").document(cleanEmail).set(
+            fs.collection("users").document(cleanEmail).set(
                 mapOf("last_sessions_revoked_at" to System.currentTimeMillis()),
                 com.google.firebase.firestore.SetOptions.merge()
             ).await()

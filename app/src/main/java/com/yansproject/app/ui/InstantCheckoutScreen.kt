@@ -142,7 +142,7 @@ fun InstantCheckoutScreen(
                                     .background(if (active) LuxuryGold.copy(alpha = 0.15f) else Color.Transparent)
                                     .clickable {
                                         selectedSeries = series
-                                        selectedColor = series.allowedColors.first()
+                                        selectedColor = series.allowedColors.firstOrNull() ?: "Hitam"
                                     }
                                     .padding(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -151,7 +151,7 @@ fun InstantCheckoutScreen(
                                     selected = active,
                                     onClick = {
                                         selectedSeries = series
-                                        selectedColor = series.allowedColors.first()
+                                        selectedColor = series.allowedColors.firstOrNull() ?: "Hitam"
                                     },
                                     colors = RadioButtonDefaults.colors(selectedColor = LuxuryGold)
                                 )
@@ -490,7 +490,7 @@ fun InstantCheckoutScreen(
 
                                     // 3. Record Akad verification
                                     stockViewModel.verifyAjibqobulAkad(
-                                        seriesName = cartItems.first().series.displayName,
+                                        seriesName = cartItems.firstOrNull()?.series?.displayName ?: "AJIBQOBUL",
                                         clientName = "Tatap Muka ${selectedTier.name}",
                                         totalAmount = totalCartSum.toDouble()
                                     )

@@ -247,13 +247,13 @@ object ProductionFinancialService {
         }
 
         val hppPendekRupiah = when {
-            hasSnapshot -> pricingSnapshot!!.hppPendekRupiah
+            pricingSnapshot != null -> pricingSnapshot.hppPendekRupiah
             hasBatchHpp -> batch.hppPendek.toLong()
             else -> 0L
         }
 
         val hppPanjangRupiah = when {
-            hasSnapshot -> pricingSnapshot!!.hppPanjangRupiah
+            pricingSnapshot != null -> pricingSnapshot.hppPanjangRupiah
             hasBatchHpp -> batch.hppPanjang.toLong()
             else -> 0L
         }

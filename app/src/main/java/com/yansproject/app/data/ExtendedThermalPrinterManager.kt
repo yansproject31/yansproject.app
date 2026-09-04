@@ -224,8 +224,9 @@ object ExtendedThermalPrinterManager {
     private fun formatLineItem(leftText: String, rightText: String, lineCharLimit: Int): String {
         val totalLen = leftText.length + rightText.length
         return if (totalLen >= lineCharLimit) {
+            val maxLeftLen = (lineCharLimit - rightText.length - 3).coerceAtLeast(0)
             val trimLeft = if (leftText.length > (lineCharLimit - rightText.length - 2)) {
-                leftText.substring(0, lineCharLimit - rightText.length - 3) + ".."
+                if (maxLeftLen > 0) leftText.take(maxLeftLen) + ".." else ".."
             } else {
                 leftText
             }

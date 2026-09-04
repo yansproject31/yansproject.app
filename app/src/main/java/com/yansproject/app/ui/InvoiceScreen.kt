@@ -1678,10 +1678,10 @@ fun InvoiceDetailDialog(
                     }
                 }
 
-                if (exportSuccessFile != null) {
+                exportSuccessFile?.let { savedFile ->
                     val shareMsg = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, invoiceItems)
                     com.yansproject.app.ui.components.FileSavedSuccessDialog(
-                        file = exportSuccessFile!!,
+                        file = savedFile,
                         clientPhone = invoice.clientPhone,
                         shareMessage = shareMsg,
                         onDismiss = { exportSuccessFile = null }
@@ -1790,7 +1790,11 @@ fun InvoiceDetailDialog(
                                     """.trimIndent().replace("\n\n\n", "\n\n")
                                     )
                                 }
-                                context.startActivity(Intent.createChooser(shareIntent, "Bagikan Invoice via"))
+                                try {
+                                    context.startActivity(Intent.createChooser(shareIntent, "Bagikan Invoice via"))
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Gagal membagikan invoice: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                }
                             },
                             modifier = Modifier.weight(1.2f).height(36.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = DarkTeal, contentColor = TextLight),

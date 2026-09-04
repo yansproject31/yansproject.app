@@ -78,12 +78,15 @@ class LocalEncryptedBackupManager(private val context: Context) {
             return keyGenerator.generateKey()
         } catch (e: Exception) {
             Log.w("LocalEncryptedBackupManager", "AndroidKeyStore unavailable in current runtime environment, using AES standard key fallback: ${e.message}")
-            if (fallbackKey == null) {
-                val kg = KeyGenerator.getInstance("AES")
-                kg.init(256)
-                fallbackKey = kg.generateKey()
+            val existingKey = fallbackKey
+            if (existingKey != null) {
+                return existingKey
             }
-            return fallbackKey!!
+            val kg = KeyGenerator.getInstance("AES")
+            kg.init(256)
+            val generated = kg.generateKey()
+            fallbackKey = generated
+            return generated
         }
     }
 

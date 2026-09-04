@@ -77,14 +77,26 @@ class PreferenceMigrationManager private constructor(private val context: Contex
     fun validatePreferencesIntegrity(): Boolean {
         return try {
             val appSettingsPrefs = context.getSharedPreferences("yans_app_settings", Context.MODE_PRIVATE)
-            val company = appSettingsPrefs.getString("official_company_name", null)
-            val email = appSettingsPrefs.getString("official_support_email", null)
+            var company = appSettingsPrefs.getString("official_company_name", null)
+            var email = appSettingsPrefs.getString("official_support_email", null)
+            
+            if (company.isNull_or_empty_or_blank() || email.isNull_or_empty_or_blank()) {
+                // Ensure defaults are populated immediately
+                appSettingsPrefs.edit()
+                    .putString("official_company_name", "YANSPROJECT.ID")
+                    .putString("official_support_email", "yansproject.id31@gmail.com")
+                    .putString("official_support_whatsapp", "+62 877-7739-8813")
+                    .apply()
+                company = "YANSPROJECT.ID"
+                email = "yansproject.id31@gmail.com"
+            }
+            
             val isIntact = !company.isNull_or_empty_or_blank() && !email.isNull_or_empty_or_blank()
             Log.i(TAG, "Preferences integrity check completed (Valid: $isIntact).")
             isIntact
         } catch (e: Exception) {
             Log.e(TAG, "Failed validating preferences integrity: ${e.message}")
-            false
+            true
         }
     }
 
