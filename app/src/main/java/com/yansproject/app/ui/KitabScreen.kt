@@ -34,8 +34,6 @@ import androidx.compose.ui.unit.sp
 import com.yansproject.app.ui.theme.*
 import org.json.JSONObject
 
-import com.yansproject.app.data.diagnostics.LibraryDiagnosticService
-
 // --- DATA STRUCTURES ---
 data class KitabFull(
     val id: String,
@@ -72,7 +70,54 @@ data class SearchResult(
 @Composable
 fun rememberKitabData(context: Context): List<KitabFull> {
     return remember(context) {
-        LibraryDiagnosticService.loadLibraryDataSafely(context)
+        val list = mutableListOf<KitabFull>()
+        try {
+            val manifestStr = context.assets.open("library/manifest.json").bufferedReader().use { it.readText() }
+            val manifestJson = JSONObject(manifestStr)
+            val booksArray = manifestJson.getJSONArray("books")
+            for (i in 0 until booksArray.length()) {
+                val bookObj = booksArray.getJSONObject(i)
+                val id = bookObj.getString("id")
+                val folder = bookObj.getString("folder")
+                
+                val metaStr = context.assets.open("library/$folder/metadata.json").bufferedReader().use { it.readText() }
+                val metaJson = JSONObject(metaStr)
+                val title = metaJson.getString("title")
+                val subtitle = metaJson.getString("subtitle")
+                val quote = metaJson.getString("quote")
+                val muqaddimah = metaJson.getString("muqaddimah")
+                val penutup = metaJson.getString("penutup")
+                
+                val juzFiles = metaJson.getJSONArray("juzFiles")
+                val juzList = mutableListOf<JuzData>()
+                for (j in 0 until juzFiles.length()) {
+                    val juzFile = juzFiles.getString(j)
+                    val juzStr = context.assets.open("library/$folder/$juzFile").bufferedReader().use { it.readText() }
+                    val juzJson = JSONObject(juzStr)
+                    val juzId = juzJson.getString("id")
+                    val juzTitle = juzJson.getString("title")
+                    
+                    val babArray = juzJson.getJSONArray("babList")
+                    val babList = mutableListOf<BabData>()
+                    for (k in 0 until babArray.length()) {
+                        val babObj = babArray.getJSONObject(k)
+                        val babId = babObj.getString("id")
+                        val babTitle = babObj.getString("title")
+                        val contentArray = babObj.getJSONArray("content")
+                        val content = mutableListOf<String>()
+                        for (l in 0 until contentArray.length()) {
+                            content.add(contentArray.getString(l))
+                        }
+                        babList.add(BabData(babId, babTitle, content))
+                    }
+                    juzList.add(JuzData(juzId, juzTitle, babList))
+                }
+                list.add(KitabFull(id, title, subtitle, quote, muqaddimah, penutup, juzList, folder))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("KitabScreen", "Error loading kitab list: ${e.message}", e)
+        }
+        list
     }
 }
 
@@ -168,7 +213,6 @@ fun KitabScreen(viewModel: MainViewModel) {
         if (isBookmarked) updated.add(babId) else updated.remove(babId)
         bookmarkedBabs = updated
         prefs.edit().putStringSet("bookmarks", updated).apply()
-        com.yansproject.app.data.KitabReadingProgressManager.toggleBookmark(context, babId, isBookmarked)
     }
 
     fun saveCompleted(babId: String, isCompleted: Boolean) {
@@ -176,7 +220,6 @@ fun KitabScreen(viewModel: MainViewModel) {
         if (isCompleted) updated.add(babId) else updated.remove(babId)
         completedBabs = updated
         prefs.edit().putStringSet("completed", updated).apply()
-        com.yansproject.app.data.KitabReadingProgressManager.markChapterCompleted(context, babId, isCompleted)
     }
 
     fun saveLastOpened(juzIdx: Int, babIdx: Int, title: String) {
@@ -188,7 +231,6 @@ fun KitabScreen(viewModel: MainViewModel) {
             .putInt("last_opened_bab", babIdx)
             .putString("last_opened_title", title)
             .apply()
-        com.yansproject.app.data.KitabReadingProgressManager.saveLastOpened(context, juzIdx, babIdx, title)
     }
 
     fun saveTextSize(size: Float) {

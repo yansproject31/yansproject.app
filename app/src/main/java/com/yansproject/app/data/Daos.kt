@@ -29,6 +29,9 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE id = :id")
     suspend fun getExpenseById(id: Int): Expense?
 
+    @Query("SELECT * FROM expenses WHERE transactionNumber = :txNum LIMIT 1")
+    suspend fun getExpenseByTxNumber(txNum: String): Expense?
+
     @Query("SELECT * FROM expenses WHERE isDeleted = 0 ORDER BY date DESC")
     fun getAllExpenses(): Flow<List<Expense>>
 
@@ -52,6 +55,9 @@ interface ExpenseDao {
 interface InflowDao {
     @Query("SELECT * FROM inflows WHERE id = :id")
     suspend fun getInflowById(id: Int): Inflow?
+
+    @Query("SELECT * FROM inflows WHERE transactionNumber = :txNum LIMIT 1")
+    suspend fun getInflowByTxNumber(txNum: String): Inflow?
 
     @Query("SELECT * FROM inflows WHERE isDeleted = 0 ORDER BY date DESC")
     fun getAllInflows(): Flow<List<Inflow>>
@@ -95,18 +101,6 @@ interface AuditLogDao {
     @Query("SELECT * FROM audit_logs ORDER BY timestamp DESC")
     fun getAllLogs(): Flow<List<AuditLog>>
 
-    @Query("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
-    fun getLogsPaged(limit: Int, offset: Int): Flow<List<AuditLog>>
-
-    @Query("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
-    suspend fun getLogsPagedList(limit: Int, offset: Int): List<AuditLog>
-
-    @Query("SELECT COUNT(*) FROM audit_logs")
-    fun getLogsCount(): Flow<Int>
-
-    @Query("SELECT COUNT(*) FROM audit_logs")
-    suspend fun getLogsTotalCount(): Int
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(log: AuditLog): Long
 
@@ -115,12 +109,6 @@ interface AuditLogDao {
 
     @Query("DELETE FROM audit_logs WHERE timestamp < :olderThan")
     suspend fun deleteLogsOlderThan(olderThan: Long): Int
-
-    @Query("UPDATE audit_logs SET action = 'ARCHIVED' WHERE timestamp < :hotCutoffTimestamp AND action NOT LIKE 'ARCHIVED%'")
-    suspend fun archiveLogsOlderThan(hotCutoffTimestamp: Long): Int
-
-    @Query("DELETE FROM audit_logs WHERE timestamp < :policyPurgeCutoffTimestamp AND (action LIKE 'ARCHIVED%' OR action = 'SYSTEM_MAINTENANCE_EXECUTED')")
-    suspend fun purgeArchivedLogsOlderThanPolicy(policyPurgeCutoffTimestamp: Long): Int
 
     @Query("DELETE FROM audit_logs WHERE length(:keyword) >= 3 AND details LIKE '%' || :keyword || '%'")
     suspend fun deleteLogsByKeyword(keyword: String)
@@ -344,17 +332,17 @@ interface ReturDao {
 
 @Dao
 interface DraftSalesOrderDao {
-    @Query("SELECT * FROM draft_sales_orders WHERE draftKey = :draftKey LIMIT 1")
-    fun getDraftSalesOrderFlow(draftKey: String): Flow<DraftSalesOrder?>
+    @Query("SELECT * FROM draft_sales_orders WHERE id = 1")
+    fun getDraftSalesOrderFlow(): Flow<DraftSalesOrder?>
 
-    @Query("SELECT * FROM draft_sales_orders WHERE draftKey = :draftKey LIMIT 1")
-    suspend fun getDraftSalesOrder(draftKey: String): DraftSalesOrder?
+    @Query("SELECT * FROM draft_sales_orders WHERE id = 1")
+    suspend fun getDraftSalesOrder(): DraftSalesOrder?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDraftSalesOrder(draft: DraftSalesOrder)
 
-    @Query("DELETE FROM draft_sales_orders WHERE draftKey = :draftKey")
-    suspend fun deleteDraftSalesOrder(draftKey: String)
+    @Query("DELETE FROM draft_sales_orders WHERE id = 1")
+    suspend fun deleteDraftSalesOrder()
 }
 
 @Dao

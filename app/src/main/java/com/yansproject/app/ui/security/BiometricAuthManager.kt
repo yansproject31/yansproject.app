@@ -5,16 +5,7 @@ import android.util.Log
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import com.yansproject.app.ui.AuthoritativeSessionManager
 import java.util.concurrent.Executor
-
-enum class BiometricResultState {
-    SUCCESS,
-    FAILED_ATTEMPT,
-    CANCELLED,
-    LOCKED_OUT,
-    ERROR
-}
 
 object BiometricAuthManager {
     private const val TAG = "BiometricAuthManager"
@@ -22,10 +13,8 @@ object BiometricAuthManager {
     fun authenticateWithBiometrics(
         context: Context,
         onSuccess: () -> Unit,
-        onError: (String) -> Unit,
-        onAttemptFailed: (() -> Unit)? = null
+        onError: (String) -> Unit
     ) {
-        val initialSessionGen = AuthoritativeSessionManager.sessionState.value.sessionGeneration
         val activity = context as? FragmentActivity
         if (activity == null) {
             // Find parent activity recursively if wrapped in ContextWrapper
@@ -39,7 +28,7 @@ object BiometricAuthManager {
                 tempContext = tempContext.baseContext
             }
             if (foundActivity != null) {
-                executePrompt(foundActivity, initialSessionGen, onSuccess, onError, onAttemptFailed)
+                executePrompt(foundActivity, onSuccess, onError)
             } else {
                 val errorMsg = "Sistem memerlukan FragmentActivity untuk autentikasi sidik jari."
                 Log.e(TAG, errorMsg)
@@ -47,15 +36,13 @@ object BiometricAuthManager {
             }
             return
         }
-        executePrompt(activity, initialSessionGen, onSuccess, onError, onAttemptFailed)
+        executePrompt(activity, onSuccess, onError)
     }
 
     private fun executePrompt(
         activity: FragmentActivity,
-        boundSessionGen: Long,
         onSuccess: () -> Unit,
-        onError: (String) -> Unit,
-        onAttemptFailed: (() -> Unit)? = null
+        onError: (String) -> Unit
     ) {
         try {
             if (activity.isFinishing || activity.isDestroyed) {
@@ -69,19 +56,8 @@ object BiometricAuthManager {
                 activity,
                 executor,
                 object : BiometricPrompt.AuthenticationCallback() {
-                    private fun isSessionValid(): Boolean {
-                        val currentGen = AuthoritativeSessionManager.sessionState.value.sessionGeneration
-                        if (currentGen != boundSessionGen) {
-                            Log.w(TAG, "Session generation changed ($boundSessionGen -> $currentGen). Invalidating biometric callback.")
-                            return false
-                        }
-                        return true
-                    }
-
                     override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                         super.onAuthenticationError(errorCode, errString)
-                        if (!isSessionValid()) return
-
                         val formattedMsg = when (errorCode) {
                             BiometricPrompt.ERROR_USER_CANCELED,
                             BiometricPrompt.ERROR_CANCELED,
@@ -116,17 +92,14 @@ object BiometricAuthManager {
 
                     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                         super.onAuthenticationSucceeded(result)
-                        if (!isSessionValid()) return
-                        Log.i(TAG, "Biometric authentication succeeded for session generation $boundSessionGen.")
+                        Log.i(TAG, "Biometric authentication succeeded.")
                         onSuccess()
                     }
 
                     override fun onAuthenticationFailed() {
                         super.onAuthenticationFailed()
-                        if (!isSessionValid()) return
-                        Log.w(TAG, "Biometric sample not recognized. Prompt remains active for retry (FAILED_ATTEMPT).")
-                        // Do not terminate retry capability on FAILED_ATTEMPT
-                        onAttemptFailed?.invoke()
+                        Log.w(TAG, "Biometric sample not recognized.")
+                        onError("Sidik jari tidak dikenali. Silakan coba lagi.")
                     }
                 }
             )

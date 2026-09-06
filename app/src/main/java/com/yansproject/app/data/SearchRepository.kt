@@ -3,12 +3,10 @@ package com.yansproject.app.data
 import android.util.Log
 import androidx.annotation.Keep
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.PropertyName
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,9 +36,8 @@ class SearchRepository @Inject constructor(
     private val TAG = "SearchRepository"
 
     /**
-     * Performs a real-time compound query on the 'production' collection in Firestore.
-     * Maintains strictly ONE active listener at any point (PRIMARY -> FALLBACK transition explicitly unregisters primary).
-     * Bounded queries prevent downloading the entire production collection during fallback.
+     * Performs a real-time compound query on the 'production' collection in Firestore, returning
+     * structured [SearchState] to distinguish direct success, client-side fallback, unavailable source, or failure.
      */
     fun searchProductionState(
         seriesName: String? = null,
@@ -55,10 +52,6 @@ class SearchRepository @Inject constructor(
             awaitClose { }
             return@callbackFlow
         }
-
-        var primaryListener: ListenerRegistration? = null
-        var fallbackListener: ListenerRegistration? = null
-
         var query: com.google.firebase.firestore.Query = fs.collection("production")
 
         if (!seriesName.isNullOrEmpty()) {
@@ -74,53 +67,21 @@ class SearchRepository @Inject constructor(
             query = query.whereEqualTo("stockStatus", stockStatus)
         }
 
-        query = query.orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING).limit(100)
+        query = query.orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
 
-        primaryListener = query.addSnapshotListener { snapshot, error ->
+        val listenerRegistration = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                Log.w(TAG, "Primary production query failed: ${error.message}. Removing primary listener and transitioning to fallback.", error)
-                
-                // STEP 1: MUST remove primary listener before creating fallback
-                primaryListener?.remove()
-                primaryListener = null
-
-                // STEP 2: Prevent multiple fallback listeners
-                if (fallbackListener != null) return@addSnapshotListener
-
-                // STEP 3: Targeted bounded fallback query (never download entire collection)
-                var fallbackQuery: com.google.firebase.firestore.Query = fs.collection("production")
-                if (!seriesName.isNullOrEmpty()) {
-                    fallbackQuery = fallbackQuery.whereEqualTo("seriesName", seriesName)
-                }
-                fallbackQuery = fallbackQuery.orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING).limit(100)
-
-                fallbackListener = fallbackQuery.addSnapshotListener { fbSnapshot, fbError ->
-                    if (fbError != null) {
-                        Log.e(TAG, "Fallback search query failed: ${fbError.message}", fbError)
-                        trySend(SearchState.Failure(fbError, "Search failed: ${fbError.message}"))
-                        return@addSnapshotListener
-                    }
-                    if (fbSnapshot != null) {
-                        val results = fbSnapshot.documents.mapNotNull { doc ->
-                            doc.toObject(DomainProduction::class.java)?.apply {
-                                if (id.isEmpty()) id = doc.id
-                            }
-                        }.filter { item ->
-                            (seriesName.isNullOrEmpty() || item.seriesName.contains(seriesName, ignoreCase = true)) &&
-                            (code.isNullOrEmpty() || item.code.contains(code, ignoreCase = true)) &&
-                            (color.isNullOrEmpty() || item.color.contains(color, ignoreCase = true)) &&
-                            (stockStatus.isNullOrEmpty() || item.stockStatus.contains(stockStatus, ignoreCase = true))
-                        }
-                        trySend(SearchState.PartialSuccess(results, "Targeted fallback search filter applied."))
-                    }
-                }
+                Log.w(TAG, "Primary production query failed: ${error.message}. Switching to client-side fallback search.", error)
+                fallbackClientSideSearch(seriesName, code, color, stockStatus, this)
                 return@addSnapshotListener
             }
 
             if (snapshot != null) {
                 val results = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(DomainProduction::class.java)?.apply {
-                        if (id.isEmpty()) id = doc.id
+                        if (id.isEmpty()) {
+                            id = doc.id
+                        }
                     }
                 }
                 trySend(SearchState.Success(results, isFallback = false))
@@ -128,32 +89,77 @@ class SearchRepository @Inject constructor(
         }
 
         awaitClose {
-            Log.d(TAG, "Cancelling search listener registration flow")
-            primaryListener?.remove()
-            primaryListener = null
-            fallbackListener?.remove()
-            fallbackListener = null
+            Log.d(TAG, "Closing production real-time snapshot search listener")
+            listenerRegistration.remove()
         }
     }
 
     /**
      * Legacy flow returning List<DomainProduction> for UI components expecting plain lists.
-     * Deprecated compatibility wrapper. Does not create independent CoroutineScope.
      */
-    @Deprecated("Use searchProductionState instead to receive explicit SearchState results", ReplaceWith("searchProductionState(seriesName, code, color, stockStatus)"))
     fun searchProduction(
         seriesName: String? = null,
         code: String? = null,
         color: String? = null,
         stockStatus: String? = null
-    ): Flow<List<DomainProduction>> = searchProductionState(seriesName, code, color, stockStatus)
-        .map { state ->
-            when (state) {
-                is SearchState.Success -> state.data
-                is SearchState.PartialSuccess -> state.data
-                is SearchState.Unavailable -> emptyList()
-                is SearchState.Failure -> emptyList()
+    ): Flow<List<DomainProduction>> = callbackFlow {
+        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).run {
+            searchProductionState(seriesName, code, color, stockStatus).collect { state ->
+                when (state) {
+                    is SearchState.Success -> trySend(state.data)
+                    is SearchState.PartialSuccess -> trySend(state.data)
+                    is SearchState.Unavailable -> {
+                        Log.w(TAG, "Search unavailable: ${state.reason}")
+                        trySend(emptyList())
+                    }
+                    is SearchState.Failure -> {
+                        Log.e(TAG, "Search failed: ${state.message}", state.error)
+                        trySend(emptyList())
+                    }
+                }
             }
         }
-}
+        awaitClose { }
+    }
 
+    private fun fallbackClientSideSearch(
+        seriesName: String?,
+        code: String?,
+        color: String?,
+        stockStatus: String?,
+        scope: kotlinx.coroutines.channels.ProducerScope<SearchState<List<DomainProduction>>>
+    ) {
+        val fs = firestore
+        if (fs == null) {
+            scope.trySend(SearchState.Unavailable("Firestore unavailable during fallback search."))
+            return
+        }
+        val baseQuery = fs.collection("production").orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+        val listener = baseQuery.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e(TAG, "Fallback client-side listener failed: ${error.message}", error)
+                scope.trySend(SearchState.Failure(error, "Fallback client-side query failed: ${error.message}"))
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                val allItems = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(DomainProduction::class.java)?.apply {
+                        if (id.isEmpty()) {
+                            id = doc.id
+                        }
+                    }
+                }
+                val filtered = allItems.filter { item ->
+                    (seriesName.isNullOrEmpty() || item.seriesName.contains(seriesName, ignoreCase = true)) &&
+                    (code.isNullOrEmpty() || item.code.contains(code, ignoreCase = true)) &&
+                    (color.isNullOrEmpty() || item.color.contains(color, ignoreCase = true)) &&
+                    (stockStatus.isNullOrEmpty() || item.stockStatus.contains(stockStatus, ignoreCase = true))
+                }
+                scope.trySend(SearchState.PartialSuccess(filtered, "Client-side fallback filter applied."))
+            }
+        }
+        scope.invokeOnClose {
+            listener.remove()
+        }
+    }
+}

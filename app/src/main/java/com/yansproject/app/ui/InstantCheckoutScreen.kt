@@ -142,7 +142,7 @@ fun InstantCheckoutScreen(
                                     .background(if (active) LuxuryGold.copy(alpha = 0.15f) else Color.Transparent)
                                     .clickable {
                                         selectedSeries = series
-                                        selectedColor = series.allowedColors.firstOrNull() ?: "Hitam"
+                                        selectedColor = series.allowedColors.first()
                                     }
                                     .padding(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -151,7 +151,7 @@ fun InstantCheckoutScreen(
                                     selected = active,
                                     onClick = {
                                         selectedSeries = series
-                                        selectedColor = series.allowedColors.firstOrNull() ?: "Hitam"
+                                        selectedColor = series.allowedColors.first()
                                     },
                                     colors = RadioButtonDefaults.colors(selectedColor = LuxuryGold)
                                 )
@@ -490,25 +490,23 @@ fun InstantCheckoutScreen(
 
                                     // 3. Record Akad verification
                                     stockViewModel.verifyAjibqobulAkad(
-                                        seriesName = cartItems.firstOrNull()?.series?.displayName ?: "AJIBQOBUL",
+                                        seriesName = cartItems.first().series.displayName,
                                         clientName = "Tatap Muka ${selectedTier.name}",
                                         totalAmount = totalCartSum.toDouble()
                                     )
 
                                     // 4. Record stock invoice transaction in ViewModel for persistence
-                                    val sampleInvoiceNumber = "INV-CO-${System.currentTimeMillis().toString().takeLast(6)}"
-                                    val converters = com.yansproject.app.data.AppTypeConverters()
                                     val invoiceItems = cartItems.map { item ->
-                                        val sleeveLabel = if (item.sleeve == SleeveType.PANJANG) "Panjang" else "Pendek"
                                         com.yansproject.app.data.InvoiceItemDetail(
-                                            description = "AJIBQOBUL: ${item.series.displayName} - ${item.color} - ${item.size.name} - $sleeveLabel",
+                                            description = "AJIBQOBUL: ${item.series.displayName} - ${item.color} - ${item.size} - ${item.sleeve.name}",
                                             quantity = item.qty,
                                             price = item.unitPrice.toDouble()
                                         )
                                     }
+                                    val converters = com.yansproject.app.data.AppTypeConverters()
                                     val coInvoice = com.yansproject.app.data.Invoice(
                                         id = 0,
-                                        invoiceNumber = sampleInvoiceNumber,
+                                        invoiceNumber = "",
                                         clientName = "Tatap Muka ${selectedTier.name}",
                                         clientPhone = "",
                                         totalAmount = totalCartSum.toDouble(),

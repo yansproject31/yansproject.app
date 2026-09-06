@@ -77,11 +77,7 @@ class InventoryProjectViewModel(application: Application) : AndroidViewModel(app
                     return@launch
                 }
 
-                val stockDoc = stockQuery.documents.firstOrNull()
-                if (stockDoc == null) {
-                    onComplete(false, "Material SKU '$sku' tidak ditemukan!")
-                    return@launch
-                }
+                val stockDoc = stockQuery.documents.first()
                 val currentStock = stockDoc.getLong("stockCount")?.toInt() ?: 0
 
                 if (currentStock < quantityToAllocate) {

@@ -1,7 +1,6 @@
 package com.yansproject.app.ui
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.DocumentSnapshot
@@ -17,26 +16,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
-enum class RiwayatState {
-    LOADING,
-    SUCCESS,
-    EMPTY,
-    OFFLINE,
-    ERROR
-}
-
 /**
  * RiwayatViewModel - YANSPROJECT.ID ERP Ecosystem
- * Highly-optimized pagination controller for transaction logs and invoice histories.
- * Uses synchronized Room database local truth with explicit state pipeline.
+ * Highly-optimized infinite scroll pagination controller for transaction logs and invoice histories.
+ * Strict paging bounds of 20 elements per batch using Query cursors to optimize Firebase reads.
  */
 class RiwayatViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _paginatedInvoices = MutableStateFlow<List<DomainInvoice>>(emptyList())
     val paginatedInvoices: StateFlow<List<DomainInvoice>> = _paginatedInvoices.asStateFlow()
-
-    private val _riwayatState = MutableStateFlow<RiwayatState>(RiwayatState.LOADING)
-    val riwayatState: StateFlow<RiwayatState> = _riwayatState.asStateFlow()
 
     private val _isLoadingPage = MutableStateFlow(false)
     val isLoadingPage: StateFlow<Boolean> = _isLoadingPage.asStateFlow()
@@ -48,80 +36,45 @@ class RiwayatViewModel(application: Application) : AndroidViewModel(application)
     private val limit = 20
 
     /**
-     * Initializes or resets the paginated history log starting from page 1 using Room local database.
+     * Initializes or resets the paginated history log starting from page 1.
      */
     fun resetAndFetchFirstPage(currentUserId: String) {
+        if (currentUserId.isEmpty()) return
+        
         viewModelScope.launch {
             _isLoadingPage.value = true
-            _riwayatState.value = RiwayatState.LOADING
             _isLastPageReached.value = false
             lastDocumentSnapshot = null
+            _paginatedInvoices.value = emptyList()
 
             try {
-                // 1. Primary Source of Truth: Synchronized Room DB
-                val context = getApplication<Application>()
-                val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
-                val roomInvoices = withContext(Dispatchers.IO) {
-                    db.invoiceDao().getInvoicesList()
+                val db = FirebaseFirestore.getInstance()
+                val query = db.collection("invoices")
+                    .whereEqualTo("ownerId", currentUserId)
+                    .orderBy("issueDate", Query.Direction.DESCENDING)
+                    .limit(limit.toLong())
+
+                val snapshot = withContext(Dispatchers.IO) {
+                    query.get().await()
                 }
 
-                if (roomInvoices.isNotEmpty()) {
-                    val domainItems = roomInvoices.map { inv ->
-                        DomainInvoice(
-                            id = inv.invoiceNumber,
-                            invoiceNumber = inv.invoiceNumber,
-                            clientName = inv.clientName,
-                            clientPhone = inv.clientPhone,
-                            issueDate = inv.issueDate,
-                            totalAmount = inv.totalAmount,
-                            paidAmount = inv.paidAmount,
-                            status = inv.status,
-                            ownerId = currentUserId
-                        )
+                if (!snapshot.isEmpty) {
+                    val items = snapshot.documents.map { doc ->
+                        doc.toObject(DomainInvoice::class.java) ?: DomainInvoice()
                     }
-                    _paginatedInvoices.value = domainItems
-                    _riwayatState.value = RiwayatState.SUCCESS
-                    _isLastPageReached.value = true
+                    _paginatedInvoices.value = items
+                    lastDocumentSnapshot = snapshot.documents.lastOrNull()
+                    if (snapshot.size() < limit) {
+                        _isLastPageReached.value = true
+                    }
                 } else {
-                    // Try cloud fetch if Room is empty and user ID provided
-                    if (currentUserId.isNotBlank()) {
-                        try {
-                            val firestore = FirebaseFirestore.getInstance()
-                            val query = firestore.collection("invoices")
-                                .whereEqualTo("ownerId", currentUserId)
-                                .orderBy("issueDate", Query.Direction.DESCENDING)
-                                .limit(limit.toLong())
-
-                            val snapshot = withContext(Dispatchers.IO) {
-                                query.get().await()
-                            }
-
-                            if (!snapshot.isEmpty) {
-                                val items = snapshot.documents.map { doc ->
-                                    doc.toObject(DomainInvoice::class.java) ?: DomainInvoice()
-                                }
-                                _paginatedInvoices.value = items
-                                lastDocumentSnapshot = snapshot.documents.lastOrNull()
-                                _riwayatState.value = RiwayatState.SUCCESS
-                                if (snapshot.size() < limit) {
-                                    _isLastPageReached.value = true
-                                }
-                            } else {
-                                _isLastPageReached.value = true
-                                _riwayatState.value = RiwayatState.EMPTY
-                            }
-                        } catch (cloudErr: Exception) {
-                            Log.w("RiwayatViewModel", "Cloud fetch failed: ${cloudErr.message}. Fallback to local OFFLINE state.")
-                            _riwayatState.value = RiwayatState.OFFLINE
-                        }
-                    } else {
-                        _riwayatState.value = RiwayatState.EMPTY
-                    }
+                    _isLastPageReached.value = true
+                    _paginatedInvoices.value = emptyList()
                 }
             } catch (e: Exception) {
                 FirebaseCrashlytics.getInstance().recordException(e)
-                Log.e("RiwayatViewModel", "Error loading history: ${e.message}", e)
-                _riwayatState.value = RiwayatState.ERROR
+                _paginatedInvoices.value = emptyList()
+                _isLastPageReached.value = true
             } finally {
                 _isLoadingPage.value = false
             }
@@ -169,26 +122,6 @@ class RiwayatViewModel(application: Application) : AndroidViewModel(application)
             } finally {
                 _isLoadingPage.value = false
             }
-        }
-    }
-
-    /**
-     * Isolated demo history loader for explicit testing environments.
-     */
-    fun loadDemoHistoryForTesting() {
-        val baseTime = System.currentTimeMillis()
-        val dayMs = 24 * 60 * 60 * 1000L
-        _paginatedInvoices.value = List(25) { index ->
-            DomainInvoice(
-                id = "hist_inv_${index}_demo",
-                invoiceNumber = "INV-2026-${1000 + index}",
-                clientName = if (index % 2 == 0) "Koko Customer A$index (DEMO)" else "Custom Order B$index (DEMO)",
-                clientPhone = "08123456789",
-                issueDate = baseTime - (index * dayMs),
-                totalAmount = 100000.0 * (index + 1),
-                paidAmount = if (index % 3 == 0) 100000.0 * (index + 1) else 0.0,
-                status = if (index % 3 == 0) "LUNAS (DEMO)" else "BELUM LUNAS (DEMO)"
-            )
         }
     }
 }

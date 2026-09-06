@@ -77,20 +77,20 @@ fun PerformanceTelemetryScreen(
             freeMemoryMb = runtime.freeMemory() / (1024 * 1024)
             usedMemoryMb = totalAllocatedMb - freeMemoryMb
 
-            // Load offline action and local invoice count via SQL COUNT(*)
+            // Load offline action and local invoice count
             withContext(Dispatchers.IO) {
                 try {
                     val offlineDao = YansRoomDatabase.getDatabase(context).offlineActionDao()
-                    offlineQueueCount = offlineDao.getPendingActionCount()
+                    offlineQueueCount = offlineDao.getAllActions().size
 
                     val invoiceDao = AppDatabase.getDatabase(context).invoiceDao()
-                    localInvoicesCount = invoiceDao.getInvoiceCount()
+                    localInvoicesCount = invoiceDao.getInvoicesList().size
                 } catch (e: Exception) {
                     android.util.Log.e("PerformanceTelemetry", "Error fetching DB telemetry count: ${e.message}")
                 }
             }
 
-            delay(5000) // update stats every 5 seconds
+            delay(2000) // update stats every 2 seconds
         }
     }
 
@@ -101,8 +101,8 @@ fun PerformanceTelemetryScreen(
             val startTime = SystemClock.elapsedRealtimeNanos()
             withContext(Dispatchers.IO) {
                 try {
-                    // Force a database query from Room to benchmark execution latency
-                    AppDatabase.getDatabase(context).invoiceDao().getInvoiceCount()
+                    // Force a database fetch from room to benchmark query execution
+                    AppDatabase.getDatabase(context).invoiceDao().getInvoicesList()
                 } catch (e: Exception) {
                     android.util.Log.e("PerformanceTelemetry", "Error running DB benchmark: ${e.message}")
                 }

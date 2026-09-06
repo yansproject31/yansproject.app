@@ -4,21 +4,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.util.Log
 
-enum class UpgradeState {
-    FRESH_INSTALL,
-    UPGRADE,
-    SAME_VERSION,
-    DOWNGRADE,
-    UNKNOWN_STATE
-}
-
-enum class UpgradeStatus {
-    PENDING,
-    RUNNING,
-    COMPLETED,
-    FAILED
-}
-
 /**
  * UpgradeOrchestrator: Centralized app upgrade orchestrator.
  * Detects version shifts, executes version-specific migrations, and validates overall readiness before dashboard entry.
@@ -29,7 +14,6 @@ class UpgradeOrchestrator private constructor(private val context: Context) {
     private val PREFS_NAME = "yans_upgrade_orchestrator_prefs"
     private val KEY_LAST_VERSION_CODE = "last_version_code"
     private val KEY_LAST_VERSION_NAME = "last_version_name"
-    private val KEY_UPGRADE_STATUS = "upgrade_status"
 
     companion object {
         @Volatile
@@ -44,63 +28,28 @@ class UpgradeOrchestrator private constructor(private val context: Context) {
         }
     }
 
-    fun detectUpgradeState(): UpgradeState {
-        val currentCode = getAppVersionCode()
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        var lastCode = prefs.getInt(KEY_LAST_VERSION_CODE, -1)
-
-        // Read legacy version metadata if missing from new tracker
-        if (lastCode == -1) {
-            val legacyPrefs = context.getSharedPreferences("yans_version_tracker_prefs", Context.MODE_PRIVATE)
-            val legacyCode = legacyPrefs.getInt("last_version_code", -1)
-            if (legacyCode != -1) {
-                lastCode = legacyCode
-            } else {
-                val appVerPrefs = context.getSharedPreferences("yans_app_version_prefs", Context.MODE_PRIVATE)
-                val appVerCode = appVerPrefs.getInt("pref_schema_version", -1)
-                if (appVerCode != -1) {
-                    lastCode = appVerCode
-                } else {
-                    // Check if database or existing shared preferences exist on disk
-                    val appDbExists = context.getDatabasePath("yansproject_erp.db").exists() ||
-                            context.getDatabasePath("app_database").exists()
-                    val settingsExists = context.getSharedPreferences("yans_app_settings", Context.MODE_PRIVATE).contains("business_name") ||
-                            context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE).getAll().isNotEmpty()
-
-                    if (appDbExists || settingsExists) {
-                        // Legacy v1.3.x upgrade detected
-                        lastCode = 7
-                        Log.i(TAG, "Legacy v1.3.x installation detected on disk. Assigning legacy build code 7.")
-                    }
-                }
-            }
-        }
-
-        return when {
-            lastCode == -1 -> UpgradeState.FRESH_INSTALL
-            currentCode > lastCode -> UpgradeState.UPGRADE
-            currentCode == lastCode -> UpgradeState.SAME_VERSION
-            currentCode < lastCode -> UpgradeState.DOWNGRADE
-            else -> UpgradeState.UNKNOWN_STATE
-        }
-    }
-
     suspend fun orchestrateUpgradePipeline(appDatabase: AppDatabase): Boolean {
         val currentCode = getAppVersionCode()
         val currentName = getAppVersionName()
 
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val state = detectUpgradeState()
+        val lastCode = prefs.getInt(KEY_LAST_VERSION_CODE, -1)
+        val lastName = prefs.getString(KEY_LAST_VERSION_NAME, "") ?: ""
 
-        Log.i(TAG, "Upgrade Check -> State: $state | Target Build: $currentCode ($currentName)")
+        Log.i(TAG, "Upgrade Check -> Target Build: $currentCode ($currentName) | Recorded Build: $lastCode ($lastName)")
 
-        // Mark upgrade status as RUNNING
-        prefs.edit().putString(KEY_UPGRADE_STATUS, UpgradeStatus.RUNNING.name).apply()
+        val isFreshInstall = lastCode == -1
+        val isUpgrade = lastCode > 0 && currentCode > lastCode
+        val isDowngrade = lastCode > 0 && currentCode < lastCode
 
-        if (state == UpgradeState.DOWNGRADE) {
-            Log.w(TAG, "Downgrade detected. Entering safe Compatibility/Recovery mode without destructive migration.")
-            prefs.edit().putString(KEY_UPGRADE_STATUS, UpgradeStatus.FAILED.name).apply()
-            return false
+        if (isFreshInstall) {
+            Log.i(TAG, "Fresh installation detected. Initializing version state.")
+        } else if (isUpgrade) {
+            Log.i(TAG, "Upgrade detected from build $lastCode to $currentCode. Executing migration suite...")
+        } else if (isDowngrade) {
+            Log.w(TAG, "Downgrade detected from build $lastCode to $currentCode. Validating compatibility matrix...")
+        } else {
+            Log.d(TAG, "Build version unchanged ($currentCode). Proceeding with startup validation.")
         }
 
         try {
@@ -108,48 +57,28 @@ class UpgradeOrchestrator private constructor(private val context: Context) {
             PreferenceMigrationManager.getInstance(context).migratePreferencesIfNeeded()
 
             // 2. Cache Validation & Purge
-            if (state == UpgradeState.UPGRADE || state == UpgradeState.FRESH_INSTALL) {
+            if (isUpgrade || isDowngrade) {
                 CacheManager.getInstance(context).purgeExpiredEntries()
             }
 
-            // 3. Database Schema Integrity Validation (AppDatabase)
+            // 3. Database Schema Integrity Validation
             val readableDb = appDatabase.openHelper.readableDatabase
             val isSchemaValid = DatabaseMigration.validateSchemaIntegrity(readableDb)
             if (!isSchemaValid) {
-                Log.e(TAG, "AppDatabase schema validation failed during upgrade orchestration.")
-                prefs.edit().putString(KEY_UPGRADE_STATUS, UpgradeStatus.FAILED.name).apply()
+                Log.e(TAG, "Database schema validation failed during upgrade orchestration.")
                 return false
             }
 
-            // 4. Secure Database Schema Validation (YansRoomDatabase)
-            val secureDb = YansRoomDatabase.getDatabase(context)
-            val isSecureSchemaValid = DatabaseMigration.validateYansRoomDbSchemaIntegrity(secureDb.openHelper.readableDatabase)
-            if (!isSecureSchemaValid) {
-                Log.e(TAG, "YansRoomDatabase schema validation failed during upgrade orchestration.")
-                prefs.edit().putString(KEY_UPGRADE_STATUS, UpgradeStatus.FAILED.name).apply()
-                return false
-            }
-
-            // 5. Final Full System Integrity Verification
-            val integrityReport = IntegrityManager.getInstance(context).validateFullSystemIntegrity(appDatabase)
-            if (!integrityReport.isSystemReady) {
-                Log.e(TAG, "Full system integrity validation failed during upgrade pipeline: $integrityReport")
-                prefs.edit().putString(KEY_UPGRADE_STATUS, UpgradeStatus.FAILED.name).apply()
-                return false
-            }
-
-            // 6. Atomic completion: Write COMPLETED and save new version metadata ONLY after all pass
+            // 4. Update recorded version metadata
             prefs.edit()
                 .putInt(KEY_LAST_VERSION_CODE, currentCode)
                 .putString(KEY_LAST_VERSION_NAME, currentName)
-                .putString(KEY_UPGRADE_STATUS, UpgradeStatus.COMPLETED.name)
                 .apply()
 
-            Log.i(TAG, "Upgrade orchestration pipeline executed successfully. Status marked COMPLETED.")
+            Log.i(TAG, "Upgrade orchestration pipeline executed successfully.")
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Error executing upgrade orchestration pipeline: ${e.message}", e)
-            prefs.edit().putString(KEY_UPGRADE_STATUS, UpgradeStatus.FAILED.name).apply()
             return false
         }
     }

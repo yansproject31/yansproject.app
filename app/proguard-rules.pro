@@ -1,12 +1,26 @@
 # ==============================================================================
-# YANSPROJECT.ID - HARDENED R8 & PROGUARD CONFIGURATION
+# YANSPROJECT.ID - RELEASE PROGUARD & R8 CONFIGURATION (ANTI-CRASH HARDENED)
 # ==============================================================================
 -keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod, SourceFile, LineNumberTable
 
-# 1. JETPACK COMPOSE & NAVIGATION
+# 1. CORE ANDROID & JETPACK COMPOSE
+-dontwarn android.**
+-dontwarn androidx.**
+-keep class androidx.** { *; }
+-keep interface androidx.** { *; }
+
+# 2. NAVIGATION COMPOSE
+-keep class androidx.navigation.** { *; }
+-keep interface androidx.navigation.** { *; }
 -keepclassmembers class * extends androidx.navigation.NavDestination { *; }
 
-# 2. FIRESTORE & FIREBASE DATA MODELS (KEEP FIELD NAMES FOR REFLECTION/SERIALIZATION)
+# 3. FIREBASE SUITE (Firestore, Auth, Messaging, App Check, Crashlytics, AI)
+-dontwarn com.google.firebase.**
+-keep class com.google.firebase.** { *; }
+-keep interface com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-keep interface com.google.android.gms.** { *; }
+
 -keepclassmembers class * {
     @com.google.firebase.firestore.PropertyName <fields>;
     @com.google.firebase.firestore.PropertyName <methods>;
@@ -15,15 +29,31 @@
     public <init>();
 }
 
-# 3. ROOM ENTITIES & DAOS
+# 4. HILT & DAGGER (DI) & LIFECYCLE / VIEWMODEL
+-keep @dagger.hilt.android.lifecycle.HiltViewModel class * { *; }
+-keep class * extends androidx.lifecycle.ViewModel { *; }
+-keep class dagger.** { *; }
+-dontwarn dagger.**
+-keep class javax.inject.** { *; }
+
+# 5. SQLCIPHER & ROOM (ENCRYPTED DATABASE)
+-keep class net.sqlcipher.** { *; }
+-keep class net.sqlcipher.database.** { *; }
+-dontwarn net.sqlcipher.**
+-keep class androidx.room.** { *; }
+-dontwarn androidx.room.**
+-keep class * extends androidx.room.RoomDatabase { *; }
 -keep @androidx.room.Database class *
 -keep @androidx.room.Entity class *
 -keep @androidx.room.Dao interface * { *; }
 
-# 4. JSON SERIALIZATION (MOSHI & GSON)
+# 6. RETROFIT, OKHTTP, MOSHI, GSON (NETWORK & JSON SERIALIZATION)
+-dontwarn okio.**
+-dontwarn javax.annotation.**
 -keepclassmembers class * {
     @retrofit2.http.* <methods>;
 }
+-keep class kotlin.reflect.jvm.internal.** { *; }
 -keep class com.squareup.moshi.** { *; }
 -keep class * extends com.squareup.moshi.JsonAdapter { *; }
 -keep @com.squareup.moshi.JsonClass class * { *; }
@@ -32,12 +62,24 @@
     @com.squareup.moshi.* <fields>;
     @com.squareup.moshi.* <methods>;
 }
+-keep class *JsonAdapter {
+    public <init>(...);
+}
+-keep class com.google.gson.** { *; }
 
-# 5. HILT & WORKMANAGER & KEEP ANNOTATED CLASSES
--keep @dagger.hilt.android.lifecycle.HiltViewModel class * { *; }
--keep class * extends androidx.work.ListenableWorker { *; }
+# 7. GOOGLE PLAY IN-APP UPDATES & WORKMANAGER
+-keep class com.google.android.play.core.** { *; }
+-keep class androidx.work.** { *; }
+-dontwarn androidx.work.**
+
+# 8. YANSPROJECT.ID TARGETED MODEL & REFLECTION RULES (HARDENED R8 OBFUSCATION)
 -keep @androidx.annotation.Keep class * { *; }
 -keepclassmembers class * {
     @androidx.annotation.Keep *;
 }
 
+-keep class com.yansproject.app.data.** { *; }
+-keepclassmembers class com.yansproject.app.data.** { *; }
+
+-keep class com.yansproject.app.ui.**ViewModel { *; }
+-keep class * extends androidx.work.ListenableWorker { *; }

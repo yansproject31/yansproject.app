@@ -2,46 +2,48 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Check if the user is signed in
     function isSignedIn() {
       return request.auth != null;
     }
     
-    function getUserData() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
-        : (exists(/databases/$(database)/documents/users/$(request.auth.token.email))
-            ? get(/databases/$(database)/documents/users/$(request.auth.token.email)).data
-            : {});
+    // Check if the user is an owner of the resource via email mapping
+    function isOwnerOf(resourceData) {
+      return isSignedIn() && resourceData.ownerId == request.auth.token.email;
     }
 
-    // SUPER_ADMIN check (OWNER or ADMIN role, or email matching yansproject.id31@gmail.com)
-    function isSuperAdmin() {
-      return isSignedIn() && (
-        (request.auth.token.keys().hasAll(['role']) && (request.auth.token.role == 'OWNER' || request.auth.token.role == 'ADMIN' || request.auth.token.role == 'SUPER_ADMIN')) ||
-        ('email' in request.auth.token && (request.auth.token.email == 'yansproject.id31@gmail.com' || request.auth.token.email == 'owner@yansproject.id')) ||
-        (getUserData().get('role', '') in ['OWNER', 'ADMIN', 'SUPER_ADMIN'])
-      );
+    // Helper function to check if the user has the global OWNER role
+    function isOwner() {
+      return isSignedIn() && 
+             request.auth.token != null && 
+             (
+               (request.auth.token.keys().hasAll(['role']) && (request.auth.token.role == 'OWNER' || request.auth.token.role == 'ADMIN')) ||
+               (
+                 'email' in request.auth.token && 
+                 exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
+                 (
+                   get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'OWNER' ||
+                   get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'ADMIN'
+                 )
+               )
+             );
     }
     
-    function isOwnerOf(resourceData) {
-      return isSignedIn() && (
-        (resourceData.keys().hasAll(['ownerUid']) && resourceData.ownerUid == request.auth.uid) ||
-        (resourceData.keys().hasAll(['ownerId']) && (resourceData.ownerId == request.auth.uid || resourceData.ownerId == request.auth.token.email))
-      );
+    // Helper function to check if the user has the MEMBER role
+    function isMember() {
+      return isSignedIn() && 
+             request.auth.token != null && 
+             'email' in request.auth.token && 
+             exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'MEMBER';
     }
 
-    function isMemberOf(resourceData) {
-      return isSignedIn() && (
-        (resourceData.keys().hasAll(['memberUid']) && resourceData.memberUid == request.auth.uid) ||
-        (resourceData.keys().hasAll(['clientEmail']) && resourceData.clientEmail == request.auth.token.email) ||
-        (resourceData.keys().hasAll(['userId']) && resourceData.userId == request.auth.uid)
-      );
-    }
-
+    // Restrict document size to 512KB to avoid large base64/binary payloads (highly Spark-friendly)
     function isSizeAcceptable() {
       return request.size < 512 * 1024;
     }
 
+    // Prevent direct raw binary/data URI injection in attachment_url field
     function isValidAttachmentUrl(data) {
       return !('attachment_url' in data) || 
              (data.attachment_url is string && 
@@ -49,158 +51,48 @@ service cloud.firestore {
     }
 
     // Rules for 'users' collection
-    match /users/{userId} {
-      // MEMBER may read only its own profile. SUPER_ADMIN may manage member directory.
-      allow read: if isSignedIn() && (
-        isSuperAdmin() || 
-        request.auth.uid == userId || 
-        ('email' in request.auth.token && request.auth.token.email == userId)
-      );
-      
-      // Write rule: SUPER_ADMIN full access. Self-profile updates allowed only for non-authorization fields.
-      allow create: if isSuperAdmin() || (
-        isSignedIn() && 
-        (request.auth.uid == userId || ('email' in request.auth.token && request.auth.token.email == userId)) &&
-        request.resource.data.role == 'MEMBER' &&
-        !('passwordOrPin' in request.resource.data)
-      );
-      
-      allow update: if isSuperAdmin() || (
-        isSignedIn() && 
-        (request.auth.uid == userId || ('email' in request.auth.token && request.auth.token.email == userId)) &&
-        request.resource.data.role == resource.data.role &&
-        (!('ownerUid' in request.resource.data) || request.resource.data.ownerUid == resource.data.ownerUid) &&
-        !('passwordOrPin' in request.resource.data) &&
-        !('permission' in request.resource.data) &&
-        !('authorization' in request.resource.data)
-      );
-
-      allow delete: if isSuperAdmin();
+    match /users/{email} {
+      allow read: if isSignedIn();
+      allow write: if isOwner() || request.auth.token.email == email;
     }
 
-    // Operational inventory collections (Read for signed in, write for Super Admin)
+    // Operational collections restricted per owner and per member
     match /stock_items/{id} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data);
-    }
-
-    match /master_stock/{id} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin() && isSizeAcceptable();
-    }
-
-    match /master_catalog/{id} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin() && isSizeAcceptable();
-    }
-
-    match /master_varian_warna/{id} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin() && isSizeAcceptable();
-    }
-
-    match /inventory_ledger/{id} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin() && isSizeAcceptable();
-    }
-
-    match /inventory_summary/{id} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin() && isSizeAcceptable();
+      allow read, write: if isSignedIn() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data) && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
     match /projects/{id} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data);
+      allow read, write: if isSignedIn() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data) && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
-    // Invoices and subcollections
     match /invoices/{id} {
-      allow read: if isSignedIn() && (
-        isSuperAdmin() || 
-        isOwnerOf(resource.data) || 
-        isMemberOf(resource.data)
-      );
-      allow write: if isSuperAdmin() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data);
-
-      match /{subcollection=**} {
-        allow read: if isSignedIn();
-        allow write: if isSuperAdmin();
-      }
-    }
-
-    match /invoice_payments/{id} {
-      allow read: if isSignedIn() && (
-        isSuperAdmin() || 
-        isOwnerOf(resource.data) || 
-        isMemberOf(resource.data)
-      );
-      allow write: if isSuperAdmin() && isSizeAcceptable();
+      allow read, write: if isSignedIn() && isSizeAcceptable() && isValidAttachmentUrl(request.resource.data) && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
     match /orders/{id} {
-      allow read: if isSignedIn() && (
-        isSuperAdmin() || 
-        isOwnerOf(resource.data) ||
-        isMemberOf(resource.data)
-      );
-      allow write: if isSuperAdmin() && isSizeAcceptable();
+      allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
-    match /draft_sales_orders/{id} {
-      allow read, write: if isSignedIn() && (
-        isSuperAdmin() || 
-        id == request.auth.uid || 
-        ('email' in request.auth.token && id == request.auth.token.email)
-      );
-    }
-
-    // Financial collections (SUPER_ADMIN write only)
     match /expenses/{id} {
-      allow read, write: if isSuperAdmin() && isSizeAcceptable();
+      allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
     match /inflows/{id} {
-      allow read, write: if isSuperAdmin() && isSizeAcceptable();
+      allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
-    // Notifications
     match /notifications/{id} {
-      allow read: if isSignedIn() && (
-        isSuperAdmin() || 
-        (resource.data.keys().hasAll(['recipientUid']) && resource.data.recipientUid == request.auth.uid) ||
-        (resource.data.keys().hasAll(['recipientEmail']) && resource.data.recipientEmail == request.auth.token.email) ||
-        (!('recipientUid' in resource.data) && !('recipientEmail' in resource.data))
-      );
-      allow write: if isSuperAdmin();
+      allow read: if isSignedIn();
+      allow write: if isOwner();
     }
 
-    match /notification_queue/{id} {
-      allow read, write: if isSuperAdmin();
-    }
-
-    // Audit and Activity logs
-    match /audit_logs/{id} {
-      allow read: if isSuperAdmin();
-      allow create: if isSignedIn();
-      allow update, delete: if false;
-    }
-
-    match /activity_logs/{id} {
-      allow read: if isSuperAdmin();
-      allow create: if isSignedIn();
-      allow update, delete: if false;
-    }
-
-    // Cloud Backups & Catalog are SUPER_ADMIN only
     match /backups_catalog/{id} {
-      allow read, write: if isSuperAdmin() && isSizeAcceptable();
+      allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
 
+    // Cloud Backups Firestore document collection (Text Base64 backups)
     match /cloud_backups/{id} {
-      allow read, write: if isSuperAdmin() && isSizeAcceptable();
+      allow read, write: if isSignedIn() && isSizeAcceptable() && (resource == null || isOwnerOf(resource.data) || isOwner()) && (request.resource == null || isOwnerOf(request.resource.data) || isOwner());
     }
   }
 }
-
-

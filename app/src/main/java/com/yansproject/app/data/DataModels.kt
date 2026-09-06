@@ -25,7 +25,7 @@ data class DomainInvoice(
     val remainingPayment: Double
         get() {
             val effectivePaid = maxOf(paidAmount, dpAmount)
-            return maxOf(0.0, totalAmount - effectivePaid)
+            return maxOf(0.0, totalAmount - effectivePaid - discount)
         }
 }
 

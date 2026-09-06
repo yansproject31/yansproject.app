@@ -28,38 +28,6 @@ import com.yansproject.app.ui.theme.CardGrey
 import com.yansproject.app.ui.theme.DarkGrey
 import com.yansproject.app.ui.theme.TextMuted
 
-enum class FeaturePermissionState {
-    REQUIRED,
-    OPTIONAL,
-    DENIED,
-    FEATURE_DISABLED
-}
-
-object FeaturePermissionGuard {
-
-    fun checkBluetoothPermissionState(context: Context): FeaturePermissionState {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            return FeaturePermissionState.OPTIONAL
-        }
-        val connectGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-        val scanGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
-        return if (connectGranted && scanGranted) {
-            FeaturePermissionState.OPTIONAL
-        } else {
-            FeaturePermissionState.REQUIRED
-        }
-    }
-
-    fun checkStoragePermissionState(context: Context): FeaturePermissionState {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) {
-            // Android 11+ uses MediaStore / SAF without needing legacy storage permission
-            return FeaturePermissionState.OPTIONAL
-        }
-        val readGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-        return if (readGranted) FeaturePermissionState.OPTIONAL else FeaturePermissionState.REQUIRED
-    }
-}
-
 @Composable
 fun PermissionGuard(
     modifier: Modifier = Modifier,
@@ -67,44 +35,56 @@ fun PermissionGuard(
 ) {
     val context = LocalContext.current
 
-    // Only POST_NOTIFICATIONS is requested on general app startup (if Android 13+)
-    // Bluetooth and Storage permissions are feature-gated and requested only when entering those features!
-    val startupPermissions = remember {
+    // Build list of required runtime permissions based on Android API Level
+    val requiredPermissions = remember {
         val list = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             list.add(Manifest.permission.POST_NOTIFICATIONS)
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            list.add(Manifest.permission.BLUETOOTH_CONNECT)
+            list.add(Manifest.permission.BLUETOOTH_SCAN)
+        }
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
+            list.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
         list.toTypedArray()
     }
 
-    fun checkGranted(ctx: Context, permissions: Array<String>): Boolean {
+    fun checkAllGranted(ctx: Context, permissions: Array<String>): Boolean {
         return permissions.all { perm ->
             ContextCompat.checkSelfPermission(ctx, perm) == PackageManager.PERMISSION_GRANTED
         }
     }
 
-    var isStartupPermissionsGranted by remember {
-        mutableStateOf(checkGranted(context, startupPermissions))
+    var isAllPermissionsGranted by remember {
+        mutableStateOf(checkAllGranted(context, requiredPermissions))
     }
 
     var userBypassedPrompt by remember { mutableStateOf(false) }
 
-    val startupPermissionLauncher = rememberLauncherForActivityResult(
+    val multiplePermissionsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
-        isStartupPermissionsGranted = checkGranted(context, startupPermissions)
-        if (!isStartupPermissionsGranted) {
+        val notifGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            result[Manifest.permission.POST_NOTIFICATIONS] ?: false
+        } else {
+            true
+        }
+
+        isAllPermissionsGranted = checkAllGranted(context, requiredPermissions)
+        if (!notifGranted && !isAllPermissionsGranted) {
             userBypassedPrompt = true
         }
     }
 
     LaunchedEffect(Unit) {
-        if (!isStartupPermissionsGranted && startupPermissions.isNotEmpty()) {
-            startupPermissionLauncher.launch(startupPermissions)
+        if (!isAllPermissionsGranted && requiredPermissions.isNotEmpty()) {
+            multiplePermissionsLauncher.launch(requiredPermissions)
         }
     }
 
-    if (isStartupPermissionsGranted || userBypassedPrompt || startupPermissions.isEmpty()) {
+    if (isAllPermissionsGranted || userBypassedPrompt || requiredPermissions.isEmpty()) {
         content()
     } else {
         Box(
@@ -148,7 +128,7 @@ fun PermissionGuard(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     Text(
-                        text = "Izin Notifikasi Realtime",
+                        text = "Izin Sistem & Notifikasi Diperlukan",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
@@ -158,7 +138,7 @@ fun PermissionGuard(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Aplikasi YANSPROJECT.ID ERP membutuhkan izin notifikasi untuk mengirimkan siaran broadcast Owner dan pembaruan real-time status pesanan.",
+                        text = "Aplikasi YANSPROJECT.ID ERP membutuhkan izin notifikasi untuk mengirimkan siaran broadcast Owner, pembaruan real-time status pesanan, serta integrasi printer thermal secara optimal.",
                         fontSize = 13.sp,
                         color = TextMuted,
                         textAlign = TextAlign.Center,
@@ -169,8 +149,8 @@ fun PermissionGuard(
 
                     Button(
                         onClick = {
-                            if (startupPermissions.isNotEmpty()) {
-                                startupPermissionLauncher.launch(startupPermissions)
+                            if (requiredPermissions.isNotEmpty()) {
+                                multiplePermissionsLauncher.launch(requiredPermissions)
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
@@ -184,7 +164,7 @@ fun PermissionGuard(
                             .testTag("request_permission_button")
                     ) {
                         Text(
-                            text = "Aktifkan Notifikasi",
+                            text = "Aktifkan Izin & Notifikasi",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )

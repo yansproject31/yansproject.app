@@ -8,76 +8,44 @@ import android.net.NetworkRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.concurrent.atomic.AtomicBoolean
-import javax.inject.Singleton
 
-@Singleton
 class NetworkMonitor(private val context: Context) {
 
     private val connectivityManager =
-        context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     private val _isOnline = MutableStateFlow(false)
     val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
 
-    private val wasOnline = AtomicBoolean(false)
-
-    companion object {
-        @Volatile
-        private var INSTANCE: NetworkMonitor? = null
-
-        fun getInstance(context: Context): NetworkMonitor {
-            return INSTANCE ?: synchronized(this) {
-                val instance = NetworkMonitor(context.applicationContext)
-                INSTANCE = instance
-                instance
-            }
-        }
-    }
-
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            evaluateAndNotifyState()
+            _isOnline.value = true
+            FirebaseSyncManager.triggerOfflineQueueSync(context)
         }
 
         override fun onLost(network: Network) {
-            evaluateAndNotifyState()
+            _isOnline.value = checkCurrentConnection()
         }
 
         override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
-            evaluateAndNotifyState(capabilities)
+            val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            _isOnline.value = hasInternet
+            if (hasInternet) {
+                FirebaseSyncManager.triggerOfflineQueueSync(context)
+            }
         }
     }
 
     init {
-        evaluateAndNotifyState()
+        _isOnline.value = checkCurrentConnection()
         registerCallback()
     }
 
-    private fun evaluateAndNotifyState(capabilities: NetworkCapabilities? = null) {
-        val currentlyOnline = isConnectionValidated(capabilities)
-        _isOnline.value = currentlyOnline
-
-        if (currentlyOnline) {
-            // Strictly deduplicate sync trigger: execute ONLY on transition from false -> true
-            if (wasOnline.compareAndSet(false, true)) {
-                android.util.Log.i("NetworkMonitor", "State transition OFFLINE -> ONLINE detected. Triggering queue sync.")
-                FirebaseSyncManager.triggerOfflineQueueSync(context)
-            }
-        } else {
-            wasOnline.set(false)
-        }
-    }
-
-    private fun isConnectionValidated(providedCapabilities: NetworkCapabilities? = null): Boolean {
+    private fun checkCurrentConnection(): Boolean {
         return try {
-            val caps = providedCapabilities ?: run {
-                val activeNetwork = connectivityManager.activeNetwork ?: return false
-                connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
-            }
-            val hasInternet = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            val isValidated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-            hasInternet && isValidated
+            val activeNetwork = connectivityManager.activeNetwork ?: return false
+            val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         } catch (e: Exception) {
             false
         }
@@ -91,7 +59,7 @@ class NetworkMonitor(private val context: Context) {
             connectivityManager.registerNetworkCallback(request, networkCallback)
         } catch (e: Exception) {
             android.util.Log.e("NetworkMonitor", "Failed to register network callback: ${e.message}", e)
-            _isOnline.value = isConnectionValidated()
+            _isOnline.value = checkCurrentConnection()
         }
     }
 
@@ -103,4 +71,3 @@ class NetworkMonitor(private val context: Context) {
         }
     }
 }
-

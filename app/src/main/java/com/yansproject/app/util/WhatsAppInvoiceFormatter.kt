@@ -29,12 +29,12 @@ object WhatsAppInvoiceFormatter {
         items: List<InvoiceItemDetail>,
         context: Context? = null
     ): String {
-        val presentation = com.yansproject.app.data.InvoiceFinancialCalculator.calculateFromOperational(invoice)
         val sdf = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
-        val isPaid = presentation.remaining == 0L && presentation.grandTotal > 0L
+        val remaining = (invoice.totalAmount - invoice.paidAmount - invoice.discount).coerceAtLeast(0.0)
+        val isPaid = remaining <= 0
 
-        val statusEmoji = if (isPaid) "🟢" else if (presentation.paid > 0) "🟡" else "🔴"
-        val statusText = if (isPaid) "LUNAS (PAID)" else if (presentation.paid > 0) "DIBAYAR SEBAGIAN (DP)" else "BELUM LUNAS (UNPAID)"
+        val statusEmoji = if (isPaid) "🟢" else if (invoice.paidAmount > 0) "🟡" else "🔴"
+        val statusText = if (isPaid) "LUNAS (PAID)" else if (invoice.paidAmount > 0) "DIBAYAR SEBAGIAN (DP)" else "BELUM LUNAS (UNPAID)"
 
         val filteredItems = InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
 
@@ -48,23 +48,23 @@ object WhatsAppInvoiceFormatter {
         sb.append(BRAND_SLOGAN).append("\n")
         sb.append(DIVIDER_DOUBLE).append("\n\n")
 
-        val displayInvNumber = if (presentation.invoiceNumber.isNotBlank()) presentation.invoiceNumber else "INV-PENDING"
-        val issueDateFormatted = presentation.formattedDate
+        val displayInvNumber = if (invoice.invoiceNumber.isNotBlank()) invoice.invoiceNumber else "INV-PENDING"
+        val issueTime = if (invoice.issueDate > 0) invoice.issueDate else System.currentTimeMillis()
 
         sb.append("📋 *INFORMASI TRANSAKSI*\n")
         sb.append("• *No. Invoice*  : ").append(displayInvNumber).append("\n")
-        sb.append("• *Tanggal*       : ").append(issueDateFormatted).append("\n")
+        sb.append("• *Tanggal*       : ").append(sdf.format(Date(issueTime))).append("\n")
         sb.append("• *Status*        : ").append(statusEmoji).append(" ").append(statusText).append("\n\n")
 
-        val clientDisplayName = if (presentation.clientName.isNotBlank()) presentation.clientName else "Pelanggan General"
+        val clientDisplayName = if (invoice.clientName.isNotBlank()) invoice.clientName else "Pelanggan General"
         sb.append("👤 *INFORMASI PELANGGAN*\n")
         sb.append("• *Nama Klien*    : ").append(clientDisplayName).append("\n")
-        val phoneStr = if (presentation.clientPhone.isNotBlank()) presentation.clientPhone else "-"
+        val phoneStr = if (invoice.clientPhone.isNotBlank()) invoice.clientPhone else "-"
         sb.append("• *No. HP/WA*     : ").append(phoneStr).append("\n\n")
 
         sb.append("🛒 *RINCIAN PESANAN / ARTIKEL*\n")
         if (filteredItems.isEmpty()) {
-            sb.append("• 1x Custom Project Order - ").append(FormatUtils.formatRupiah(presentation.grandTotal.toDouble())).append("\n")
+            sb.append("• 1x Custom Project Order - ").append(FormatUtils.formatRupiah(invoice.totalAmount)).append("\n")
         } else {
             val shortItems = filteredItems.filter { InvoiceItemSorter.extractSleeve(it.description) == "Pendek" }
             val longItems = filteredItems.filter { InvoiceItemSorter.extractSleeve(it.description) == "Panjang" }
@@ -95,7 +95,7 @@ object WhatsAppInvoiceFormatter {
 
         val shortQty = InvoiceItemSorter.getShortSleeveTotalQty(filteredItems)
         val longQty = InvoiceItemSorter.getLongSleeveTotalQty(filteredItems)
-        val globalQty = if (filteredItems.isNotEmpty()) InvoiceItemSorter.getGlobalTotalQty(filteredItems) else presentation.quantity
+        val globalQty = InvoiceItemSorter.getGlobalTotalQty(filteredItems)
 
         sb.append("📊 *RINCIAN KUANTITAS & KEUANGAN*\n")
         sb.append("• QTY PENDEK : ").append(shortQty).append(" Pcs\n")
@@ -103,14 +103,18 @@ object WhatsAppInvoiceFormatter {
         sb.append("• *TOTAL QTY* : *").append(globalQty).append(" Pcs*\n")
         sb.append(DIVIDER_SINGLE).append("\n")
 
-        sb.append("• *SUB TOTAL* : ").append(FormatUtils.formatRupiah(presentation.subtotal.toDouble())).append("\n")
-        if (presentation.discount > 0L) {
-            sb.append("• *DISKON* : - ").append(FormatUtils.formatRupiah(presentation.discount.toDouble())).append("\n")
+        val calculatedSubtotal = InvoiceItemSorter.calcSubtotal(filteredItems)
+        val subtotalToDisplay = if (calculatedSubtotal > 0.0) calculatedSubtotal else (invoice.totalAmount + invoice.discount)
+        val totalToDisplay = (subtotalToDisplay - invoice.discount).coerceAtLeast(0.0)
+
+        sb.append("• *SUB TOTAL* : ").append(FormatUtils.formatRupiah(subtotalToDisplay)).append("\n")
+        if (invoice.discount > 0) {
+            sb.append("• *DISKON* : - ").append(FormatUtils.formatRupiah(invoice.discount)).append("\n")
         }
-        sb.append("• *TOTAL* : *").append(FormatUtils.formatRupiah(presentation.grandTotal.toDouble())).append("*\n")
-        sb.append("• *PEMBAYARAN* : ").append(FormatUtils.formatRupiah(presentation.paid.toDouble())).append("\n")
+        sb.append("• *TOTAL* : *").append(FormatUtils.formatRupiah(totalToDisplay)).append("*\n")
+        sb.append("• *PEMBAYARAN* : ").append(FormatUtils.formatRupiah(invoice.paidAmount)).append("\n")
         sb.append(DIVIDER_SINGLE).append("\n")
-        sb.append("🔥 *SISA PEMBAYARAN* : *").append(FormatUtils.formatRupiah(presentation.remaining.toDouble())).append("*\n")
+        sb.append("🔥 *SISA PEMBAYARAN* : *").append(FormatUtils.formatRupiah(remaining)).append("*\n")
         sb.append(DIVIDER_DOUBLE).append("\n\n")
 
         sb.append("🤝 *AKAD SYAR'I & KETERANGAN*\n")
@@ -127,95 +131,20 @@ object WhatsAppInvoiceFormatter {
         items: List<InvoiceItemDetail>,
         context: Context? = null
     ): String {
-        val presentation = com.yansproject.app.data.InvoiceFinancialCalculator.calculatePresentation(invoice, items)
-        val isPaid = presentation.remaining == 0L && presentation.grandTotal > 0L
-
-        val statusEmoji = if (isPaid) "🟢" else if (presentation.paid > 0) "🟡" else "🔴"
-        val statusText = if (isPaid) "LUNAS (PAID)" else if (presentation.paid > 0) "DIBAYAR SEBAGIAN (DP)" else "BELUM LUNAS (UNPAID)"
-
-        val filteredItems = InvoiceItemSorter.sortInvoiceItems(items.filter { !it.description.startsWith("__") })
-
-        val supportEmail = if (context != null) BusinessIdentityProvider.getSupportEmail(context) else BusinessIdentityProvider.DEFAULT_SUPPORT_EMAIL
-        val supportPhone = if (context != null) BusinessIdentityProvider.getSupportWhatsApp(context) else BusinessIdentityProvider.DEFAULT_SUPPORT_WHATSAPP
-        val supportContactText = "📞 *LAYANAN DUKUNGAN CS & LOKASI*\n• *WhatsApp CS* : $supportPhone\n• *Email Support*: $supportEmail"
-
-        val sb = StringBuilder()
-        sb.append(BRAND_HEADER).append("\n")
-        sb.append(BRAND_SUBTITLE).append("\n")
-        sb.append(BRAND_SLOGAN).append("\n")
-        sb.append(DIVIDER_DOUBLE).append("\n\n")
-
-        val displayInvNumber = if (presentation.invoiceNumber.isNotBlank()) presentation.invoiceNumber else "INV-PENDING"
-        val issueDateFormatted = presentation.formattedDate
-
-        sb.append("📋 *INFORMASI TRANSAKSI*\n")
-        sb.append("• *No. Invoice*  : ").append(displayInvNumber).append("\n")
-        sb.append("• *Tanggal*       : ").append(issueDateFormatted).append("\n")
-        sb.append("• *Status*        : ").append(statusEmoji).append(" ").append(statusText).append("\n\n")
-
-        val clientDisplayName = if (presentation.clientName.isNotBlank()) presentation.clientName else "Pelanggan General"
-        sb.append("👤 *INFORMASI PELANGGAN*\n")
-        sb.append("• *Nama Klien*    : ").append(clientDisplayName).append("\n")
-        val phoneStr = if (presentation.clientPhone.isNotBlank()) presentation.clientPhone else "-"
-        sb.append("• *No. HP/WA*     : ").append(phoneStr).append("\n\n")
-
-        sb.append("🛒 *RINCIAN PESANAN / ARTIKEL*\n")
-        if (filteredItems.isEmpty()) {
-            sb.append("• 1x Custom Project Order - ").append(FormatUtils.formatRupiah(presentation.grandTotal.toDouble())).append("\n")
-        } else {
-            val shortItems = filteredItems.filter { InvoiceItemSorter.extractSleeve(it.description) == "Pendek" }
-            val longItems = filteredItems.filter { InvoiceItemSorter.extractSleeve(it.description) == "Panjang" }
-
-            var itemNum = 1
-            if (shortItems.isNotEmpty()) {
-                sb.append("👕 *LENGAN PENDEK:*\n")
-                shortItems.forEach { item ->
-                    val qty = if (item.quantity > 0) item.quantity else 1
-                    val sub = item.price * qty
-                    sb.append(" ${itemNum++}. *${item.description}*\n")
-                    sb.append("    └ $qty Pcs @ ${FormatUtils.formatRupiah(item.price)} = *${FormatUtils.formatRupiah(sub)}*\n")
-                }
-            }
-
-            if (longItems.isNotEmpty()) {
-                if (shortItems.isNotEmpty()) sb.append("\n")
-                sb.append("👔 *LENGAN PANJANG:*\n")
-                longItems.forEach { item ->
-                    val qty = if (item.quantity > 0) item.quantity else 1
-                    val sub = item.price * qty
-                    sb.append(" ${itemNum++}. *${item.description}*\n")
-                    sb.append("    └ $qty Pcs @ ${FormatUtils.formatRupiah(item.price)} = *${FormatUtils.formatRupiah(sub)}*\n")
-                }
-            }
-        }
-        sb.append("\n").append(DIVIDER_SINGLE).append("\n")
-
-        val shortQty = InvoiceItemSorter.getShortSleeveTotalQty(filteredItems)
-        val longQty = InvoiceItemSorter.getLongSleeveTotalQty(filteredItems)
-        val globalQty = if (filteredItems.isNotEmpty()) InvoiceItemSorter.getGlobalTotalQty(filteredItems) else presentation.quantity
-
-        sb.append("📊 *RINCIAN KUANTITAS & KEUANGAN*\n")
-        sb.append("• QTY PENDEK : ").append(shortQty).append(" Pcs\n")
-        sb.append("• QTY PANJANG : ").append(longQty).append(" Pcs\n")
-        sb.append("• *TOTAL QTY* : *").append(globalQty).append(" Pcs*\n")
-        sb.append(DIVIDER_SINGLE).append("\n")
-
-        sb.append("• *SUB TOTAL* : ").append(FormatUtils.formatRupiah(presentation.subtotal.toDouble())).append("\n")
-        if (presentation.discount > 0L) {
-            sb.append("• *DISKON* : - ").append(FormatUtils.formatRupiah(presentation.discount.toDouble())).append("\n")
-        }
-        sb.append("• *TOTAL* : *").append(FormatUtils.formatRupiah(presentation.grandTotal.toDouble())).append("*\n")
-        sb.append("• *PEMBAYARAN* : ").append(FormatUtils.formatRupiah(presentation.paid.toDouble())).append("\n")
-        sb.append(DIVIDER_SINGLE).append("\n")
-        sb.append("🔥 *SISA PEMBAYARAN* : *").append(FormatUtils.formatRupiah(presentation.remaining.toDouble())).append("*\n")
-        sb.append(DIVIDER_DOUBLE).append("\n\n")
-
-        sb.append("🤝 *AKAD SYAR'I & KETERANGAN*\n")
-        sb.append(BRAND_FOOTER).append("\n\n")
-
-        sb.append(supportContactText).append("\n")
-        sb.append("• *Link Verifikasi*: https://yansproject.id/verify/").append(displayInvNumber)
-
-        return sb.toString()
+        val opInvoice = OperationalInvoice(
+            id = invoice.id.toString(),
+            invoiceNumber = invoice.invoiceNumber,
+            clientName = invoice.clientName,
+            clientPhone = invoice.clientPhone,
+            issueDate = invoice.issueDate,
+            dueDate = invoice.dueDate,
+            totalAmount = invoice.totalAmount,
+            paidAmount = invoice.paidAmount,
+            status = invoice.status,
+            discount = invoice.discount,
+            dpAmount = invoice.dpAmount,
+            itemsJson = invoice.itemsJson
+        )
+        return buildWhatsAppText(opInvoice, items, context)
     }
 }

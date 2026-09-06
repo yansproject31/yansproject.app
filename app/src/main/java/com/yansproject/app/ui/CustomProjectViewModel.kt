@@ -123,22 +123,6 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
                     clientNotes = project.specialNotes
                 )
                 repository.createProject(entity, "PRJ", discountNominal = project.discountNominal)
-
-                val timestamp = System.currentTimeMillis()
-                val outboxLog = AuditLog(
-                    timestamp = timestamp,
-                    activity = "PROJECT_MUTATION_SAVED",
-                    details = "Outbox mutation record for project '${project.projectName}'",
-                    adminName = "SYSTEM_OUTBOX",
-                    actorId = "CUSTOM_PROJECT_VM",
-                    correlationId = "CORR-PRJ-${timestamp}",
-                    objectId = project.id,
-                    utcTimestamp = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date(timestamp)),
-                    action = "OUTBOX_PROJECT_MUTATION",
-                    beforeStateJson = "{}",
-                    afterStateJson = "{\"projectName\":\"${project.projectName}\",\"grandTotal\":${project.grandTotal}}"
-                )
-                db.auditLogDao().insertLog(outboxLog)
             } catch (e: Exception) {
                 android.util.Log.e("CustomProjectViewModel", "Error saving project to database: ${e.message}", e)
             }
@@ -153,7 +137,6 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
         if (rawId != null) {
             viewModelScope.launch {
                 try {
-                    val db = AppDatabase.getDatabase(getApplication())
                     val project = db.projectDao().getProjectById(rawId)
                     if (project != null) {
                         val dbStatus = when (nextStatus) {
@@ -162,7 +145,7 @@ class CustomProjectViewModel(application: Application) : AndroidViewModel(applic
                             "SELESAI" -> "Completed"
                             else -> "Planning"
                         }
-                        db.projectDao().updateProject(project.copy(status = dbStatus))
+                        repository.updateProject(project.copy(status = dbStatus))
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("CustomProjectViewModel", "Error transitioning status for $projectId: ${e.message}", e)

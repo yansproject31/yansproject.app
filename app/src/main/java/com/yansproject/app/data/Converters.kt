@@ -62,39 +62,24 @@ class AppTypeConverters {
 
     @TypeConverter
     fun toInvoiceItemList(value: String?): List<InvoiceItemDetail> {
-        return toInvoiceItemListWithIntegrity(value).items
-    }
-
-    fun toInvoiceItemListWithIntegrity(value: String?): ParsedInvoiceItemList {
-        if (value.isNullOrEmpty() || value == "[]") {
-            return ParsedInvoiceItemList(emptyList(), ParseIntegrityState.VALID)
-        }
+        if (value.isNullOrEmpty()) return emptyList()
         val list = mutableListOf<InvoiceItemDetail>()
-        var hasPartialFailures = false
         try {
             val array = JSONArray(value)
             for (i in 0 until array.length()) {
-                try {
-                    val obj = array.getJSONObject(i)
-                    val desc = obj.optString("description", obj.optString("name", ""))
-                    val qty = obj.optInt("quantity", obj.optInt("qty", 1))
-                    val price = obj.optDouble("price", obj.optDouble("unitPrice", 0.0))
-                    list.add(InvoiceItemDetail(description = desc, quantity = qty, price = price))
-                } catch (e: Exception) {
-                    hasPartialFailures = true
-                }
+                val obj = array.getJSONObject(i)
+                list.add(
+                    InvoiceItemDetail(
+                        description = obj.optString("description", obj.optString("name", "")),
+                        quantity = obj.optInt("quantity", obj.optInt("qty", 1)),
+                        price = obj.optDouble("price", obj.optDouble("unitPrice", 0.0))
+                    )
+                )
             }
-            val state = if (hasPartialFailures) ParseIntegrityState.PARTIAL else ParseIntegrityState.VALID
-            return ParsedInvoiceItemList(list, state)
         } catch (e: Exception) {
             Log.e("Converters", "Failed converting JSON array string '$value' to InvoiceItemList: ${e.message}", e)
-            val diagnosticItem = InvoiceItemDetail(
-                description = "[ERROR PARSING INVOICE DATA: ${e.localizedMessage}]",
-                quantity = 1,
-                price = 0.0
-            )
-            return ParsedInvoiceItemList(listOf(diagnosticItem), ParseIntegrityState.INVALID, e.message)
         }
+        return list
     }
 
     @TypeConverter
@@ -122,7 +107,7 @@ class AppTypeConverters {
                 val obj = array.getJSONObject(i)
                 list.add(
                     ProjectTimelineEntry(
-                        timestamp = if (obj.has("timestamp")) obj.getLong("timestamp") else 0L,
+                        timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
                         statusText = obj.optString("statusText", obj.optString("status", "")),
                         note = obj.optString("note", obj.optString("notes", ""))
                     )
@@ -134,28 +119,3 @@ class AppTypeConverters {
         return list
     }
 }
-
-enum class JsonParseOutcome {
-    VALID,
-    EMPTY,
-    INVALID
-}
-
-data class ParsedJsonResult<T>(
-    val outcome: JsonParseOutcome,
-    val data: List<T>,
-    val rawInput: String
-)
-
-enum class ParseIntegrityState {
-    VALID,
-    PARTIAL,
-    INVALID
-}
-
-data class ParsedInvoiceItemList(
-    val items: List<InvoiceItemDetail>,
-    val state: ParseIntegrityState,
-    val errorMessage: String? = null
-)
-

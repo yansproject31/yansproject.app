@@ -105,30 +105,6 @@ object DatabaseMigration {
         }
     }
 
-    val MIGRATION_19_20 = object : Migration(19, 20) {
-        override fun migrate(db: SupportSQLiteDatabase) {
-            Log.i(TAG, "Executing MIGRATION_19_20...")
-            db.execSQL(
-                "CREATE TABLE IF NOT EXISTS `draft_sales_orders_new` (" +
-                "`draftKey` TEXT NOT NULL PRIMARY KEY, " +
-                "`id` INTEGER NOT NULL DEFAULT 1, " +
-                "`ownerUid` TEXT NOT NULL DEFAULT '', " +
-                "`clientName` TEXT NOT NULL DEFAULT '', " +
-                "`clientPhone` TEXT NOT NULL DEFAULT '', " +
-                "`clientAddress` TEXT NOT NULL DEFAULT '', " +
-                "`notes` TEXT NOT NULL DEFAULT '', " +
-                "`itemsJson` TEXT NOT NULL DEFAULT '[]', " +
-                "`updatedAt` INTEGER NOT NULL DEFAULT 0)"
-            )
-            db.execSQL(
-                "INSERT OR IGNORE INTO `draft_sales_orders_new` (draftKey, id, ownerUid, clientName, clientPhone, clientAddress, notes, itemsJson, updatedAt) " +
-                "SELECT 'DEFAULT_OWNER', id, '', clientName, clientPhone, clientAddress, notes, itemsJson, updatedAt FROM `draft_sales_orders`"
-            )
-            db.execSQL("DROP TABLE `draft_sales_orders`")
-            db.execSQL("ALTER TABLE `draft_sales_orders_new` RENAME TO `draft_sales_orders`")
-        }
-    }
-
     val ALL_MIGRATIONS = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -147,8 +123,7 @@ object DatabaseMigration {
         MIGRATION_15_16,
         MIGRATION_16_17,
         MIGRATION_17_18,
-        MIGRATION_18_19,
-        MIGRATION_19_20
+        MIGRATION_18_19
     )
 
     fun validateSchemaIntegrity(db: SupportSQLiteDatabase): Boolean {
@@ -157,87 +132,22 @@ object DatabaseMigration {
                 "stock_items", "projects", "orders", "invoices", "expenses",
                 "inflows", "stock_history", "audit_logs", "report_cache", "customers"
             )
-            val existingTables = mutableSetOf<String>()
+            val existingTables = mutableListOf<String>()
             db.query("SELECT name FROM sqlite_master WHERE type='table'").use { cursor ->
                 while (cursor.moveToNext()) {
                     existingTables.add(cursor.getString(0))
                 }
             }
-            // If database is brand new (tables not yet created or partially populated), allow Room initialization flow
-            if (existingTables.isEmpty()) {
-                Log.i(TAG, "Database is freshly initialized. Schema validation deferred to Room lifecycle.")
-                return true
-            }
-            val missingTables = requiredTables.filter { !existingTables.contains(it) }
-            if (missingTables.isNotEmpty()) {
-                Log.w(TAG, "Schema warning: Some tables not present yet $missingTables. Proceeding with caution.")
-                return true
-            }
-
-            // Deep Table & Column Inspection
-            for (table in requiredTables) {
-                var columnCount = 0
-                var hasPrimaryKey = false
-                db.query("PRAGMA table_info(`$table`)").use { cursor ->
-                    val nameIdx = cursor.getColumnIndex("name")
-                    val pkIdx = cursor.getColumnIndex("pk")
-                    while (cursor.moveToNext()) {
-                        columnCount++
-                        if (pkIdx != -1 && cursor.getInt(pkIdx) > 0) {
-                            hasPrimaryKey = true
-                        }
-                    }
-                }
-                if (columnCount == 0) {
-                    Log.e(TAG, "Schema validation failed: table `$table` has 0 columns.")
-                    return false
-                }
-                if (!hasPrimaryKey) {
-                    Log.w(TAG, "Schema warning: table `$table` has no explicit primary key.")
-                }
-            }
-
-            // Check database user_version
-            var userVersion = 0
-            db.query("PRAGMA user_version").use { cursor ->
-                if (cursor.moveToFirst()) {
-                    userVersion = cursor.getInt(0)
-                }
-            }
-            Log.i(TAG, "AppDatabase Schema Validation Passed (v$userVersion). All ${requiredTables.size} tables verified.")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error validating database schema integrity: ${e.message}", e)
-            false
-        }
-    }
-
-    fun validateYansRoomDbSchemaIntegrity(db: SupportSQLiteDatabase): Boolean {
-        return try {
-            val requiredColumns = listOf(
-                "id", "stringPayload", "targetCollection", "timestamp", "retryCount",
-                "additionalMeta", "idempotencyKey", "replayHash", "version", "userId",
-                "checksum", "queueVersion", "payloadVersion", "schemaVersion", "status"
-            )
-            val existingColumns = mutableSetOf<String>()
-            db.query("PRAGMA table_info(`offline_actions`)").use { cursor ->
-                val nameIdx = cursor.getColumnIndex("name")
-                while (cursor.moveToNext()) {
-                    if (nameIdx != -1) {
-                        existingColumns.add(cursor.getString(nameIdx))
-                    }
-                }
-            }
-            val missing = requiredColumns.filter { !existingColumns.contains(it) }
+            val missing = requiredTables.filter { !existingTables.contains(it) }
             if (missing.isNotEmpty()) {
-                Log.e(TAG, "YansRoomDatabase validation failed: missing columns $missing in offline_actions")
+                Log.e(TAG, "Schema validation failed: missing essential tables $missing")
                 false
             } else {
-                Log.i(TAG, "YansRoomDatabase Schema Validation Passed. All offline_actions columns intact.")
+                Log.i(TAG, "Database schema validation succeeded. All ${requiredTables.size} essential tables present.")
                 true
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error validating YansRoomDatabase schema integrity: ${e.message}", e)
+            Log.e(TAG, "Error validating database schema integrity: ${e.message}", e)
             false
         }
     }

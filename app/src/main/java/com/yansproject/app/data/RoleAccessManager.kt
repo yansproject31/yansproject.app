@@ -14,28 +14,14 @@ object RoleAccessManager {
     )
 
     /**
-     * Helper to verify whether a role or security context represents an owner or administrative authority (SUPER_ADMIN = OWNER + ADMIN).
+     * Helper to verify whether a role or security context represents an owner or administrative authority.
      */
     fun isAdministrative(role: UserRole): Boolean {
         return role == UserRole.OWNER || role == UserRole.ADMIN
     }
 
-    fun isSuperAdmin(role: UserRole?): Boolean {
-        return role != null && isAdministrative(role)
-    }
-
-    fun isSuperAdmin(roleString: String?): Boolean {
-        if (roleString.isNullOrBlank()) return false
-        val normalized = roleString.trim().uppercase()
-        return normalized == "OWNER" || normalized == "ADMIN" || normalized == "SUPER_ADMIN"
-    }
-
     fun isAdministrative(context: SecurityContext): Boolean {
         return isAdministrative(context.role) || (context.claims["is_admin"] as? Boolean == true)
-    }
-
-    fun isSuperAdmin(context: SecurityContext?): Boolean {
-        return context != null && isAdministrative(context)
     }
 
     /**
@@ -75,7 +61,7 @@ object RoleAccessManager {
      * Checks if the user can access the Developer Portal (13-tap).
      */
     fun canAccessDevPortal(role: UserRole): Boolean {
-        return isAdministrative(role)
+        return role == UserRole.OWNER
     }
 
     fun canAccessDevPortal(context: SecurityContext): Boolean {

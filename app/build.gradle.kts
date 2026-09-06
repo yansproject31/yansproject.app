@@ -14,7 +14,6 @@ plugins {
 android {
     namespace = "com.yansproject.app"
     compileSdk = 35
-    buildToolsVersion = "35.0.0"
 
     defaultConfig {
         applicationId = "com.yansproject.app"
@@ -98,7 +97,7 @@ android {
 }
 
 ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.schemaLocation", "false")
 }
 
 secrets {
@@ -107,10 +106,8 @@ secrets {
 }
 
 googleServices {
-    val isReleaseTask = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
-    missingGoogleServicesStrategy = if (isReleaseTask) MissingGoogleServicesStrategy.ERROR else MissingGoogleServicesStrategy.WARN
+    missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN
 }
-
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))

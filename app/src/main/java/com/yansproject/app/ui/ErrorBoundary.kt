@@ -17,34 +17,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yansproject.app.ui.theme.*
 
-data class SanitizedErrorDetails(
-    val userSafeMessage: String,
-    val internalDebugDetails: String
-)
-
-object ErrorSanitizer {
-    fun sanitize(error: Throwable): SanitizedErrorDetails {
-        val rawMessage = error.localizedMessage ?: error.message ?: error.javaClass.simpleName
-        val debugDetails = "${error.javaClass.name}: $rawMessage"
-
-        val safeMsg = when {
-            rawMessage.contains("SQLiteException", ignoreCase = true) || rawMessage.contains("Table", ignoreCase = true) || rawMessage.contains("Constraint", ignoreCase = true) ->
-                "Gagal memproses penyimpanan data lokal. Silakan coba beberapa saat lagi."
-            rawMessage.contains("FirebaseAuth", ignoreCase = true) || rawMessage.contains("USER_NOT_FOUND", ignoreCase = true) || rawMessage.contains("INVALID_CREDENTIALS", ignoreCase = true) ->
-                "Sesi otentikasi tidak valid. Silakan melakukan login kembali."
-            rawMessage.contains("ConnectException", ignoreCase = true) || rawMessage.contains("UnknownHostException", ignoreCase = true) || rawMessage.contains("Timeout", ignoreCase = true) ->
-                "Koneksi jaringan terputus. Sistem tetap berjalan dalam Mode Offline."
-            else ->
-                "Terjadi gangguan sistem internal. Tim pengembang telah menerima laporan otomatis."
-        }
-
-        return SanitizedErrorDetails(
-            userSafeMessage = safeMsg,
-            internalDebugDetails = debugDetails
-        )
-    }
-}
-
 // CompositionLocal to trigger error boundary manually or from viewmodel
 val LocalErrorReporter = staticCompositionLocalOf<((Throwable) -> Unit)?> { null }
 
@@ -77,9 +49,6 @@ fun RecoveryModeScreen(
     error: Throwable,
     onRetry: () -> Unit
 ) {
-    val sanitized = remember(error) { ErrorSanitizer.sanitize(error) }
-    var showDebugDetails by remember { mutableStateOf(false) }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -112,9 +81,9 @@ fun RecoveryModeScreen(
                 )
 
                 Text(
-                    text = sanitized.userSafeMessage,
-                    fontSize = 13.sp,
-                    color = TextLight,
+                    text = "Aplikasi mendeteksi ketidakstabilan sistem yang kritis. Crash telemetry telah dikirim ke Firebase Cloud untuk dianalisis oleh Owner.",
+                    fontSize = 12.sp,
+                    color = TextMuted,
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp
                 )
@@ -127,36 +96,21 @@ fun RecoveryModeScreen(
                         .background(Color(0xFF051213), RoundedCornerShape(8.dp))
                         .padding(12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "DIAGNOSTIK SISTEM:",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AgedGold
-                        )
-                        TextButton(onClick = { showDebugDetails = !showDebugDetails }) {
-                            Text(
-                                text = if (showDebugDetails) "SEMBUNYIKAN DETIL" else "TAMPILKAN DETIL",
-                                fontSize = 9.sp,
-                                color = GoldMuted
-                            )
-                        }
-                    }
-                    if (showDebugDetails) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = sanitized.internalDebugDetails,
-                            fontSize = 11.sp,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                            color = TextWhite,
-                            maxLines = 6,
-                            lineHeight = 14.sp
-                        )
-                    }
+                    Text(
+                        text = "DETIL EXCEPTION:",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AgedGold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = error.localizedMessage ?: error.message ?: "Unknown crash thread exception.",
+                        fontSize = 11.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        color = TextWhite,
+                        maxLines = 4,
+                        lineHeight = 14.sp
+                    )
                 }
 
                 Button(

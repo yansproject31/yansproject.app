@@ -9,12 +9,6 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import java.io.File
 
-enum class ShareResult {
-    SUCCESS,
-    CANCELLED,
-    FAILED
-}
-
 object ShareUtils {
 
     private const val TAG = "ShareUtils"
@@ -22,19 +16,26 @@ object ShareUtils {
     const val PACKAGE_WHATSAPP_STANDARD = "com.whatsapp"
 
     fun cleanPhoneNumber(phone: String?): String {
-        return SecureWhatsAppShareUtil.validatePhoneNumber(phone).normalizedNumber
+        if (phone.isNullOrBlank()) return ""
+        val digits = phone.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "").trim()
+        return if (digits.startsWith("0")) "62" + digits.substring(1) else digits
     }
 
     fun isPackageInstalled(context: Context, packageName: String): Boolean {
-        return SecureWhatsAppShareUtil.isPackageInstalled(context, packageName)
+        return try {
+            context.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 
-    fun shareFile(context: Context, file: File, title: String = "Bagikan Berkas YANSPROJECT.ID"): ShareResult {
+    fun shareFile(context: Context, file: File, title: String = "Bagikan Berkas YANSPROJECT.ID") {
         if (!file.exists()) {
-            Log.w(TAG, "File does not exist for share: ${file.absolutePath}")
-            return ShareResult.FAILED
+            Toast.makeText(context, "Berkas tidak ditemukan di penyimpanan.", Toast.LENGTH_SHORT).show()
+            return
         }
-        return try {
+        try {
             val authority = "${context.packageName}.fileprovider"
             val uri = FileProvider.getUriForFile(context, authority, file)
             val mime = context.contentResolver.getType(uri) ?: "*/*"
@@ -47,19 +48,23 @@ object ShareUtils {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(chooser)
-            ShareResult.SUCCESS
         } catch (e: Exception) {
             Log.e(TAG, "Failed sharing file ${file.name}: ${e.message}", e)
-            ShareResult.FAILED
+            Toast.makeText(context, "Gagal membagikan berkas: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
         }
     }
 
+    /**
+     * Smart WhatsApp Share method for Documents (PNG/PDF) or Captions.
+     * Prioritizes WhatsApp Business (com.whatsapp.w4b) & standard WhatsApp (com.whatsapp).
+     * If BOTH are installed, prompts system chooser ("Pilih Aplikasi WhatsApp") with "Sekali" / "Selalu".
+     */
     fun shareFileToWhatsApp(
         context: Context,
         file: File?,
         clientPhone: String?,
         captionText: String? = null
-    ): ShareResult {
+    ) {
         val cleanPhone = cleanPhoneNumber(clientPhone)
         val hasFile = file != null && file.exists() && file.length() > 0
 
@@ -105,17 +110,21 @@ object ShareUtils {
                         context.startActivity(chooser)
                     }
                 )
-                return ShareResult.SUCCESS
             } catch (e: Exception) {
                 Log.e(TAG, "Failed sharing file via WhatsApp: ${e.message}", e)
-                return ShareResult.FAILED
+                Toast.makeText(context, "Gagal membagikan ke WhatsApp: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             }
         } else {
-            return openWhatsAppText(context, clientPhone, captionText)
+            // Text or direct link chat
+            openWhatsAppText(context, clientPhone, captionText)
         }
     }
 
-    fun openWhatsAppText(context: Context, clientPhone: String?, text: String? = null): ShareResult {
+    /**
+     * Direct WhatsApp text messaging or link redirect.
+     * Supports WhatsApp Business & Standard WhatsApp with dual-app chooser if both are present.
+     */
+    fun openWhatsAppText(context: Context, clientPhone: String?, text: String? = null) {
         val cleanPhone = cleanPhoneNumber(clientPhone)
         val encodedText = if (!text.isNullOrBlank()) Uri.encode(text) else ""
 
@@ -135,7 +144,7 @@ object ShareUtils {
             }
         }
 
-        return try {
+        try {
             launchWhatsAppIntent(
                 context = context,
                 isW4bInstalled = isW4bInstalled,
@@ -157,10 +166,9 @@ object ShareUtils {
                     }
                 }
             )
-            ShareResult.SUCCESS
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open WhatsApp: ${e.message}", e)
-            ShareResult.FAILED
+            Toast.makeText(context, "Gagal membuka WhatsApp: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
         }
     }
 

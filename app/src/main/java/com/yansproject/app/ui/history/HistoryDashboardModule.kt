@@ -31,8 +31,6 @@ import com.yansproject.app.ui.components.YansPremiumButton
 import com.yansproject.app.ui.theme.ambientGlow
 import com.yansproject.app.ui.theme.glassCard
 
-import com.yansproject.app.data.KitabReadingProgressManager
-
 @Composable
 fun HistoryDashboardScreen(
     onNavigateToKitab: () -> Unit = {},
@@ -40,14 +38,18 @@ fun HistoryDashboardScreen(
 ) {
     val scrollState = rememberScrollState()
     val context = LocalContext.current
-    val readingProgress by KitabReadingProgressManager.progressState.collectAsState()
+    val activeUserId = com.yansproject.app.data.FirebaseSyncManager.currentUser.collectAsState().value?.uid?.takeIf { it.isNotBlank() } ?: "guest"
+    val prefs = remember(context, activeUserId) { context.getSharedPreferences("kitab_prefs_$activeUserId", Context.MODE_PRIVATE) }
+    val completedSet = remember(activeUserId, prefs) { prefs.getStringSet("completed", emptySet()) ?: emptySet() }
 
-    LaunchedEffect(context) {
-        KitabReadingProgressManager.loadUserProgress(context)
+    // Dynamically calculate user reading progress for Juz I published chapters (3 chapters)
+    val totalPublishedChapters = 3
+    val userCompletedCount = completedSet.size.coerceAtMost(totalPublishedChapters)
+    val statusBacaText = if (userCompletedCount >= totalPublishedChapters) {
+        "100% Selesai"
+    } else {
+        "${((userCompletedCount.toDouble() / totalPublishedChapters) * 100).toInt()}% ($userCompletedCount/$totalPublishedChapters Bab)"
     }
-
-    val progressFraction = (readingProgress.progressPercent / 100f).coerceIn(0f, 1f)
-    val statusBacaText = readingProgress.statusText
 
     Column(
         modifier = modifier
@@ -236,7 +238,7 @@ fun HistoryDashboardScreen(
                             color = TextSecondary
                         )
                         Text(
-                            text = "${readingProgress.progressPercent}%",
+                            text = "45%",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF00E5FF)
@@ -256,7 +258,7 @@ fun HistoryDashboardScreen(
                         // Inner track (Progress)
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(progressFraction.coerceAtLeast(0.02f))
+                                .fillMaxWidth(0.45f)
                                 .fillMaxHeight()
                                 .background(
                                     brush = Brush.horizontalGradient(

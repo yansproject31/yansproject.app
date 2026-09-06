@@ -91,7 +91,6 @@ val ErrorRed = YansError
 
 val PrimaryDarkTeal: Color get() = dynamicPrimaryDarkTeal
 val DeepTeal: Color = Color(0xFF163536)
-val DeepCanvas: Color = Color(0xFF0B1B1C)
 val CyberEmerald: Color = Color(0xFF0F433F)
 val SecondaryShadowBlackTeal: Color get() = dynamicSecondaryShadowBlackTeal
 val AccentAgedGold: Color get() = dynamicAgedGold
@@ -131,7 +130,6 @@ val DarkGrey: Color get() = dynamicPrimaryDarkTeal
 val CardGrey: Color get() = dynamicCardDarkCard
 val BorderGrey: Color get() = dynamicBorderGrey
 val AccentGoldLight: Color get() = dynamicAgedGold
-val GoldMuted: Color = Color(0xFF8C7240)
 
 // Semantic colors
 @get:JvmName("TextWhite_upper")

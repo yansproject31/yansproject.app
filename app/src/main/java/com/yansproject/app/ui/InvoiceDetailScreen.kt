@@ -31,7 +31,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import kotlinx.coroutines.launch
 import com.yansproject.app.data.*
 import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.theme.*
@@ -1055,29 +1054,27 @@ fun InvoiceDetailScreen(
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable {
-                                        scope.launch {
-                                            val operationalInvoice = OperationalInvoice(
-                                                id = invoice.id.toString(),
-                                                invoiceNumber = invoice.invoiceNumber,
-                                                clientName = invoice.clientName,
-                                                clientPhone = invoice.clientPhone,
-                                                issueDate = invoice.issueDate,
-                                                dueDate = invoice.dueDate,
-                                                totalAmount = invoice.totalAmount,
-                                                paidAmount = currentPaidAmount,
-                                                discount = invoice.discount,
-                                                dpAmount = invoice.dpAmount,
-                                                itemsJson = invoice.itemsJson
-                                            )
-                                            val success = printerManager.printReceipt(device, operationalInvoice, invoiceItems)
-                                            if (success) {
-                                                Toast.makeText(context, "Mencetak struk...", Toast.LENGTH_SHORT).show()
-                                                viewModel.addAuditLog("Cetak Struk", "Invoice ${invoice.invoiceNumber} berhasil dicetak.")
-                                            } else {
-                                                Toast.makeText(context, "Gagal mencetak struk! Pastikan printer aktif.", Toast.LENGTH_LONG).show()
-                                            }
-                                            showPrinterDialog = false
+                                        val operationalInvoice = OperationalInvoice(
+                                            id = invoice.id.toString(),
+                                            invoiceNumber = invoice.invoiceNumber,
+                                            clientName = invoice.clientName,
+                                            clientPhone = invoice.clientPhone,
+                                            issueDate = invoice.issueDate,
+                                            dueDate = invoice.dueDate,
+                                            totalAmount = invoice.totalAmount,
+                                            paidAmount = currentPaidAmount,
+                                            discount = invoice.discount,
+                                            dpAmount = invoice.dpAmount,
+                                            itemsJson = invoice.itemsJson
+                                        )
+                                        val success = printerManager.printReceipt(device, operationalInvoice, invoiceItems)
+                                        if (success) {
+                                            Toast.makeText(context, "Mencetak struk...", Toast.LENGTH_SHORT).show()
+                                            viewModel.addAuditLog("Cetak Struk", "Invoice ${invoice.invoiceNumber} berhasil dicetak.")
+                                        } else {
+                                            Toast.makeText(context, "Gagal mencetak struk! Pastikan printer aktif.", Toast.LENGTH_LONG).show()
                                         }
+                                        showPrinterDialog = false
                                     }
                                     .padding(12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),

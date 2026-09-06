@@ -7,19 +7,9 @@ import java.text.NumberFormat
 import java.util.Locale
 
 sealed class MoneyParseResult {
-    data class Valid(
-        val value: Double,
-        val amountBigDecimal: BigDecimal = BigDecimal.valueOf(value),
-        val amountLong: Long = value.toLong()
-    ) : MoneyParseResult()
-
-    // Backward-compatible subclass
-    data class Success(val valueDouble: Double) : MoneyParseResult() {
-        val value: Double get() = valueDouble
-    }
-
+    data class Success(val value: Double) : MoneyParseResult()
     object Empty : MoneyParseResult()
-    data class Invalid(val rawInput: String, val reason: String = "Non-numeric or malformed amount") : MoneyParseResult()
+    data class Invalid(val rawInput: String) : MoneyParseResult()
 }
 
 object InputSanitizer {
@@ -71,7 +61,7 @@ object InputSanitizer {
         return try {
             val bigDecimal = BigDecimal(digitsOnly)
             val valDouble = bigDecimal.setScale(0, RoundingMode.HALF_UP).toDouble()
-            MoneyParseResult.Valid(valDouble, bigDecimal, valDouble.toLong())
+            MoneyParseResult.Success(valDouble)
         } catch (e: Exception) {
             Log.e("InputSanitizer", "Failed to parse Rupiah string '$amountString': ${e.message}", e)
             MoneyParseResult.Invalid(amountString)
@@ -83,24 +73,7 @@ object InputSanitizer {
      */
     fun parseRupiahOrNull(amountString: String?): Double? {
         return when (val result = parseRupiahResult(amountString)) {
-            is MoneyParseResult.Valid -> result.value
             is MoneyParseResult.Success -> result.value
-            else -> null
-        }
-    }
-
-    fun parseRupiahLongOrNull(amountString: String?): Long? {
-        return when (val result = parseRupiahResult(amountString)) {
-            is MoneyParseResult.Valid -> result.amountLong
-            is MoneyParseResult.Success -> result.value.toLong()
-            else -> null
-        }
-    }
-
-    fun parseRupiahBigDecimalOrNull(amountString: String?): BigDecimal? {
-        return when (val result = parseRupiahResult(amountString)) {
-            is MoneyParseResult.Valid -> result.amountBigDecimal
-            is MoneyParseResult.Success -> BigDecimal.valueOf(result.value)
             else -> null
         }
     }

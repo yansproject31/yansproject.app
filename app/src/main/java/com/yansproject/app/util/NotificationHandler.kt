@@ -82,7 +82,6 @@ object NotificationHandler {
         val targetTab = data["targetTab"] ?: data["target_tab"] ?: "RIWAYAT"
         val roleTarget = data["roleTarget"] ?: data["role_target"] ?: "ALL"
         val userId = data["userId"] ?: data["user_id"] ?: data["clientId"] ?: "ALL"
-        val recipientUid = data["recipientUid"] ?: data["recipient_uid"] ?: ""
         val senderRole = data["senderRole"] ?: data["sender_role"] ?: ""
         val notificationId = data["id"] ?: remoteMessage.messageId ?: java.util.UUID.randomUUID().toString()
 
@@ -94,7 +93,7 @@ object NotificationHandler {
             category = category,
             targetTab = targetTab,
             roleTarget = roleTarget,
-            userId = if (recipientUid.isNotBlank()) recipientUid else userId,
+            userId = userId,
             senderRole = senderRole
         )
     }
@@ -117,7 +116,6 @@ object NotificationHandler {
             val notifPrefs = context.getSharedPreferences("yans_notifications_prefs", Context.MODE_PRIVATE)
             val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
             val liveUser = com.yansproject.app.data.FirebaseSyncManager.currentUser.value
-            val activeUid = com.yansproject.app.ui.AuthoritativeSessionManager.sessionState.value.uid.ifBlank { liveUser?.uid ?: "" }
             val activeEmail = (liveUser?.email ?: authPrefs.getString("saved_email", ""))?.trim()?.lowercase() ?: ""
             val activeName = (liveUser?.displayName ?: authPrefs.getString("saved_name", ""))?.trim()?.lowercase() ?: ""
             val activeRole = (liveUser?.role?.name ?: authPrefs.getString("user_role", "MEMBER"))?.uppercase() ?: "MEMBER"
@@ -129,7 +127,7 @@ object NotificationHandler {
                 return
             }
 
-            // Check if notification ID or identical content was already delivered/present locally
+            // Check if notification ID or identical content was already delivered
             val dispatcher = com.yansproject.app.data.NotificationDispatcher.getInstance(context)
             if (dispatcher.isDelivered(id)) {
                 Log.i(TAG, "Notification $id already delivered according to NotificationDispatcher. Skipping.")
@@ -147,24 +145,12 @@ object NotificationHandler {
                     (!existing.isRead || Math.abs(System.currentTimeMillis() - existing.timestamp) < 86400000L)
                 )
             }
-            if (isAlreadyPresent) {
-                Log.i(TAG, "Notification $id with identical title & message already present locally. Skipping duplicate dispatch.")
-                dispatcher.markDelivered(id)
+            if (isAlreadyPresent && dispatcher.isDelivered(id)) {
+                Log.i(TAG, "Notification $id with identical title & message already present locally. Skipping dispatch.")
                 return
             }
 
             dispatcher.markDelivered(id)
-
-            // Track ID in shown_system_notif_ids to prevent secondary Firestore snapshot listener triggers
-            try {
-                val shownSet = notifPrefs.getStringSet("shown_system_notif_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
-                if (!shownSet.contains(id)) {
-                    shownSet.add(id)
-                    notifPrefs.edit().putStringSet("shown_system_notif_ids", shownSet).apply()
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Non-fatal notice updating shown_system_notif_ids: ${e.message}")
-            }
 
             val catUpper = category.trim().uppercase()
             val roleUpper = roleTarget.trim().uppercase()
@@ -208,7 +194,6 @@ object NotificationHandler {
                 if (isInvoiceOrOrder) {
                     // Members ONLY see invoices/orders/payments that explicitly match their identity!
                     targetUserClean != "all" && (
-                        (activeUid.isNotBlank() && targetUserClean == activeUid.lowercase()) ||
                         targetUserClean == activeEmail ||
                         targetUserClean == activeName ||
                         (activeEmail.isNotBlank() && targetUserClean.contains(activeEmail))

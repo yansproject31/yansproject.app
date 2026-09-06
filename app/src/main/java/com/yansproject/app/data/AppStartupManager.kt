@@ -79,10 +79,10 @@ class AppStartupManager private constructor(private val context: Context) {
             // Stage 3: Schema Migration Validation
             currentStage = StartupStage.MigrationValidation
             onStageCompleted(currentStage)
-            val isDbAccessible = try { appDatabase.openHelper.readableDatabase.isOpen } catch (e: Exception) { true }
-            val isSchemaValid = try { DatabaseMigration.validateSchemaIntegrity(appDatabase.openHelper.readableDatabase) } catch (e: Exception) { true }
+            val isDbAccessible = appDatabase.openHelper.readableDatabase.isOpen
+            val isSchemaValid = DatabaseMigration.validateSchemaIntegrity(appDatabase.openHelper.readableDatabase)
             if (!isDbAccessible || !isSchemaValid) {
-                Log.w(TAG, "Database schema check non-fatal warning (Accessible: $isDbAccessible, Valid: $isSchemaValid). Proceeding safely.")
+                throw IllegalStateException("Database accessibility or schema integrity validation failed")
             }
 
             // Stage 4: Preference Migration
@@ -121,31 +121,23 @@ class AppStartupManager private constructor(private val context: Context) {
             // Stage 8: Offline Queue Validation
             currentStage = StartupStage.OfflineQueueValidation
             onStageCompleted(currentStage)
-            val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
-            val activeUserId = FirebaseSyncManager.currentUser.value?.email
-                ?: authPrefs.getString("logged_in_email", null)
-                ?: authPrefs.getString("last_logged_in_user", null)
-                ?: "SYSTEM_SESSION"
-            OfflineActionQueue.getInstance(context).processQueueSafely(currentActiveUserId = activeUserId)
+            OfflineActionQueue.getInstance(context).processQueueSafely(currentActiveUserId = "SYSTEM_SESSION")
 
             // Stage 9: Cache Validation & Warmup
             currentStage = StartupStage.CacheValidation
             onStageCompleted(currentStage)
             CacheManager.getInstance(context).purgeExpiredEntries()
-            val initResult = DatabaseInitializer.initialize(context, appDatabase, allowDemoSeed = false)
-            if (initResult.status == DatabaseInitStatus.FAILED || initResult.status == DatabaseInitStatus.INVALID) {
-                Log.w(TAG, "Database initialization warning: ${initResult.details}. Proceeding in safe mode.")
-            }
+            DatabaseInitializer.initializeDatabase(context, appDatabase, allowDemoSeed = false)
 
             // Stage 10: System Integrity Final Verification
             currentStage = StartupStage.IntegrityVerification
             onStageCompleted(currentStage)
             val integrityReport = integrityManager.validateFullSystemIntegrity(appDatabase)
             if (!integrityReport.isSystemReady) {
-                Log.w(TAG, "System integrity non-blocking notice: $integrityReport. Proceeding safely.")
+                Log.w(TAG, "System integrity report notice: ${integrityReport}")
             }
 
-            // Reset crash tracker on complete successful pipeline execution
+            // Reset crash tracker on successful pipeline execution
             integrityManager.markStartupSuccessful()
 
             currentStage = StartupStage.FullServicesInitialized
@@ -153,11 +145,9 @@ class AppStartupManager private constructor(private val context: Context) {
             crashReporter.leaveBreadcrumb("Application startup sequence completed successfully")
             currentStage
         } catch (e: Throwable) {
-            Log.e(TAG, "Cold start non-fatal caught exception: ${e.message}", e)
-            integrityManager.markStartupSuccessful()
-            val failure = StartupStage.FullServicesInitialized
+            val failure = StartupStage.StartupFailed("Cold start initialization failed: ${e.message}", e)
             currentStage = failure
-            crashReporter.recordPreFatalDiagnostic(e, "Startup sequence caught non-fatal issue, proceeded in safe mode")
+            crashReporter.recordPreFatalDiagnostic(e, "Startup sequence failed")
             onStageCompleted(failure)
             failure
         }

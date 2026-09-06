@@ -1,12 +1,15 @@
 package com.yansproject.app.ui
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.yansproject.app.data.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -39,11 +42,15 @@ data class AjibqobulStockState(
 
 class AjibqobulStockViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val db = AppDatabase.getDatabase(application)
+    private val repository = BusinessRepository(db)
+
     private val _state = MutableStateFlow(AjibqobulStockState())
     val state: StateFlow<AjibqobulStockState> = _state.asStateFlow()
 
     init {
         initializeAjibqobulCatalog()
+        observeDatabaseStock()
     }
 
     private fun initializeAjibqobulCatalog() {
@@ -108,8 +115,68 @@ class AjibqobulStockViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    private fun observeDatabaseStock() {
+        viewModelScope.launch(Dispatchers.IO) {
+            combine(
+                db.catalogDao().getAllCatalogs(),
+                db.varianWarnaDao().getAllVarian(),
+                db.masterStockDao().getAllStockMaster()
+            ) { catalogs, varians, stocks ->
+                Triple(catalogs, varians, stocks)
+            }.collect { (catalogs, varians, stocks) ->
+                _state.update { currentState ->
+                    val updatedList = currentState.items.map { item ->
+                        val matchedCatalog = catalogs.find {
+                            it.nama_catalog.trim().contains(item.series.displayName.trim(), ignoreCase = true) ||
+                            item.series.displayName.trim().contains(it.nama_catalog.trim(), ignoreCase = true)
+                        }
+                        val matchedVarian = if (matchedCatalog != null) {
+                            varians.find {
+                                it.id_catalog == matchedCatalog.id_catalog &&
+                                it.nama_warna.trim().equals(item.color.trim(), ignoreCase = true)
+                            }
+                        } else {
+                            varians.find { it.nama_warna.trim().equals(item.color.trim(), ignoreCase = true) }
+                        }
+                        val matchedStock = if (matchedVarian != null) {
+                            stocks.find { it.id_varian == matchedVarian.id_varian }
+                        } else null
+
+                        if (matchedStock != null) {
+                            val realStock = when (item.size) {
+                                ApparelSize.XS -> if (item.sleeve == SleeveType.PENDEK) matchedStock.xs_pendek else matchedStock.xs_panjang
+                                ApparelSize.S -> if (item.sleeve == SleeveType.PENDEK) matchedStock.s_pendek else matchedStock.s_panjang
+                                ApparelSize.M -> if (item.sleeve == SleeveType.PENDEK) matchedStock.m_pendek else matchedStock.m_panjang
+                                ApparelSize.L -> if (item.sleeve == SleeveType.PENDEK) matchedStock.l_pendek else matchedStock.l_panjang
+                                ApparelSize.XL -> if (item.sleeve == SleeveType.PENDEK) matchedStock.xl_pendek else matchedStock.xl_panjang
+                                ApparelSize.XXL -> if (item.sleeve == SleeveType.PENDEK) matchedStock.xxl_pendek else matchedStock.xxl_panjang
+                                ApparelSize._3XL -> if (item.sleeve == SleeveType.PENDEK) matchedStock.three_xl_pendek else matchedStock.three_xl_panjang
+                                ApparelSize._4XL -> if (item.sleeve == SleeveType.PENDEK) matchedStock.four_xl_pendek else matchedStock.four_xl_panjang
+                            }
+                            val retPrice = if (matchedStock.harga_retail > 0) matchedStock.harga_retail else item.retailPrice
+                            val memPrice = if (matchedStock.harga_member > 0) matchedStock.harga_member else item.memberPrice
+                            val resPrice = if (matchedStock.harga_reseller > 0) matchedStock.harga_reseller else item.resellerPrice
+                            val cusPrice = if (matchedStock.harga_custom > 0) matchedStock.harga_custom else item.customPrice
+
+                            item.copy(
+                                readyStock = realStock,
+                                retailPrice = retPrice,
+                                memberPrice = memPrice,
+                                resellerPrice = resPrice,
+                                customPrice = cusPrice
+                            )
+                        } else {
+                            item
+                        }
+                    }
+                    currentState.copy(items = updatedList)
+                }
+            }
+        }
+    }
+
     /**
-     * Updates local stock count for a specific cell in the matrix.
+     * Updates local stock count for a specific cell in the matrix and persists to database.
      */
     fun updateStockQuantity(
         series: AjibqobulSeries,
@@ -127,6 +194,57 @@ class AjibqobulStockViewModel(application: Application) : AndroidViewModel(appli
                 }
             }
             currentState.copy(items = updatedItems)
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val catalogs = db.catalogDao().getCatalogsList()
+                val matchedCatalog = catalogs.find {
+                    it.nama_catalog.trim().contains(series.displayName.trim(), ignoreCase = true) ||
+                    series.displayName.trim().contains(it.nama_catalog.trim(), ignoreCase = true)
+                }
+                val varians = db.varianWarnaDao().getAllVarianList()
+                val matchedVarian = if (matchedCatalog != null) {
+                    varians.find {
+                        it.id_catalog == matchedCatalog.id_catalog &&
+                        it.nama_warna.trim().equals(color.trim(), ignoreCase = true)
+                    }
+                } else {
+                    varians.find { it.nama_warna.trim().equals(color.trim(), ignoreCase = true) }
+                }
+                if (matchedVarian != null) {
+                    val stockMaster = db.masterStockDao().getStockByVarian(matchedVarian.id_varian)
+                    if (stockMaster != null) {
+                        val slv = if (sleeve == SleeveType.PANJANG) "Panjang" else "Pendek"
+                        val sz = when (size) {
+                            ApparelSize.XS -> "XS"
+                            ApparelSize.S -> "S"
+                            ApparelSize.M -> "M"
+                            ApparelSize.L -> "L"
+                            ApparelSize.XL -> "XL"
+                            ApparelSize.XXL -> "XXL"
+                            ApparelSize._3XL -> "3XL"
+                            ApparelSize._4XL -> "4XL"
+                        }
+                        val currentQty = when (size) {
+                            ApparelSize.XS -> if (sleeve == SleeveType.PENDEK) stockMaster.xs_pendek else stockMaster.xs_panjang
+                            ApparelSize.S -> if (sleeve == SleeveType.PENDEK) stockMaster.s_pendek else stockMaster.s_panjang
+                            ApparelSize.M -> if (sleeve == SleeveType.PENDEK) stockMaster.m_pendek else stockMaster.m_panjang
+                            ApparelSize.L -> if (sleeve == SleeveType.PENDEK) stockMaster.l_pendek else stockMaster.l_panjang
+                            ApparelSize.XL -> if (sleeve == SleeveType.PENDEK) stockMaster.xl_pendek else stockMaster.xl_panjang
+                            ApparelSize.XXL -> if (sleeve == SleeveType.PENDEK) stockMaster.xxl_pendek else stockMaster.xxl_panjang
+                            ApparelSize._3XL -> if (sleeve == SleeveType.PENDEK) stockMaster.three_xl_pendek else stockMaster.three_xl_panjang
+                            ApparelSize._4XL -> if (sleeve == SleeveType.PENDEK) stockMaster.four_xl_pendek else stockMaster.four_xl_panjang
+                        }
+                        val delta = newReadyStock - currentQty
+                        if (delta != 0) {
+                            repository.addStockForVarianSizeSleeve(matchedVarian.id_varian, sz, slv, delta, "Penyesuaian Manual Matrix")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AjibqobulStockVM", "Error updating DB stock: ${e.message}")
+            }
         }
     }
 

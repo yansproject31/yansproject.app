@@ -21,38 +21,7 @@ object EnterpriseBootstrapEngine {
     private const val TAG = "EnterpriseBootstrap"
 
     fun parseInvoiceItemDetails(description: String): ParsedItem? {
-        if (description.startsWith("__")) return null
-        val clean = description
-            .replace("AJIBQOBUL:", "", ignoreCase = true)
-            .replace("Pembelian:", "", ignoreCase = true)
-            .replace("AJIBQOBUL", "", ignoreCase = true)
-            .trim()
-            .trimStart('-', ':')
-            .trim()
-        val parts = clean.split(" - ")
-        if (parts.size >= 4) {
-            return ParsedItem(
-                catalogName = parts[0].trim(),
-                varianName = parts[1].trim(),
-                size = parts[2].trim(),
-                sleeve = parts[3].trim()
-            )
-        } else if (parts.size == 3) {
-            return ParsedItem(
-                catalogName = parts[0].trim(),
-                varianName = parts[1].trim(),
-                size = parts[2].trim(),
-                sleeve = "Pendek"
-            )
-        } else if (parts.size == 2) {
-            return ParsedItem(
-                catalogName = parts[0].trim(),
-                varianName = parts[1].trim(),
-                size = "All Size",
-                sleeve = "Pendek"
-            )
-        }
-        return null
+        return BusinessRepository.parseInvoiceItemDetails(description)
     }
 
     suspend fun executeFullBootstrap(
@@ -318,8 +287,9 @@ object EnterpriseBootstrapEngine {
                     val ledgersPendek = varianLedgers.filter { it.sleeve.equals("Pendek", ignoreCase = true) }
                     val ledgersPanjang = varianLedgers.filter { !it.sleeve.equals("Pendek", ignoreCase = true) }
                     
+                    val approvedStatuses = listOf("DISETUJUI", "LUNAS", "DP", "DP AWAL", "DP PRODUKSI", "BELUM LUNAS", "COMPLETED", "PAID")
                     val approvedInvoices = invoices.filter { 
-                        !it.isDeleted && InvoiceStatusCategory.isApproved(it.status)
+                        !it.isDeleted && it.status.uppercase().trim() in approvedStatuses
                     }
                     
                     var invoicesApprovedQty = 0
@@ -338,9 +308,13 @@ object EnterpriseBootstrapEngine {
                                 val matchesCat = parsed.catalogName.trim().equals(catalog.nama_catalog.trim(), ignoreCase = true) ||
                                                  parsed.catalogName.contains(catalog.nama_catalog, ignoreCase = true) ||
                                                  catalog.nama_catalog.contains(parsed.catalogName, ignoreCase = true)
-                                val matchesVar = parsed.varianName.trim().equals(varian.nama_warna.trim(), ignoreCase = true) ||
-                                                 parsed.varianName.contains(varian.nama_warna, ignoreCase = true) ||
-                                                 varian.nama_warna.contains(parsed.varianName, ignoreCase = true)
+                                val matchesVar = if (parsed.varianName.isNotBlank()) {
+                                    parsed.varianName.trim().equals(varian.nama_warna.trim(), ignoreCase = true) ||
+                                    parsed.varianName.contains(varian.nama_warna, ignoreCase = true) ||
+                                    varian.nama_warna.contains(parsed.varianName, ignoreCase = true)
+                                } else {
+                                    parsed.catalogName.contains(varian.nama_warna, ignoreCase = true)
+                                }
                                 if (matchesCat && matchesVar) {
                                     invoicesApprovedQty += item.quantity
                                     if (parsed.sleeve.equals("Pendek", ignoreCase = true)) {
@@ -388,13 +362,12 @@ object EnterpriseBootstrapEngine {
                         it.transactionType in listOf("Koreksi", "Penyesuaian", "Update Manual") && it.batchNumber.isEmpty() 
                     }.sumOf { it.quantity }
                     
-                    
-                    val masterStock = db.masterStockDao().getStockByVarian(varian.id_varian)
                     val readyStockPendek = (totalProduksiPendek + totalRestockPendek + totalReturAvailablePendek - totalDamagedPendek - totalTerjualPendek + totalPenyesuaianManualPendek).coerceAtLeast(0)
                     val readyStockPanjang = (totalProduksiPanjang + totalRestockPanjang + totalReturAvailablePanjang - totalDamagedPanjang - totalTerjualPanjang + totalPenyesuaianManualPanjang).coerceAtLeast(0)
                     val readyStock = readyStockPendek + readyStockPanjang
                     
-                    val reservedInvoices = invoices.filter { !it.isDeleted && InvoiceStatusCategory.isReserved(it.status) }
+                    val reservedStatuses = listOf("MENUNGGU PERSETUJUAN", "MENUNGGU APPROVAL", "PENDING", "DRAFT", "UNPAID", "MENUNGGU PEMBAYARAN", "MENUNGGU VERIFIKASI PEMBAYARAN")
+                    val reservedInvoices = invoices.filter { !it.isDeleted && it.status.uppercase().trim() in reservedStatuses }
                     
                     var reservedStockPendek = 0
                     var reservedStockPanjang = 0
@@ -411,9 +384,13 @@ object EnterpriseBootstrapEngine {
                                 val matchesCat = parsed.catalogName.trim().equals(catalog.nama_catalog.trim(), ignoreCase = true) ||
                                                  parsed.catalogName.contains(catalog.nama_catalog, ignoreCase = true) ||
                                                  catalog.nama_catalog.contains(parsed.catalogName, ignoreCase = true)
-                                val matchesVar = parsed.varianName.trim().equals(varian.nama_warna.trim(), ignoreCase = true) ||
-                                                 parsed.varianName.contains(varian.nama_warna, ignoreCase = true) ||
-                                                 varian.nama_warna.contains(parsed.varianName, ignoreCase = true)
+                                val matchesVar = if (parsed.varianName.isNotBlank()) {
+                                    parsed.varianName.trim().equals(varian.nama_warna.trim(), ignoreCase = true) ||
+                                    parsed.varianName.contains(varian.nama_warna, ignoreCase = true) ||
+                                    varian.nama_warna.contains(parsed.varianName, ignoreCase = true)
+                                } else {
+                                    parsed.catalogName.contains(varian.nama_warna, ignoreCase = true)
+                                }
                                 if (matchesCat && matchesVar) {
                                     if (parsed.sleeve.equals("Pendek", ignoreCase = true)) {
                                         reservedStockPendek += item.quantity
@@ -427,7 +404,7 @@ object EnterpriseBootstrapEngine {
                     val reservedStock = reservedStockPendek + reservedStockPanjang
                     
                     val availableStock = (readyStock - reservedStock).coerceAtLeast(0)
-                    
+                    val masterStock = db.masterStockDao().getStockByVarian(idVarian)
                     val hppPendek = if (masterStock != null && masterStock.hpp_pendek > 0.0) masterStock.hpp_pendek else AppSettings.getAjibqobulHppPendek(context)
                     val hppPanjang = if (masterStock != null && masterStock.hpp_panjang > 0.0) masterStock.hpp_panjang else AppSettings.getAjibqobulHppPanjang(context)
                     

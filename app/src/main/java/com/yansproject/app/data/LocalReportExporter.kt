@@ -58,25 +58,12 @@ class LocalReportExporter(private val context: Context) {
         }
 
         return try {
-            val exportDir = File(context.cacheDir, "share")
-            if (!exportDir.exists()) {
-                exportDir.mkdirs()
-            }
+            val cacheDir = context.cacheDir
+                ?: return ExportResult.Failure("Context cache directory is null")
 
-            val sanitizedName = sanitizeCsvFilename(fileName)
-            val file = File(exportDir, sanitizedName)
-
-            // Verify canonical path to prevent path traversal outside app sandbox
-            val canonicalExportDir = exportDir.canonicalPath
-            val canonicalTargetFile = file.canonicalPath
-
-            if (!canonicalTargetFile.startsWith(canonicalExportDir)) {
-                return ExportResult.Failure(
-                    "Security Violation: Target path escapes application sandbox: $fileName",
-                    SecurityException("Path traversal attempt detected")
-                )
-            }
-
+            val sanitizeName = if (fileName.endsWith(".csv", ignoreCase = true)) fileName else "$fileName.csv"
+            val file = File(cacheDir, sanitizeName)
+            
             if (file.exists()) {
                 file.delete()
             }
@@ -109,22 +96,6 @@ class LocalReportExporter(private val context: Context) {
             Log.e(TAG, "Unexpected error while exporting CSV: ${e.message}", e)
             ExportResult.Failure("Unexpected Error: ${e.localizedMessage}", e)
         }
-    }
-
-    /**
-     * Sanitizes CSV filenames to prevent path traversal vulnerabilities.
-     */
-    private fun sanitizeCsvFilename(rawName: String): String {
-        val baseName = rawName
-            .replace("\\", "/")
-            .split("/")
-            .last()
-            .replace("..", "")
-            .replace("\u0000", "")
-            .replace(Regex("[^a-zA-Z0-9._\\-]"), "_")
-            .trim()
-        val withExt = if (baseName.endsWith(".csv", ignoreCase = true)) baseName else "$baseName.csv"
-        return if (withExt == ".csv" || withExt.isBlank()) "export_${System.currentTimeMillis()}.csv" else withExt
     }
 
     /**

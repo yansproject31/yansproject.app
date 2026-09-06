@@ -8,27 +8,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-enum class MutationStatus {
-    LOCAL_COMMITTED,
-    SYNC_PENDING,
-    SYNCED,
-    SYNC_FAILED
-}
-
-data class OptimisticMutation<T>(
-    val mutationId: String = java.util.UUID.randomUUID().toString(),
-    val entityId: String,
-    val version: Long = System.currentTimeMillis(),
-    val previousValue: T?,
-    val newValue: T?,
-    val status: MutationStatus = MutationStatus.LOCAL_COMMITTED
-)
-
 /**
  * BaseViewModel
- * A custom Base ViewModel class enabling reactive CRUD actions with mutation-aware optimistic updates.
+ * A custom Base ViewModel class enabling reactive CRUD actions with optimistic updates.
  * Updates local StateFlow instantaneously for fluid UI interactions, then fires network/database sync.
- * Restores only the failed entity mutation without discarding parallel state changes.
+ * Restores original state and reports errors via a snackbar channel in case of failure.
  */
 abstract class BaseViewModel<T : Any> : ViewModel() {
     private val TAG = "BaseViewModel"
@@ -44,75 +28,103 @@ abstract class BaseViewModel<T : Any> : ViewModel() {
     }
 
     /**
-     * Executes an optimistic delete operation targeting only the specific item.
+     * Executes an optimistic delete operation.
+     * Removes the item from the local StateFlow list immediately.
+     * Rolls back if the backend operation fails.
      */
     fun deleteItemOptimistic(
         item: T,
         predicate: (T) -> Boolean,
         remoteAction: suspend () -> Unit
     ) {
-        val currentList = _itemsState.value
-        val removedItem = currentList.find(predicate)
-        _itemsState.value = currentList.filterNot(predicate)
+        val originalList = _itemsState.value
+        // Instantly remove from the UI state
+        _itemsState.value = originalList.filterNot(predicate)
 
         viewModelScope.launch {
             try {
                 remoteAction()
                 _snackbarMessage.value = "Data berhasil dihapus dari sistem."
+            } catch (e: IllegalArgumentException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Validation error during optimistic delete: ${e.message}", e)
+                _snackbarMessage.value = "Gagal hapus (validasi): ${e.localizedMessage}"
+            } catch (e: IllegalStateException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "State error during optimistic delete: ${e.message}", e)
+                _snackbarMessage.value = "Gagal hapus (status tidak valid): ${e.localizedMessage}"
+            } catch (e: java.io.IOException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Network error during optimistic delete sync: ${e.message}", e)
+                _snackbarMessage.value = "Gagal sinkronisasi hapus ke cloud (masalah jaringan). Data dikembalikan."
             } catch (e: Exception) {
-                Log.e(TAG, "Error during optimistic delete: ${e.message}", e)
-                if (removedItem != null) {
-                    _itemsState.value = listOf(removedItem) + _itemsState.value
-                }
-                _snackbarMessage.value = "Gagal hapus data: ${e.localizedMessage}"
+                // Rollback state if background sync fails
+                _itemsState.value = originalList
+                Log.e(TAG, "Unexpected error during optimistic delete: ${e.message}", e)
+                _snackbarMessage.value = "Gagal sinkronisasi hapus data ke cloud: ${e.localizedMessage}"
             }
         }
     }
 
     /**
      * Executes an optimistic add operation.
+     * Inserts the item into the local StateFlow list immediately.
      */
     fun addItemOptimistic(
         item: T,
-        predicate: (T) -> Boolean = { it == item },
         remoteAction: suspend () -> Unit
     ) {
-        _itemsState.value = listOf(item) + _itemsState.value
+        val originalList = _itemsState.value
+        _itemsState.value = listOf(item) + originalList
 
         viewModelScope.launch {
             try {
                 remoteAction()
                 _snackbarMessage.value = "Data berhasil ditambahkan ke sistem."
+            } catch (e: IllegalArgumentException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Validation error during optimistic add: ${e.message}", e)
+                _snackbarMessage.value = "Gagal tambah (validasi): ${e.localizedMessage}"
+            } catch (e: java.io.IOException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Network error during optimistic add sync: ${e.message}", e)
+                _snackbarMessage.value = "Gagal sinkronisasi tambah ke cloud (masalah jaringan). Data dikembalikan."
             } catch (e: Exception) {
-                Log.e(TAG, "Error during optimistic add: ${e.message}", e)
-                _itemsState.value = _itemsState.value.filterNot(predicate)
-                _snackbarMessage.value = "Gagal menambahkan data: ${e.localizedMessage}"
+                _itemsState.value = originalList
+                Log.e(TAG, "Unexpected error during optimistic add: ${e.message}", e)
+                _snackbarMessage.value = "Gagal menambahkan data ke cloud: ${e.localizedMessage}"
             }
         }
     }
 
     /**
-     * Executes an optimistic update operation targeting only the specific entity.
+     * Executes an optimistic update operation.
+     * Replaces the old item with the updated item in the local StateFlow list immediately.
      */
     fun updateItemOptimistic(
         updatedItem: T,
         predicate: (T) -> Boolean,
         remoteAction: suspend () -> Unit
     ) {
-        val currentList = _itemsState.value
-        val previousItem = currentList.find(predicate)
-        _itemsState.value = currentList.map { if (predicate(it)) updatedItem else it }
+        val originalList = _itemsState.value
+        _itemsState.value = originalList.map { if (predicate(it)) updatedItem else it }
 
         viewModelScope.launch {
             try {
                 remoteAction()
                 _snackbarMessage.value = "Perubahan data berhasil disimpan."
+            } catch (e: IllegalArgumentException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Validation error during optimistic update: ${e.message}", e)
+                _snackbarMessage.value = "Gagal ubah (validasi): ${e.localizedMessage}"
+            } catch (e: java.io.IOException) {
+                _itemsState.value = originalList
+                Log.e(TAG, "Network error during optimistic update sync: ${e.message}", e)
+                _snackbarMessage.value = "Gagal sinkronisasi ubah ke cloud (masalah jaringan). Data dikembalikan."
             } catch (e: Exception) {
-                Log.e(TAG, "Error during optimistic update: ${e.message}", e)
-                if (previousItem != null) {
-                    _itemsState.value = _itemsState.value.map { if (predicate(it)) previousItem else it }
-                }
-                _snackbarMessage.value = "Gagal menyimpan perubahan: ${e.localizedMessage}"
+                _itemsState.value = originalList
+                Log.e(TAG, "Unexpected error during optimistic update: ${e.message}", e)
+                _snackbarMessage.value = "Gagal menyimpan perubahan ke cloud: ${e.localizedMessage}"
             }
         }
     }

@@ -2,27 +2,25 @@ package com.yansproject.app
 
 import android.app.Application
 import android.util.Log
-import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.yansproject.app.data.FirebaseSyncManager
 import com.yansproject.app.data.LocalDatabaseBackupWorker
 import com.yansproject.app.data.RealtimeNotificationWorker
 import com.yansproject.app.ui.AppFeedbackManager
+import com.yansproject.app.util.LaunchGuardian
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
-class YansApplication : Application(), Configuration.Provider {
+class YansApplication : Application() {
 
     companion object {
         lateinit var instance: YansApplication
             private set
     }
-
-    override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder()
-            .setMinimumLoggingLevel(if (BuildConfig.DEBUG) Log.DEBUG else Log.INFO)
-            .build()
 
     override fun onCreate() {
         super.onCreate()
@@ -30,30 +28,49 @@ class YansApplication : Application(), Configuration.Provider {
 
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            Log.e("YansApplication", "FATAL: Uncaught exception on thread ${thread.name}: ${throwable.message}", throwable)
+            Log.e("YansApplication", "FATAL_PREVENTED: Uncaught exception on thread ${thread.name}: ${throwable.message}", throwable)
             try {
-                FirebaseCrashlytics.getInstance().recordException(throwable)
+                if (defaultHandler != null && 
+                    !throwable.javaClass.name.contains("Security") && 
+                    !throwable.javaClass.name.contains("NullPointer") &&
+                    !throwable.javaClass.name.contains("SQLite") &&
+                    !throwable.javaClass.name.contains("UnsatisfiedLink")) {
+                    defaultHandler.uncaughtException(thread, throwable)
+                }
             } catch (t: Throwable) {
-                Log.w("YansApplication", "Could not record exception to Crashlytics: ${t.message}")
+                Log.e("YansApplication", "Error in uncaught exception handler: ${t.message}")
             }
-            defaultHandler?.uncaughtException(thread, throwable)
         }
 
-        if (!WorkManager.isInitialized()) {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
-                WorkManager.initialize(this, workManagerConfiguration)
+                LaunchGuardian.secureStartup(this@YansApplication)
             } catch (e: Exception) {
-                Log.w("YansApplication", "WorkManager already initialized: ${e.message}")
+                Log.e("YansApplication", "LaunchGuardian setup encountered an exception: ${e.message}")
             }
-        }
 
-        try {
-            AppFeedbackManager.initialize(this)
-            com.yansproject.app.util.NotificationHandler.initNotificationChannels(this)
-            schedulePeriodicBackups()
-            scheduleNotificationSyncWorker()
-        } catch (e: Exception) {
-            Log.e("YansApplication", "Error during lightweight application startup: ${e.message}", e)
+            try {
+                AppFeedbackManager.initialize(this@YansApplication)
+            } catch (e: Exception) {
+                Log.e("YansApplication", "Failed to initialize AppFeedbackManager: ${e.message}")
+            }
+
+            try {
+                FirebaseSyncManager.initialize(this@YansApplication)
+                com.yansproject.app.util.NotificationHandler.initNotificationChannels(this@YansApplication)
+                val authPrefs = getSharedPreferences("yans_auth_prefs", MODE_PRIVATE)
+                val currentRole = authPrefs.getString("user_role", "MEMBER") ?: "MEMBER"
+                FirebaseSyncManager.subscribeUserToFcmTopics(this@YansApplication, currentRole)
+            } catch (e: Exception) {
+                Log.e("YansApplication", "Failed to initialize Firebase and notifications: ${e.message}")
+            }
+
+            try {
+                schedulePeriodicBackups()
+                scheduleNotificationSyncWorker()
+            } catch (e: Exception) {
+                Log.e("YansApplication", "Failed to schedule background workers: ${e.message}")
+            }
         }
     }
 

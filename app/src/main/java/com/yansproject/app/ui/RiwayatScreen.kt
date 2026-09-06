@@ -120,7 +120,7 @@ fun RiwayatScreen(
     }
 
     val currentUser by FirebaseSyncManager.currentUser.collectAsState()
-    val isOwner = currentUser?.role == UserRole.OWNER || currentUser?.role == UserRole.ADMIN
+    val isOwner = currentUser == null || currentUser?.role == UserRole.OWNER || currentUser?.role == UserRole.ADMIN
 
     val filteredInvoices = remember(invoices, searchQuery, selectedFilter, selectedCategory, currentUser) {
         val memberName = (currentUser?.displayName ?: "").trim()

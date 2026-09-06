@@ -29,76 +29,21 @@ class CrashReportingManager private constructor(private val context: Context) {
         }
     }
 
-    private val SENSITIVE_KEYWORDS = listOf("password", "pin", "token", "secret", "cvv", "bearer", "authorization")
-
     init {
-        try {
-            setCustomKey("device_model", "${Build.MANUFACTURER} ${Build.MODEL}")
-            setCustomKey("android_sdk", Build.VERSION.SDK_INT.toString())
-            setCustomKey("startup_state", "INITIALIZING")
-            setCustomKey("sync_state", "IDLE")
-            setCustomKey("db_schema_version", "1")
-        } catch (e: Exception) {
-            Log.w(TAG, "Crashlytics init metadata notice: ${e.message}")
-        }
+        setCustomKey("device_model", "${Build.MANUFACTURER} ${Build.MODEL}")
+        setCustomKey("android_sdk", Build.VERSION.SDK_INT.toString())
     }
-
-    /**
-     * Updates non-PII system diagnostic context safely without recording user secrets.
-     */
-    fun setDiagnosticContext(
-        appVersion: String? = null,
-        buildNumber: String? = null,
-        startupState: String? = null,
-        upgradeState: String? = null,
-        syncState: String? = null,
-        dbSchemaVersion: Int? = null,
-        sessionGeneration: Long? = null,
-        lastOperationId: String? = null
-    ) {
-        appVersion?.let { setCustomKey("app_version", it) }
-        buildNumber?.let { setCustomKey("build_number", it) }
-        startupState?.let { setCustomKey("startup_state", it) }
-        upgradeState?.let { setCustomKey("upgrade_state", it) }
-        syncState?.let { setCustomKey("sync_state", it) }
-        dbSchemaVersion?.let { setCustomKey("db_schema_version", it.toString()) }
-        sessionGeneration?.let { setCustomKey("session_generation", it.toString()) }
-        lastOperationId?.let { setCustomKey("last_operation_id", it) }
-    }
-
-    fun updateStartupState(state: String) = setCustomKey("startup_state", state)
-    fun updateUpgradeState(state: String) = setCustomKey("upgrade_state", state)
-    fun updateSyncState(state: String) = setCustomKey("sync_state", state)
-    fun updateDbSchemaVersion(version: Int) = setCustomKey("db_schema_version", version.toString())
-    fun updateSessionGeneration(generation: Long) = setCustomKey("session_generation", generation.toString())
-    fun updateLastOperationId(operationId: String) = setCustomKey("last_operation_id", operationId)
 
     fun setUserContext(userId: String, role: String) {
         val sanitizedUserId = InputSanitizer.sanitizeForJson(userId)
-        try {
-            FirebaseCrashlytics.getInstance().setUserId(sanitizedUserId)
-        } catch (e: Exception) {
-            Log.w(TAG, "Crashlytics setUserId notice: ${e.message}")
-        }
+        FirebaseCrashlytics.getInstance().setUserId(sanitizedUserId)
         setCustomKey("user_role", role)
         leaveBreadcrumb("User context configured: role=$role")
     }
 
     fun setCustomKey(key: String, value: String) {
-        // Redact any attempt to store sensitive credentials
-        val lowerKey = key.lowercase()
-        val lowerVal = value.lowercase()
-        if (SENSITIVE_KEYWORDS.any { lowerKey.contains(it) || lowerVal.contains(it) }) {
-            Log.w(TAG, "Blocked sensitive key/value from crash reporting: $key")
-            return
-        }
-
         val sanitizedValue = InputSanitizer.sanitizeForJson(value)
-        try {
-            FirebaseCrashlytics.getInstance().setCustomKey(key, sanitizedValue)
-        } catch (e: Exception) {
-            Log.w(TAG, "Crashlytics setCustomKey notice: ${e.message}")
-        }
+        FirebaseCrashlytics.getInstance().setCustomKey(key, sanitizedValue)
     }
 
     fun leaveBreadcrumb(message: String) {
@@ -108,21 +53,13 @@ class CrashReportingManager private constructor(private val context: Context) {
             breadcrumbs.poll()
         }
         breadcrumbs.add(timestampedMsg)
-        try {
-            FirebaseCrashlytics.getInstance().log(sanitizedMsg)
-        } catch (e: Exception) {
-            // Ignored if Firebase is uninitialized
-        }
+        FirebaseCrashlytics.getInstance().log(sanitizedMsg)
         Log.d(TAG, "Breadcrumb: $sanitizedMsg")
     }
 
     fun reportNonFatalError(throwable: Throwable, message: String? = null) {
         message?.let { leaveBreadcrumb("Non-Fatal: $it") }
-        try {
-            FirebaseCrashlytics.getInstance().recordException(throwable)
-        } catch (e: Exception) {
-            // Ignored if Firebase is uninitialized
-        }
+        FirebaseCrashlytics.getInstance().recordException(throwable)
         Log.e(TAG, "Non-fatal exception recorded: ${message ?: throwable.message}", throwable)
     }
 
@@ -130,11 +67,7 @@ class CrashReportingManager private constructor(private val context: Context) {
         leaveBreadcrumb("FATAL PREPARATION: $contextualMessage")
         setCustomKey("last_fatal_context", contextualMessage)
         setCustomKey("fatal_timestamp", AuditLogger.formatUtcTimestamp())
-        try {
-            FirebaseCrashlytics.getInstance().recordException(throwable)
-        } catch (e: Exception) {
-            // Ignored if Firebase is uninitialized
-        }
+        FirebaseCrashlytics.getInstance().recordException(throwable)
     }
 
     fun clearSessionContext() {

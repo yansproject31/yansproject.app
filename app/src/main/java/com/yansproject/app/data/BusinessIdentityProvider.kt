@@ -10,7 +10,7 @@ import com.yansproject.app.ui.AppSettings
 object BusinessIdentityProvider {
 
     const val DEFAULT_COMPANY_NAME = "YANSPROJECT.ID"
-    const val DEFAULT_SUPPORT_EMAIL = "yansproject.id31@gmail.com"
+    const val DEFAULT_SUPPORT_EMAIL = "yansart31@gmail.com"
     const val DEFAULT_SUPPORT_WHATSAPP = "+62 877-7739-8813"
     const val DEFAULT_STORE_ADDRESS = "Tangerang, Banten"
     const val DEFAULT_STORE_TAGLINE = "Luxury Visual Identity & Custom Merch"

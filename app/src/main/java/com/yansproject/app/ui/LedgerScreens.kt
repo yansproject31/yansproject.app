@@ -82,8 +82,7 @@ fun RiwayatModalBerjalanScreen(
         val infSum = inflows.filter { 
             !it.isDeleted && 
             !it.category.contains("Modal", ignoreCase = true) &&
-            !it.notes.contains("[PAY_") &&
-            !it.notes.contains("Pembayaran Invoice")
+            !FormatUtils.isInvoiceLinkedPaymentInflow(it.category, it.notes, it.transactionNumber)
         }.sumOf { it.amount }
         val invSum = invoices.sumOf { calculateInvoicePaid(it, payments) }
         val ordSum = orders.filter { ord -> !ord.isDeleted && invoices.none { inv -> !inv.isDeleted && inv.orderId == ord.id } }.sumOf { getEffectiveOrderPaid(it) }
@@ -1266,11 +1265,7 @@ fun RiwayatKasScreen(
         // Add general inflows (excluding invoice payment entries to avoid duplicate counting with invoice revenue)
         inflows.filter { inf ->
             !inf.isDeleted &&
-            !inf.category.contains("Pembayaran Invoice", ignoreCase = true) &&
-            !inf.category.contains("PENERIMAAN INVOICE", ignoreCase = true) &&
-            !inf.notes.contains("[PAY_", ignoreCase = true) &&
-            !inf.notes.contains("Pembayaran Invoice", ignoreCase = true) &&
-            !inf.transactionNumber.startsWith("PAY-", ignoreCase = true)
+            !FormatUtils.isInvoiceLinkedPaymentInflow(inf.category, inf.notes, inf.transactionNumber)
         }.forEach { inf ->
             list.add(
                 CashTxItem(
@@ -1693,12 +1688,7 @@ fun DetailProfitScreen(
     val sumManualSalesInflow = filteredInflows.filter { inf ->
         !inf.category.contains("Modal", ignoreCase = true) &&
         !inf.category.contains("Lainnya", ignoreCase = true) &&
-        !inf.category.contains("Pembayaran Customer", ignoreCase = true) &&
-        !inf.category.contains("Pembayaran Invoice", ignoreCase = true) &&
-        !inf.category.contains("PENERIMAAN INVOICE", ignoreCase = true) &&
-        !inf.notes.contains("[PAY_", ignoreCase = true) &&
-        !inf.notes.contains("Pembayaran Invoice", ignoreCase = true) &&
-        !inf.transactionNumber.startsWith("PAY-", ignoreCase = true)
+        !FormatUtils.isInvoiceLinkedPaymentInflow(inf.category, inf.notes, inf.transactionNumber)
     }.sumOf { it.amount }
 
     val sumPenjualan = sumInvoiceRevenue + sumManualSalesInflow

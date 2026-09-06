@@ -177,12 +177,11 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
                 val repository = BusinessRepository(db)
                 val allInvs = db.invoiceDao().getInvoicesList()
                 
-                val matched = if (isCustomProject) {
-                    val rawId = invoiceNumber.removePrefix("PRJ-").toIntOrNull()
-                    allInvs.find { it.projectId == rawId }
-                } else {
-                    allInvs.find { it.invoiceNumber == invoiceNumber }
-                }
+                val matched = allInvs.find { it.invoiceNumber.equals(invoiceNumber, ignoreCase = true) }
+                    ?: if (isCustomProject) {
+                        val rawId = invoiceNumber.removePrefix("PRJ-").toIntOrNull()
+                        allInvs.find { it.projectId != null && it.projectId == rawId }
+                    } else null
 
                 if (matched != null) {
                     repository.addInvoicePayment(
@@ -198,24 +197,27 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
                     // Fallback to manual db injection if invoice is not found
                     if (isCustomProject) {
                         val rawId = invoiceNumber.removePrefix("PRJ-").toIntOrNull()
-                        if (rawId != null) {
-                            val p = db.projectDao().getProjectById(rawId)
-                            if (p != null) {
-                                val newPaid = p.paidAmount + amount
-                                db.projectDao().updateProject(p.copy(
-                                    paidAmount = newPaid,
-                                    status = if (p.totalCost - newPaid <= 0.0) "Completed" else p.status
-                                ))
-                            }
+                        val p = if (rawId != null) db.projectDao().getProjectById(rawId) else db.projectDao().getProjectByInvoiceNumber(invoiceNumber)
+                        if (p != null) {
+                            val newPaid = p.paidAmount + amount
+                            val updatedProject = p.copy(
+                                paidAmount = newPaid,
+                                paymentStatus = if (p.totalCost - newPaid <= 0.0) "Lunas" else "DP Awal",
+                                status = if (p.totalCost - newPaid <= 0.0) "Completed" else p.status
+                            )
+                            db.projectDao().updateProject(updatedProject)
+                            FirebaseSyncManager.syncItemToCloud("projects", updatedProject.id.toString(), updatedProject)
                         }
                     } else {
-                        val matchedManual = allInvs.find { it.invoiceNumber == invoiceNumber }
+                        val matchedManual = allInvs.find { it.invoiceNumber.equals(invoiceNumber, ignoreCase = true) }
                         if (matchedManual != null) {
                             val newPaid = matchedManual.paidAmount + amount
-                            db.invoiceDao().updateInvoice(matchedManual.copy(
+                            val updatedInv = matchedManual.copy(
                                 paidAmount = newPaid,
                                 status = if (matchedManual.totalAmount - newPaid <= 0.0) "LUNAS" else "BELUM LUNAS"
-                            ))
+                            )
+                            db.invoiceDao().updateInvoice(updatedInv)
+                            FirebaseSyncManager.syncItemToCloud("invoices", updatedInv.invoiceNumber.ifEmpty { updatedInv.id.toString() }, updatedInv)
                         }
                     }
 
@@ -226,11 +228,13 @@ class DualInvoiceManagerViewModel(application: Application) : AndroidViewModel(a
                         category = if (isCustomProject) "Angsuran Project Custom" else "Angsuran Invoice Stock",
                         amount = amount,
                         date = System.currentTimeMillis(),
-                        notes = "Pembayaran cicilan untuk tagihan nomor $invoiceNumber",
+                        notes = "Pembayaran Invoice #$invoiceNumber - Pembayaran cicilan tagihan [PAY_INVOICE]",
                         paymentMethod = paymentMethod,
                         createdBy = adminName
                     )
-                    db.inflowDao().insertInflow(newInflowEntity)
+                    val insertedInflowId = db.inflowDao().insertInflow(newInflowEntity)
+                    val finalInflow = newInflowEntity.copy(id = insertedInflowId.toInt())
+                    FirebaseSyncManager.syncItemToCloud("inflows", insertedInflowId.toString(), finalInflow)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DualInvoiceManagerViewModel", "Error receiving payment on $invoiceNumber: ${e.message}", e)

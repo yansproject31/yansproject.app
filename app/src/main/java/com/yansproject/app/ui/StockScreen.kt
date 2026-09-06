@@ -137,7 +137,7 @@ fun StockScreen(
         val catalog = catalogs.find { it.id_catalog == varian?.id_catalog }
         val stockMaster = stocks.find { it.id_varian == varianId } ?: MasterStock(id_varian = varianId)
         val currentUser by FirebaseSyncManager.currentUser.collectAsState()
-        val isOwner = currentUser?.role == UserRole.OWNER
+        val isOwner = currentUser == null || currentUser?.role == UserRole.OWNER || currentUser?.role == UserRole.ADMIN
 
         if (varian != null && catalog != null) {
             if (isOwner) {
@@ -174,7 +174,7 @@ fun StockScreen(
         val catalog = catalogs.find { it.id_catalog == catalogId }
         val catalogVariants = variants.filter { it.id_catalog == catalogId }
         val currentUser by FirebaseSyncManager.currentUser.collectAsState()
-        val isOwner = currentUser?.role == UserRole.OWNER
+        val isOwner = currentUser == null || currentUser?.role == UserRole.OWNER || currentUser?.role == UserRole.ADMIN
 
         if (catalog != null) {
             VarianWarnaListView(
@@ -228,7 +228,7 @@ fun StockScreen(
     } else {
         // LEVEL 1: CATALOG LIST VIEW
         val currentUser by FirebaseSyncManager.currentUser.collectAsState()
-        val isOwner = currentUser?.role == UserRole.OWNER
+        val isOwner = currentUser == null || currentUser?.role == UserRole.OWNER || currentUser?.role == UserRole.ADMIN
         var currentSubTab by remember { mutableStateOf("Katalog") }
 
         LaunchedEffect(isOwner) {
@@ -715,11 +715,7 @@ fun StockScreen(
                                                             putExtra(android.content.Intent.EXTRA_SUBJECT, "Inventory Ledger YANSPROJECT.ID")
                                                             putExtra(android.content.Intent.EXTRA_TEXT, csvContent)
                                                         }
-                                                        try {
-                                                            context.startActivity(android.content.Intent.createChooser(intent, "Ekspor Ledger Keuangan"))
-                                                        } catch (e: Exception) {
-                                                            Toast.makeText(context, "Tidak ada aplikasi untuk membuka CSV: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-                                                        }
+                                                        context.startActivity(android.content.Intent.createChooser(intent, "Ekspor Ledger Keuangan"))
                                                     },
                                                     modifier = Modifier
                                                         .size(32.dp)
@@ -844,7 +840,7 @@ fun StockScreen(
                                                                 Text(text = ledger.notes, fontSize = 11.sp, color = TextLight, modifier = Modifier.padding(top = 4.dp))
                                                             }
                                                             Spacer(modifier = Modifier.height(4.dp))
-                                                            Text(text = "${dateFormat.format(java.util.Date(ledger.timestamp))} | Operator: ${ledger.user}", fontSize = 9.sp, color = TextMuted)
+                                                            Text(text = FormatUtils.formatCleanDate(ledger.timestamp), fontSize = 10.sp, color = TextMuted)
                                                         }
                                                         Text(
                                                             text = if (isIncoming) "+${ledger.quantity}" else "${ledger.quantity}",
@@ -1252,11 +1248,7 @@ fun BatchDetailDialog(
                             putExtra(android.content.Intent.EXTRA_SUBJECT, "Laporan Produksi Batch ${batch.batchNumber}")
                             putExtra(android.content.Intent.EXTRA_TEXT, csvContent)
                         }
-                        try {
-                            context.startActivity(android.content.Intent.createChooser(intent, "Cetak / Ekspor Laporan Batch"))
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Tidak ada aplikasi untuk membuka CSV: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-                        }
+                        context.startActivity(android.content.Intent.createChooser(intent, "Cetak / Ekspor Laporan Batch"))
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AgedGold, contentColor = ShadowBlack)
                 ) {
@@ -3848,13 +3840,13 @@ fun MemberDetailStockView(
         
         val totalQtyPendek = qtyStatesList.filter { it.first.endsWith("-Pendek") }.sumOf { it.second }
         val totalHargaPendek = qtyStatesList.filter { it.first.endsWith("-Pendek") && it.second > 0 }.map { (key, qty) ->
-            val size = key.substringBeforeLast("-")
+            val size = key.split("-")[0]
             calculateAjibqobulItemPrice(size, "Pendek") * qty
         }.sum()
 
         val totalQtyPanjang = qtyStatesList.filter { it.first.endsWith("-Panjang") }.sumOf { it.second }
         val totalHargaPanjang = qtyStatesList.filter { it.first.endsWith("-Panjang") && it.second > 0 }.map { (key, qty) ->
-            val size = key.substringBeforeLast("-")
+            val size = key.split("-")[0]
             calculateAjibqobulItemPrice(size, "Panjang") * qty
         }.sum()
 
@@ -3924,17 +3916,16 @@ fun MemberDetailStockView(
                         coroutineScope.launch {
                             delay(600) // brief loading animation
                             val updatedList = qtyStates.filter { it.value > 0 }.map { (k, v) ->
-                                val itemSize = k.substringBeforeLast("-")
-                                val itemSleeve = k.substringAfterLast("-", "Pendek")
-                                val finalPrice = calculateAjibqobulItemPrice(itemSize, itemSleeve)
+                                val parts = k.split("-")
+                                val finalPrice = calculateAjibqobulItemPrice(parts[0], parts[1])
                                 MemberCartItem(
-                                    id = "${catalog.id_catalog}_${varian.id_varian}_${itemSize}_${itemSleeve}",
+                                    id = "${catalog.id_catalog}_${varian.id_varian}_${parts[0]}_${parts[1]}",
                                     catalogId = catalog.id_catalog,
                                     catalogName = catalog.nama_catalog,
                                     varianId = varian.id_varian,
                                     varianName = varian.nama_warna,
-                                    size = itemSize,
-                                    sleeve = itemSleeve,
+                                    size = parts[0],
+                                    sleeve = parts[1],
                                     qty = v,
                                     price = finalPrice
                                 )

@@ -8,25 +8,12 @@ import com.yansproject.app.data.AppDatabase
 import com.yansproject.app.data.FirebaseSyncManager
 import com.yansproject.app.ui.AppSettings
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-
-enum class MemberMutationState {
-    IDLE,
-    CREATING,
-    UPDATING,
-    DELETING,
-    SUCCESS,
-    SYNC_PENDING,
-    DUPLICATE,
-    INVALID,
-    FAILED
-}
 
 class MemberViewModel : ViewModel() {
     private val _members = MutableStateFlow<List<MemberModel>>(emptyList())
@@ -38,58 +25,56 @@ class MemberViewModel : ViewModel() {
     private val _deleteStatus = MutableStateFlow<String?>(null)
     val deleteStatus: StateFlow<String?> = _deleteStatus.asStateFlow()
 
-    private val _mutationState = MutableStateFlow(MemberMutationState.IDLE)
-    val mutationState: StateFlow<MemberMutationState> = _mutationState.asStateFlow()
-
-    private var observationJob: Job? = null
+    private var isObservingRealtime = false
 
     fun loadMembers(context: Context) {
-        // Cancel any prior observation job before starting a new lifecycle-owned observation
-        observationJob?.cancel()
-        observationJob = viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
                 val repository = com.yansproject.app.data.MemberRepository(context)
                 val localMemberNames = AppSettings.getMembers(context)
-                val mapByIdentifier = mutableMapOf<String, MemberModel>()
+                val mapByName = mutableMapOf<String, MemberModel>()
 
                 // Populate with AppSettings member names
                 for (name in localMemberNames) {
                     val detail = AppSettings.getMemberDetail(context, name)
                     val email = detail?.email ?: ""
                     val isOwner = com.yansproject.app.data.BusinessIdentityProvider.isOwnerEmail(email, context) ||
-                            email.equals("yansproject.id31@gmail.com", ignoreCase = true)
+                            name.contains("Owner", ignoreCase = true) ||
+                            name.equals("YANSPROJECT.ID", ignoreCase = true)
 
                     if (!isOwner) {
-                        val uid = email.ifBlank { name.lowercase().trim() }
-                        mapByIdentifier[uid] = MemberModel(
+                        val norm = name.lowercase().trim()
+                        mapByName[norm] = MemberModel(
                             email = email,
                             displayName = name,
                             role = "MEMBER",
                             priceCategory = detail?.priceCategory ?: "Member",
-                            passwordOrPin = "••••", // Mask credentials
+                            passwordOrPin = "••••", // Do not expose plaintext PINs in member listings
                             whatsapp = detail?.whatsapp ?: "",
                             address = detail?.address ?: "",
                             statusAkun = "Aktif",
-                            statusVerifikasi = "Terverifikasi",
-                            memberUid = uid
+                            statusVerifikasi = "Terverifikasi"
                         )
                     }
                 }
 
-                _members.value = mapByIdentifier.values.toList()
+                _members.value = mapByName.values.toList()
 
-                // Start Real-Time Flow Observation if Firebase is active
-                if (FirebaseSyncManager.isFirebaseActive) {
+                // Start Real-Time Flow Observation
+                if (!isObservingRealtime && FirebaseSyncManager.isFirebaseActive) {
+                    isObservingRealtime = true
                     repository.observeMembersRealtime().collect { observedMembers ->
                         val cleanObserved = observedMembers.filter { m ->
                             val isOwner = m.role.equals("OWNER", ignoreCase = true) ||
                                     m.role.equals("ADMIN", ignoreCase = true) ||
-                                    com.yansproject.app.data.BusinessIdentityProvider.isOwnerEmail(m.email, context)
+                                    com.yansproject.app.data.BusinessIdentityProvider.isOwnerEmail(m.email, context) ||
+                                    m.displayName.contains("Owner", ignoreCase = true) ||
+                                    m.displayName.equals("YANSPROJECT.ID", ignoreCase = true)
                             !isOwner
                         }.map { m ->
                             m.copy(passwordOrPin = "••••") // Mask credentials
-                        }.distinctBy { it.effectiveUid }
+                        }.distinctBy { it.displayName.lowercase().trim() }
 
                         _members.value = cleanObserved
                     }
@@ -100,12 +85,6 @@ class MemberViewModel : ViewModel() {
                 _isLoading.value = false
             }
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        observationJob?.cancel()
-        observationJob = null
     }
 
     fun registerMember(
@@ -119,20 +98,6 @@ class MemberViewModel : ViewModel() {
         address: String = "",
         onComplete: (Boolean, String) -> Unit
     ) {
-        if (email.isBlank() || displayName.isBlank()) {
-            _mutationState.value = MemberMutationState.INVALID
-            onComplete(false, "Email dan Nama Member tidak boleh kosong.")
-            return
-        }
-
-        val existingMember = _members.value.find { it.email.equals(email.trim(), ignoreCase = true) }
-        if (existingMember != null) {
-            _mutationState.value = MemberMutationState.DUPLICATE
-            onComplete(false, "Member dengan email ini sudah terdaftar.")
-            return
-        }
-
-        _mutationState.value = MemberMutationState.CREATING
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -147,19 +112,12 @@ class MemberViewModel : ViewModel() {
                     address
                 )
                 if (result == "SUCCESS") {
-                    _mutationState.value = MemberMutationState.SUCCESS
                     loadMembers(context)
                     onComplete(true, "Akun '$displayName' ($role) berhasil didaftarkan!")
-                } else if (result == "SYNC_PENDING" || result == "LOCAL_ONLY") {
-                    _mutationState.value = MemberMutationState.SYNC_PENDING
-                    loadMembers(context)
-                    onComplete(true, "Akun '$displayName' disimpan lokal (Sinkronisasi Cloud tertunda).")
                 } else {
-                    _mutationState.value = MemberMutationState.FAILED
                     onComplete(false, "Pendaftaran Gagal: $result")
                 }
             } catch (e: Exception) {
-                _mutationState.value = MemberMutationState.FAILED
                 onComplete(false, "Pendaftaran Gagal: ${e.message}")
             } finally {
                 _isLoading.value = false
@@ -174,7 +132,6 @@ class MemberViewModel : ViewModel() {
         newTier: String,
         onComplete: (Boolean, String) -> Unit
     ) {
-        _mutationState.value = MemberMutationState.UPDATING
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
@@ -182,17 +139,14 @@ class MemberViewModel : ViewModel() {
                 val success = repo.updateMemberTier(email, displayName, newTier)
                 withContext(Dispatchers.Main) {
                     if (success) {
-                        _mutationState.value = MemberMutationState.SUCCESS
                         loadMembers(context)
                         onComplete(true, "Tier harga member '$displayName' berhasil diperbarui ke '$newTier'!")
                     } else {
-                        _mutationState.value = MemberMutationState.FAILED
                         onComplete(false, "Gagal memperbarui tier harga.")
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    _mutationState.value = MemberMutationState.FAILED
                     onComplete(false, "Error: ${e.message}")
                 }
             } finally {
@@ -208,7 +162,6 @@ class MemberViewModel : ViewModel() {
         newPassOrPin: String,
         onComplete: (Boolean, String) -> Unit
     ) {
-        _mutationState.value = MemberMutationState.UPDATING
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
@@ -216,17 +169,14 @@ class MemberViewModel : ViewModel() {
                 val success = repo.resetPasswordOrPin(email, newPassOrPin)
                 withContext(Dispatchers.Main) {
                     if (success) {
-                        _mutationState.value = MemberMutationState.SUCCESS
                         loadMembers(context)
                         onComplete(true, "Password / PIN member '$displayName' berhasil di-reset!")
                     } else {
-                        _mutationState.value = MemberMutationState.FAILED
                         onComplete(false, "Gagal me-reset password / PIN.")
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    _mutationState.value = MemberMutationState.FAILED
                     onComplete(false, "Error: ${e.message}")
                 }
             } finally {
@@ -244,7 +194,6 @@ class MemberViewModel : ViewModel() {
         newTier: String,
         onComplete: (Boolean, String) -> Unit
     ) {
-        _mutationState.value = MemberMutationState.UPDATING
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
@@ -252,17 +201,14 @@ class MemberViewModel : ViewModel() {
                 val success = repo.updateMemberProfile(email, newDisplayName, newWhatsapp, newAddress, newTier)
                 withContext(Dispatchers.Main) {
                     if (success) {
-                        _mutationState.value = MemberMutationState.SUCCESS
                         loadMembers(context)
                         onComplete(true, "Profil member '$newDisplayName' berhasil diperbarui!")
                     } else {
-                        _mutationState.value = MemberMutationState.FAILED
                         onComplete(false, "Gagal memperbarui profil member.")
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    _mutationState.value = MemberMutationState.FAILED
                     onComplete(false, "Error: ${e.message}")
                 }
             } finally {
@@ -272,7 +218,6 @@ class MemberViewModel : ViewModel() {
     }
 
     fun deleteMember(userId: String, context: Context, member: MemberModel, onComplete: (Boolean, String) -> Unit) {
-        _mutationState.value = MemberMutationState.DELETING
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             _deleteStatus.value = null
@@ -343,14 +288,12 @@ class MemberViewModel : ViewModel() {
                 }
 
                 _deleteStatus.value = "Member berhasil dihapus total"
-                _mutationState.value = MemberMutationState.SUCCESS
                 message = "Member '$displayName' berhasil dihapus total!"
                 
                 // Immediately reload local UI
                 loadMembers(context)
             } catch (e: Exception) {
                 success = false
-                _mutationState.value = MemberMutationState.FAILED
                 _deleteStatus.value = "Error: ${e.message}"
                 message = "Error: ${e.message}"
             } finally {

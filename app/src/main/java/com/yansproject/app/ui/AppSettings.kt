@@ -14,35 +14,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-enum class SettingsSyncState {
-    LOCAL_SAVED,
-    SYNC_PENDING,
-    SYNCED,
-    SYNC_FAILED
-}
-
 object AppSettings {
     private const val PREFS_NAME = "yans_settings_prefs"
     private const val KEY_MEMBERS = "member_customers"
     private const val KEY_DELETED_MEMBERS = "deleted_member_customers"
     private const val KEY_LAST_SYNC = "last_firebase_sync"
-    private const val KEY_SETTINGS_SYNC_STATE = "settings_sync_state"
 
     private fun getPrefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-    fun getSyncState(context: Context): SettingsSyncState {
-        val raw = getPrefs(context).getString(KEY_SETTINGS_SYNC_STATE, SettingsSyncState.LOCAL_SAVED.name) ?: SettingsSyncState.LOCAL_SAVED.name
-        return try {
-            SettingsSyncState.valueOf(raw)
-        } catch (e: Exception) {
-            SettingsSyncState.LOCAL_SAVED
-        }
-    }
-
-    fun setSyncState(context: Context, state: SettingsSyncState) {
-        getPrefs(context).edit().putString(KEY_SETTINGS_SYNC_STATE, state.name).apply()
-    }
 
     fun getLastSync(context: Context): String =
         getPrefs(context).getString(KEY_LAST_SYNC, "") ?: ""
@@ -271,7 +250,7 @@ object AppSettings {
             !clean.equals("Administrator", ignoreCase = true) &&
             !clean.equals("YANSPROJECT.ID", ignoreCase = true) &&
             !clean.equals("admin@yansproject.id", ignoreCase = true) &&
-            !clean.equals("yansproject.id31@gmail.com", ignoreCase = true)
+            !clean.equals("yansart31@gmail.com", ignoreCase = true)
         }.toSet()
     }
 
@@ -378,7 +357,7 @@ object AppSettings {
     fun saveLocalUserCredential(
         context: Context,
         email: String,
-        passwordOrPin: String, // Ignored: Firebase Authentication owns credentials
+        passwordOrPin: String,
         displayName: String,
         role: String,
         priceCategory: String,
@@ -388,7 +367,7 @@ object AppSettings {
         val prefs = getSecureCredentialPrefs(context)
         val cleanEmail = email.trim().lowercase()
         val editor = prefs.edit()
-            .remove("pass_$cleanEmail") // Explicitly purge password key
+            .putString("pass_$cleanEmail", passwordOrPin)
             .putString("name_$cleanEmail", displayName)
             .putString("role_$cleanEmail", role)
             .putString("price_$cleanEmail", priceCategory)
@@ -404,30 +383,42 @@ object AppSettings {
     fun getLocalUserCredential(context: Context, email: String): LocalUserCredential? {
         val prefs = getSecureCredentialPrefs(context)
         val cleanEmail = email.trim().lowercase()
+        var password = prefs.getString("pass_$cleanEmail", null)
         
-        // Clean up any legacy unencrypted password storage
-        val legacyPrefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
-        if (legacyPrefs.contains("pass_$cleanEmail")) {
-            legacyPrefs.edit().remove("pass_$cleanEmail").apply()
-        }
-        if (prefs.contains("pass_$cleanEmail")) {
-            prefs.edit().remove("pass_$cleanEmail").apply()
+        if (password == null) {
+            // Attempt migration from unencrypted legacy prefs if present
+            val legacyPrefs = context.getSharedPreferences("yans_local_credentials", Context.MODE_PRIVATE)
+            val legacyPass = legacyPrefs.getString("pass_$cleanEmail", null)
+            if (legacyPass != null) {
+                val legacyName = legacyPrefs.getString("name_$cleanEmail", "") ?: ""
+                val legacyRole = legacyPrefs.getString("role_$cleanEmail", "MEMBER") ?: "MEMBER"
+                val legacyPrice = legacyPrefs.getString("price_$cleanEmail", "Member") ?: "Member"
+                val legacyWa = legacyPrefs.getString("wa_$cleanEmail", "") ?: ""
+                val legacyAddr = legacyPrefs.getString("address_$cleanEmail", "") ?: ""
+                
+                // Save to EncryptedSharedPreferences and purge from unencrypted legacy
+                saveLocalUserCredential(context, cleanEmail, legacyPass, legacyName, legacyRole, legacyPrice, legacyWa, legacyAddr)
+                legacyPrefs.edit()
+                    .remove("pass_$cleanEmail")
+                    .remove("name_$cleanEmail")
+                    .remove("role_$cleanEmail")
+                    .remove("price_$cleanEmail")
+                    .remove("wa_$cleanEmail")
+                    .remove("address_$cleanEmail")
+                    .apply()
+                password = legacyPass
+            } else {
+                return null
+            }
         }
 
-        val name = prefs.getString("name_$cleanEmail", null)
-        val legacyName = legacyPrefs.getString("name_$cleanEmail", null)
-        
-        if (name == null && legacyName == null) {
-            return null
-        }
-
-        val finalName = name ?: legacyName ?: ""
-        val role = prefs.getString("role_$cleanEmail", legacyPrefs.getString("role_$cleanEmail", "MEMBER")) ?: "MEMBER"
+        val name = prefs.getString("name_$cleanEmail", "") ?: ""
+        val role = prefs.getString("role_$cleanEmail", "MEMBER") ?: "MEMBER"
         val priceDefault = if (role == "OWNER") "Retail" else "Member"
-        val price = prefs.getString("price_$cleanEmail", legacyPrefs.getString("price_$cleanEmail", priceDefault)) ?: priceDefault
-        val whatsapp = prefs.getString("wa_$cleanEmail", legacyPrefs.getString("wa_$cleanEmail", "")) ?: ""
-        val address = prefs.getString("address_$cleanEmail", legacyPrefs.getString("address_$cleanEmail", "")) ?: ""
-        return LocalUserCredential("", finalName, role, price, whatsapp, address)
+        val price = prefs.getString("price_$cleanEmail", priceDefault) ?: priceDefault
+        val whatsapp = prefs.getString("wa_$cleanEmail", "") ?: ""
+        val address = prefs.getString("address_$cleanEmail", "") ?: ""
+        return LocalUserCredential(password, name, role, price, whatsapp, address)
     }
 
     fun getMemberPriceCategory(context: Context, displayName: String): String {

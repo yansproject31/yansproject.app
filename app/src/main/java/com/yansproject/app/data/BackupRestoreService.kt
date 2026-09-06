@@ -125,29 +125,14 @@ class BackupRestoreService private constructor(private val context: Context) {
                 // Public mirror to Downloads directory explicitly after successful creation
                 mirrorBackupToPublic(backupDir)
 
-                // Register Synchronous Durable Audit Log
-                val operationId = "MANUAL_DB_BACKUP"
-                val correlationId = java.util.UUID.randomUUID().toString()
-                val actorUid = "ADMIN_OPERATOR"
-                val backupId = backupFile.name
-
+                // Register Audit Log
                 try {
                     val auditLog = AuditLog(
                         activity = "BACKUP_COMPLETED",
-                        details = "Berhasil membuat cadangan database ke file '$backupId' (${backupFile.length()} bytes).",
-                        adminName = "ADMIN",
-                        actorId = actorUid,
-                        correlationId = correlationId,
-                        objectId = backupId,
-                        action = operationId,
-                        utcTimestamp = java.time.Instant.now().toString()
+                        details = "Berhasil membuat cadangan database ke file '${backupFile.name}' (${backupFile.length()} bytes)."
                     )
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                        try {
-                            db.auditLogDao().insertLog(auditLog)
-                        } catch (ie: Exception) {
-                            Log.w(TAG, "Non-fatal: failed inserting backup audit log: ${ie.message}")
-                        }
+                        db.auditLogDao().insertLog(auditLog)
                     }
                 } catch (ae: Exception) {
                     Log.e(TAG, "Failed logging backup completion to audit log.", ae)

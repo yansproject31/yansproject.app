@@ -30,26 +30,26 @@ class ExportManager private constructor() {
     }
 
     /**
-     * Executes a file export with guaranteed atomic replacement:
-     * Write to temp file -> Flush & Close -> Validate -> Atomic Rename to target file.
-     * If export fails or validation fails, previous valid targetFile is preserved!
+     * Executes a file export with guaranteed stream flush, close, and size validation.
      */
     fun exportToFile(targetFile: File, writeBlock: (OutputStream) -> Unit): Result<File> {
         var outputStream: BufferedOutputStream? = null
         var flushSucceeded = false
         var closeSucceeded = false
 
-        val parent = targetFile.parentFile ?: File(".")
-        if (!parent.exists()) {
-            parent.mkdirs()
-        }
-
-        val tempFile = File(parent, "${targetFile.name}.tmp_${System.currentTimeMillis()}")
-
         try {
-            outputStream = BufferedOutputStream(FileOutputStream(tempFile))
+            val parent = targetFile.parentFile
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs()
+            }
 
-            // Perform data write operation to temp file
+            if (targetFile.exists()) {
+                targetFile.delete()
+            }
+
+            outputStream = BufferedOutputStream(FileOutputStream(targetFile))
+
+            // Perform data write operation
             writeBlock(outputStream)
 
             // 1. Flush stream
@@ -61,44 +61,36 @@ class ExportManager private constructor() {
             closeSucceeded = true
             outputStream = null
 
-            // 3. Post-execution temp file integrity verification
-            val tempExists = tempFile.exists()
-            val tempLength = if (tempExists) tempFile.length() else 0L
+            // 3. Post-execution file integrity verification
+            val fileExists = targetFile.exists()
+            val fileLength = if (fileExists) targetFile.length() else 0L
 
             if (!flushSucceeded) {
-                throw ExportValidationException("Flush operation failed for export temp file '${tempFile.name}'.")
+                throw ExportValidationException("Flush operation failed for export file '${targetFile.name}'.")
             }
             if (!closeSucceeded) {
-                throw ExportValidationException("Close operation failed for export temp file '${tempFile.name}'.")
+                throw ExportValidationException("Close operation failed for export file '${targetFile.name}'.")
             }
-            if (!tempExists) {
-                throw ExportValidationException("Export temp file '${tempFile.name}' was not created.")
+            if (!fileExists) {
+                throw ExportValidationException("Export file '${targetFile.name}' was not created.")
             }
-            if (tempLength <= 0L) {
-                throw ExportValidationException("Export temp file '${tempFile.name}' has invalid zero byte length.")
-            }
-
-            // 4. Atomic Rename to targetFile (Preserving existing valid targetFile until replacement is verified)
-            val renameSuccess = tempFile.renameTo(targetFile)
-            if (!renameSuccess) {
-                // Fallback: copy tempFile to targetFile if rename across filesystems fails
-                tempFile.copyTo(targetFile, overwrite = true)
-                tempFile.delete()
+            if (fileLength <= 0L) {
+                throw ExportValidationException("Export file '${targetFile.name}' has invalid zero byte length.")
             }
 
-            Log.i(TAG, "Export successfully completed and atomically replaced '${targetFile.absolutePath}' ($tempLength bytes).")
+            Log.i(TAG, "Export successfully completed and verified for '${targetFile.absolutePath}' ($fileLength bytes).")
             return Result.success(targetFile)
         } catch (e: Exception) {
             Log.e(TAG, "Export failed for '${targetFile.name}': ${e.message}", e)
 
-            // Attempt cleanup of temp file ONLY (Preserving targetFile)
+            // Attempt cleanup of invalid/corrupt file
             try {
                 outputStream?.close()
             } catch (ignored: Exception) {}
 
-            if (tempFile.exists()) {
-                val deleted = tempFile.delete()
-                Log.w(TAG, "Cleaned up invalid temp file attempt: '${tempFile.name}', deleted=$deleted")
+            if (targetFile.exists()) {
+                val deleted = targetFile.delete()
+                Log.w(TAG, "Cleaned up invalid export file attempt: '${targetFile.name}', deleted=$deleted")
             }
 
             return Result.failure(

@@ -2,9 +2,7 @@ package com.yansproject.app.data
 
 import android.content.Context
 import android.util.Log
-import com.yansproject.app.ui.AuthoritativeSessionManager
 import java.io.File
-import java.util.UUID
 
 class SystemCleaner(
     private val context: Context,
@@ -13,25 +11,15 @@ class SystemCleaner(
 ) {
 
     data class MaintenanceResult(
-        val operationId: String,
-        val actorUid: String,
-        val startTime: Long,
-        val endTime: Long,
         val bytesCleared: Long,
         val offlineActionsPurged: Int,
-        val logsArchived: Int,
         val logsPurged: Int,
         val success: Boolean
     )
 
     suspend fun runSmartMaintenance(): MaintenanceResult {
-        val operationId = "MAINT_" + UUID.randomUUID().toString().take(8).uppercase()
-        val actorUid = AuthoritativeSessionManager.sessionState.value.uid.ifBlank { "SUPER_ADMIN" }
-        val startTime = System.currentTimeMillis()
-
         var totalBytesCleared = 0L
         var offlinePurged = 0
-        var logsArchived = 0
         var logsPurged = 0
         var success = true
 
@@ -49,42 +37,38 @@ class SystemCleaner(
         }
 
         try {
-            // 2. SQL-based pruning of obsolete completed/abandoned offline actions older than 60 days.
-            // Active pending unsynced offline queue items (PENDING/PROCESSING) are NEVER deleted.
+            // 2. Only prune obsolete sync actions older than 60 days if they are already completed (retryCount < 0) or max retried (retryCount > 10).
+            // Active pending unsynced offline queue items (retryCount in 0..10) must NEVER be deleted.
             val sixtyDaysAgo = System.currentTimeMillis() - (60L * 24 * 60 * 60 * 1000L)
-            offlinePurged = offlineActionDao.pruneCompletedOrAbandonedActions(sixtyDaysAgo)
-            Log.i("SystemCleaner", "Purged $offlinePurged synced/abandoned offline actions older than 60 days directly via SQL.")
+            val allActions = offlineActionDao.getAllActions()
+            val deletableActions = allActions.filter { action ->
+                action.timestamp < sixtyDaysAgo && (action.retryCount < 0 || action.retryCount > 10)
+            }
+            deletableActions.forEach { action ->
+                offlineActionDao.deleteActionById(action.id)
+            }
+            offlinePurged = deletableActions.size
+            Log.i("SystemCleaner", "Purged $offlinePurged synced/abandoned offline actions older than 60 days (preserved ${allActions.size - offlinePurged} pending actions)")
         } catch (e: Exception) {
             Log.e("SystemCleaner", "Offline actions pruning failed: ${e.message}", e)
             success = false
         }
 
         try {
-            // 3. HOT -> ARCHIVED -> PURGE AFTER POLICY lifecycle for Audit Logs
-            // Hot logs older than 90 days are transitioned to ARCHIVED state.
-            // Only archived logs exceeding policy retention cutoff (365 days) are purged.
+            // 3. Delete old audit logs older than 90 days to retain recent operational history
             val ninetyDaysAgo = System.currentTimeMillis() - (90L * 24 * 60 * 60 * 1000L)
-            val threeHundredSixtyFiveDaysAgo = System.currentTimeMillis() - (365L * 24 * 60 * 60 * 1000L)
-
-            logsArchived = appDatabase.auditLogDao().archiveLogsOlderThan(ninetyDaysAgo)
-            logsPurged = appDatabase.auditLogDao().purgeArchivedLogsOlderThanPolicy(threeHundredSixtyFiveDaysAgo)
-            Log.i("SystemCleaner", "Audit Logs lifecycle: $logsArchived transitioned to ARCHIVED state, $logsPurged purged per policy.")
+            logsPurged = appDatabase.auditLogDao().deleteLogsOlderThan(ninetyDaysAgo)
         } catch (e: Exception) {
-            Log.e("SystemCleaner", "Logs lifecycle processing failed: ${e.message}", e)
+            Log.e("SystemCleaner", "Logs pruning failed: ${e.message}", e)
             success = false
         }
 
-        val endTime = System.currentTimeMillis()
-
-        // Record auditable maintenance result into system audit log
+        // Record maintenance result into system audit log
         try {
             appDatabase.auditLogDao().insertLog(
                 AuditLog(
                     activity = "SYSTEM_MAINTENANCE_EXECUTED",
-                    actorId = actorUid,
-                    objectId = operationId,
-                    action = "MAINTENANCE",
-                    details = "Smart maintenance completed [opId=$operationId, actor=$actorUid, start=$startTime, end=$endTime]. Cleared $totalBytesCleared bytes. Purged $offlinePurged old actions. Archived $logsArchived logs & purged $logsPurged policy logs. Success: $success"
+                    details = "Smart maintenance completed. Cleared $totalBytesCleared bytes. Purged $offlinePurged old actions & $logsPurged old logs. Success: $success"
                 )
             )
         } catch (e: Exception) {
@@ -92,13 +76,8 @@ class SystemCleaner(
         }
 
         return MaintenanceResult(
-            operationId = operationId,
-            actorUid = actorUid,
-            startTime = startTime,
-            endTime = endTime,
             bytesCleared = totalBytesCleared,
             offlineActionsPurged = offlinePurged,
-            logsArchived = logsArchived,
             logsPurged = logsPurged,
             success = success
         )

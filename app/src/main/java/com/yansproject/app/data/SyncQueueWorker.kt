@@ -43,22 +43,21 @@ class SyncQueueWorker(
                 val syncResponse = sendToN8nDetailed(n8nUrlStr, action)
                 when (syncResponse) {
                     is SyncResponse.Success -> {
-                        actionDao.updateAction(action.copy(status = "RESOLVED"))
                         actionDao.deleteAction(action)
                         Log.i(TAG, "Successfully synced action ID ${action.id} [${action.targetCollection}]. Deleted from queue.")
                     }
                     is SyncResponse.PermanentError -> {
-                        actionDao.updateAction(action.copy(status = "DEAD_LETTER"))
-                        Log.e(TAG, "Permanent Error (${syncResponse.code} - ${syncResponse.message}) for action ID ${action.id}. Marked DEAD_LETTER in queue.")
+                        actionDao.deleteAction(action)
+                        Log.e(TAG, "Permanent Error (${syncResponse.code} - ${syncResponse.message}) for action ID ${action.id}. Purging action from queue.")
                     }
                     is SyncResponse.TemporaryError -> {
                         hasTemporaryFailure = true
                         val newRetryCount = action.retryCount + 1
                         if (newRetryCount >= MAX_RETRY_LIMIT) {
-                            Log.e(TAG, "Max retry limit ($MAX_RETRY_LIMIT) reached for action ID ${action.id}. Moving to DEAD_LETTER.")
-                            actionDao.updateAction(action.copy(status = "DEAD_LETTER", retryCount = newRetryCount))
+                            Log.e(TAG, "Max retry limit ($MAX_RETRY_LIMIT) reached for action ID ${action.id}. Dropping action to prevent queue starvation.")
+                            actionDao.deleteAction(action)
                         } else {
-                            val updatedAction = action.copy(retryCount = newRetryCount, status = "RETRYING")
+                            val updatedAction = action.copy(retryCount = newRetryCount)
                             actionDao.updateAction(updatedAction)
                             Log.w(TAG, "Temporary failure (${syncResponse.message}) for action ID ${action.id} (Attempt $newRetryCount/$MAX_RETRY_LIMIT). Retrying later.")
                         }
@@ -68,10 +67,10 @@ class SyncQueueWorker(
                 hasTemporaryFailure = true
                 val newRetryCount = action.retryCount + 1
                 if (newRetryCount >= MAX_RETRY_LIMIT) {
-                    Log.e(TAG, "Max retry limit reached after exception for action ID ${action.id}. Moving to DEAD_LETTER.", e)
-                    actionDao.updateAction(action.copy(status = "DEAD_LETTER", retryCount = newRetryCount))
+                    Log.e(TAG, "Max retry limit reached after exception for action ID ${action.id}. Dropping action.", e)
+                    actionDao.deleteAction(action)
                 } else {
-                    val updatedAction = action.copy(retryCount = newRetryCount, status = "RETRYING")
+                    val updatedAction = action.copy(retryCount = newRetryCount)
                     actionDao.updateAction(updatedAction)
                     Log.e(TAG, "Exception during sync for action ID ${action.id} (Attempt $newRetryCount/$MAX_RETRY_LIMIT): ${e.message}", e)
                 }
@@ -106,8 +105,6 @@ class SyncQueueWorker(
             connection.setRequestProperty("Accept", "application/json")
             connection.setRequestProperty("X-Yans-Target", action.targetCollection)
             connection.setRequestProperty("X-Yans-Timestamp", action.timestamp.toString())
-            val idempotencyVal = if (action.idempotencyKey.isNotBlank()) action.idempotencyKey else "action_${action.id}_${action.timestamp}"
-            connection.setRequestProperty("X-Idempotency-Key", idempotencyVal)
 
             OutputStreamWriter(connection.outputStream, Charsets.UTF_8).use { writer ->
                 writer.write(action.stringPayload)

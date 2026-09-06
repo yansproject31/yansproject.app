@@ -20,7 +20,7 @@
 ### 1.1 Standard Identitas Resmi (Official Business Identity)
 Seluruh cetakan thermal, ekspor PDF/PNG, footer WhatsApp, watermark invoice, dan layar profil/setelan **WAJIB MENGIKUTI STANDAR RESMI**:
 - **Company Name**: `YANSPROJECT.ID`
-- **Support Email**: `yansproject.id31@gmail.com`
+- **Support Email**: `yansart31@gmail.com`
 - **Support WhatsApp**: `+62 877-7739-8813`
 - **Address / Alamat**: `Tangerang, Banten`
 - **Tagline**: `Luxury Visual Identity & Custom Merch`
@@ -227,7 +227,7 @@ Setiap form pembuatan proyek custom maupun invoice wajib memanfaatkan komponen s
 
 Setiap pengembang atau AI Agent yang melakukan modifikasi pada basis kode aplikasi **WAJIB MEMATUHI PERATURAN BERIKUT**:
 
-1. **STANDAR IDENTITAS RESMI**: Dilarang memasukkan alamat, email, atau kontak placeholder/fiktif. Selalu referensikan `BusinessIdentityProvider` (`Tangerang, Banten`, `yansproject.id31@gmail.com`, `+62 877-7739-8813`, `Luxury Visual Identity & Custom Merch`).
+1. **STANDAR IDENTITAS RESMI**: Dilarang memasukkan alamat, email, atau kontak placeholder/fiktif. Selalu referensikan `BusinessIdentityProvider` (`Tangerang, Banten`, `yansart31@gmail.com`, `+62 877-7739-8813`, `Luxury Visual Identity & Custom Merch`).
 2. **PATUH PALET WARNA RESMI**: Dilarang merusak atau mengubah warna dasar DNA aplikasi (`AgedGold`, `ShadowBlack`, `DeepTeal`, `AlertGreen`, `AlertRed`).
 3. **SURFACE INTEGRITY**: Dilarang menambahkan efek background blur atau radial gradient buram yang merusak keterbacaan teks. Gunakan permukaan solid alpha dengan border tegas.
 4. **ZERO CLIPPING BADGE**: Wajib menjaga presisi overlay badge agar selalu tampil utuh di luar batas ikon tanpa terpotong (`Box(modifier = Modifier.wrapContentSize())`).

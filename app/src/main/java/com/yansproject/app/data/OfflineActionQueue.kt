@@ -42,32 +42,13 @@ class OfflineActionQueue private constructor(private val context: Context) {
         }
     }
 
-    suspend fun enqueueAction(
-        targetCollection: String,
-        payload: String,
-        userId: String,
-        customIdempotencyKey: String? = null,
-        documentId: String = UUID.randomUUID().toString()
-    ): Boolean {
-        return enqueue(
-            targetCollection = targetCollection,
-            documentId = documentId,
-            payload = payload,
-            userId = userId,
-            customIdempotencyKey = customIdempotencyKey
-        )
-    }
-
     suspend fun enqueue(
         targetCollection: String,
         documentId: String,
         payload: String,
         userId: String,
         customIdempotencyKey: String? = null,
-        version: Int = 1,
-        queueVersion: Int = 1,
-        payloadVersion: Int = 1,
-        schemaVersion: Int = 1
+        version: Int = 1
     ): Boolean {
         return try {
             val idempotencyKey = customIdempotencyKey ?: UUID.randomUUID().toString()
@@ -94,10 +75,7 @@ class OfflineActionQueue private constructor(private val context: Context) {
                 replayHash = replayHash,
                 version = version,
                 userId = userId,
-                checksum = checksum,
-                queueVersion = queueVersion,
-                payloadVersion = payloadVersion,
-                schemaVersion = schemaVersion
+                checksum = checksum
             )
 
             secureDb.offlineActionDao().insertAction(action)
@@ -123,8 +101,7 @@ class OfflineActionQueue private constructor(private val context: Context) {
                 return
             }
 
-            // Batch processing with LIMIT N and status filters
-            val actions = secureDb.offlineActionDao().getPendingBatch(50)
+            val actions = secureDb.offlineActionDao().getAllActions()
             if (actions.isEmpty()) {
                 Log.d(TAG, "No pending offline actions in queue.")
                 return
@@ -133,31 +110,19 @@ class OfflineActionQueue private constructor(private val context: Context) {
             Log.i(TAG, "Starting queue replay cycle for ${actions.size} actions. Current active User: $currentActiveUserId")
 
             for (action in actions) {
-                // Mark action as PROCESSING
-                secureDb.offlineActionDao().updateAction(action.copy(status = "PROCESSING"))
-
                 // Prevent replay after account switching: skip/reject actions belonging to a different active user
-                if (action.userId.isNotBlank() && currentActiveUserId != "SYSTEM_SESSION" && action.userId != currentActiveUserId) {
-                    Log.w(TAG, "Account switch boundary guard: Action ID ${action.id} belongs to user '${action.userId}', but active user is '$currentActiveUserId'. Marking BLOCKED.")
-                    secureDb.offlineActionDao().updateAction(action.copy(status = "BLOCKED"))
+                if (action.userId.isNotBlank() && action.userId != currentActiveUserId) {
+                    Log.w(TAG, "Account switch boundary guard: Action ID ${action.id} belongs to user '${action.userId}', but active user is '$currentActiveUserId'. Skipping replay.")
                     continue
                 }
 
-                // Verify checksum before execution using typed ChecksumResult
+                // Verify checksum before execution
                 if (action.checksum.isNotBlank()) {
-                    when (val checkResult = ChecksumCalculator.calculateChecksum(action.stringPayload)) {
-                        is ChecksumResult.Success -> {
-                            if (checkResult.hash != action.checksum) {
-                                Log.e(TAG, "Checksum verification mismatch for action ID ${action.id}. Payload corrupt. Marking DEAD_LETTER.")
-                                secureDb.offlineActionDao().updateAction(action.copy(status = "DEAD_LETTER"))
-                                continue
-                            }
-                        }
-                        is ChecksumResult.Failed -> {
-                            Log.e(TAG, "Checksum computation failed for action ID ${action.id}: ${checkResult.reason}. Marking DEAD_LETTER.")
-                            secureDb.offlineActionDao().updateAction(action.copy(status = "DEAD_LETTER"))
-                            continue
-                        }
+                    val computedChecksum = calculateChecksum(action.stringPayload)
+                    if (computedChecksum != action.checksum) {
+                        Log.e(TAG, "Checksum verification failed for action ID ${action.id}. Payload corrupt. Purging action from queue.")
+                        secureDb.offlineActionDao().deleteAction(action)
+                        continue
                     }
                 }
 
@@ -192,11 +157,12 @@ class OfflineActionQueue private constructor(private val context: Context) {
                     } else if (mapPayload != null && mapPayload.isNotEmpty()) {
                         docRef.set(mapPayload, com.google.firebase.firestore.SetOptions.merge())
                     } else if (action.stringPayload.isNotBlank()) {
+                        // Fallback string payload map wrapper
                         docRef.set(mapOf("payload" to action.stringPayload, "lastUpdated" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge())
                     }
 
-                    // On successful replay execution, update status to SYNCED (Never delete permanent/rejected actions immediately)
-                    secureDb.offlineActionDao().updateAction(action.copy(status = "SYNCED"))
+                    // On successful replay execution, delete action from Room DB
+                    secureDb.offlineActionDao().deleteAction(action)
                     Log.i(TAG, "Successfully replayed action ID ${action.id} (Key: ${action.idempotencyKey})")
                 } catch (e: Exception) {
                     val msg = e.message ?: ""
@@ -204,15 +170,15 @@ class OfflineActionQueue private constructor(private val context: Context) {
                             msg.contains("INVALID", ignoreCase = true)
 
                     if (isPermanent) {
-                        Log.e(TAG, "Permanent failure on action ID ${action.id}: $msg. Moving to DEAD_LETTER.")
-                        secureDb.offlineActionDao().updateAction(action.copy(status = "DEAD_LETTER"))
+                        Log.e(TAG, "Permanent failure on action ID ${action.id}: $msg. Purging action.")
+                        secureDb.offlineActionDao().deleteAction(action)
                     } else {
                         val nextRetry = action.retryCount + 1
                         if (nextRetry >= MAX_RETRY_COUNT) {
-                            Log.e(TAG, "Action ID ${action.id} exceeded max retries ($MAX_RETRY_COUNT). Moving to DEAD_LETTER.")
-                            secureDb.offlineActionDao().updateAction(action.copy(status = "DEAD_LETTER", retryCount = nextRetry))
+                            Log.e(TAG, "Action ID ${action.id} exceeded max retries ($MAX_RETRY_COUNT). Dropping action.")
+                            secureDb.offlineActionDao().deleteAction(action)
                         } else {
-                            secureDb.offlineActionDao().updateAction(action.copy(retryCount = nextRetry, status = "FAILED"))
+                            secureDb.offlineActionDao().updateAction(action.copy(retryCount = nextRetry))
                             Log.w(TAG, "Transient error replaying action ID ${action.id} (attempt $nextRetry/$MAX_RETRY_COUNT): $msg")
                             break
                         }

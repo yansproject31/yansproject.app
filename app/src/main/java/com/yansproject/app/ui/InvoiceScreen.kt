@@ -629,8 +629,8 @@ fun InvoiceItemCard(
                         "DP AWAL", "DP_AWAL" -> Triple("DP AWAL", HighlightSoftCyan, Icons.Outlined.HourglassTop)
                         "DP PRODUKSI", "DP_PRODUKSI" -> Triple("DP PRODUKSI", AgedGold, Icons.Outlined.HourglassBottom)
                         "DP" -> Triple("DP", AgedGold, Icons.Outlined.HourglassBottom)
-                        "REFUND", "REFUNDED" -> Triple("REFUND", AlertRed, Icons.Outlined.Undo)
-                        "PARTIAL_REFUND", "PARTIAL REFUND" -> Triple("PARTIAL REFUND", StatusWarningGold, Icons.Outlined.Undo)
+                        "REFUND", "REFUNDED" -> Triple("REFUND", Color(0xFFE289F2), Icons.Outlined.Undo)
+                        "PARTIAL_REFUND", "PARTIAL REFUND" -> Triple("PARTIAL REFUND", Color(0xFFFF9800), Icons.Outlined.Undo)
                         "BATAL" -> Triple("BATAL", TextMuted, Icons.Outlined.Cancel)
                         else -> Triple("BELUM LUNAS", AlertRed, Icons.Outlined.ErrorOutline)
                     }
@@ -1079,8 +1079,8 @@ fun InvoiceDetailDialog(
                                             "DP AWAL", "DP_AWAL" -> HighlightSoftCyan
                                             "DP PRODUKSI", "DP_PRODUKSI" -> AgedGold
                                             "DP" -> AgedGold
-                                            "REFUND", "REFUNDED" -> AlertRed
-                                            "PARTIAL_REFUND", "PARTIAL REFUND" -> StatusWarningGold
+                                            "REFUND", "REFUNDED" -> Color(0xFFE289F2)
+                                            "PARTIAL_REFUND", "PARTIAL REFUND" -> Color(0xFFFF9800)
                                             "BATAL" -> TextMuted
                                             else -> AlertRed
                                         }
@@ -1582,7 +1582,7 @@ fun InvoiceDetailDialog(
                         item {
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = CardGrey),
-                                border = BorderStroke(1.dp, AlertRed.copy(alpha = 0.5f)),
+                                border = BorderStroke(1.dp, Color(0xFFE289F2).copy(alpha = 0.5f)),
                                 shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -1596,18 +1596,18 @@ fun InvoiceDetailDialog(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Icon(imageVector = Icons.Outlined.Undo, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
+                                            Icon(imageVector = Icons.Outlined.Undo, contentDescription = null, tint = Color(0xFFE289F2), modifier = Modifier.size(16.dp))
                                             Text(
                                                 text = "6. RINCIAN & RIWAYAT REFUND",
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = AlertRed,
+                                                color = Color(0xFFE289F2),
                                                 letterSpacing = 1.sp
                                             )
                                         }
 
                                         val refundTypeLabel = if (invoice.status.uppercase().trim() in listOf("REFUND", "REFUNDED")) "REFUND TOTAL" else "REFUND SEBAGIAN"
-                                        val refundTypeColor = if (invoice.status.uppercase().trim() in listOf("REFUND", "REFUNDED")) AlertRed else StatusWarningGold
+                                        val refundTypeColor = if (invoice.status.uppercase().trim() in listOf("REFUND", "REFUNDED")) Color(0xFFE289F2) else Color(0xFFFF9800)
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(30.dp))
@@ -1630,7 +1630,7 @@ fun InvoiceDetailDialog(
                                                         .fillMaxWidth()
                                                         .clip(RoundedCornerShape(8.dp))
                                                         .background(ShadowBlack)
-                                                        .border(0.8.dp, AlertRed.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                                        .border(0.8.dp, Color(0xFFE289F2).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                                                         .padding(10.dp)
                                                 ) {
                                                     Text(text = noteText, fontSize = 11.sp, color = TextLight)
@@ -1643,7 +1643,7 @@ fun InvoiceDetailDialog(
                                                 .fillMaxWidth()
                                                 .clip(RoundedCornerShape(8.dp))
                                                 .background(ShadowBlack)
-                                                .border(0.8.dp, AlertRed.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                                .border(0.8.dp, Color(0xFFE289F2).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                                                 .padding(10.dp)
                                         ) {
                                             Text(text = "Invoice ini telah diproses refund (pengembalian barang ke gudang stok & pengeluaran kas).", fontSize = 11.sp, color = TextLight)
@@ -1678,10 +1678,10 @@ fun InvoiceDetailDialog(
                     }
                 }
 
-                exportSuccessFile?.let { savedFile ->
+                if (exportSuccessFile != null) {
                     val shareMsg = com.yansproject.app.util.WhatsAppInvoiceFormatter.buildWhatsAppText(invoice, invoiceItems)
                     com.yansproject.app.ui.components.FileSavedSuccessDialog(
-                        file = savedFile,
+                        file = exportSuccessFile!!,
                         clientPhone = invoice.clientPhone,
                         shareMessage = shareMsg,
                         onDismiss = { exportSuccessFile = null }
@@ -1790,11 +1790,7 @@ fun InvoiceDetailDialog(
                                     """.trimIndent().replace("\n\n\n", "\n\n")
                                     )
                                 }
-                                try {
-                                    context.startActivity(Intent.createChooser(shareIntent, "Bagikan Invoice via"))
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Gagal membagikan invoice: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Bagikan Invoice via"))
                             },
                             modifier = Modifier.weight(1.2f).height(36.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = DarkTeal, contentColor = TextLight),
@@ -1957,8 +1953,8 @@ fun InvoiceDetailDialog(
                             Button(
                                 onClick = { showRefundDialog = true },
                                 modifier = Modifier.fillMaxWidth().height(40.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AlertRed.copy(alpha = 0.15f), contentColor = AlertRed),
-                                border = BorderStroke(1.dp, AlertRed.copy(alpha = 0.5f)),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE289F2).copy(alpha = 0.15f), contentColor = Color(0xFFE289F2)),
+                                border = BorderStroke(1.dp, Color(0xFFE289F2).copy(alpha = 0.5f)),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Icon(imageVector = Icons.Outlined.Undo, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -3972,48 +3968,40 @@ fun YansRefundDialog(
         containerColor = Color(0xFF0B1B1C),
         shape = RoundedCornerShape(20.dp),
         modifier = Modifier
-            .border(1.2.dp, AlertRed.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+            .border(1.2.dp, Color(0xFFE289F2).copy(alpha = 0.6f), RoundedCornerShape(20.dp))
             .padding(4.dp),
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .background(AlertRed.copy(alpha = 0.15f), CircleShape)
-                        .border(1.dp, AlertRed.copy(alpha = 0.4f), CircleShape),
+                        .size(36.dp)
+                        .background(Color(0xFFE289F2).copy(alpha = 0.15f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Undo,
-                        contentDescription = "Icon Refund",
-                        tint = AlertRed,
-                        modifier = Modifier.size(22.dp)
+                        contentDescription = null,
+                        tint = Color(0xFFE289F2),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 Column {
                     Text("Proses Refund & Restock Stok", color = TextLight, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(invoice.invoiceNumber, color = AgedGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text("•", color = TextMuted, fontSize = 10.sp)
-                        Text(invoice.clientName, color = HighlightSoftCyan, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                    }
+                    Text("${invoice.invoiceNumber} (${invoice.clientName})", color = Color(0xFFE289F2), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Refund Mode Selection
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Pilih Opsi Otorisasi Refund:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+                    Text("Pilih Opsi Refund:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AgedGold)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -4022,17 +4010,17 @@ fun YansRefundDialog(
                             onClick = { refundMode = "FULL" },
                             modifier = Modifier.weight(1f),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (refundMode == "FULL") AlertRed.copy(alpha = 0.18f) else SurfaceDarkTealSurface
+                                containerColor = if (refundMode == "FULL") Color(0xFFE289F2).copy(alpha = 0.25f) else SurfaceDarkTealSurface
                             ),
-                            border = BorderStroke(1.2.dp, if (refundMode == "FULL") AlertRed else BorderGrey.copy(alpha = 0.6f)),
+                            border = BorderStroke(1.dp, if (refundMode == "FULL") Color(0xFFE289F2) else BorderGrey),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Column(
                                 modifier = Modifier.padding(10.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("Refund Total", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (refundMode == "FULL") AlertRed else TextLight)
-                                Text("Semua Item (${parsedItems.sumOf { it.quantity }} Pcs)", fontSize = 10.sp, color = TextMuted)
+                                Text("Refund Total", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (refundMode == "FULL") Color(0xFFE289F2) else TextLight)
+                                Text("Semua Item (${parsedItems.sumOf { it.quantity }} pcs)", fontSize = 10.sp, color = TextMuted)
                             }
                         }
 
@@ -4040,17 +4028,17 @@ fun YansRefundDialog(
                             onClick = { refundMode = "PARTIAL" },
                             modifier = Modifier.weight(1f),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (refundMode == "PARTIAL") StatusWarningGold.copy(alpha = 0.18f) else SurfaceDarkTealSurface
+                                containerColor = if (refundMode == "PARTIAL") Color(0xFFE289F2).copy(alpha = 0.25f) else SurfaceDarkTealSurface
                             ),
-                            border = BorderStroke(1.2.dp, if (refundMode == "PARTIAL") StatusWarningGold else BorderGrey.copy(alpha = 0.6f)),
+                            border = BorderStroke(1.dp, if (refundMode == "PARTIAL") Color(0xFFE289F2) else BorderGrey),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Column(
                                 modifier = Modifier.padding(10.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("Refund Sebagian", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (refundMode == "PARTIAL") StatusWarningGold else TextLight)
-                                Text("Matriks Item / Qty Pcs", fontSize = 10.sp, color = TextMuted)
+                                Text("Refund Sebagian", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (refundMode == "PARTIAL") Color(0xFFE289F2) else TextLight)
+                                Text("Pilih Item / Qty Pcs", fontSize = 10.sp, color = TextMuted)
                             }
                         }
                     }
@@ -4064,19 +4052,19 @@ fun YansRefundDialog(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Matriks Item Retur ke Gudang:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                            Text("Matriks Item Dikembalikan ke Gudang:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextLight)
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 TextButton(
                                     onClick = { parsedItems.indices.forEach { i -> refundQtyMap[i] = parsedItems[i].quantity } },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
-                                    Text("Semua Max", fontSize = 11.sp, color = AgedGold, fontWeight = FontWeight.Bold)
+                                    Text("Semua Max", fontSize = 10.sp, color = AgedGold, fontWeight = FontWeight.Bold)
                                 }
                                 TextButton(
                                     onClick = { parsedItems.indices.forEach { i -> refundQtyMap[i] = 0 } },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
-                                    Text("Reset (0)", fontSize = 11.sp, color = TextMuted)
+                                    Text("Reset (0)", fontSize = 10.sp, color = TextMuted)
                                 }
                             }
                         }
@@ -4087,7 +4075,7 @@ fun YansRefundDialog(
 
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
-                                border = BorderStroke(1.dp, if (currentQty > 0) AlertRed.copy(alpha = 0.6f) else BorderGrey.copy(alpha = 0.4f)),
+                                border = BorderStroke(0.8.dp, if (currentQty > 0) Color(0xFFE289F2).copy(alpha = 0.6f) else BorderGrey.copy(alpha = 0.4f)),
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -4110,8 +4098,7 @@ fun YansRefundDialog(
                                         )
                                         Surface(
                                             color = DeepTeal,
-                                            shape = RoundedCornerShape(6.dp),
-                                            border = BorderStroke(0.8.dp, AgedGold.copy(alpha = 0.3f))
+                                            shape = RoundedCornerShape(6.dp)
                                         ) {
                                             Text(
                                                 text = "Beli: ${item.quantity} Pcs",
@@ -4137,7 +4124,7 @@ fun YansRefundDialog(
                                             )
                                             Text(
                                                 text = if (currentQty > 0) "Refund: ${FormatUtils.formatRupiah(itemSubtotalRefund)}" else "Tanpa Retur",
-                                                fontSize = 11.sp,
+                                                fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (currentQty > 0) AlertRed else TextMuted
                                             )
@@ -4152,25 +4139,25 @@ fun YansRefundDialog(
                                                 onClick = { if (currentQty > 0) refundQtyMap[idx] = currentQty - 1 },
                                                 enabled = currentQty > 0,
                                                 modifier = Modifier
-                                                    .size(32.dp)
+                                                    .size(28.dp)
                                                     .background(
                                                         if (currentQty > 0) DeepTeal else DeepTeal.copy(alpha = 0.3f),
                                                         CircleShape
                                                     )
                                             ) {
-                                                Text("-", color = if (currentQty > 0) TextLight else TextMuted, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                                                Text("-", color = if (currentQty > 0) TextLight else TextMuted, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                             }
 
                                             Box(
                                                 modifier = Modifier
                                                     .background(ShadowBlack, RoundedCornerShape(6.dp))
-                                                    .border(1.dp, if (currentQty > 0) AlertRed else BorderGrey.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                                    .border(1.dp, if (currentQty > 0) Color(0xFFE289F2) else BorderGrey.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
                                                     .padding(horizontal = 8.dp, vertical = 4.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
                                                     text = "$currentQty Pcs",
-                                                    color = if (currentQty > 0) AlertRed else TextMuted,
+                                                    color = if (currentQty > 0) Color(0xFFE289F2) else TextMuted,
                                                     fontWeight = FontWeight.ExtraBold,
                                                     fontSize = 11.sp
                                                 )
@@ -4180,13 +4167,13 @@ fun YansRefundDialog(
                                                 onClick = { if (currentQty < item.quantity) refundQtyMap[idx] = currentQty + 1 },
                                                 enabled = currentQty < item.quantity,
                                                 modifier = Modifier
-                                                    .size(32.dp)
+                                                    .size(28.dp)
                                                     .background(
                                                         if (currentQty < item.quantity) DeepTeal else DeepTeal.copy(alpha = 0.3f),
                                                         CircleShape
                                                     )
                                             ) {
-                                                Text("+", color = if (currentQty < item.quantity) TextLight else TextMuted, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                                                Text("+", color = if (currentQty < item.quantity) TextLight else TextMuted, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                             }
 
                                             Box(
@@ -4194,12 +4181,11 @@ fun YansRefundDialog(
                                                     .padding(start = 2.dp)
                                                     .clip(RoundedCornerShape(6.dp))
                                                     .background(AgedGold.copy(alpha = 0.2f))
-                                                    .border(0.8.dp, AgedGold.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
                                                     .clickable { refundQtyMap[idx] = item.quantity }
-                                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                                    .padding(horizontal = 6.dp, vertical = 4.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Text("MAX", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+                                                Text("MAX", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = AgedGold)
                                             }
                                         }
                                     }
@@ -4211,8 +4197,8 @@ fun YansRefundDialog(
 
                 // Summary
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = DeepTeal.copy(alpha = 0.7f)),
-                    border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.4f)),
+                    colors = CardDefaults.cardColors(containerColor = DeepTeal.copy(alpha = 0.6f)),
+                    border = BorderStroke(1.dp, AgedGold.copy(alpha = 0.3f)),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -4225,21 +4211,17 @@ fun YansRefundDialog(
                             Text("Nilai Barang Retur:", fontSize = 11.sp, color = TextMuted)
                             Text(FormatUtils.formatRupiah(calculatedRefundValue), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextLight)
                         }
+                        Divider(color = BorderGrey.copy(alpha = 0.3f), thickness = 1.dp)
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Total Terbayar Pelanggan:", fontSize = 11.sp, color = TextMuted)
-                            Text(FormatUtils.formatRupiah(totalPaid), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = HighlightSoftCyan)
-                        }
-                        HorizontalDivider(color = BorderGrey.copy(alpha = 0.3f), thickness = 0.8.dp)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text("Pengeluaran Kas/Bank (Refund):", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AlertRed)
-                            Text(FormatUtils.formatRupiah(actualCashOutflow), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = AlertRed)
+                            Text(FormatUtils.formatRupiah(actualCashOutflow), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = AlertRed)
                         }
                     }
                 }
 
                 // Payment Account Selection
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Sumber Kas/Bank Pengeluaran Refund:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgedGold)
+                    Text("Sumber Kas/Bank Pengeluaran Refund:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AgedGold)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         accounts.forEach { (accKey, accLabel) ->
                             val isSelected = selectedAccount == accKey
@@ -4247,11 +4229,11 @@ fun YansRefundDialog(
                                 onClick = { selectedAccount = accKey },
                                 modifier = Modifier.weight(1f),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) AlertRed.copy(alpha = 0.18f) else SurfaceDarkTealSurface
+                                    containerColor = if (isSelected) Color(0xFFE289F2).copy(alpha = 0.2f) else SurfaceDarkTealSurface
                                 ),
                                 border = BorderStroke(
-                                    1.2.dp,
-                                    if (isSelected) AlertRed else BorderGrey.copy(alpha = 0.6f)
+                                    1.dp,
+                                    if (isSelected) Color(0xFFE289F2) else BorderGrey
                                 ),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
@@ -4265,7 +4247,7 @@ fun YansRefundDialog(
                                         text = accLabel,
                                         fontSize = 11.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) AlertRed else TextLight,
+                                        color = if (isSelected) Color(0xFFE289F2) else TextLight,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         maxLines = 1
                                     )
@@ -4277,14 +4259,14 @@ fun YansRefundDialog(
 
                 // Reason / Notes
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Alasan / Catatan Otorisasi Refund:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                    Text("Alasan / Catatan Refund:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
                     OutlinedTextField(
                         value = reason,
                         onValueChange = { reason = it },
                         placeholder = { Text("Misal: Retur barang / Klaim cacat produksi / Salah ukuran", color = TextMuted, fontSize = 12.sp) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AlertRed,
+                            focusedBorderColor = Color(0xFFE289F2),
                             unfocusedBorderColor = BorderGrey,
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White
@@ -4296,7 +4278,7 @@ fun YansRefundDialog(
                 // Restore stock switch
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SurfaceDarkTealSurface),
-                    border = BorderStroke(1.dp, BorderGrey.copy(alpha = 0.6f)),
+                    border = BorderStroke(1.dp, BorderGrey),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -4316,17 +4298,15 @@ fun YansRefundDialog(
                             onCheckedChange = { restoreStock = it },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = ShadowBlack,
-                                checkedTrackColor = AlertGreen,
-                                uncheckedThumbColor = TextMuted,
-                                uncheckedTrackColor = DeepTeal
+                                checkedTrackColor = Color(0xFFE289F2)
                             )
                         )
                     }
                 }
 
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = AlertRed.copy(alpha = 0.12f)),
-                    border = BorderStroke(0.8.dp, AlertRed.copy(alpha = 0.35f)),
+                    colors = CardDefaults.cardColors(containerColor = AlertRed.copy(alpha = 0.1f)),
+                    border = BorderStroke(0.8.dp, AlertRed.copy(alpha = 0.3f)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(
@@ -4352,7 +4332,7 @@ fun YansRefundDialog(
                     onConfirmRefund(reason, selectedAccount, restoreStock, mapToPass)
                 },
                 enabled = calculatedRefundPcs > 0,
-                colors = ButtonDefaults.buttonColors(containerColor = AlertRed, contentColor = Color.White),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE289F2), contentColor = ShadowBlack),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Icon(imageVector = Icons.Outlined.Undo, contentDescription = null, modifier = Modifier.size(16.dp))

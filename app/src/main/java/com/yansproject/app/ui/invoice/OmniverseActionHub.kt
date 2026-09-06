@@ -349,7 +349,6 @@ private suspend fun printThermalBluetoothBackground(context: Context, invoiceNum
             ExtendedThermalPrinterManager.printInvoiceBluetooth(
                 context = context,
                 deviceAddress = "00:11:22:33:44:55",
-                invoiceNumber = invoiceNumber,
                 projectName = name,
                 clientName = client,
                 totalAmount = total,

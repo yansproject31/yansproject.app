@@ -15,7 +15,7 @@
 ### 1.1 Standard Identitas Resmi (Official Identity Data)
 Setiap dokumen, invoice, cetak thermal, PDF/PNG export, footer WhatsApp, dan layar pengaturan **WAJIB MENGGUNAKAN DATA RESMI BERIKUT**:
 - **Company Name**: `YANSPROJECT.ID`
-- **Support Email**: `yansproject.id31@gmail.com`
+- **Support Email**: `yansart31@gmail.com`
 - **Support WhatsApp**: `+62 877-7739-8813`
 - **Address / Alamat**: `Tangerang, Banten`
 - **Tagline**: `Luxury Visual Identity & Custom Merch`

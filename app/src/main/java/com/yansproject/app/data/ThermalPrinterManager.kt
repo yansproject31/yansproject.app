@@ -5,9 +5,6 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.io.OutputStream
 import java.nio.charset.Charset
 import java.text.SimpleDateFormat
@@ -62,29 +59,15 @@ class ThermalPrinterManager(private val context: Context) {
     /**
      * Establishes RFCOMM connection and sends compiled ESC/POS receipt data bytes.
      */
-    suspend fun printReceipt(device: BluetoothDevice, invoice: OperationalInvoice, items: List<InvoiceItemDetail>): Boolean = withContext(Dispatchers.IO) {
+    fun printReceipt(device: BluetoothDevice, invoice: OperationalInvoice, items: List<InvoiceItemDetail>): Boolean {
         var socket: BluetoothSocket? = null
         var outputStream: OutputStream? = null
-        return@withContext try {
-            val connectSuccess = withTimeoutOrNull(10000L) {
-                try {
-                    socket = device.createRfcommSocketToServiceRecord(sPP_UUID)
-                    bluetoothAdapter?.cancelDiscovery()
-                    socket?.connect()
-                    true
-                } catch (e: Exception) {
-                    Log.e("ThermalPrinterManager", "RFCOMM connect failed: ${e.message}", e)
-                    false
-                }
-            }
+        return try {
+            socket = device.createRfcommSocketToServiceRecord(sPP_UUID)
+            bluetoothAdapter?.cancelDiscovery()
+            socket.connect()
 
-            if (connectSuccess != true || socket?.isConnected != true) {
-                try { socket?.close() } catch (_: Exception) {}
-                Log.e("ThermalPrinterManager", "Printer connection timeout (10000ms)")
-                return@withContext false
-            }
-
-            outputStream = socket?.outputStream ?: return@withContext false
+            outputStream = socket.outputStream
             val receiptBytes = compileReceiptBytes(invoice, items)
             outputStream.write(receiptBytes)
             outputStream.flush()

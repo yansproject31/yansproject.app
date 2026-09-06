@@ -33,12 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.yansproject.app.data.FirebaseSyncManager
 import com.yansproject.app.data.UserRole
+import com.yansproject.app.ui.navigation.Routes
 import com.yansproject.app.ui.*
 import com.yansproject.app.ui.theme.*
 
@@ -66,7 +66,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
               }
               ctx as? MainActivity
           }
-          val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+          val isLoggedIn by viewModel.isLoggedIn.collectAsState()
           LaunchedEffect(isLoggedIn, activity?.intent) {
             if (isLoggedIn && activity != null) {
               activity.intent.getStringExtra("TARGET_TAB")?.let { target ->
@@ -82,8 +82,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
           }
 
           LaunchedEffect(Unit) {
-            val db = com.yansproject.app.data.AppDatabase.getDatabase(context)
-            com.yansproject.app.data.AppStartupManager.getInstance(context).executeStartupSequence(db)
+            kotlinx.coroutines.delay(1500) // 1.5 seconds splash duration
             showSplash = false
           }
 
@@ -95,8 +94,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             if (isSplash) {
               SplashScreen()
             } else {
-              val isLoggedInState by viewModel.isLoggedIn.collectAsStateWithLifecycle()
-              val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
+              val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+              val currentTab by viewModel.currentTab.collectAsState()
 
               val securityPrefs = remember { context.getSharedPreferences("yans_security_prefs", android.content.Context.MODE_PRIVATE) }
               val appLockEnabled = remember { securityPrefs.getBoolean("app_lock_enabled", false) || securityPrefs.getBoolean("pin_lock_enabled", false) }
@@ -114,7 +113,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
               }
 
               Crossfade(
-                targetState = isLoggedInState,
+                targetState = isLoggedIn,
                 animationSpec = tween(400),
                 modifier = Modifier.fillMaxSize(),
                 label = "LoginTransition"
@@ -209,9 +208,9 @@ fun MainAppContainer(
   var showGlobalSearchDialog by remember { mutableStateOf(false) }
   var showLogoutConfirmDialog by remember { mutableStateOf(false) }
   var showNotificationDialog by remember { mutableStateOf(false) }
-  val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+  val notifications by viewModel.notifications.collectAsState()
   val unreadCount = remember(notifications) { notifications.count { !it.isRead } }
-  val currentUser by FirebaseSyncManager.currentUser.collectAsStateWithLifecycle()
+  val currentUser by FirebaseSyncManager.currentUser.collectAsState()
   val userRole = currentUser?.role ?: UserRole.MEMBER
   val isOwner = userRole.hasFullERPChainAccess()
   val canAccessDashboard = userRole.canAccessFinancials()
@@ -281,12 +280,12 @@ fun MainAppContainer(
       val currentRoute = navController.currentBackStackEntry?.destination?.route
 
       val isAlreadyInTab = when (currentTab) {
-          AppTab.SETTINGS -> currentRoute == "settings" || currentRoute?.startsWith("settings") == true || currentRoute == "admin_profile" || currentRoute == "app_settings" || currentRoute == "app_info" || currentRoute == "system_health" || currentRoute == "telemetry" || currentRoute == "security_log"
+          AppTab.SETTINGS -> currentRoute == Routes.Settings || currentRoute?.startsWith("settings") == true || currentRoute == Routes.AdminProfile || currentRoute == Routes.AppSettings || currentRoute == Routes.AppInfo || currentRoute == Routes.SystemHealth || currentRoute == Routes.Telemetry || currentRoute == Routes.SecurityLog
           AppTab.DASHBOARD -> currentRoute == Screen.Dashboard.route
-          AppTab.PROJECT -> currentRoute == Screen.Project.route || currentRoute == "add_project" || currentRoute == "custom_project_main" || currentRoute == "custom_project_create" || currentRoute?.startsWith("custom_project_detail") == true
-          AppTab.STOCK -> currentRoute == Screen.Stock.route || currentRoute == "add_stock" || currentRoute == "instant_checkout" || currentRoute == "luxury_cart" || currentRoute == "ajib_return"
-          AppTab.INVOICE -> currentRoute == Screen.Invoice.route || currentRoute == "add_invoice"
-          AppTab.RIWAYAT -> currentRoute == Screen.Riwayat.route || currentRoute == "global_ledger" || currentRoute == "income_ledger" || currentRoute == "expense_ledger"
+          AppTab.PROJECT -> currentRoute == Screen.Project.route || currentRoute == Routes.AddProject || currentRoute == Routes.CustomProjectMain || currentRoute == "add_project" || currentRoute == "custom_project_create" || currentRoute?.startsWith("custom_project_detail") == true
+          AppTab.STOCK -> currentRoute == Screen.Stock.route || currentRoute == Routes.AddStock || currentRoute == Routes.InstantCheckout || currentRoute == Routes.LuxuryCart || currentRoute == Routes.AjibReturn || currentRoute == "add_stock" || currentRoute == "ajib_return"
+          AppTab.INVOICE -> currentRoute == Screen.Invoice.route || currentRoute == Routes.AddInvoice || currentRoute == "add_invoice"
+          AppTab.RIWAYAT -> currentRoute == Screen.Riwayat.route || currentRoute == Routes.GlobalLedger || currentRoute == Routes.IncomeLedger || currentRoute == Routes.ExpenseLedger || currentRoute == "global_ledger" || currentRoute == "income_ledger" || currentRoute == "expense_ledger"
           AppTab.KITAB -> currentRoute == Screen.KitabDigital.route
       }
 
@@ -311,12 +310,12 @@ fun MainAppContainer(
           val route = destination.route ?: return@OnDestinationChangedListener
           val mappedTab = when {
               route == Screen.Dashboard.route -> AppTab.DASHBOARD
-              route == Screen.Project.route -> AppTab.PROJECT
-              route == Screen.Stock.route -> AppTab.STOCK
-              route == Screen.Invoice.route -> AppTab.INVOICE
-              route == Screen.Riwayat.route -> AppTab.RIWAYAT
+              route == Screen.Project.route || route == Routes.AddProject || route == Routes.CustomProjectMain || route == "add_project" || route == "custom_project_create" || route.startsWith("custom_project_detail") -> AppTab.PROJECT
+              route == Screen.Stock.route || route == Routes.AddStock || route == Routes.InstantCheckout || route == Routes.LuxuryCart || route == Routes.AjibReturn || route == "add_stock" || route == "ajib_return" -> AppTab.STOCK
+              route == Screen.Invoice.route || route == Routes.AddInvoice || route == "add_invoice" -> AppTab.INVOICE
+              route == Screen.Riwayat.route || route == Routes.GlobalLedger || route == Routes.IncomeLedger || route == Routes.ExpenseLedger || route == "global_ledger" || route == "income_ledger" || route == "expense_ledger" -> AppTab.RIWAYAT
               route == Screen.KitabDigital.route -> AppTab.KITAB
-              route == "settings" || route.startsWith("settings/") || route.startsWith("settings_") -> AppTab.SETTINGS
+              route == Routes.Settings || route.startsWith("settings") || route == Routes.AdminProfile || route == Routes.AppSettings || route == Routes.AppInfo || route == Routes.SystemHealth || route == Routes.Telemetry || route == Routes.SecurityLog -> AppTab.SETTINGS
               else -> null
           }
           if (mappedTab != null && mappedTab != viewModel.currentTab.value) {
@@ -443,16 +442,16 @@ fun GlobalSearchDialog(
   var query by remember { mutableStateOf("") }
   var searchTabMode by remember { mutableStateOf(0) } // 0 = Global (Lokal), 1 = Produksi (Firestore Snapshot)
 
-  val catalogs by viewModel.allCatalogs.collectAsStateWithLifecycle()
-  val projects by viewModel.allProjects.collectAsStateWithLifecycle()
-  val invoices by viewModel.allInvoices.collectAsStateWithLifecycle()
+  val catalogs by viewModel.allCatalogs.collectAsState()
+  val projects by viewModel.allProjects.collectAsState()
+  val invoices by viewModel.allInvoices.collectAsState()
 
   // Firestore Search States
-  val prodSeries by viewModel.productionFilterSeries.collectAsStateWithLifecycle()
-  val prodCode by viewModel.productionFilterCode.collectAsStateWithLifecycle()
-  val prodColor by viewModel.productionFilterColor.collectAsStateWithLifecycle()
-  val prodStatus by viewModel.productionFilterStatus.collectAsStateWithLifecycle()
-  val prodResults by viewModel.productionSearchResults.collectAsStateWithLifecycle()
+  val prodSeries by viewModel.productionFilterSeries.collectAsState()
+  val prodCode by viewModel.productionFilterCode.collectAsState()
+  val prodColor by viewModel.productionFilterColor.collectAsState()
+  val prodStatus by viewModel.productionFilterStatus.collectAsState()
+  val prodResults by viewModel.productionSearchResults.collectAsState()
 
   Dialog(
     onDismissRequest = onDismiss,

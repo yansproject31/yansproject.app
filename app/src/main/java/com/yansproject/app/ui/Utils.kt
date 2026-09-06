@@ -9,7 +9,6 @@ import com.yansproject.app.data.InvoiceItemDetail
 import com.yansproject.app.data.ProjectCustom
 import com.yansproject.app.util.BitmapUtils
 import com.yansproject.app.util.FileUtils
-import com.yansproject.app.util.MirrorResult
 import com.yansproject.app.util.PdfUtils
 import com.yansproject.app.util.ShareUtils
 import java.io.File
@@ -343,6 +342,24 @@ object FormatUtils {
         return notes.replace(Regex("\\[PAY_REF:[^\\]]+\\]"), "").replace("  ", " ").trim()
     }
 
+    fun isInvoiceLinkedPaymentInflow(category: String?, notes: String?, transactionNumber: String? = null): Boolean {
+        val cat = (category ?: "").lowercase().trim()
+        val note = (notes ?: "").lowercase().trim()
+        val tx = (transactionNumber ?: "").lowercase().trim()
+        return cat.contains("pembayaran customer") ||
+               cat.contains("pembayaran invoice") ||
+               cat.contains("penerimaan invoice") ||
+               cat.contains("angsuran invoice") ||
+               cat.contains("angsuran project") ||
+               note.contains("[pay_") ||
+               note.contains("pembayaran invoice") ||
+               note.contains("pelunasan invoice") ||
+               note.contains("tagihan nomor") ||
+               note.contains("invoice #") ||
+               note.contains("pembayaran cicilan") ||
+               tx.startsWith("pay-")
+    }
+
     fun formatRupiah(amount: Double): String {
         val localeID = Locale("in", "ID")
         val format = NumberFormat.getCurrencyInstance(localeID)
@@ -353,6 +370,24 @@ object FormatUtils {
     fun formatDate(timestamp: Long): String {
         if (timestamp <= 0) return "-"
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale("id", "ID"))
+        return sdf.format(Date(timestamp))
+    }
+
+    fun formatCleanDate(timestamp: Long): String {
+        if (timestamp <= 0) return "-"
+        val sdf = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+        return sdf.format(Date(timestamp))
+    }
+
+    fun formatShortDate(timestamp: Long): String {
+        if (timestamp <= 0) return "-"
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale("id", "ID"))
+        return sdf.format(Date(timestamp))
+    }
+
+    fun formatMonthYear(timestamp: Long): String {
+        if (timestamp <= 0) return "-"
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale("id", "ID"))
         return sdf.format(Date(timestamp))
     }
 
@@ -447,8 +482,7 @@ object DocumentExporter {
     }
 
     fun mirrorToDownloads(context: Context, file: File, subFolder: String = "Export"): File? {
-        val result = FileUtils.mirrorToDownloads(context, file, subFolder)
-        return if (result != MirrorResult.FAILED) file else null
+        return FileUtils.mirrorToDownloads(context, file, subFolder)
     }
 
     fun openFolder(context: Context, folder: File) {

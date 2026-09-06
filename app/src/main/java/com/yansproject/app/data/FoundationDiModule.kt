@@ -32,12 +32,6 @@ object FoundationDiModule {
 
     @Provides
     @Singleton
-    fun provideFirestoreDependency(@ApplicationContext context: Context): FirebaseDependency<com.google.firebase.firestore.FirebaseFirestore> {
-        return AppModule.getFirestoreDependency(context)
-    }
-
-    @Provides
-    @Singleton
     fun provideFirebaseFirestore(@ApplicationContext context: Context): com.google.firebase.firestore.FirebaseFirestore? {
         return AppModule.provideFirestore(context)
     }

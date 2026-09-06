@@ -711,8 +711,8 @@ fun LuxuryCartScreen(
                                             
                                             // Sleeve Groups
                                             groupedBySleeve.forEach { (sleeve, sleeveItems) ->
-                                                val sampleItem = sleeveItems.firstOrNull()
-                                                val matchingStockMaster = if (sampleItem != null) stockMasterList.find { it.id_varian == sampleItem.varianId } else null
+                                                val sampleItem = sleeveItems.first()
+                                                val matchingStockMaster = stockMasterList.find { it.id_varian == sampleItem.varianId }
                                                 
                                                 Spacer(modifier = Modifier.height(14.dp))
                                                 Row(
@@ -758,9 +758,9 @@ fun LuxuryCartScreen(
                                                                         SizeGridCard(
                                                                             size = size,
                                                                             sleeve = sleeve,
-                                                                            catalogId = sampleItem?.catalogId ?: 0,
+                                                                            catalogId = sampleItem.catalogId,
                                                                             catalogName = catalogName,
-                                                                            varianId = sampleItem?.varianId ?: 0,
+                                                                            varianId = sampleItem.varianId,
                                                                             varianName = varianName,
                                                                             sleeveItems = sleeveItems,
                                                                             stockMaster = matchingStockMaster,

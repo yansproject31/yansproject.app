@@ -31,7 +31,6 @@ class NotificationDispatcher private constructor(private val context: Context) {
     private val MAX_PERSISTED_IDS = 200
 
     private val prefs by lazy { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
-    private val dedupeStore by lazy { NotificationDedupeStore.getInstance(context) }
     private val deliveredIds = ConcurrentHashMap.newKeySet<String>()
     private val failureCounter = ConcurrentHashMap<String, AtomicInteger>()
 
@@ -49,9 +48,8 @@ class NotificationDispatcher private constructor(private val context: Context) {
         }
     }
 
-    private fun persistDeliveredId(id: String, recipientUid: String = "ALL") {
+    private fun persistDeliveredId(id: String) {
         deliveredIds.add(id)
-        dedupeStore.markDelivered(notificationEventId = id, recipientUid = recipientUid)
         try {
             val currentSet = prefs.getStringSet(KEY_DELIVERED_IDS, emptySet())?.toMutableSet() ?: mutableSetOf()
             currentSet.add(id)
@@ -80,12 +78,12 @@ class NotificationDispatcher private constructor(private val context: Context) {
         }
     }
 
-    fun isDelivered(id: String, recipientUid: String = "ALL"): Boolean {
-        return deliveredIds.contains(id) || dedupeStore.isDelivered(id, recipientUid)
+    fun isDelivered(id: String): Boolean {
+        return deliveredIds.contains(id)
     }
 
-    fun markDelivered(id: String, recipientUid: String = "ALL") {
-        persistDeliveredId(id, recipientUid)
+    fun markDelivered(id: String) {
+        persistDeliveredId(id)
     }
 
     /**
@@ -100,8 +98,8 @@ class NotificationDispatcher private constructor(private val context: Context) {
         roleTarget: String = "ALL",
         userId: String = "ALL"
     ): DispatchResult {
-        if (isDelivered(id, userId)) {
-            Log.w(TAG, "Duplicate local notification skipped (ID: $id, user: $userId)")
+        if (deliveredIds.contains(id)) {
+            Log.w(TAG, "Duplicate local notification skipped (ID: $id)")
             return DispatchResult(id = id, success = true, isDuplicate = true, type = NotificationType.Local(id.hashCode()))
         }
 
@@ -116,7 +114,7 @@ class NotificationDispatcher private constructor(private val context: Context) {
                 roleTarget = roleTarget,
                 userId = userId
             )
-            persistDeliveredId(id, userId)
+            persistDeliveredId(id)
             Log.i(TAG, "Local notification dispatched successfully [ID: $id, Category: $category]")
             DispatchResult(id = id, success = true, isDuplicate = false, type = NotificationType.Local(id.hashCode()))
         } catch (e: Exception) {
@@ -133,9 +131,8 @@ class NotificationDispatcher private constructor(private val context: Context) {
         messageId: String,
         payloadData: Map<String, String>
     ): DispatchResult {
-        val targetUserId = payloadData["userId"] ?: payloadData["user_id"] ?: "ALL"
-        if (isDelivered(messageId, targetUserId)) {
-            Log.w(TAG, "Duplicate remote push notification payload skipped (MessageID: $messageId, user: $targetUserId)")
+        if (deliveredIds.contains(messageId)) {
+            Log.w(TAG, "Duplicate remote push notification payload skipped (MessageID: $messageId)")
             return DispatchResult(id = messageId, success = true, isDuplicate = true, type = NotificationType.RemotePush(messageId))
         }
 
@@ -145,6 +142,7 @@ class NotificationDispatcher private constructor(private val context: Context) {
             val category = payloadData["category"] ?: "Sistem"
             val targetTab = payloadData["targetTab"] ?: payloadData["target_tab"] ?: "RIWAYAT"
             val roleTarget = payloadData["roleTarget"] ?: payloadData["role_target"] ?: "ALL"
+            val userId = payloadData["userId"] ?: payloadData["user_id"] ?: "ALL"
             val senderRole = payloadData["senderRole"] ?: payloadData["sender_role"] ?: ""
 
             NotificationHandler.processAndDispatchNotification(
@@ -155,10 +153,10 @@ class NotificationDispatcher private constructor(private val context: Context) {
                 category = category,
                 targetTab = targetTab,
                 roleTarget = roleTarget,
-                userId = targetUserId,
+                userId = userId,
                 senderRole = senderRole
             )
-            persistDeliveredId(messageId, targetUserId)
+            persistDeliveredId(messageId)
             Log.i(TAG, "Remote push notification processed successfully [MessageID: $messageId]")
             DispatchResult(id = messageId, success = true, isDuplicate = false, type = NotificationType.RemotePush(messageId))
         } catch (e: Exception) {

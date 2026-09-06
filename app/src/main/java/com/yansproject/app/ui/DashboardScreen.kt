@@ -873,21 +873,17 @@ fun DashboardScreen(
     var selectedInvoiceForDetail by remember { mutableStateOf<Invoice?>(null) }
     var isRecentActivitiesVisible by remember { mutableStateOf(true) }
 
-    val importCoroutineScope = rememberCoroutineScope()
-
     // CSV Import Launchers
     val importStockLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
         onResult = { uri ->
             if (uri != null) {
-                importCoroutineScope.launch {
-                    DataImportExportHelper.importStockFromCsv(context, uri, viewModel) { count ->
-                        if (count > 0) {
-                            Toast.makeText(context, "Berhasil mengimpor $count data stok!", Toast.LENGTH_LONG).show()
-                            viewModel.addAuditLog("Import Stock", "Berhasil mengimpor $count data stok via CSV.")
-                        } else {
-                            Toast.makeText(context, "Gagal mengimpor data stok!", Toast.LENGTH_LONG).show()
-                        }
+                DataImportExportHelper.importStockFromCsv(context, uri, viewModel) { count ->
+                    if (count > 0) {
+                        Toast.makeText(context, "Berhasil mengimpor $count data stok!", Toast.LENGTH_LONG).show()
+                        viewModel.addAuditLog("Import Stock", "Berhasil mengimpor $count data stok via CSV.")
+                    } else {
+                        Toast.makeText(context, "Gagal mengimpor data stok!", Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -898,14 +894,12 @@ fun DashboardScreen(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
         onResult = { uri ->
             if (uri != null) {
-                importCoroutineScope.launch {
-                    DataImportExportHelper.importCatalogFromCsv(context, uri, viewModel) { count ->
-                        if (count > 0) {
-                            Toast.makeText(context, "Berhasil mengimpor $count katalog baru!", Toast.LENGTH_LONG).show()
-                            viewModel.addAuditLog("Import Catalog", "Berhasil mengimpor $count data katalog via CSV.")
-                        } else {
-                            Toast.makeText(context, "Gagal mengimpor data katalog!", Toast.LENGTH_LONG).show()
-                        }
+                DataImportExportHelper.importCatalogFromCsv(context, uri, viewModel) { count ->
+                    if (count > 0) {
+                        Toast.makeText(context, "Berhasil mengimpor $count katalog baru!", Toast.LENGTH_LONG).show()
+                        viewModel.addAuditLog("Import Catalog", "Berhasil mengimpor $count data katalog via CSV.")
+                    } else {
+                        Toast.makeText(context, "Gagal mengimpor data katalog!", Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -916,14 +910,12 @@ fun DashboardScreen(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
         onResult = { uri ->
             if (uri != null) {
-                importCoroutineScope.launch {
-                    DataImportExportHelper.importCustomerFromCsv(context, uri, viewModel) { count ->
-                        if (count > 0) {
-                            Toast.makeText(context, "Berhasil mengimpor $count customer baru!", Toast.LENGTH_LONG).show()
-                            viewModel.addAuditLog("Import Customer", "Berhasil mengimpor $count data pelanggan via CSV.")
-                        } else {
-                            Toast.makeText(context, "Gagal mengimpor data pelanggan!", Toast.LENGTH_LONG).show()
-                        }
+                DataImportExportHelper.importCustomerFromCsv(context, uri, viewModel) { count ->
+                    if (count > 0) {
+                        Toast.makeText(context, "Berhasil mengimpor $count customer baru!", Toast.LENGTH_LONG).show()
+                        viewModel.addAuditLog("Import Customer", "Berhasil mengimpor $count data pelanggan via CSV.")
+                    } else {
+                        Toast.makeText(context, "Gagal mengimpor data pelanggan!", Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -1126,8 +1118,7 @@ fun DashboardScreen(
         val orderPaid = filteredStandaloneOrders.sumOf { getEffectiveOrderPaid(it) }
         val salesInflows = filteredInflows.filter { 
             !it.category.contains("Modal", ignoreCase = true) &&
-            !it.notes.contains("[PAY_") &&
-            !it.notes.contains("Pembayaran Invoice")
+            !FormatUtils.isInvoiceLinkedPaymentInflow(it.category, it.notes, it.transactionNumber)
         }.sumOf { it.amount }
         invoicePaid + orderPaid + salesInflows
     }
@@ -1137,9 +1128,7 @@ fun DashboardScreen(
         val invoicePaid = filteredInvoices.sumOf { calculateInvoicePaid(it, allPayments) }
         val orderPaid = filteredStandaloneOrders.sumOf { getEffectiveOrderPaid(it) }
         val nonInvoiceInflows = filteredInflows.filter { 
-            !it.category.contains("Pembayaran Customer", ignoreCase = true) &&
-            !it.notes.contains("[PAY_") &&
-            !it.notes.contains("Pembayaran Invoice")
+            !FormatUtils.isInvoiceLinkedPaymentInflow(it.category, it.notes, it.transactionNumber)
         }.sumOf { it.amount }
         invoicePaid + orderPaid + nonInvoiceInflows
     }
@@ -1169,9 +1158,7 @@ fun DashboardScreen(
     val allTimeInflowsAmount = remember(inflows) { 
         inflows.filter { 
             !it.isDeleted && 
-            !it.category.contains("Pembayaran Customer", ignoreCase = true) &&
-            !it.notes.contains("[PAY_") &&
-            !it.notes.contains("Pembayaran Invoice")
+            !FormatUtils.isInvoiceLinkedPaymentInflow(it.category, it.notes, it.transactionNumber)
         }.sumOf { it.amount } 
     }
     val allTimeExpensesAmount = remember(expenses) { expenses.filter { !it.isDeleted }.sumOf { it.amount } }
@@ -1184,9 +1171,7 @@ fun DashboardScreen(
         inflows.filter { 
             !it.isDeleted && 
             !it.category.contains("Modal", ignoreCase = true) &&
-            !it.category.contains("Pembayaran Customer", ignoreCase = true) &&
-            !it.notes.contains("[PAY_") &&
-            !it.notes.contains("Pembayaran Invoice")
+            !FormatUtils.isInvoiceLinkedPaymentInflow(it.category, it.notes, it.transactionNumber)
         }.sumOf { it.amount }
     }
     val allTimeNetProfit = (allTimeInvoicesPaid + allTimeStandaloneOrdersPaid + allTimeNonModalInflows) - allTimeExpensesAmount
@@ -1205,8 +1190,23 @@ fun DashboardScreen(
         }
     }
     val nilaiTotalStock = remember(inventorySummaries, stockItems, masterStocks) {
+        val summaryNilai = inventorySummaries.sumOf { it.nilaiPersediaan }
         val context = com.yansproject.app.YansApplication.instance
-        com.yansproject.app.data.DashboardAggregator.computeStockValue(context, masterStocks, inventorySummaries, stockItems)
+        val defaultHppPendek = AppSettings.getAjibqobulHppPendek(context)
+        val masterNilai = masterStocks.filter { !it.isDeleted }.sumOf { stock ->
+            val hppP = if (stock.hpp_pendek > 0.0) stock.hpp_pendek else defaultHppPendek
+            val hppL = if (stock.hpp_panjang > 0.0) stock.hpp_panjang else defaultHppPendek
+            val qtyP = stock.xs_pendek + stock.s_pendek + stock.m_pendek + stock.l_pendek + stock.xl_pendek + stock.xxl_pendek + stock.three_xl_pendek + stock.four_xl_pendek
+            val qtyL = stock.xs_panjang + stock.s_panjang + stock.m_panjang + stock.l_panjang + stock.xl_panjang + stock.xxl_panjang + stock.three_xl_panjang + stock.four_xl_panjang
+            (qtyP * hppP) + (qtyL * hppL)
+        }
+        if (summaryNilai > 0 || inventorySummaries.isNotEmpty()) {
+            summaryNilai
+        } else if (masterNilai > 0.0) {
+            masterNilai
+        } else {
+            stockItems.filter { !it.isDeleted }.sumOf { (it.stockCount * it.costPrice) }
+        }
     }
 
     // 8. Piutang Dagang & Invoice Unpaid (Hanya invoice aktif yang belum lunas)
@@ -3398,9 +3398,7 @@ fun DashboardRingkasanKeuanganCard(
             !it.isDeleted && 
             !it.category.contains("Modal", ignoreCase = true) &&
             !it.category.contains("Lainnya", ignoreCase = true) &&
-            !it.category.contains("Pembayaran Customer", ignoreCase = true) &&
-            !it.notes.contains("[PAY_") &&
-            !it.notes.contains("Pembayaran Invoice")
+            !FormatUtils.isInvoiceLinkedPaymentInflow(it.category, it.notes, it.transactionNumber)
         }.sumOf { it.amount }
         invoicePaid + orderPaid + manualSalesInflows
     }
@@ -4056,12 +4054,8 @@ fun RiwayatProduksiScreen(
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         IconButton(
                                             onClick = {
-                                                try {
-                                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${proj.clientPhone}"))
-                                                    context.startActivity(intent)
-                                                } catch (e: Exception) {
-                                                    Toast.makeText(context, "Tidak dapat membuka panggilan telepon", Toast.LENGTH_SHORT).show()
-                                                }
+                                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${proj.clientPhone}"))
+                                                context.startActivity(intent)
                                             },
                                             modifier = Modifier
                                                 .size(36.dp)
@@ -4077,13 +4071,9 @@ fun RiwayatProduksiScreen(
                                         }
                                         IconButton(
                                             onClick = {
-                                                try {
-                                                    val cleanPhone = proj.clientPhone.replace("+", "").replace(" ", "").replace("-", "")
-                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone"))
-                                                    context.startActivity(intent)
-                                                } catch (e: Exception) {
-                                                    Toast.makeText(context, "Aplikasi WhatsApp tidak ditemukan", Toast.LENGTH_SHORT).show()
-                                                }
+                                                val cleanPhone = proj.clientPhone.replace("+", "").replace(" ", "").replace("-", "")
+                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone"))
+                                                context.startActivity(intent)
                                             },
                                             modifier = Modifier
                                                 .size(36.dp)

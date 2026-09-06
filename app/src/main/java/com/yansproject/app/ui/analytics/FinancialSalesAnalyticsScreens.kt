@@ -42,6 +42,7 @@ import com.yansproject.app.data.MasterVarianWarna
 import com.yansproject.app.data.OrderHistory
 import com.yansproject.app.data.StockItem
 import com.yansproject.app.ui.MainViewModel
+import com.yansproject.app.ui.FormatUtils
 import com.yansproject.app.ui.components.*
 import com.yansproject.app.ui.calculateInvoicePaid
 import com.yansproject.app.ui.calculateInvoiceSisaPiutang
@@ -161,9 +162,7 @@ fun AnalisisKeuanganGlobalScreen(
     }
     val directInflow = remember(filteredInflows) {
         filteredInflows.filter {
-            !(it.category ?: "").contains("Pembayaran Customer", ignoreCase = true) &&
-            !(it.notes ?: "").contains("[PAY_") &&
-            !(it.notes ?: "").contains("Pembayaran Invoice")
+            !FormatUtils.isInvoiceLinkedPaymentInflow(it.category, it.notes, it.transactionNumber)
         }.sumOf { it.amount }
     }
 
@@ -186,9 +185,7 @@ fun AnalisisKeuanganGlobalScreen(
     val allTimeDirectInflow = remember(inflows) {
         inflows.filter {
             !it.isDeleted &&
-            !(it.category ?: "").contains("Pembayaran Customer", ignoreCase = true) &&
-            !(it.notes ?: "").contains("[PAY_") &&
-            !(it.notes ?: "").contains("Pembayaran Invoice")
+            !FormatUtils.isInvoiceLinkedPaymentInflow(it.category, it.notes, it.transactionNumber)
         }.sumOf { it.amount }
     }
     val allTimeExpense = remember(expenses) { expenses.filter { !it.isDeleted }.sumOf { it.amount } }

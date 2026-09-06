@@ -87,18 +87,21 @@ fun LoginScreen(
     // Automatic trigger for biometric authentication on launch if switch is ON
     LaunchedEffect(Unit) {
         if (biometricEnabled && isBiometricSupported && savedEmail != null) {
-            com.yansproject.app.ui.security.BiometricAuthManager.authenticateWithBiometrics(
-                context = context,
-                onSuccess = {
-                    viewModel.loginWithBiometrics(savedEmail) {
-                        onLoginSuccess()
+            val cred = AppSettings.getLocalUserCredential(context, savedEmail)
+            if (cred != null) {
+                com.yansproject.app.ui.security.BiometricAuthManager.authenticateWithBiometrics(
+                    context = context,
+                    onSuccess = {
+                        viewModel.login(savedEmail, cred.passwordOrPin) {
+                            onLoginSuccess()
+                        }
+                    },
+                    onError = { err ->
+                        // Gracefully fail and show traditional password form
+                        Toast.makeText(context, "Masuk menggunakan Username & Password Anda.", Toast.LENGTH_SHORT).show()
                     }
-                },
-                onError = { err ->
-                    // Gracefully fail and show traditional password form
-                    Toast.makeText(context, "Masuk menggunakan Username & Password Anda.", Toast.LENGTH_SHORT).show()
-                }
-            )
+                )
+            }
         }
     }
 
@@ -223,7 +226,31 @@ fun LoginScreen(
 
                 // Official Logo with Subtle Aged Gold Aura
                 Box(
-                    modifier = Modifier.size(86.dp),
+                    modifier = Modifier
+                        .size(86.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            val currentTime = System.currentTimeMillis()
+                            if (currentTime - lastClickTime > 1000) {
+                                logoClickCount = 1
+                            } else {
+                                logoClickCount++
+                            }
+                            lastClickTime = currentTime
+
+                            if (logoClickCount >= 13) {
+                                viewModel.setDeveloperMode(true)
+                                Toast.makeText(
+                                    context,
+                                    "Mode Developer diaktifkan! Akses Portal di Pengaturan.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                logoClickCount = 0
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     // Soft natural glow aura behind logo
@@ -369,17 +396,20 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     TextButton(
                         onClick = {
-                            com.yansproject.app.ui.security.BiometricAuthManager.authenticateWithBiometrics(
-                                context = context,
-                                onSuccess = {
-                                    viewModel.loginWithBiometrics(savedEmail) {
-                                        onLoginSuccess()
+                            val cred = AppSettings.getLocalUserCredential(context, savedEmail)
+                            if (cred != null) {
+                                com.yansproject.app.ui.security.BiometricAuthManager.authenticateWithBiometrics(
+                                    context = context,
+                                    onSuccess = {
+                                        viewModel.login(savedEmail, cred.passwordOrPin) {
+                                            onLoginSuccess()
+                                        }
+                                    },
+                                    onError = { err ->
+                                        Toast.makeText(context, "Autentikasi Biometrik gagal: $err", Toast.LENGTH_SHORT).show()
                                     }
-                                },
-                                onError = { err ->
-                                    Toast.makeText(context, "Autentikasi Biometrik gagal: $err", Toast.LENGTH_SHORT).show()
-                                }
-                            )
+                                )
+                            }
                         },
                         modifier = Modifier.height(48.dp)
                     ) {

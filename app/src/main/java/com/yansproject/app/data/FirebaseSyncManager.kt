@@ -22,15 +22,6 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import androidx.room.withTransaction
 
-enum class SystemSyncState {
-    ONLINE_SYNCED,
-    OFFLINE_READY,
-    SYNC_PENDING,
-    SYNC_FAILED,
-    AUTH_REQUIRED,
-    RECOVERY_REQUIRED
-}
-
 enum class UserRole {
     OWNER, ADMIN, STAFF, RESELLER, MEMBER, CUSTOMER;
 
@@ -100,72 +91,47 @@ object FirebaseSyncManager {
     private val _syncStatus = MutableStateFlow<String>("Offline / Terhubung Lokal")
     val syncStatus: StateFlow<String> = _syncStatus.asStateFlow()
 
-    private val _systemSyncState = MutableStateFlow<SystemSyncState>(SystemSyncState.OFFLINE_READY)
-    val systemSyncState: StateFlow<SystemSyncState> = _systemSyncState.asStateFlow()
-
-    fun setSystemSyncState(state: SystemSyncState) {
-        _systemSyncState.value = state
-        _syncStatus.value = when (state) {
-            SystemSyncState.ONLINE_SYNCED -> "Online & Terhubung Cloud"
-            SystemSyncState.OFFLINE_READY -> "Offline & Siap Digunakan"
-            SystemSyncState.SYNC_PENDING -> "Menyinkronkan Data..."
-            SystemSyncState.SYNC_FAILED -> "Gagal Sinkronisasi Cloud"
-            SystemSyncState.AUTH_REQUIRED -> "Otentikasi Diperlukan"
-            SystemSyncState.RECOVERY_REQUIRED -> "Perlu Pemulihan Sistem"
-        }
-    }
-
-    @Volatile
-    private var initialized = false
-
     fun initialize(context: Context) {
-        if (initialized) return
-        synchronized(this) {
-            if (initialized) return
-            appContext = context.applicationContext
-            val googleAppIdId = context.resources.getIdentifier("google_app_id", "string", context.packageName)
-            if (googleAppIdId == 0) {
-                isFirebaseActive = false
-                _syncStatus.value = "Lokal & Offline Mode"
-                Log.w(TAG, "Firebase configuration (google-services.json) is missing. Running in Offline/Local Mode.")
-                // Check remember login session
-                checkStoredSession(context)
-                initialized = true
-                return
+        appContext = context.applicationContext
+        val googleAppIdId = context.resources.getIdentifier("google_app_id", "string", context.packageName)
+        if (googleAppIdId == 0) {
+            isFirebaseActive = false
+            _syncStatus.value = "Lokal & Offline Mode"
+            Log.w(TAG, "Firebase configuration (google-services.json) is missing. Running in Offline/Local Mode.")
+            // Check remember login session
+            checkStoredSession(context)
+            return
+        }
+
+        try {
+            // Safe initialization in case google-services.json is missing or incomplete
+            if (com.google.firebase.FirebaseApp.getApps(context).isEmpty()) {
+                com.google.firebase.FirebaseApp.initializeApp(context)
             }
+            
+            auth = FirebaseAuth.getInstance()
+            firestore = FirebaseFirestore.getInstance()
+            messaging = FirebaseMessaging.getInstance()
+            analytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(context)
 
-            try {
-                // Safe initialization in case google-services.json is missing or incomplete
-                if (com.google.firebase.FirebaseApp.getApps(context).isEmpty()) {
-                    com.google.firebase.FirebaseApp.initializeApp(context)
-                }
-                
-                auth = FirebaseAuth.getInstance()
-                firestore = FirebaseFirestore.getInstance()
-                messaging = FirebaseMessaging.getInstance()
-                analytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(context)
+            // Enable Offline Persistence for Firestore with Bounded 100MB Cache Size
+            @Suppress("DEPRECATION")
+            val settings = FirebaseFirestoreSettings.Builder()
+                .setPersistenceEnabled(true)
+                .setCacheSizeBytes(100 * 1024 * 1024L) // 100MB bounded offline cache
+                .build()
+            firestore?.firestoreSettings = settings
 
-                // Enable Offline Persistence for Firestore with Bounded 100MB Cache Size
-                @Suppress("DEPRECATION")
-                val settings = FirebaseFirestoreSettings.Builder()
-                    .setPersistenceEnabled(true)
-                    .setCacheSizeBytes(100 * 1024 * 1024L) // 100MB bounded offline cache
-                    .build()
-                firestore?.firestoreSettings = settings
+            isFirebaseActive = true
+            _syncStatus.value = "Cloud Sync Aktif (Offline Persistence Enabled)"
+            Log.d(TAG, "Firebase initialized successfully with offline persistence.")
 
-                isFirebaseActive = true
-                _syncStatus.value = "Cloud Sync Aktif (Offline Persistence Enabled)"
-                Log.d(TAG, "Firebase initialized successfully with offline persistence.")
-
-                // Check remember login session
-                checkStoredSession(context)
-            } catch (e: Exception) {
-                isFirebaseActive = false
-                _syncStatus.value = "Lokal & Offline Mode"
-                Log.w(TAG, "Firebase failed to initialize (running in Offline/Local Mode): ${e.message}")
-            } finally {
-                initialized = true
-            }
+            // Check remember login session
+            checkStoredSession(context)
+        } catch (e: Exception) {
+            isFirebaseActive = false
+            _syncStatus.value = "Lokal & Offline Mode"
+            Log.w(TAG, "Firebase failed to initialize (running in Offline/Local Mode): ${e.message}")
         }
     }
 
@@ -395,7 +361,7 @@ object FirebaseSyncManager {
                             "created_at" to System.currentTimeMillis()
                         )
                         firestore?.collection("users")?.document(targetEmail)?.set(adminData)?.await()
-                        Log.d(TAG, "Created missing Firestore document for owner yansproject.id31@gmail.com")
+                        Log.d(TAG, "Created missing Firestore document for owner yansart31@gmail.com")
                     }
                 } catch (fe: Exception) {
                     Log.e(TAG, "Failed to fetch user details from Firestore: ${fe.message}. Falling back to default/local parameters.")
@@ -459,39 +425,6 @@ object FirebaseSyncManager {
                 }
             }
         }
-    }
-
-    suspend fun unlockWithBiometrics(context: Context, savedEmail: String): Boolean {
-        val cleanEmail = savedEmail.trim().lowercase()
-        val targetEmail = if (cleanEmail.contains("@")) cleanEmail else "$cleanEmail@yansproject.id"
-        val sharedPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
-        val secPrefs = context.getSharedPreferences("yans_security_prefs", Context.MODE_PRIVATE)
-
-        val isBioEnabled = secPrefs.getBoolean("biometric_enabled", false)
-        if (!isBioEnabled) return false
-
-        val lastSavedEmail = sharedPrefs.getString("saved_email", "")?.lowercase()?.trim() ?: ""
-        val savedRoleStr = sharedPrefs.getString("saved_role", "MEMBER") ?: "MEMBER"
-        val savedName = sharedPrefs.getString("saved_name", "") ?: ""
-        val savedCategory = sharedPrefs.getString("saved_price_category", "Retail") ?: "Retail"
-        val savedWa = sharedPrefs.getString("saved_whatsapp", "") ?: ""
-        val savedAddr = sharedPrefs.getString("saved_address", "") ?: ""
-        val savedUid = sharedPrefs.getString("saved_uid", "") ?: ""
-
-        val role = try { UserRole.valueOf(savedRoleStr.uppercase()) } catch (e: Exception) { UserRole.MEMBER }
-        val effectiveEmail = if (lastSavedEmail.isNotBlank()) lastSavedEmail else targetEmail
-
-        saveSession(
-            context = context,
-            email = effectiveEmail,
-            role = role,
-            displayName = savedName.ifBlank { effectiveEmail.substringBefore("@") },
-            priceCategory = savedCategory,
-            whatsapp = savedWa,
-            address = savedAddr,
-            uid = savedUid
-        )
-        return true
     }
 
     suspend fun registerMemberOnCloud(
@@ -559,10 +492,10 @@ object FirebaseSyncManager {
                 "role" to role,
                 "displayName" to displayName,
                 "priceCategory" to priceCategory,
+                "passwordOrPin" to passwordOrPin,
                 "whatsapp" to whatsapp,
                 "address" to address,
-                "created_at" to System.currentTimeMillis(),
-                "ownerUid" to (createdUser?.uid ?: _currentUser.value?.uid ?: "")
+                "created_at" to System.currentTimeMillis()
             )
             
             try {
@@ -611,18 +544,19 @@ object FirebaseSyncManager {
             }
 
             val userRef = firestore?.collection("users")?.document(cleanEmail)
-            val collisionUserData = hashMapOf(
+            val userData = hashMapOf(
                 "email" to cleanEmail,
                 "role" to role,
                 "displayName" to displayName,
                 "priceCategory" to priceCategory,
+                "passwordOrPin" to passwordOrPin,
                 "whatsapp" to whatsapp,
                 "address" to address,
                 "created_at" to System.currentTimeMillis()
             )
             
             try {
-                userRef?.set(collisionUserData)?.await()
+                userRef?.set(userData)?.await()
                 Log.d(TAG, "Firestore document written successfully after collision recovery.")
             } catch (fe: Exception) {
                 Log.e(TAG, "Firestore write failed during collision recovery: ${fe.message}")
@@ -706,11 +640,10 @@ object FirebaseSyncManager {
                     Log.w(TAG, "Recent login required to update Firebase Auth password. Attempting re-auth...")
                     val oldCred = AppSettings.getLocalUserCredential(context, cleanEmail)
                     val oldPass = oldCred?.passwordOrPin
-                    val userEmail = fbUser.email
-                    if (oldPass != null && userEmail != null) {
+                    if (oldPass != null && fbUser.email != null) {
                         try {
                             val oldFbPass = if (oldPass.length < 6) "yans_$oldPass" else oldPass
-                            val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(userEmail, oldFbPass)
+                            val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(fbUser.email!!, oldFbPass)
                             fbUser.reauthenticate(credential).await()
                             fbUser.updatePassword(firebasePassword).await()
                             authSuccess = true
@@ -890,93 +823,6 @@ object FirebaseSyncManager {
         }
     }
 
-    suspend fun syncUserProfileToCloud(
-        uid: String,
-        email: String,
-        displayName: String,
-        role: String,
-        whatsapp: String,
-        address: String,
-        priceCategory: String
-    ): Boolean {
-        if (!isFirebaseActive || firestore == null) return true
-        return try {
-            val cleanEmail = email.trim().lowercase()
-            val data = mapOf(
-                "uid" to uid,
-                "email" to cleanEmail,
-                "displayName" to displayName,
-                "role" to role,
-                "whatsapp" to whatsapp,
-                "address" to address,
-                "priceCategory" to priceCategory,
-                "updated_at" to System.currentTimeMillis()
-            )
-            firestore?.collection("users")?.document(cleanEmail)
-                ?.set(data, com.google.firebase.firestore.SetOptions.merge())?.await()
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed syncing user profile to cloud: ${e.message}", e)
-            false
-        }
-    }
-
-    suspend fun syncBusinessProfileToCloud(
-        storeName: String,
-        address: String,
-        whatsapp: String,
-        email: String,
-        bankAccount: String,
-        bankName: String,
-        bankHolder: String
-    ): Boolean {
-        if (!isFirebaseActive || firestore == null) return true
-        return try {
-            val data = mapOf(
-                "storeName" to storeName,
-                "address" to address,
-                "whatsapp" to whatsapp,
-                "email" to email,
-                "bankAccount" to bankAccount,
-                "bankName" to bankName,
-                "bankHolder" to bankHolder,
-                "updated_at" to System.currentTimeMillis()
-            )
-            firestore?.collection("system_config")?.document("business_profile")
-                ?.set(data, com.google.firebase.firestore.SetOptions.merge())?.await()
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed syncing business profile to cloud: ${e.message}", e)
-            false
-        }
-    }
-
-    suspend fun pullBusinessProfileFromCloud(context: Context) {
-        if (!isFirebaseActive || firestore == null) return
-        try {
-            val snapshot = firestore?.collection("system_config")?.document("business_profile")?.get()?.await()
-            if (snapshot != null && snapshot.exists()) {
-                val storeName = snapshot.getString("storeName")
-                val address = snapshot.getString("address")
-                val whatsapp = snapshot.getString("whatsapp")
-                val email = snapshot.getString("email")
-                val bankAccount = snapshot.getString("bankAccount")
-                val bankName = snapshot.getString("bankName")
-                val bankHolder = snapshot.getString("bankHolder")
-
-                if (!storeName.isNullOrBlank()) AppSettings.setStoreName(context, storeName)
-                if (!address.isNullOrBlank()) AppSettings.setAddress(context, address)
-                if (!whatsapp.isNullOrBlank()) AppSettings.setWhatsApp(context, whatsapp)
-                if (!email.isNullOrBlank()) AppSettings.setEmail(context, email)
-                if (!bankAccount.isNullOrBlank()) AppSettings.setAccountNumber(context, bankAccount)
-                if (!bankName.isNullOrBlank()) AppSettings.setBankName(context, bankName)
-                if (!bankHolder.isNullOrBlank()) AppSettings.setAccountHolder(context, bankHolder)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed pulling business profile from cloud: ${e.message}", e)
-        }
-    }
-
     fun syncPreferencesToCloud(context: Context, category: String, data: Map<String, Any>) {
         val userEmail = currentUser.value?.email?.trim()?.lowercase() ?: return
         if (userEmail.isBlank()) return
@@ -1086,13 +932,12 @@ object FirebaseSyncManager {
             isActive = true
         )
 
-        val fs = firestore
-        if (!isFirebaseActive || fs == null) {
+        if (!isFirebaseActive || firestore == null) {
             return listOf(currentSession)
         }
 
         return try {
-            val sessionRef = fs.collection("users").document(cleanEmail).collection("active_sessions")
+            val sessionRef = firestore!!.collection("users").document(cleanEmail).collection("active_sessions")
 
             val currentMap = mapOf(
                 "device_id" to currentDeviceId,
@@ -1149,13 +994,12 @@ object FirebaseSyncManager {
         val userPrefs = context.getSharedPreferences("yans_user_prefs_${cleanEmail}", Context.MODE_PRIVATE)
         userPrefs.edit().putBoolean("other_devices_logged_out", true).apply()
 
-        val fs = firestore
-        if (!isFirebaseActive || fs == null) {
+        if (!isFirebaseActive || firestore == null) {
             return Pair(true, "Koneksi sesi lain berhasil diputuskan secara lokal!")
         }
 
         return try {
-            val sessionRef = fs.collection("users").document(cleanEmail).collection("active_sessions")
+            val sessionRef = firestore!!.collection("users").document(cleanEmail).collection("active_sessions")
             val snapshots = sessionRef.get().await()
             var revokedCount = 0
 
@@ -1171,7 +1015,7 @@ object FirebaseSyncManager {
                 }
             }
 
-            fs.collection("users").document(cleanEmail).set(
+            firestore!!.collection("users").document(cleanEmail).set(
                 mapOf("last_sessions_revoked_at" to System.currentTimeMillis()),
                 com.google.firebase.firestore.SetOptions.merge()
             ).await()
@@ -1190,94 +1034,9 @@ object FirebaseSyncManager {
         
         stopActiveDashboardListener()
 
-        val db = AppDatabase.getDatabase(context)
-        val scope = CoroutineScope(Dispatchers.IO)
-
-        // Read-optimized lightweight query for recent invoices
-        val invoiceReg = firestore?.collection("invoices")
-            ?.orderBy("issueDate", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            ?.addSnapshotListener { snapshots, e ->
-                if (e != null || snapshots == null) return@addSnapshotListener
-                scope.launch {
-                    for (doc in snapshots.documentChanges) {
-                        try {
-                            val item = doc.document.toObject(Invoice::class.java)
-                            if (item != null) {
-                                val local = if (item.invoiceNumber.isNotBlank()) {
-                                    db.invoiceDao().getInvoiceByNumber(item.invoiceNumber)
-                                } else {
-                                    db.invoiceDao().getInvoiceById(item.id)
-                                }
-
-                                when (doc.type) {
-                                    com.google.firebase.firestore.DocumentChange.Type.ADDED,
-                                    com.google.firebase.firestore.DocumentChange.Type.MODIFIED -> {
-                                        if (item.isDeleted) {
-                                            if (local != null) db.invoiceDao().deleteInvoice(local)
-                                        } else {
-                                            if (local != null) {
-                                                val updated = item.copy(id = local.id)
-                                                db.invoiceDao().insertInvoice(updated)
-                                            } else {
-                                                db.invoiceDao().insertInvoice(item.copy(id = 0))
-                                            }
-                                        }
-                                    }
-                                    com.google.firebase.firestore.DocumentChange.Type.REMOVED -> {
-                                        if (local != null) db.invoiceDao().deleteInvoice(local)
-                                        if (item.invoiceNumber.isNotBlank()) {
-                                            db.invoiceDao().deleteInvoiceByNumber(item.invoiceNumber)
-                                        }
-                                    }
-                                }
-                                try {
-                                    val repo = BusinessRepository(db)
-                                    repo.deductStockForInvoice(item)
-                                    repo.updateSummariesForInvoice(item)
-                                    repo.reconcileAllInventorySummaries()
-                                } catch (e: Exception) {
-                                    Log.w("FirebaseSyncManager", "Error updating local summaries on invoice change: ${e.message}")
-                                }
-                            }
-                        } catch (ex: Exception) {
-                            Log.e("FirebaseSyncManager", "Active invoice listen error: ${ex.message}")
-                        }
-                    }
-                    onUpdate()
-                }
-            }
-
-        // Read-optimized lightweight query for recent orders (limit 30)
-        val orderReg = firestore?.collection("orders")
-            ?.orderBy("id", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            ?.limit(30)
-            ?.addSnapshotListener { snapshots, e ->
-                if (e != null || snapshots == null) return@addSnapshotListener
-                scope.launch {
-                    for (doc in snapshots.documentChanges) {
-                        try {
-                            val item = doc.document.toObject(OrderHistory::class.java)
-                            if (item != null) {
-                                when (doc.type) {
-                                    com.google.firebase.firestore.DocumentChange.Type.ADDED,
-                                    com.google.firebase.firestore.DocumentChange.Type.MODIFIED -> {
-                                        db.orderDao().insertOrder(item)
-                                    }
-                                    com.google.firebase.firestore.DocumentChange.Type.REMOVED -> {
-                                        db.orderDao().deleteOrder(item)
-                                    }
-                                }
-                            }
-                        } catch (ex: Exception) {
-                            Log.e("FirebaseSyncManager", "Active order listen error: ${ex.message}")
-                        }
-                    }
-                    onUpdate()
-                }
-            }
-
-        if (invoiceReg != null) activeDashboardListenerRegs.add(invoiceReg)
-        if (orderReg != null) activeDashboardListenerRegs.add(orderReg)
+        // Ensure enterprise central sync engine is actively maintaining all collections
+        EnterpriseSyncEngine.startRealtimeSyncListeners(context)
+        onUpdate()
     }
 
     fun stopActiveDashboardListener() {
@@ -1349,8 +1108,6 @@ object FirebaseSyncManager {
                             try {
                                 val repo = BusinessRepository(db)
                                 repo.updateSummariesForInvoice(item)
-                                repo.deductStockForInvoice(item)
-                                repo.reconcileAllInventorySummaries()
                             } catch (e: Exception) {
                                 Log.w(TAG, "Failed updating summaries for synced invoice: ${e.message}")
                             }
@@ -1965,39 +1722,32 @@ object FirebaseSyncManager {
     }
 
     fun updateFcmTokenInCloud(context: Context, token: String) {
-        val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
-        authPrefs.edit().putString("fcm_token", token).putString("pending_fcm_token", token).apply()
-
         if (!isFirebaseActive) return
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val currentUid = com.yansproject.app.ui.AuthoritativeSessionManager.sessionState.value.uid.ifBlank { currentUser.value?.uid ?: "" }
-                val savedEmail = authPrefs.getString("saved_email", "")?.trim()?.lowercase() ?: currentUser.value?.email ?: ""
-                val savedName = authPrefs.getString("saved_name", "")?.trim() ?: currentUser.value?.displayName ?: ""
-                val userRole = authPrefs.getString("user_role", "MEMBER") ?: currentUser.value?.role?.name ?: "MEMBER"
+                val authPrefs = context.getSharedPreferences("yans_auth_prefs", Context.MODE_PRIVATE)
+                val savedEmail = authPrefs.getString("saved_email", "")?.trim()?.lowercase() ?: ""
+                val savedName = authPrefs.getString("saved_name", "")?.trim() ?: ""
+                val userRole = authPrefs.getString("user_role", "MEMBER") ?: "MEMBER"
 
-                val docKey = if (savedEmail.isNotBlank()) savedEmail else if (currentUid.isNotBlank()) currentUid else "logged_in_user"
+                authPrefs.edit().putString("fcm_token", token).apply()
 
-                val tokenDoc = hashMapOf(
-                    "uid" to currentUid,
-                    "recipientUid" to currentUid,
-                    "email" to savedEmail,
-                    "name" to savedName,
-                    "role" to userRole,
-                    "fcmToken" to token,
-                    "lastUpdated" to System.currentTimeMillis()
-                )
+                if (savedEmail.isNotBlank()) {
+                    val tokenDoc = hashMapOf(
+                        "email" to savedEmail,
+                        "name" to savedName,
+                        "role" to userRole,
+                        "fcmToken" to token,
+                        "lastUpdated" to System.currentTimeMillis()
+                    )
 
-                firestore?.collection("fcm_tokens")
-                    ?.document(docKey)
-                    ?.set(tokenDoc, com.google.firebase.firestore.SetOptions.merge())
-                    ?.addOnSuccessListener {
-                        Log.d(TAG, "FCM Token registered in Cloud for $docKey [uid=$currentUid]")
-                        authPrefs.edit().remove("pending_fcm_token").apply()
-                    }
-                    ?.addOnFailureListener { e ->
-                        Log.w(TAG, "FCM Token Cloud sync failed, stored in pending_fcm_token for retry: ${e.message}")
-                    }
+                    firestore?.collection("fcm_tokens")
+                        ?.document(savedEmail)
+                        ?.set(tokenDoc, com.google.firebase.firestore.SetOptions.merge())
+                        ?.addOnSuccessListener {
+                            Log.d(TAG, "FCM Token registered in Cloud for $savedEmail")
+                        }
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update FCM token in Cloud: ${e.message}")
             }

@@ -58,12 +58,8 @@ data class MemberModel(
     val createdAt: Long = 0L,
     val lastLogin: Long = 0L,
     val statusAkun: String = "Aktif",
-    val statusVerifikasi: String = "Terverifikasi",
-    val memberUid: String = ""
-) {
-    val effectiveUid: String
-        get() = memberUid.ifBlank { email.lowercase().trim() }
-}
+    val statusVerifikasi: String = "Terverifikasi"
+)
 
 data class MemberAjibqobulAnalytics(
     val totalInvoiceCount: Int = 0,

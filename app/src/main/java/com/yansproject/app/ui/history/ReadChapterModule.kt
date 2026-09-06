@@ -132,10 +132,12 @@ fun ReadChapterScreen(
                     // Tombol Bookmark
                     IconButton(
                         onClick = {
-                            val newBookmarkState = !isBookmarked
-                            isBookmarked = newBookmarkState
-                            com.yansproject.app.data.KitabReadingProgressManager.toggleBookmark(context, currentBabId, newBookmarkState)
-                            val msg = if (newBookmarkState) "Halaman ditambahkan ke Bookmark!" else "Bookmark dihapus!"
+                            isBookmarked = !isBookmarked
+                            prefs.edit()
+                                .putBoolean("bm_${activeUserId}_${currentBabId}", isBookmarked)
+                                .putBoolean("${currentBabId}_bookmarked", isBookmarked)
+                                .apply()
+                            val msg = if (isBookmarked) "Halaman ditambahkan ke Bookmark!" else "Bookmark dihapus!"
                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                         }
                     ) {

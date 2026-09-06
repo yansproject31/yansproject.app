@@ -15,9 +15,5 @@ data class OfflineActionEntity(
     val replayHash: String = "",
     val version: Int = 1,
     val userId: String = "",
-    val checksum: String = "",
-    val queueVersion: Int = 1,
-    val payloadVersion: Int = 1,
-    val schemaVersion: Int = 1,
-    val status: String = "PENDING"
+    val checksum: String = ""
 )
